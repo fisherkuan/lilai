@@ -577,12 +577,28 @@ function displayEvents(options = {}) {
     }
 }
 
+// Human-readable duration between start and end (e.g. "3 hrs", "1 hr 30 min", "45 min").
+function formatDuration(start, end) {
+    const ms = end - start;
+    if (!Number.isFinite(ms) || ms <= 0) return '';
+    const totalMinutes = Math.round(ms / 60000);
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+    const parts = [];
+    if (hours) parts.push(`${hours} hr${hours > 1 ? 's' : ''}`);
+    if (minutes) parts.push(`${minutes} min`);
+    return parts.join(' ');
+}
+
 function renderEventCard(event, { isPast, isToday }) {
     const eventDate = new Date(event.date);
     const dayNum = String(eventDate.getDate()).padStart(2, '0');
     const monthAbbr = eventDate.toLocaleDateString('en-US', { month: 'short' });
     const weekdayAbbr = eventDate.toLocaleDateString('en-US', { weekday: 'short' });
     const timeStr = eventDate.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: false });
+    // Postgres folds the unquoted endDate column to lowercase, so accept either casing.
+    const endRaw = event.endDate || event.enddate || null;
+    const durationStr = endRaw ? formatDuration(eventDate, new Date(endRaw)) : '';
 
     const sanitizedEventId = escapeAttribute(event.id);
     const sanitizedTitle = escapeHtml(event.title);
@@ -646,6 +662,7 @@ function renderEventCard(event, { isPast, isToday }) {
 
     const metaParts = [];
     if (locationText) metaParts.push(`<span>📍 ${sanitizedLocation}</span>`);
+    if (durationStr) metaParts.push(`<span>⏱ ${escapeHtml(durationStr)}</span>`);
     if (eventLink) metaParts.push(`<span>🔗 <a href="${escapeAttribute(eventLink)}" target="_blank" rel="noopener noreferrer">Link</a></span>`);
     if (chipHtml) metaParts.push(chipHtml);
     const metaHtml = metaParts.join('');
