@@ -636,7 +636,7 @@ function renderEventCard(event, { isPast, isToday }) {
     if (isPast) {
         sideContent = `
             <div class="attend-meter">
-                <span class="attendance-count"><span class="num">${attendingCount}</span> attended</span>
+                <span class="attendance-count" title="${attendeesAttr}" tabindex="0" role="button" aria-label="${escapeHtml(attendingCount + ' attended')}. View attendees."><span class="num">${attendingCount}</span> attended</span>
             </div>
         `;
     } else {
