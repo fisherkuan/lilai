@@ -1,4 +1,4 @@
-const CACHE_NAME = 'event-attendance-app-cache-v6'; // Bumped version
+const CACHE_NAME = 'lilai-cache-v7'; // Bumped version
 const urlsToCache = [
   '/',
   '/index.html',

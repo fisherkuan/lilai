@@ -1,4 +1,4 @@
-# Event Attendance App
+# Lilai
 
 A modern web application for managing event RSVPs with Google Calendar integration. This app allows attendees to RSVP to events while giving hosts visibility into expected attendance counts.
 
@@ -29,7 +29,7 @@ A modern web application for managing event RSVPs with Google Calendar integrati
 ## Project Structure
 
 ```
-event-attendance-app/
+lilai/
 ├── public/                 # Frontend assets
 │   ├── index.html         # Main HTML file
 │   ├── app.js            # Frontend JavaScript
