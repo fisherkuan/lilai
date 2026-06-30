@@ -1,5 +1,5 @@
 {
-  "name": "event-attendance-app",
+  "name": "lilai",
   "version": "1.0.0",
   "description": "A web application for RSVP management with Google Calendar integration",
   "main": "server/app.js",
