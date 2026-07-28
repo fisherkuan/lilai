@@ -121,6 +121,12 @@ function initializeApp() {
         setupWebSocket();
         loadEvents();
     }).catch(err => console.error('Init error:', err));
+
+    // Card width changes with the viewport, so re-measure which descriptions clamp.
+    window.addEventListener('resize', debounce(syncDescriptionToggles, 150));
+    if (document.fonts && document.fonts.ready) {
+        document.fonts.ready.then(syncDescriptionToggles);
+    }
 }
 
 // ---------- Config ----------
@@ -511,9 +517,13 @@ async function loadOlderEvents(options = {}) {
 
 // ---------- Render events ----------
 function displayEvents(options = {}) {
-    const selectedIds = Array.from(document.querySelectorAll('.calendar-checkbox:checked')).map(c => c.value);
+    const checkboxes = Array.from(document.querySelectorAll('.calendar-checkbox'));
+    const selectedIds = checkboxes.filter(c => c.checked).map(c => c.value);
+    const noneSelected = checkboxes.length > 0 && selectedIds.length === 0;
     let filtered = currentEvents;
-    if (selectedIds.length > 0 && appConfig.calendars && selectedIds.length < appConfig.calendars.filter(c => c.enabled).length) {
+    // All boxes ticked = no filtering, so events without a source (created via admin)
+    // stay visible. Any partial selection — including none — filters strictly.
+    if (checkboxes.length > 0 && selectedIds.length < checkboxes.length) {
         filtered = currentEvents.filter(e => selectedIds.includes(e.source));
     }
 
@@ -527,7 +537,9 @@ function displayEvents(options = {}) {
     }
 
     if (filtered.length === 0) {
-        eventsList.innerHTML = '<p class="no-events">No events to show.</p>';
+        eventsList.innerHTML = noneSelected
+            ? '<p class="no-events">No calendars selected.</p>'
+            : '<p class="no-events">No events to show.</p>';
         return;
     }
 
@@ -562,6 +574,10 @@ function displayEvents(options = {}) {
 
     eventsList.innerHTML = pieces.join('');
 
+    // The description is line-clamped by CSS, so only measurement can tell whether
+    // "Show more" is needed — character counts guess wrong at narrow widths.
+    requestAnimationFrame(syncDescriptionToggles);
+
     // Wire up load-earlier
     const loadBtn = eventsList.querySelector('.load-earlier-btn');
     if (loadBtn) loadBtn.addEventListener('click', loadOlderEvents);
@@ -575,6 +591,21 @@ function displayEvents(options = {}) {
             });
         }
     }
+}
+
+// Show "Show more" only on descriptions the CSS line-clamp actually truncates.
+// Expanded cards keep their toggle: unclamped text always measures as non-overflowing.
+function syncDescriptionToggles() {
+    eventsList.querySelectorAll('.event-card').forEach(card => {
+        const desc = card.querySelector('.event-desc');
+        const toggle = card.querySelector('.event-desc-toggle');
+        if (!desc || !toggle) return;
+        if (card.classList.contains('expanded')) {
+            toggle.hidden = false;
+            return;
+        }
+        toggle.hidden = desc.scrollHeight <= desc.clientHeight + 1;
+    });
 }
 
 // Human-readable duration between start and end (e.g. "3 hrs", "1 hr 30 min", "45 min").
@@ -684,7 +715,7 @@ function renderEventCard(event, { isPast, isToday }) {
                 <div class="event-meta meta">${metaHtml}</div>
                 ${descriptionText ? `
                     <p class="event-description event-desc">${sanitizedDescription}</p>
-                    ${descriptionText.length > 180 ? `<button type="button" class="event-desc-toggle" aria-expanded="false">Show more</button>` : ''}
+                    <button type="button" class="event-desc-toggle" aria-expanded="false" hidden>Show more</button>
                 ` : ''}
             </div>
             <div class="event-side">
@@ -866,6 +897,8 @@ function setupEventListeners() {
                 const expanded = card.classList.toggle('expanded');
                 toggle.textContent = expanded ? 'Show less' : 'Show more';
                 toggle.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+                // Collapsing may reveal that the text now fits (card widened while open).
+                if (!expanded) syncDescriptionToggles();
             }
             return;
         }
