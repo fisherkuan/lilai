@@ -23,7 +23,24 @@ function debounce(func, wait, immediate) {
     };
 }
 
-const BALANCE_BAR_RANGE = 100; // euros on each side of zero
+const BALANCE_BAR_MIN_RANGE = 100; // smallest half-width of the bar, in euros
+
+// Round up to the next 1/2/5 × 10ⁿ so the axis labels stay round numbers.
+function niceRange(value) {
+    if (!(value > 0)) return BALANCE_BAR_MIN_RANGE;
+    const magnitude = Math.pow(10, Math.floor(Math.log10(value)));
+    for (const step of [1, 2, 5]) {
+        const candidate = step * magnitude;
+        if (candidate >= value) return candidate;
+    }
+    return 10 * magnitude;
+}
+
+// The bar spans ±range around zero. Growing the range with the balance keeps the
+// fill off the end stop and keeps the axis labels honest about the scale.
+function balanceBarRange(balance) {
+    return Math.max(BALANCE_BAR_MIN_RANGE, niceRange(Math.abs(balance)));
+}
 
 document.addEventListener('DOMContentLoaded', () => {
     loadDonations();
@@ -34,12 +51,13 @@ document.addEventListener('DOMContentLoaded', () => {
 function renderBalanceBar(balance) {
     const fill = document.getElementById('donation-progress-fill');
     if (!fill) return;
+    const range = balanceBarRange(balance);
     const min = document.getElementById('balance-bar-min');
     const max = document.getElementById('balance-bar-max');
-    if (min) min.textContent = `−€${BALANCE_BAR_RANGE}`;
-    if (max) max.textContent = `+€${BALANCE_BAR_RANGE}`;
-    const clamped = Math.max(-BALANCE_BAR_RANGE, Math.min(BALANCE_BAR_RANGE, balance));
-    const magnitudePct = Math.abs(clamped) / BALANCE_BAR_RANGE * 50;
+    if (min) min.textContent = `−€${range}`;
+    if (max) max.textContent = `+€${range}`;
+    const clamped = Math.max(-range, Math.min(range, balance));
+    const magnitudePct = Math.abs(clamped) / range * 50;
     if (clamped >= 0) {
         fill.style.left = '50%';
         fill.style.right = 'auto';
