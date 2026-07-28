@@ -272,6 +272,24 @@ label {
     margin-top: 6px;
 }
 .form-group { margin-bottom: var(--s-4); }
+.field-label-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--s-3);
+}
+.text-link-btn {
+    appearance: none;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--accent);
+    font: inherit;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+}
+.text-link-btn:hover { color: var(--accent-hover); text-decoration: underline; }
 .form-actions {
     display: flex;
     justify-content: flex-end;

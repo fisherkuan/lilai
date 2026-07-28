@@ -16,6 +16,34 @@ function debounce(func, wait, immediate) {
     };
 }
 
+// ---------- Remembered attendee name ----------
+// A convenience only: it saves retyping and never gates anything. Anyone can still
+// RSVP or cancel under any name — see the trust model this app is built on.
+const ATTENDEE_NAME_KEY = 'lilai.attendeeName';
+
+// localStorage throws in Safari private browsing and when storage is disabled, so
+// every access is guarded — a browser without it simply behaves as it always did.
+function getRememberedName() {
+    try {
+        const stored = localStorage.getItem(ATTENDEE_NAME_KEY);
+        return stored ? stored.trim() : '';
+    } catch (_) {
+        return '';
+    }
+}
+
+function rememberName(name) {
+    try {
+        localStorage.setItem(ATTENDEE_NAME_KEY, name);
+    } catch (_) { /* not fatal — the name just won't persist */ }
+}
+
+function forgetName() {
+    try {
+        localStorage.removeItem(ATTENDEE_NAME_KEY);
+    } catch (_) { /* nothing to clean up */ }
+}
+
 function escapeHtml(value) {
     if (value === null || value === undefined) return '';
     return String(value)
@@ -738,7 +766,18 @@ function openRsvpModal(eventId) {
     });
     const desc = typeof event.description === 'string' ? event.description : '';
     document.getElementById('modal-event-description').innerHTML = escapeHtml(desc).replace(/\n/g, '<br>');
-    setTimeout(() => { document.getElementById('attendee-name').focus(); }, 50);
+
+    // Pre-fill the remembered name and select it, so overtyping is a single action.
+    const nameInput = document.getElementById('attendee-name');
+    const remembered = getRememberedName();
+    nameInput.value = remembered;
+    const forgetBtn = document.getElementById('forget-name-btn');
+    if (forgetBtn) forgetBtn.hidden = !remembered;
+
+    setTimeout(() => {
+        nameInput.focus();
+        if (remembered) nameInput.select();
+    }, 50);
 }
 
 function closeRsvpModal() {
@@ -766,6 +805,13 @@ function openRemoveRsvpModal(eventId) {
         option.textContent = name;
         selector.appendChild(option);
     });
+
+    // Default to whoever this browser last RSVP'd as. Everyone else stays selectable —
+    // this is a starting point, not a restriction.
+    const remembered = getRememberedName();
+    if (remembered && (event.attendees || []).includes(remembered)) {
+        selector.value = remembered;
+    }
 }
 
 function closeRemoveRsvpModal() {
@@ -800,6 +846,7 @@ function submitRsvp(action) {
         textEl.textContent = originalText;
         if (result.success) {
             if (navigator.vibrate) navigator.vibrate(30);
+            rememberName(attendeeName);
             closeRsvpModal();
             showToast('RSVP confirmed', 'success');
         } else {
@@ -937,6 +984,18 @@ function setupEventListeners() {
             return;
         }
     });
+
+    // "Not you?" — drop the remembered name and start typing from empty.
+    const forgetBtn = document.getElementById('forget-name-btn');
+    if (forgetBtn) {
+        forgetBtn.addEventListener('click', () => {
+            forgetName();
+            const nameInput = document.getElementById('attendee-name');
+            nameInput.value = '';
+            forgetBtn.hidden = true;
+            nameInput.focus();
+        });
+    }
 
     document.addEventListener('click', (e) => {
         if (activeTooltip && !e.target.closest('.attendance-count') && !e.target.closest('.attendee-tooltip')) {
