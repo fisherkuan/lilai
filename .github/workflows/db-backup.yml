@@ -1,0 +1,44 @@
+name: Weekly database backup
+
+# Supabase free tier has no automatic backups. This dumps the database
+# weekly and stores it as an encrypted workflow artifact (90 days).
+# The repo is public, so the dump is GPG-encrypted before upload.
+# To restore: download the artifact, then
+#   gpg --decrypt --batch --passphrase "$BACKUP_PASSPHRASE" lilai-db-backup.sql.gz.gpg | gunzip | psql "$SUPABASE_DB_URL"
+on:
+  schedule:
+    - cron: '43 3 * * 1'
+  workflow_dispatch:
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install PostgreSQL 18 client
+        run: |
+          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+          sudo apt-get install -y postgresql-client-18
+
+      - name: Dump the database
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          /usr/lib/postgresql/18/bin/pg_dump "$SUPABASE_DB_URL" \
+            --no-owner --no-acl -n public \
+            | gzip > lilai-db-backup.sql.gz
+
+      - name: Encrypt the dump
+        env:
+          BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: |
+          gpg --batch --symmetric --cipher-algo AES256 \
+            --passphrase "$BACKUP_PASSPHRASE" \
+            -o lilai-db-backup.sql.gz.gpg lilai-db-backup.sql.gz
+          rm lilai-db-backup.sql.gz
+
+      - name: Upload encrypted backup artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: lilai-db-backup-${{ github.run_id }}
+          path: lilai-db-backup.sql.gz.gpg
+          retention-days: 90
