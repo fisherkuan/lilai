@@ -38,6 +38,7 @@ let calendarCache = {
     events: [],
     lastFetch: 0
 };
+let lastSyncedFetch = 0; // calendarCache.lastFetch generation already synced to the DB
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
 // Database connection
@@ -457,9 +458,16 @@ app.get('/api/events', async (req, res) => {
     try {
         const timeRange = req.query.timeRange || appConfig.events.defaultTimeRange;
 
-        if (appConfig.events.autoFetch) {
+        // Sync at most once per calendar refresh — within the cache TTL the DB
+        // already reflects the feed, so those requests skip the write path.
+        // "Stale cache" must enter too: getCachedCalendarEvents() is what
+        // refreshes the cache in the first place.
+        const cacheIsStale = Date.now() - calendarCache.lastFetch > CACHE_TTL;
+        if (appConfig.events.autoFetch && (cacheIsStale || calendarCache.lastFetch !== lastSyncedFetch)) {
             const calendarEvents = await getCachedCalendarEvents();
-            const calendarEventIds = new Set(calendarEvents.map(e => e.id));
+            // Snapshot the generation this request is about to write; a
+            // concurrent refresh mid-sync must not be marked synced by us.
+            const syncedGeneration = calendarCache.lastFetch;
 
             await client.query('BEGIN');
 
@@ -469,6 +477,9 @@ app.get('/api/events', async (req, res) => {
                 const existingEventsResult = await client.query('SELECT id, attendance_limit FROM events');
                 const existingEventsMap = new Map(existingEventsResult.rows.map(row => [row.id, row]));
 
+                // Dedupe by id (last wins, like the per-row upserts did) — a
+                // repeated id in one multi-row INSERT is a Postgres error.
+                const rowsById = new Map();
                 for (const event of calendarEvents) {
                     let finalAttendanceLimit;
                     const existingEvent = existingEventsMap.get(event.id);
@@ -476,31 +487,39 @@ app.get('/api/events', async (req, res) => {
                     if (event.attendance_limit_from_description !== undefined) {
                         // Limit was explicitly specified in the description (a number)
                         finalAttendanceLimit = event.attendance_limit_from_description;
+                    } else if (existingEvent) {
+                        // Preserve existing limit if event already exists
+                        finalAttendanceLimit = existingEvent.attendance_limit;
                     } else {
-                        // No limit specified in the description
-                        if (existingEvent) {
-                            // Preserve existing limit if event already exists
-                            finalAttendanceLimit = existingEvent.attendance_limit;
-                        } else {
-                            // New event, no limit in description, so default to null (unlimited)
-                            finalAttendanceLimit = null;
-                        }
+                        // New event, no limit in description, so default to null (unlimited)
+                        finalAttendanceLimit = null;
                     }
 
-                    await client.query(
-                        `INSERT INTO events (id, title, date, endDate, description, location, source, attendance_limit)
-                         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-                         ON CONFLICT (id) DO UPDATE SET
-                            title = EXCLUDED.title,
-                            date = EXCLUDED.date,
-                            endDate = EXCLUDED.endDate,
-                            description = EXCLUDED.description,
-                            location = EXCLUDED.location,
-                            source = EXCLUDED.source,
-                            attendance_limit = $8`,
-                        [event.id, event.title, event.date, event.endDate, event.description, event.location, event.source, finalAttendanceLimit]
-                    );
+                    rowsById.set(event.id, [event.id, event.title, event.date, event.endDate, event.description, event.location, event.source, finalAttendanceLimit]);
                 }
+
+                // One multi-row upsert — per-row statements cost a network
+                // round trip each, which is fatal when the DB isn't local.
+                const upsertParams = [];
+                const placeholders = [];
+                for (const row of rowsById.values()) {
+                    const base = upsertParams.length;
+                    placeholders.push(`($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6}, $${base + 7}, $${base + 8})`);
+                    upsertParams.push(...row);
+                }
+                await client.query(
+                    `INSERT INTO events (id, title, date, endDate, description, location, source, attendance_limit)
+                     VALUES ${placeholders.join(', ')}
+                     ON CONFLICT (id) DO UPDATE SET
+                        title = EXCLUDED.title,
+                        date = EXCLUDED.date,
+                        endDate = EXCLUDED.endDate,
+                        description = EXCLUDED.description,
+                        location = EXCLUDED.location,
+                        source = EXCLUDED.source,
+                        attendance_limit = EXCLUDED.attendance_limit`,
+                    upsertParams
+                );
             }
 
             // Remove deleted calendar events
@@ -534,6 +553,7 @@ app.get('/api/events', async (req, res) => {
             }
 
             await client.query('COMMIT');
+            lastSyncedFetch = syncedGeneration;
         }
 
         // Paginated past-events mode: ?before=<ISO>&limit=N
@@ -612,6 +632,9 @@ app.get('/api/events', async (req, res) => {
 
         res.json(eventsWithAttendance);
     } catch (error) {
+        // A failed sync leaves the transaction open; without ROLLBACK the
+        // released connection poisons the pool for every later request.
+        try { await client.query('ROLLBACK'); } catch (rollbackError) { /* connection gone */ }
         console.error('Error fetching events:', error);
         res.status(500).json({ error: 'Failed to fetch events' });
     } finally {
