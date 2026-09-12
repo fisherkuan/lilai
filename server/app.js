@@ -1151,6 +1151,10 @@ app.get('/admin/events', (req, res) => {
     res.sendFile(path.join(__dirname, '../public/admin.html'));
 });
 
+app.get('/admin/bookings', (req, res) => {
+    res.sendFile(path.join(__dirname, '../public/admin-bookings.html'));
+});
+
 app.get('/admin/donations', (req, res) => {
     res.sendFile(path.join(__dirname, '../public/admin-donations.html'));
 });

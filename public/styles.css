@@ -1866,3 +1866,263 @@ body.menu-open { overflow: hidden; }
         transition-duration: 0.01ms !important;
     }
 }
+
+/* ---------- Booking queue ----------
+ * One merged timeline split by a NOW rule. Existing tokens only.
+ * --success is deliberately absent: nothing on this board is ever a success.
+ */
+/* Several blocks below set display:flex, which would otherwise beat the browser's own
+ * [hidden] rule and show elements the script is deliberately keeping out of the way. */
+.bq-layout [hidden], .bq-action [hidden], .bq-midnight[hidden] { display: none !important; }
+.bq-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--s-5);
+    align-items: start;
+    margin-bottom: var(--s-7);
+}
+.bq-main { min-width: 0; }
+.bq-rail { display: none; }
+
+/* Explainer (first visit) */
+.bq-explainer { padding: var(--s-5); margin-bottom: var(--s-4); }
+.bq-explainer h2 {
+    font-family: var(--font-display);
+    font-weight: 500;
+    font-size: 20px;
+    margin-bottom: var(--s-2);
+}
+.bq-explainer p { color: var(--text-secondary); font-size: 14px; }
+.bq-steps {
+    list-style: none;
+    margin: var(--s-4) 0 0;
+    padding: var(--s-4) 0 0;
+    border-top: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-3);
+}
+.bq-steps li { display: grid; grid-template-columns: 20px minmax(0, 1fr); gap: var(--s-3); font-size: 14px; }
+.bq-step-n { font-family: var(--font-display); font-size: 15px; color: var(--accent); }
+
+/* Primary action */
+.bq-action { display: flex; flex-direction: column; gap: var(--s-3); margin-bottom: var(--s-5); }
+.bq-cta {
+    display: flex;
+    align-items: center;
+    gap: var(--s-3);
+    width: 100%;
+    min-height: 56px;
+    padding: var(--s-4);
+    background: var(--text);
+    color: #fff;
+    border: none;
+    border-radius: var(--r-lg);
+    cursor: pointer;
+    text-align: left;
+}
+.bq-cta:hover { background: #000; }
+.bq-cta-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.bq-cta-label { font-size: 16px; font-weight: 600; }
+.bq-cta-sub { font-size: 13px; color: var(--border-strong); }
+.bq-cta-arrow { font-size: 18px; }
+
+.bq-quota { display: flex; align-items: center; gap: var(--s-2); padding: 0 var(--s-1); font-size: 13px; }
+.bq-pips { display: inline-flex; gap: 4px; }
+.bq-pip { width: 7px; height: 7px; border-radius: 50%; background: var(--surface); border: 1px solid var(--border-strong); }
+.bq-pip.used { background: var(--accent); border-color: var(--accent); }
+.bq-quota-text { color: var(--text); }
+.bq-quota-week { margin-left: auto; color: var(--text-muted); }
+
+.bq-live { display: inline-flex; align-items: center; gap: 6px; align-self: flex-start; }
+.bq-live-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); animation: bq-pulse 2.4s ease-in-out infinite; }
+@keyframes bq-pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.35; transform: scale(0.82); }
+}
+
+/* Midnight banner */
+.bq-midnight {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--s-4);
+    background: var(--text);
+    border-radius: var(--r-lg);
+    padding: var(--s-4);
+    margin-bottom: var(--s-5);
+    color: #fff;
+}
+.bq-midnight-title { display: flex; align-items: center; gap: var(--s-2); font-size: 16px; font-weight: 600; }
+.bq-midnight-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent-soft); animation: bq-pulse 1.2s ease-in-out infinite; }
+.bq-midnight-sub { font-size: 13px; color: var(--border-strong); margin-top: 2px; }
+.bq-midnight-clock { text-align: right; }
+.bq-clock { font-family: var(--font-display); font-weight: 500; font-size: 22px; font-variant-numeric: tabular-nums; }
+.bq-clock-zone { font-size: 11px; color: var(--text-muted); }
+
+/* Timeline */
+.bq-timeline { list-style: none; margin: 0; padding: 0; }
+.bq-row {
+    display: grid;
+    grid-template-columns: 82px minmax(0, 1fr);
+    gap: var(--s-3);
+    padding: var(--s-3) 0;
+    border-bottom: 1px solid var(--border);
+}
+.bq-gutter { text-align: right; min-width: 0; }
+.bq-gutter-main { font-size: 14px; font-weight: 600; letter-spacing: -0.01em; color: var(--text); }
+.bq-gutter-age { font-size: 13px; font-weight: 500; color: var(--text-secondary); }
+.bq-gutter-sub { font-size: 11px; color: var(--text-muted); }
+.bq-sending { color: var(--accent-hover); }
+.bq-body { min-width: 0; }
+.bq-title { font-size: 15px; font-weight: 600; letter-spacing: -0.01em; }
+.bq-details { font-size: 13px; color: var(--text-secondary); }
+/* Load-bearing: this sentence is what stops "sent" being read as "booked". Never muted. */
+.bq-clause { font-size: 13px; color: var(--text-secondary); }
+.bq-outcome { font-size: 14px; color: var(--text); margin-top: 2px; }
+.bq-sent-head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--s-2); }
+.bq-aside { grid-column: 2; margin-top: var(--s-1); }
+/* On mobile the sent row already names the person in its outcome clause. */
+.bq-row-sent .bq-aside { display: none; }
+.bq-who { font-size: 13px; color: var(--text-muted); }
+.bq-aside-sub { display: none; }
+
+.bq-dot { flex: none; width: 8px; height: 8px; border-radius: 50%; margin-top: 6px; }
+.bq-dot-ring { background: var(--surface); border: 2px solid var(--accent); }
+.bq-dot-ring-warning { background: var(--surface); border: 2px solid var(--warning); }
+.bq-dot-solid-danger { background: var(--danger); }
+.bq-dot-solid-warning { background: var(--warning); }
+.bq-dot-solid-muted { background: var(--text-muted); }
+
+/* The in-flight row lifts out of the timeline. Only one row ever does. */
+.bq-inflight {
+    position: relative;
+    background: var(--surface);
+    border: 1px solid var(--accent);
+    border-radius: var(--r-lg);
+    box-shadow: var(--shadow-md);
+    padding: var(--s-4);
+    overflow: hidden;
+}
+.bq-inflight::before {
+    content: "";
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 3px;
+    background: var(--accent-soft);
+}
+.bq-inflight::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 33%;
+    height: 3px;
+    background: var(--accent);
+    animation: bq-sweep 1.6s linear infinite;
+}
+@keyframes bq-sweep {
+    from { transform: translateX(-100%); }
+    to { transform: translateX(300%); }
+}
+.bq-landed { animation: bq-fadein 0.4s ease-out; }
+@keyframes bq-fadein {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: none; }
+}
+
+/* The NOW rule renders even on an empty board: it explains the layout. */
+.bq-now { display: flex; align-items: center; gap: var(--s-3); padding: 18px 0 10px; }
+.bq-now-line { flex: 1; height: 1px; background: var(--border); }
+.bq-now-pill {
+    flex: none;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--accent);
+    background: var(--accent-soft);
+    border-radius: 999px;
+    padding: 4px 10px;
+}
+.bq-none { padding: var(--s-4) 0; font-size: 14px; color: var(--text-muted); }
+.bq-empty {
+    border: 1px dashed var(--border-strong);
+    border-radius: var(--r-lg);
+    padding: 20px var(--s-4);
+    text-align: center;
+}
+.bq-empty-title { font-size: 14px; color: var(--text); }
+.bq-empty-note { font-size: 14px; color: var(--text-secondary); margin-top: var(--s-1); }
+
+.bq-newpill-wrap { display: flex; justify-content: center; }
+.bq-newpill {
+    border: 1px solid var(--accent);
+    background: var(--accent-soft);
+    color: var(--accent-hover);
+    border-radius: 999px;
+    padding: 6px 14px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    margin-bottom: var(--s-2);
+}
+.bq-footer { display: flex; flex-direction: column; align-items: center; gap: var(--s-3); margin-top: var(--s-4); }
+.bq-more {
+    width: 100%;
+    border: 1px dashed var(--border-strong);
+    border-radius: var(--r-md);
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 13px;
+    font-weight: 500;
+    padding: var(--s-3);
+    cursor: pointer;
+}
+.bq-more:hover { color: var(--text); border-color: var(--text-muted); }
+.bq-guide-link { font-size: 13px; font-weight: 500; color: var(--accent); }
+
+/* Rail cards */
+.bq-key h3, .bq-privacy h3 { font-size: 14px; margin-bottom: var(--s-3); }
+.bq-key dl { margin: 0; display: grid; gap: var(--s-3); }
+.bq-key dt { display: grid; grid-template-columns: 14px minmax(0, 1fr); gap: var(--s-2); align-items: start; font-size: 13px; font-weight: 600; }
+.bq-key dt .bq-dot { margin-top: 5px; }
+.bq-key dd { margin: 0 0 0 22px; font-size: 13px; color: var(--text-secondary); }
+.bq-key-foot { margin-top: var(--s-4); font-size: 13px; color: var(--text-muted); }
+.bq-tonight-time { font-family: var(--font-display); font-weight: 500; font-size: 30px; margin: var(--s-1) 0; }
+.bq-tonight p, .bq-privacy p { font-size: 13px; color: var(--text-secondary); }
+
+@media (min-width: 960px) {
+    .bq-layout { grid-template-columns: minmax(0, 1fr) 340px; gap: var(--s-6); }
+    .bq-rail { display: flex; flex-direction: column; gap: var(--s-4); }
+    .bq-rail .card { padding: var(--s-5); }
+
+    /* The action becomes one strip rather than a full-width dark card. */
+    .bq-action {
+        flex-direction: row;
+        align-items: center;
+        gap: var(--s-4);
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--r-lg);
+        box-shadow: var(--shadow-xs);
+        padding: var(--s-3) 20px;
+    }
+    .bq-cta { width: auto; min-height: 40px; padding: 10px var(--s-4); background: var(--accent); border-radius: var(--r-md); }
+    .bq-cta:hover { background: var(--accent-hover); }
+    .bq-cta-text { flex: none; }
+    .bq-cta-label { font-size: 14px; }
+    .bq-quota { margin: 0; }
+    .bq-quota-week { margin-left: var(--s-2); }
+    .bq-live { margin-left: auto; align-self: center; }
+
+    .bq-row { grid-template-columns: 130px minmax(0, 1fr) 220px; gap: 20px; padding: var(--s-4) 0; align-items: baseline; }
+    .bq-gutter-main { font-size: 15px; }
+    .bq-title { font-size: 16px; }
+    .bq-aside, .bq-row-sent .bq-aside { display: block; grid-column: 3; margin-top: 0; text-align: right; }
+    .bq-who { font-size: 14px; color: var(--text); }
+    .bq-aside-sub { display: block; font-size: 12px; color: var(--text-muted); }
+    .bq-aside-link { color: var(--accent); }
+    .bq-footer { flex-direction: row; justify-content: space-between; }
+    .bq-more { width: auto; padding: var(--s-2) var(--s-4); }
+}
