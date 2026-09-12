@@ -60,13 +60,25 @@
         }
     };
 
+    /*
+     * How much of the timeline is worth showing at rest.
+     *
+     * A recurring booking puts seventy slots in this queue, and a chronological wall of
+     * them buries the one thing the page is for: what goes out next, and what came back.
+     * Both far ends collapse behind a count, and the NOW rule stays near the top where it
+     * can be read without scrolling.
+     */
+    const UPCOMING_AT_REST = 8;
+    const HISTORY_AT_REST = 6;
+
     const state = {
         queued: [],
         history: [],
         historyHasMore: false,
         quotaPerWeek: 2,
         live: false,
-        pending: [],
+        showAllUpcoming: false,
+        historyShown: HISTORY_AT_REST,
         tickHandle: null,
         tickEvery: 0,
         clockHandle: null,
@@ -261,25 +273,41 @@
         aside.append(node('div', 'bq-who', displayName(entry.name)));
         aside.append(node('div', 'bq-aside-sub', `queued ${dayAndMonth(new Date(entry.queuedAt))}`));
 
-        // Only a slot still waiting can be changed. Once the scheduler has claimed it there
-        // is nothing left to edit, so the actions are simply absent rather than disabled.
-        if (entry.status === 'queued') {
-            const actions = node('div', 'bq-actions');
-            const edit = node('button', 'bq-action-link', 'Edit');
-            edit.type = 'button';
-            edit.addEventListener('click', () => window.editBookingSheet(entry));
-
-            const cancel = node('button', 'bq-action-link bq-action-danger', 'Cancel');
-            cancel.type = 'button';
-            cancel.addEventListener('click', () => cancelEntry(entry, cancel));
-
-            actions.append(edit, cancel);
-            aside.append(actions);
-        }
+        aside.append(rowActions(entry));
 
         row.append(gutter, body, aside);
         if (entry.status === 'sending') row.classList.add('bq-inflight');
         return row;
+    }
+
+    /*
+     * Edit and Cancel only while a slot is still `queued` — once the scheduler has claimed
+     * it there is nothing left to change, so they are absent rather than disabled. Duplicate
+     * is always there: the common case is a run of bookings identical but for the date, and
+     * repeating one that already went out is just as useful as repeating one still waiting.
+     */
+    function rowActions(entry) {
+        const actions = node('div', 'bq-actions');
+
+        if (entry.status === 'queued') {
+            const edit = node('button', 'bq-action-link', 'Edit');
+            edit.type = 'button';
+            edit.addEventListener('click', () => window.editBookingSheet(entry));
+            actions.append(edit);
+        }
+
+        const copy = node('button', 'bq-action-link', 'Duplicate');
+        copy.type = 'button';
+        copy.addEventListener('click', () => window.duplicateBookingSheet(entry));
+        actions.append(copy);
+
+        if (entry.status === 'queued') {
+            const cancel = node('button', 'bq-action-link bq-action-danger', 'Cancel');
+            cancel.type = 'button';
+            cancel.addEventListener('click', () => cancelEntry(entry, cancel));
+            actions.append(cancel);
+        }
+        return actions;
     }
 
     /*
@@ -344,9 +372,20 @@
         const sub = node('div', 'bq-aside-sub');
         sub.append(document.createTextNode(`${dayAndMonth(new Date(entry.queuedAt))} · `), link);
         aside.append(sub);
+        aside.append(rowActions(entry));
 
         row.append(gutter, body, aside);
         row.classList.add(`bq-tone-${outcome.tone}`);
+        return row;
+    }
+
+    /* A collapsed run of rows, shown as one line that opens it. */
+    function foldRow(label, onclick) {
+        const row = node('li', 'bq-fold');
+        const button = node('button', 'bq-fold-btn', label);
+        button.type = 'button';
+        button.addEventListener('click', onclick);
+        row.append(button);
         return row;
     }
 
@@ -375,7 +414,19 @@
         list.textContent = '';
 
         const waiting = state.queued.slice().sort((a, b) => new Date(a.opensAt) - new Date(b.opensAt));
-        for (const entry of waiting) list.append(waitingRow(entry, now));
+
+        // Nearest windows first, so the collapse sits between the near future and the
+        // distant one — where the timeline genuinely thins out.
+        const upcomingShown = state.showAllUpcoming ? waiting.length : Math.min(waiting.length, UPCOMING_AT_REST);
+        for (const entry of waiting.slice(0, upcomingShown)) list.append(waitingRow(entry, now));
+        if (waiting.length > upcomingShown) {
+            list.append(foldRow(
+                `${waiting.length - upcomingShown} further out`,
+                () => { state.showAllUpcoming = true; render(); }
+            ));
+        } else if (state.showAllUpcoming && waiting.length > UPCOMING_AT_REST) {
+            list.append(foldRow('Show fewer', () => { state.showAllUpcoming = false; render(); }));
+        }
 
         // The section meta already says "Nothing queued"; only mark the gap when there is
         // history below the rule and the reader needs to see the top half is genuinely empty.
@@ -389,7 +440,7 @@
         if (state.history.length === 0) {
             list.append(emptyBelow());
         } else {
-            for (const entry of state.history) list.append(sentRow(entry, now));
+            for (const entry of state.history.slice(0, state.historyShown)) list.append(sentRow(entry, now));
         }
 
         renderMeta(waiting, now);
@@ -408,9 +459,12 @@
         }
         for (const entry of state.history) state.seen.add(entry.id);
 
+        // "Show earlier" reveals what is already loaded before going back to the server,
+        // so the common case costs no request.
         const more = el('bq-more');
-        more.hidden = !state.historyHasMore;
-        more.textContent = 'Show earlier';
+        const heldBack = state.history.length - state.historyShown;
+        more.hidden = heldBack <= 0 && !state.historyHasMore;
+        more.textContent = heldBack > 0 ? `Show ${heldBack} earlier` : 'Show earlier';
 
         scheduleTick(waiting, now);
     }
@@ -610,6 +664,10 @@
     }
 
     async function loadMore() {
+        if (state.history.length > state.historyShown) {
+            state.historyShown = state.history.length;
+            return render();
+        }
         const oldest = state.history[state.history.length - 1];
         if (!oldest) return;
         const cursor = oldest.submittedAt || oldest.opensAt;
@@ -617,6 +675,7 @@
         const data = await response.json();
         if (!data.success) return;
         state.history = state.history.concat(data.history);
+        state.historyShown = state.history.length;
         state.historyHasMore = data.historyHasMore;
         render();
     }
@@ -631,32 +690,41 @@
             state.queued.push(booking);
         } else {
             state.history.unshift(booking);
+            // Keep a row that has just landed visible rather than folding it away.
+            state.historyShown = Math.max(state.historyShown, 1);
         }
     }
 
     /*
-     * Never reflow content under someone's finger: an update that would insert a row
-     * above where they are reading is held back behind a counter they can tap.
+     * Apply every update at once, and hold the reader's place while doing it.
+     *
+     * The old behaviour queued updates behind a "show" pill whenever the page was scrolled
+     * — which, on a queue seventy rows long, was always, and the pill itself was off-screen
+     * at the top. The result looked like a page that simply did not refresh. Anchoring on a
+     * row that is actually on screen gives live updates with nothing moving under the eye.
      */
     function receive(booking) {
-        const timeline = el('bq-timeline');
-        const scrolledIn = window.scrollY > timeline.offsetTop + 40;
-        if (scrolledIn) {
-            state.pending.push(booking);
-            const pill = el('bq-newpill');
-            pill.hidden = false;
-            pill.textContent = `${plural(state.pending.length, 'update')} — show`;
-            return;
-        }
+        const anchor = visibleAnchor();
         applyUpdate(booking);
         render();
+        restoreAnchor(anchor);
     }
 
-    function flushPending() {
-        for (const booking of state.pending) applyUpdate(booking);
-        state.pending = [];
-        el('bq-newpill').hidden = true;
-        render();
+    /** The first timeline row at or below the top of the viewport, and where it sits. */
+    function visibleAnchor() {
+        for (const row of el('bq-timeline').children) {
+            const top = row.getBoundingClientRect().top;
+            if (top >= 0 && row.dataset.id) return { id: row.dataset.id, top };
+        }
+        return null;
+    }
+
+    function restoreAnchor(anchor) {
+        if (!anchor) return;
+        const row = el('bq-timeline').querySelector(`[data-id="${anchor.id}"]`);
+        if (!row) return;
+        const shift = row.getBoundingClientRect().top - anchor.top;
+        if (shift) window.scrollBy(0, shift);
     }
 
     function connect() {
@@ -691,7 +759,6 @@
 
     function init() {
         el('bq-more').addEventListener('click', loadMore);
-        el('bq-newpill').addEventListener('click', flushPending);
         el('bq-queue-btn').addEventListener('click', () => {
             // Step 4 mounts the queue sheet here.
             if (window.openBookingSheet) window.openBookingSheet();

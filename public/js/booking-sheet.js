@@ -619,7 +619,7 @@
      * deliberately absent from board data, so they start blank and the server keeps what it
      * already has unless something is typed — the contact details never leave the server.
      */
-    function open(entry) {
+    function open(entry, { duplicate = false } = {}) {
         if (root) return;
         const saved = readStore(STORE, {});
         const defaults = readStore(DEFAULTS_STORE, {});
@@ -631,14 +631,22 @@
             return `${get('hour')}:${get('minute')}`;
         };
 
+        /*
+         * A duplicate is a new booking that starts from an old one, so it carries no id and
+         * goes through the create path — quota included. The date is kept only if it is
+         * still bookable; repeating something from last month has to start with a new day.
+         */
+        const reusableDate = entry && !duplicate ? entry.playDate
+            : entry && entry.playDate >= isoDate(earliestPlayDate()) ? entry.playDate : '';
+
         draft = entry ? {
             step: 1,
-            editingId: entry.id,
+            editingId: duplicate ? null : entry.id,
             name: entry.name,
-            email: '',
-            phone: '',
+            email: duplicate ? (saved.email || '') : '',
+            phone: duplicate ? (saved.phone || '') : '',
             sport: entry.sport,
-            playDate: entry.playDate,
+            playDate: reusableDate,
             startPreferred: clock(entry.startPreferred),
             startAlternative: clock(entry.startAlternative),
             durationHours: Number(entry.durationHours),
@@ -647,7 +655,7 @@
             facility: entry.facility || '',
             otherFacility: entry.otherFacility || '',
             remarks: entry.remarks || '',
-            validSportsCard: true,
+            validSportsCard: !duplicate,
             error: null
         } : {
             step: 1,
@@ -700,4 +708,5 @@
 
     window.openBookingSheet = open;
     window.editBookingSheet = (entry) => open(entry);
+    window.duplicateBookingSheet = (entry) => open(entry, { duplicate: true });
 })();

@@ -2067,8 +2067,6 @@ body.menu-open { overflow: hidden; }
 .bq-empty-title { font-size: 14px; color: var(--text); }
 .bq-empty-note { font-size: 14px; color: var(--text-secondary); margin-top: var(--s-1); }
 
-.bq-newpill-wrap { display: flex; justify-content: center; }
-.bq-newpill {
     border: 1px solid var(--accent);
     background: var(--accent-soft);
     color: var(--accent-hover);
@@ -2094,6 +2092,22 @@ body.menu-open { overflow: hidden; }
 .bq-more:hover { color: var(--text); border-color: var(--text-muted); }
 .bq-guide-link { font-size: 13px; font-weight: 500; color: var(--accent); }
 
+/* A run of collapsed rows, shown as one line. Reads as part of the timeline, not as a
+   control bolted onto it. */
+.bq-fold { padding: var(--s-3) 0; border-top: 1px dashed var(--border); }
+.bq-fold-btn {
+    background: none;
+    border: 0;
+    padding: 0;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    cursor: pointer;
+}
+.bq-fold-btn:hover { color: var(--text); }
+.bq-fold-btn::before { content: "+ "; }
+
 /* Row actions. Quiet until the row is hovered on a pointer device, always present on
    touch, where there is no hover to reveal them. */
 .bq-actions { display: flex; gap: var(--s-3); margin-top: var(--s-2); }
@@ -2111,11 +2125,8 @@ body.menu-open { overflow: hidden; }
 .bq-action-link:disabled { color: var(--text-muted); cursor: default; text-decoration: none; }
 .bq-action-danger { color: var(--text-secondary); }
 .bq-action-danger:hover { color: var(--danger); }
-@media (hover: hover) and (min-width: 960px) {
-    .bq-actions { opacity: 0; transition: opacity 0.15s ease; }
-    .bq-row-waiting:hover .bq-actions,
-    .bq-actions:focus-within { opacity: 1; }
-}
+/* Not hidden until hover: `opacity: 0` still reserves the line, so hiding them would cost
+   the same vertical space while making the actions hard to find. */
 
 @media (min-width: 960px) {
 
