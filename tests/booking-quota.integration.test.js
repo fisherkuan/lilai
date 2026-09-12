@@ -28,7 +28,24 @@ const settings = bookingSettings({});
 let pool;
 let reachable = false;
 
+/*
+ * These tests TRUNCATE booking_queue, so refuse to run against anything that is not
+ * obviously a scratch database. A mistyped TEST_DATABASE_URL should cost nothing.
+ */
+function looksLikeScratch(connectionString) {
+    try {
+        const name = new URL(connectionString).pathname.replace(/^\//, '');
+        return /test|scratch|local/i.test(name);
+    } catch (error) {
+        return false;
+    }
+}
+
 test('connect to the scratch database', async (t) => {
+    if (!looksLikeScratch(CONNECTION)) {
+        t.skip(`refusing to truncate a database not named as a test one: ${CONNECTION}`);
+        return;
+    }
     pool = new Pool({ connectionString: CONNECTION, max: 8 });
     try {
         const client = await pool.connect();
@@ -297,6 +314,44 @@ test('the quota answers in the spelling already on record', async (t) => {
         const quota = await quotaFor(client, 'yuki   CHEN', '2026-09-26');
         assert.equal(quota.name, 'Yuki Chen');
         assert.equal(quota.typedName, 'yuki   CHEN');
+    } finally {
+        client.release();
+    }
+});
+
+test('only a slot still waiting can be taken out of the queue', async (t) => {
+    if (skipUnlessReachable(t)) return;
+    const client = await fresh();
+    try {
+        const CANCEL = `UPDATE booking_queue SET status = 'cancelled', cancelled_by = $2
+                        WHERE id = $1 AND status = 'queued' RETURNING id`;
+
+        const waiting = await insert(client, { status: 'queued' });
+        const cancelled = await client.query(CANCEL, [waiting, 'Yuki Chen']);
+        assert.equal(cancelled.rows.length, 1, 'a waiting slot can be withdrawn');
+
+        // Once a request has reached KU Leuven we cannot take it back, whatever they answer.
+        for (const status of ['sending', 'sent', 'unconfirmed', 'failed', 'missed']) {
+            const id = await insert(client, { status, startPreferred: '20:00', startAlternative: '18:00' });
+            const result = await client.query(CANCEL, [id, 'Yuki Chen']);
+            assert.equal(result.rows.length, 0, `${status} must not be cancellable`);
+            await client.query('DELETE FROM booking_queue WHERE id = $1', [id]);
+        }
+    } finally {
+        client.release();
+    }
+});
+
+test('a cancelled slot gives its allowance back', async (t) => {
+    if (skipUnlessReachable(t)) return;
+    const client = await fresh();
+    try {
+        const first = await insert(client, { playDate: '2026-09-22' });
+        await insert(client, { playDate: '2026-09-24', startPreferred: '19:00', startAlternative: '21:00' });
+        assert.equal((await quotaFor(client, 'Yuki Chen', '2026-09-26')).remaining, 0);
+
+        await client.query(`UPDATE booking_queue SET status = 'cancelled' WHERE id = $1`, [first]);
+        assert.equal((await quotaFor(client, 'Yuki Chen', '2026-09-26')).remaining, 1);
     } finally {
         client.release();
     }

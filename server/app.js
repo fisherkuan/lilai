@@ -1138,6 +1138,44 @@ app.post('/api/bookings', async (req, res) => {
     }
 });
 
+// Take a slot out of the queue. Only while it is still waiting: once a request has gone
+// to KU Leuven we cannot take it back, whatever they answer.
+app.delete('/api/bookings/:id', async (req, res) => {
+    const client = await pool.connect();
+    try {
+        const by = typeof req.body.cancelledBy === 'string' && req.body.cancelledBy.trim()
+            ? req.body.cancelledBy.trim().slice(0, 100)
+            : null;
+
+        const result = await client.query(`
+            UPDATE booking_queue
+            SET status = 'cancelled', cancelled_by = $2
+            WHERE id = $1 AND status = 'queued'
+            RETURNING *
+        `, [req.params.id, by]);
+
+        if (result.rows.length === 0) {
+            const existing = await client.query('SELECT status FROM booking_queue WHERE id = $1', [req.params.id]);
+            if (existing.rows.length === 0) {
+                return res.status(404).json({ success: false, message: 'No such entry' });
+            }
+            return res.status(409).json({
+                success: false,
+                message: `That request has already gone out (${existing.rows[0].status}). It cannot be taken back.`
+            });
+        }
+
+        const board = toBoardEntry(result.rows[0]);
+        broadcast({ type: 'booking_update', booking: board });
+        res.json({ success: true, booking: board });
+    } catch (error) {
+        console.error('Error cancelling booking:', error);
+        res.status(500).json({ success: false, message: 'Internal server error' });
+    } finally {
+        client.release();
+    }
+});
+
 // Health check endpoint
 app.get('/api/health', (req, res) => {
     res.json({ status: 'OK', timestamp: new Date().toISOString() });
