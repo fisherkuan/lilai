@@ -7,6 +7,12 @@ const { v4: uuidv4 } = require('uuid');
 const http = require('http');
 const WebSocket = require('ws');
 
+const { weekBounds } = require('./booking-time');
+const { validateBooking, BookingInputError } = require('./booking-validation');
+const { QUOTA_PER_WEEK, countHeld, quotaFor } = require('./booking-quota');
+const { bookingSettings, sampleSendAfter } = require('./booking-settings');
+const { createBookingSchema } = require('./booking-schema');
+
 // Load environment variables
 require('dotenv').config();
 
@@ -272,12 +278,15 @@ async function initializeDatabase() {
             console.log('Note: created_by column removal attempted (may not exist):', error.message);
         }
 
+        await createBookingSchema(client);
+
         // Create indexes for performance
         await client.query('CREATE INDEX IF NOT EXISTS idx_rsvps_event_id ON rsvps(event_id)');
         await client.query('CREATE INDEX IF NOT EXISTS idx_rsvps_attendance ON rsvps(attendance)');
         await client.query('CREATE INDEX IF NOT EXISTS idx_events_date ON events(date)');
         await client.query('CREATE INDEX IF NOT EXISTS idx_events_source ON events(source)');
         await client.query('CREATE INDEX IF NOT EXISTS idx_donations_entry_date ON donations(COALESCE(entry_date, created_at))');
+
 
         console.log('Database schema initialized with indexes.');
     } catch (error) {
@@ -896,6 +905,206 @@ app.post('/api/donations', requireAdminKey, async (req, res) => {
         });
     } catch (error) {
         console.error('Error creating donation:', error);
+        res.status(500).json({ success: false, message: 'Internal server error' });
+    } finally {
+        client.release();
+    }
+});
+
+// ---------------------------------------------------------------------------
+// Sports booking queue
+// ---------------------------------------------------------------------------
+
+const QUEUED_STATUSES = ['queued', 'sending'];
+const HISTORY_STATUSES = ['sent', 'unconfirmed', 'failed', 'missed', 'cancelled'];
+
+/*
+ * The privacy boundary, in one place: the board shows names, never contact details.
+ * Email and phone exist only to fill in the KU Leuven form. Every response that reaches
+ * a browser goes through here.
+ */
+function toBoardEntry(row) {
+    return {
+        id: row.id,
+        sport: row.sport,
+        // A calendar day, not an instant — booking-schema.js keeps it a plain string.
+        playDate: row.play_date,
+        startPreferred: row.start_preferred,
+        startAlternative: row.start_alternative,
+        durationHours: Number(row.duration_hours),
+        players: row.players,
+        indoorOutdoor: row.indoor_outdoor,
+        facility: row.facility,
+        otherFacility: row.other_facility,
+        remarks: row.remarks,
+        name: row.name,
+        status: row.status,
+        opensAt: row.opens_at,
+        queuedAt: row.queued_at,
+        queuedBy: row.queued_by,
+        submittedAt: row.submitted_at,
+        cancelledBy: row.cancelled_by
+    };
+}
+
+// List the board: everything still owed a submission, plus a page of what has gone out.
+app.get('/api/bookings', async (req, res) => {
+    const client = await pool.connect();
+    try {
+        const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 20, 1), 100);
+
+        const queued = await client.query(
+            `SELECT * FROM booking_queue WHERE status = ANY($1) ORDER BY send_after ASC`,
+            [QUEUED_STATUSES]
+        );
+
+        const params = [HISTORY_STATUSES];
+        let historySql = `SELECT * FROM booking_queue WHERE status = ANY($1)`;
+        if (req.query.before) {
+            const before = new Date(req.query.before);
+            if (Number.isNaN(before.getTime())) {
+                return res.status(400).json({ success: false, message: 'Invalid "before" timestamp' });
+            }
+            params.push(before);
+            historySql += ` AND COALESCE(submitted_at, opens_at) < $${params.length}`;
+        }
+        params.push(limit + 1);
+        historySql += ` ORDER BY COALESCE(submitted_at, opens_at) DESC LIMIT $${params.length}`;
+
+        const history = await client.query(historySql, params);
+        const hasMore = history.rows.length > limit;
+
+        res.json({
+            success: true,
+            queued: queued.rows.map(toBoardEntry),
+            history: history.rows.slice(0, limit).map(toBoardEntry),
+            historyHasMore: hasMore,
+            quotaPerWeek: QUOTA_PER_WEEK
+        });
+    } catch (error) {
+        console.error('Error listing booking queue:', error);
+        res.status(500).json({ success: false, message: 'Internal server error' });
+    } finally {
+        client.release();
+    }
+});
+
+// The live tally the queue sheet shows while someone types a name.
+app.get('/api/bookings/quota', async (req, res) => {
+    const client = await pool.connect();
+    try {
+        const name = typeof req.query.name === 'string' ? req.query.name.trim() : '';
+        const playDate = typeof req.query.playDate === 'string' ? req.query.playDate.trim() : '';
+        if (!name) return res.status(400).json({ success: false, message: 'A name is required' });
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(playDate)) {
+            return res.status(400).json({ success: false, message: 'playDate must be YYYY-MM-DD' });
+        }
+        res.json({ success: true, ...(await quotaFor(client, name, playDate)) });
+    } catch (error) {
+        console.error('Error reading booking quota:', error);
+        res.status(500).json({ success: false, message: 'Internal server error' });
+    } finally {
+        client.release();
+    }
+});
+
+// Names known to the queue, newest first — the autocomplete behind the name field.
+app.get('/api/bookings/names', async (req, res) => {
+    const client = await pool.connect();
+    try {
+        const result = await client.query(`
+            SELECT DISTINCT ON (name_key) name_key, name
+            FROM booking_queue
+            ORDER BY name_key, queued_at DESC
+        `);
+        res.json({ success: true, names: result.rows.map((row) => row.name) });
+    } catch (error) {
+        console.error('Error listing booking names:', error);
+        res.status(500).json({ success: false, message: 'Internal server error' });
+    } finally {
+        client.release();
+    }
+});
+
+// Queue a slot.
+app.post('/api/bookings', async (req, res) => {
+    let entry;
+    try {
+        entry = validateBooking(req.body);
+    } catch (error) {
+        if (error instanceof BookingInputError) {
+            return res.status(400).json({ success: false, message: error.message, field: error.field });
+        }
+        throw error;
+    }
+
+    const settings = bookingSettings(appConfig);
+    const now = new Date();
+
+    // Refuse a window that has already closed rather than accepting an entry that can
+    // only ever become `missed`. Inside the grace window is fine: it fires immediately.
+    const deadline = new Date(entry.opensAt.getTime() + settings.lateSubmissionGraceSeconds * 1000);
+    if (now > deadline) {
+        return res.status(400).json({
+            success: false,
+            field: 'playDate',
+            message: 'That booking window has already closed — it opened more than five minutes ago.'
+        });
+    }
+    if (now >= entry.startPreferred && now >= entry.startAlternative) {
+        return res.status(400).json({ success: false, field: 'playDate', message: 'That slot is already in the past.' });
+    }
+
+    const queuedBy = typeof req.body.queuedBy === 'string' && req.body.queuedBy.trim()
+        ? req.body.queuedBy.trim().slice(0, 100)
+        : entry.name;
+
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+
+        // Serialize every check-then-insert for one name in one play week, so two people
+        // queueing the same name at the same moment cannot both pass a count of 1.
+        const week = weekBounds(entry.playDate);
+        await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1, 0))', [`${entry.nameKey}|${week.start}`]);
+
+        const held = await countHeld(client, entry.nameKey, entry.playDate);
+        if (held >= QUOTA_PER_WEEK) {
+            await client.query('ROLLBACK');
+            const quota = await quotaFor(client, entry.name, entry.playDate);
+            return res.status(409).json({
+                success: false,
+                reason: 'quota_reached',
+                message: `That week is full for ${quota.name} — ${held} of ${QUOTA_PER_WEEK}.`,
+                quota
+            });
+        }
+
+        const id = uuidv4();
+        const sendAfter = sampleSendAfter(entry.opensAt, settings);
+
+        const inserted = await client.query(`
+            INSERT INTO booking_queue (
+                id, sport, play_date, start_preferred, start_alternative, duration_hours,
+                players, indoor_outdoor, facility, other_facility, language, valid_sports_card,
+                name, name_key, email, phone, remarks, queued_by, opens_at, send_after, status
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, 'queued')
+            RETURNING *
+        `, [
+            id, entry.sport, entry.playDate, entry.startPreferred, entry.startAlternative, entry.durationHours,
+            entry.players, entry.indoorOutdoor, entry.facility, entry.otherFacility, entry.language,
+            entry.validSportsCard, entry.name, entry.nameKey, entry.email, entry.phone, entry.remarks,
+            queuedBy, entry.opensAt, sendAfter
+        ]);
+
+        await client.query('COMMIT');
+
+        const board = toBoardEntry(inserted.rows[0]);
+        broadcast({ type: 'booking_update', booking: board });
+        res.status(201).json({ success: true, booking: board, quotaPerWeek: QUOTA_PER_WEEK });
+    } catch (error) {
+        await client.query('ROLLBACK').catch(() => {});
+        console.error('Error queueing booking:', error);
         res.status(500).json({ success: false, message: 'Internal server error' });
     } finally {
         client.release();

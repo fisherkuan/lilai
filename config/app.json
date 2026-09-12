@@ -33,5 +33,11 @@
       "goal": 1000
     }
   },
-  "joinGroupUrl": "https://groups.google.com/g/leuven-taiwanese"
+  "joinGroupUrl": "https://groups.google.com/g/leuven-taiwanese",
+  "booking": {
+    "openingDelayMinSeconds": 5,
+    "openingDelayMaxSeconds": 60,
+    "minimumRequestIntervalSeconds": 10,
+    "lateSubmissionGraceSeconds": 300
+  }
 }
