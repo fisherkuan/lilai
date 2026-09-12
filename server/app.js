@@ -12,6 +12,7 @@ const { validateBooking, BookingInputError } = require('./booking-validation');
 const { QUOTA_PER_WEEK, countHeld, quotaFor } = require('./booking-quota');
 const { bookingSettings, sampleSendAfter } = require('./booking-settings');
 const { createBookingSchema } = require('./booking-schema');
+const { BookingFormClient, readFormOptions } = require('./booking-form');
 
 // Load environment variables
 require('dotenv').config();
@@ -1023,6 +1024,32 @@ app.get('/api/bookings/names', async (req, res) => {
         res.status(500).json({ success: false, message: 'Internal server error' });
     } finally {
         client.release();
+    }
+});
+
+/*
+ * The pickers in the queue sheet, read from the live form rather than hard-coded.
+ * Cached for an hour, and the last good answer is served if KU Leuven is having a bad
+ * day — a stale hall list is far better than a form nobody can fill in.
+ */
+let formOptionsCache = { value: null, fetchedAt: 0 };
+const FORM_OPTIONS_TTL = 60 * 60 * 1000;
+
+app.get('/api/bookings/form-options', async (req, res) => {
+    const fresh = Date.now() - formOptionsCache.fetchedAt < FORM_OPTIONS_TTL;
+    if (formOptionsCache.value && fresh) {
+        return res.json({ success: true, cached: true, ...formOptionsCache.value });
+    }
+    try {
+        const options = readFormOptions(await new BookingFormClient().getForm());
+        formOptionsCache = { value: options, fetchedAt: Date.now() };
+        res.json({ success: true, cached: false, ...options });
+    } catch (error) {
+        console.error('Error reading booking form options:', error.message);
+        if (formOptionsCache.value) {
+            return res.json({ success: true, cached: true, stale: true, ...formOptionsCache.value });
+        }
+        res.status(503).json({ success: false, message: 'Could not read the booking form right now' });
     }
 });
 
