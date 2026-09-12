@@ -16,6 +16,9 @@ const {
 const { parseBrusselsWallTime } = require('../server/booking-time');
 
 const FIXTURE = fs.readFileSync(path.join(__dirname, 'form.fixture.html'), 'utf8');
+// The real page KU Leuven answered a real accepted request with, on 2026-09-13 at
+// 00:00:58 Brussels, captured by the Python reference. Contact details scrubbed.
+const REAL_RECEIPT = fs.readFileSync(path.join(__dirname, 'thankspage.fixture.html'), 'utf8');
 
 const THANKS_PAGE = `<!DOCTYPE html><html><body>
     <div class="easyform-thankspage portlet">
@@ -236,6 +239,30 @@ test('a 2xx with neither marker nor form is not a receipt', () => {
 test('error statuses are failures even if the page looks like a thank-you', () => {
     assert.equal(classifyResponse(500, THANKS_PAGE), 'failed');
     assert.equal(classifyResponse(403, THANKS_PAGE), 'failed');
+});
+
+/*
+ * THANKS_PAGE above is a hand-written stand-in. This one is the page KU Leuven actually
+ * returned for an accepted request. It is the only evidence we have of what success
+ * really looks like, so the classifier is held to it directly: if a KU Leuven redesign
+ * ever breaks the reading, this is the test that says so.
+ */
+test('the real accepted response from KU Leuven reads as a receipt', () => {
+    const parsed = parseForm(REAL_RECEIPT);
+    assert.equal(parsed.thanks, true, 'the thankspage marker is present');
+    assert.equal(parsed.found, false, 'no form is left on the page');
+    assert.equal(classifyResponse(200, REAL_RECEIPT), 'sent');
+    assert.equal(classifyResponse(500, REAL_RECEIPT), 'failed');
+});
+
+/*
+ * The receipt echoes the submitted values back as read-only spans, not inputs. That is
+ * exactly why `found` must mean "a form with controls", not "the string form appears":
+ * a looser parser would see these and call a genuine success a failure.
+ */
+test('the echoed values on the receipt are not mistaken for a form', () => {
+    assert.match(REAL_RECEIPT, /id="form-widgets-naam"/);
+    assert.equal(parseForm(REAL_RECEIPT).found, false);
 });
 
 // --- Redirects ---------------------------------------------------------------------------
