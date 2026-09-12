@@ -981,7 +981,10 @@ app.get('/api/bookings', async (req, res) => {
             queued: queued.rows.map(toBoardEntry),
             history: history.rows.slice(0, limit).map(toBoardEntry),
             historyHasMore: hasMore,
-            quotaPerWeek: QUOTA_PER_WEEK
+            quotaPerWeek: QUOTA_PER_WEEK,
+            // The board decides when a window counts as still open from this number, so it
+            // has to be the server's, not a copy that can drift out of step with config.
+            graceSeconds: bookingSettings(appConfig).lateSubmissionGraceSeconds
         });
     } catch (error) {
         console.error('Error listing booking queue:', error);
@@ -1139,6 +1142,37 @@ app.post('/api/bookings', async (req, res) => {
     }
 });
 
+/*
+ * One entry in full. Registered after the fixed paths above so /quota, /names and
+ * /form-options are not swallowed by :id. Contact details stay server-side.
+ */
+app.get('/api/bookings/:id', async (req, res) => {
+    const client = await pool.connect();
+    try {
+        const result = await client.query('SELECT * FROM booking_queue WHERE id = $1', [req.params.id]);
+        if (result.rows.length === 0) {
+            return res.status(404).json({ success: false, message: 'No such entry' });
+        }
+        const row = result.rows[0];
+        res.json({
+            success: true,
+            booking: {
+                ...toBoardEntry(row),
+                language: row.language,
+                validSportsCard: row.valid_sports_card,
+                sendAfter: row.send_after,
+                // Operator-facing only, and never the raw response body.
+                responseNote: row.response_note
+            }
+        });
+    } catch (error) {
+        console.error('Error reading booking:', error);
+        res.status(500).json({ success: false, message: 'Internal server error' });
+    } finally {
+        client.release();
+    }
+});
+
 // Take a slot out of the queue. Only while it is still waiting: once a request has gone
 // to KU Leuven we cannot take it back, whatever they answer.
 app.delete('/api/bookings/:id', async (req, res) => {
@@ -1192,6 +1226,15 @@ app.get('/admin/events', (req, res) => {
 
 app.get('/admin/bookings', (req, res) => {
     res.sendFile(path.join(__dirname, '../public/admin-bookings.html'));
+});
+
+// The status guide and a single entry share one page; the script reads the path.
+app.get('/admin/bookings/guide', (req, res) => {
+    res.sendFile(path.join(__dirname, '../public/admin-booking-detail.html'));
+});
+
+app.get('/admin/bookings/:id', (req, res) => {
+    res.sendFile(path.join(__dirname, '../public/admin-booking-detail.html'));
 });
 
 app.get('/admin/donations', (req, res) => {

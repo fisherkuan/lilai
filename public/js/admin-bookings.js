@@ -68,7 +68,12 @@
         live: false,
         pending: [],
         tickHandle: null,
-        tickEvery: 0
+        tickEvery: 0,
+        clockHandle: null,
+        midnight: null,
+        seen: new Set(),
+        // Replaced by the server's value on first load; this is only the pre-load default.
+        graceSeconds: 300
     };
 
     const el = (id) => document.getElementById(id);
@@ -203,9 +208,13 @@
         row.dataset.id = entry.id;
 
         const gutter = node('div', 'bq-gutter');
+        const windowOpen = new Date(entry.opensAt) <= now;
         if (entry.status === 'sending') {
             gutter.append(node('div', 'bq-gutter-main bq-sending', 'sending'));
             gutter.append(node('div', 'bq-gutter-sub', 'in flight'));
+        } else if (windowOpen) {
+            gutter.append(node('div', 'bq-gutter-main', 'next'));
+            gutter.append(node('div', 'bq-gutter-sub', 'within the minute'));
         } else {
             gutter.append(node('div', 'bq-gutter-main', timeToOpen(new Date(entry.opensAt), now)));
             gutter.append(node('div', 'bq-gutter-sub', absoluteOpening(new Date(entry.opensAt), now)));
@@ -305,7 +314,19 @@
 
         renderMeta(waiting, now);
         renderRail(waiting, now);
+        renderMidnight(waiting, now);
         renderExplainer(waiting);
+
+        // Rows that were not below the rule a moment ago arrive with a fade, so the change
+        // is noticed without anything jumping. Only history ids are remembered: the whole
+        // point of the fade is the slot that just crossed the NOW rule, and it was in
+        // `waiting` right before it crossed.
+        for (const entry of state.history) {
+            if (state.seen.has(entry.id)) continue;
+            const row = list.querySelector(`[data-id="${entry.id}"]`);
+            if (row && state.seen.size > 0) row.classList.add('bq-landed');
+        }
+        for (const entry of state.history) state.seen.add(entry.id);
 
         const more = el('bq-more');
         more.hidden = !state.historyHasMore;
@@ -349,6 +370,77 @@
         note.textContent = `${absoluteOpening(next, now)} — ${verb} out then.`;
     }
 
+    /*
+     * A window is open while anything is in flight, or while a queued slot is inside its
+     * grace period. This is the page's one moment of drama, and the only time the layout
+     * changes shape.
+     */
+    function currentWindow(waiting, now) {
+        const grace = state.graceSeconds * 1000;
+        const live = waiting.filter((entry) => {
+            if (entry.status === 'sending') return true;
+            const opensAt = new Date(entry.opensAt).getTime();
+            return opensAt <= now.getTime() && now.getTime() <= opensAt + grace;
+        });
+        if (live.length === 0) return null;
+
+        const opensAt = live.reduce((earliest, entry) =>
+            (new Date(entry.opensAt) < new Date(earliest.opensAt) ? entry : earliest), live[0]).opensAt;
+        const justSent = state.history.filter((entry) =>
+            entry.submittedAt && now - new Date(entry.submittedAt) < grace).length;
+        return { entries: live, opensAt, justSent };
+    }
+
+    function renderMidnight(waiting, now) {
+        const open = currentWindow(waiting, now);
+        const banner = el('bq-midnight');
+        const quota = el('bq-quota');
+
+        state.midnight = open;
+        banner.hidden = !open;
+        // The banner replaces the quota line rather than sitting beside it.
+        if (open) quota.hidden = true;
+
+        if (!open) {
+            stopClock();
+            // The window has just closed: say so once, quietly, instead of vanishing.
+            const done = state.history.filter((entry) =>
+                entry.submittedAt && now - new Date(entry.submittedAt) < 60 * 60 * 1000).length;
+            if (done > 0) {
+                banner.hidden = false;
+                banner.classList.add('done');
+                el('bq-midnight-headline').textContent = 'Tonight\u2019s window is done';
+                el('bq-midnight-sub').textContent = `${plural(done, 'request')} went out.`;
+                el('bq-clock').textContent = '';
+                el('bq-midnight').querySelector('.bq-clock-zone').textContent = '';
+            }
+            return;
+        }
+
+        banner.classList.remove('done');
+        const playDate = dayAndMonth(new Date(open.entries[0].startPreferred));
+        el('bq-midnight-headline').textContent = 'The window is open';
+        el('bq-midnight-sub').textContent = `Submitting ${plural(open.entries.length, 'request')} for ${playDate}.`;
+        el('bq-midnight').querySelector('.bq-clock-zone').textContent = 'Brussels';
+        startClock();
+    }
+
+    /*
+     * The clock is the ONLY per-second re-render on the page. It touches one text node,
+     * rather than dragging the whole timeline through a redraw every second.
+     */
+    function startClock() {
+        if (state.clockHandle) return;
+        const paint = () => { el('bq-clock').textContent = secondsClockOf(new Date()); };
+        paint();
+        state.clockHandle = setInterval(paint, 1000);
+    }
+
+    function stopClock() {
+        if (state.clockHandle) clearInterval(state.clockHandle);
+        state.clockHandle = null;
+    }
+
     function renderExplainer(waiting) {
         const firstVisit = waiting.length === 0 && state.history.length === 0;
         el('bq-explainer').hidden = !firstVisit;
@@ -371,8 +463,6 @@
             if (entry.status === 'sending' || (ms > 0 && ms < 10 * MINUTE)) { every = 1000; break; }
             if (ms > 0 && ms < DAY) every = Math.max(every, MINUTE);
         }
-        if (state.midnight) every = 1000;
-
         if (every === state.tickEvery) return;
         state.tickEvery = every;
         if (state.tickHandle) clearInterval(state.tickHandle);
@@ -395,6 +485,7 @@
             state.history = data.history;
             state.historyHasMore = data.historyHasMore;
             state.quotaPerWeek = data.quotaPerWeek;
+            if (data.graceSeconds) state.graceSeconds = data.graceSeconds;
             render();
         } catch (error) {
             el('bq-meta').textContent = 'Could not load the queue. Refresh to try again.';
