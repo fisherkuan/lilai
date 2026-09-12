@@ -37,7 +37,7 @@
   "booking": {
     "openingDelayMinSeconds": 5,
     "openingDelayMaxSeconds": 60,
-    "minimumRequestIntervalSeconds": 10,
-    "lateSubmissionGraceSeconds": 300
+    "minimumRequestIntervalSeconds": 15,
+    "lateSubmissionGraceSeconds": 43200
   }
 }

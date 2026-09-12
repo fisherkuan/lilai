@@ -981,10 +981,7 @@ app.get('/api/bookings', async (req, res) => {
             queued: queued.rows.map(toBoardEntry),
             history: history.rows.slice(0, limit).map(toBoardEntry),
             historyHasMore: hasMore,
-            quotaPerWeek: QUOTA_PER_WEEK,
-            // The board decides when a window counts as still open from this number, so it
-            // has to be the server's, not a copy that can drift out of step with config.
-            graceSeconds: bookingSettings(appConfig).lateSubmissionGraceSeconds
+            quotaPerWeek: QUOTA_PER_WEEK
         });
     } catch (error) {
         console.error('Error listing booking queue:', error);

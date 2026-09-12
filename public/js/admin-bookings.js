@@ -71,12 +71,40 @@
         tickEvery: 0,
         clockHandle: null,
         midnight: null,
-        seen: new Set(),
-        // Replaced by the server's value on first load; this is only the pre-load default.
-        graceSeconds: 300
+        quota: null,
+        seen: new Set()
     };
 
     const el = (id) => document.getElementById(id);
+
+    /*
+     * The soonest play date still worth offering: the next midnight that has not passed,
+     * plus fourteen days. The five minutes is a rounding allowance for someone sitting on
+     * the page as midnight ticks over, NOT the grace window — grace is twelve hours, and
+     * letting it govern this would offer dates whose window opened this morning.
+     */
+    function earliestPlayDate() {
+        const now = new Date();
+        const opening = new Date(now);
+        opening.setHours(0, 0, 0, 0);
+        if (now.getTime() > opening.getTime() + 5 * 60000) opening.setDate(opening.getDate() + 1);
+        const play = new Date(opening);
+        play.setDate(play.getDate() + 14);
+        return play;
+    }
+
+    function isoDate(date) {
+        return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+    }
+
+    /* The name this browser last queued under. Social identity, not auth. */
+    function rememberedName() {
+        try {
+            return (JSON.parse(localStorage.getItem('lilai.booking.requester')) || {}).name || '';
+        } catch (error) {
+            return '';
+        }
+    }
 
     // --- Brussels formatting ----------------------------------------------------------
 
@@ -208,13 +236,18 @@
         row.dataset.id = entry.id;
 
         const gutter = node('div', 'bq-gutter');
-        const windowOpen = new Date(entry.opensAt) <= now;
+        const sinceOpen = now - new Date(entry.opensAt);
         if (entry.status === 'sending') {
             gutter.append(node('div', 'bq-gutter-main bq-sending', 'sending'));
             gutter.append(node('div', 'bq-gutter-sub', 'in flight'));
-        } else if (windowOpen) {
+        } else if (sinceOpen >= 0 && sinceOpen < LIVE_WINDOW_MS) {
             gutter.append(node('div', 'bq-gutter-main', 'next'));
             gutter.append(node('div', 'bq-gutter-sub', 'within the minute'));
+        } else if (sinceOpen >= 0) {
+            // Its window opened a while ago and it has not gone yet: grace is still
+            // running. Say so plainly rather than promising it any second now.
+            gutter.append(node('div', 'bq-gutter-main', 'catching up'));
+            gutter.append(node('div', 'bq-gutter-sub', `opened ${timeSince(new Date(entry.opensAt), now)}`));
         } else {
             gutter.append(node('div', 'bq-gutter-main', timeToOpen(new Date(entry.opensAt), now)));
             gutter.append(node('div', 'bq-gutter-sub', absoluteOpening(new Date(entry.opensAt), now)));
@@ -314,6 +347,7 @@
 
         renderMeta(waiting, now);
         renderRail(waiting, now);
+        renderQuota();
         renderMidnight(waiting, now);
         renderExplainer(waiting);
 
@@ -371,23 +405,29 @@
     }
 
     /*
-     * A window is open while anything is in flight, or while a queued slot is inside its
-     * grace period. This is the page's one moment of drama, and the only time the layout
+     * A window is open while anything is in flight, or while a slot opened within the last
+     * few minutes. This is the page's one moment of drama, and the only time the layout
      * changes shape.
+     *
+     * Deliberately NOT the grace window. Grace is twelve hours: it exists so a process
+     * that was asleep at midnight can still send, and a banner counting seconds all
+     * morning would be a lie about what is happening. A slot that does go out late still
+     * lifts out of the timeline and lands with a fade, just without the countdown.
      */
+    const LIVE_WINDOW_MS = 5 * 60 * 1000;
+
     function currentWindow(waiting, now) {
-        const grace = state.graceSeconds * 1000;
         const live = waiting.filter((entry) => {
             if (entry.status === 'sending') return true;
             const opensAt = new Date(entry.opensAt).getTime();
-            return opensAt <= now.getTime() && now.getTime() <= opensAt + grace;
+            return opensAt <= now.getTime() && now.getTime() <= opensAt + LIVE_WINDOW_MS;
         });
         if (live.length === 0) return null;
 
         const opensAt = live.reduce((earliest, entry) =>
             (new Date(entry.opensAt) < new Date(earliest.opensAt) ? entry : earliest), live[0]).opensAt;
         const justSent = state.history.filter((entry) =>
-            entry.submittedAt && now - new Date(entry.submittedAt) < grace).length;
+            entry.submittedAt && now - new Date(entry.submittedAt) < LIVE_WINDOW_MS).length;
         return { entries: live, opensAt, justSent };
     }
 
@@ -398,8 +438,9 @@
 
         state.midnight = open;
         banner.hidden = !open;
-        // The banner replaces the quota line rather than sitting beside it.
-        if (open) quota.hidden = true;
+        // The banner replaces the quota line rather than sitting beside it, and hands the
+        // row back when it closes.
+        quota.hidden = open ? true : !state.quota;
 
         if (!open) {
             stopClock();
@@ -460,8 +501,11 @@
         let every = 0;
         for (const entry of waiting) {
             const ms = new Date(entry.opensAt) - now;
-            if (entry.status === 'sending' || (ms > 0 && ms < 10 * MINUTE)) { every = 1000; break; }
-            if (ms > 0 && ms < DAY) every = Math.max(every, MINUTE);
+            const justOpened = ms <= 0 && -ms < LIVE_WINDOW_MS;
+            if (entry.status === 'sending' || justOpened || (ms > 0 && ms < 10 * MINUTE)) { every = 1000; break; }
+            // Past the live window and still queued: grace is running, so keep the
+            // "opened N ago" label honest, just not at a per-second cost.
+            if (ms <= 0 || ms < DAY) every = Math.max(every, MINUTE);
         }
         if (every === state.tickEvery) return;
         state.tickEvery = every;
@@ -476,6 +520,53 @@
 
     // --- Data ----------------------------------------------------------------------------
 
+    /*
+     * The quota line only means something once we know who is reading. It is the tally for
+     * the soonest week anyone can still book into, which is the week the "Queue a slot"
+     * button would land you in.
+     */
+    async function loadQuota() {
+        const name = rememberedName();
+        if (!name) { state.quota = null; return; }
+        try {
+            const playDate = isoDate(earliestPlayDate());
+            const response = await fetch(
+                `/api/bookings/quota?name=${encodeURIComponent(name)}&playDate=${playDate}`);
+            const data = await response.json();
+            state.quota = data.success ? data : null;
+        } catch (error) {
+            state.quota = null;
+        }
+    }
+
+    function renderQuota() {
+        const box = el('bq-quota');
+        // While the banner is up it owns this row; renderMidnight decides.
+        if (!state.quota) { box.hidden = true; return; }
+        const { used, limit, week } = state.quota;
+
+        const pips = el('bq-pips');
+        pips.textContent = '';
+        // A full week turns amber rather than red: nothing is wrong, there is just no room.
+        const fill = used >= limit ? ' used warn' : ' used';
+        for (let i = 0; i < limit; i += 1) {
+            pips.append(node('span', `bq-pip${i < used ? fill : ''}`, ''));
+        }
+        el('bq-quota-text').textContent = `${used} of ${limit} slots`;
+        el('bq-quota-week').textContent = `week of ${weekLabel(week)}`;
+        box.hidden = false;
+    }
+
+    // Quota weeks always run Monday to Sunday, so the weekday names are fixed. The month
+    // is named once unless the week straddles two.
+    function weekLabel(week) {
+        if (!week || !week.start || !week.end) return '';
+        const [, sm, sd] = week.start.split('-').map(Number);
+        const [, em, ed] = week.end.split('-').map(Number);
+        const from = sm === em ? `Mon ${sd}` : `Mon ${sd} ${MONTHS[sm - 1]}`;
+        return `${from} – Sun ${ed} ${MONTHS[em - 1]}`;
+    }
+
     async function load() {
         try {
             const response = await fetch('/api/bookings?limit=20');
@@ -485,7 +576,7 @@
             state.history = data.history;
             state.historyHasMore = data.historyHasMore;
             state.quotaPerWeek = data.quotaPerWeek;
-            if (data.graceSeconds) state.graceSeconds = data.graceSeconds;
+            await loadQuota();
             render();
         } catch (error) {
             el('bq-meta').textContent = 'Could not load the queue. Refresh to try again.';
@@ -593,5 +684,8 @@
         init();
     }
 
-    window.bookingBoard = { state, render, load, displayName, timeToOpen, absoluteOpening, OUTCOMES };
+    window.bookingBoard = {
+        state, render, load, displayName, timeToOpen, absoluteOpening,
+        earliestPlayDate, OUTCOMES
+    };
 })();

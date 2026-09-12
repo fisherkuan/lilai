@@ -168,7 +168,7 @@ Required in `.env`:
 - `POST /api/create-donation-checkout-session` - Create Stripe checkout session
 
 ### Booking Queue Endpoints
-- `GET /api/bookings` - Board data: `queued[]`, `history[]`, `historyHasMore`, `quotaPerWeek`, `graceSeconds`. Params: `limit`, `before=<ISO>`
+- `GET /api/bookings` - Board data: `queued[]`, `history[]`, `historyHasMore`, `quotaPerWeek`. Params: `limit`, `before=<ISO>`
 - `GET /api/bookings/quota?name=` - Live quota tally for a typed name
 - `GET /api/bookings/names` - Names already in the queue, for autocomplete
 - `GET /api/bookings/form-options` - Sports and facilities read from the live KU Leuven form
@@ -197,8 +197,15 @@ the whole path and stops short of the POST. `server/../.plans/` holds the design
 
 Recovery is stateless: an entry stays due from its opening until opening + grace, so any
 process alive inside that window picks it up through the ordinary check. There is no
-catch-up path. This does mean **something has to be awake at 00:00 Brussels** — a sleeping
-dyno is not woken by the grace window.
+catch-up path. `lateSubmissionGraceSeconds` is 43200 — twelve hours, matching the Python
+reference's live config — so a process that was not running at midnight still sends when
+it next comes up. A late request will usually get a worse court than a punctual one, but
+it is not nothing.
+
+The board's midnight banner is deliberately **not** driven by this number: it uses its own
+five-minute `LIVE_WINDOW_MS`, because a countdown clock running all morning would misstate
+what is happening. A slot that goes out late still lifts out of the timeline and lands with
+a fade; it just carries a "catching up" label instead of a countdown.
 
 `~/code/sports-booking-bot` is the verified Python reference for the form protocol. It is
 a specification, never called at runtime.

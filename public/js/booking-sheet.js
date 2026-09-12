@@ -66,16 +66,9 @@
      * play date is fourteen days after it. Offering anything sooner would hand people a
      * date whose window shut before they typed it.
      */
-    function earliestPlayDate() {
-        const now = new Date();
-        const opening = new Date(now);
-        opening.setHours(0, 0, 0, 0);
-        // Past this midnight already (bar the grace window) — the next one is tomorrow's.
-        if (now.getTime() > opening.getTime() + 5 * 60000) opening.setDate(opening.getDate() + 1);
-        const play = new Date(opening);
-        play.setDate(play.getDate() + 14);
-        return play;
-    }
+    // One definition, on the board, so the quota line and the day picker cannot disagree
+    // about which dates are still worth offering.
+    const earliestPlayDate = () => window.bookingBoard.earliestPlayDate();
 
     /** The next two weekend days whose window has not already closed. */
     function weekendShortcuts() {
