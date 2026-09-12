@@ -18,7 +18,6 @@
     // Padel, tennis, table tennis, beach volleyball and outdoor basketball go through
     // KU Leuven's separate online tool, so they are not offered here at all.
     const SPORTS = ['Badminton', 'Basketball', 'Volleyball', 'Squash', 'Handball'];
-    const START_TIMES = ['16:00', '17:00', '18:00', '19:00', '20:00', '21:00'];
     const DURATIONS = [1, 1.5, 2];
 
     const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -69,18 +68,6 @@
     // One definition, on the board, so the quota line and the day picker cannot disagree
     // about which dates are still worth offering.
     const earliestPlayDate = () => window.bookingBoard.earliestPlayDate();
-
-    /** The next two weekend days whose window has not already closed. */
-    function weekendShortcuts() {
-        const out = [];
-        const cursor = earliestPlayDate();
-        cursor.setHours(12, 0, 0, 0);
-        for (let i = 0; i <= 20 && out.length < 2; i += 1) {
-            const day = new Date(cursor.getTime() + i * 86400000);
-            if (day.getDay() === 0 || day.getDay() === 6) out.push(isoDate(day));
-        }
-        return out;
-    }
 
     function openingFor(playDate) {
         const [y, m, d] = playDate.split('-').map(Number);
@@ -177,7 +164,7 @@
             type: 'text',
             class: 'bs-input',
             list: 'bs-names',
-            placeholder: 'Who is playing under this booking?',
+            placeholder: 'Family name first, e.g. Kuan Fisher',
             value: draft.name || '',
             maxlength: '100',
             autocomplete: 'off'
@@ -195,26 +182,21 @@
 
         return h('div', { class: 'bs-field' }, [
             h('label', { class: 'bs-label', text: 'Who the booking is for' }),
+            h('p', { class: 'bs-note bs-hint', text: 'Family name first, then given name — the order KU Leuven expects.' }),
             list,
             input,
-            h('p', { class: 'bs-note', text: 'Their name goes on the form, and it is what counts the two slots a week. Pick an existing name where you can, so one person is not counted twice.' })
+            h('p', { class: 'bs-note', text: 'This name goes on the form, and it is what counts the two slots a week. Pick an existing name where you can, so one person is not counted twice.' })
         ]);
     }
 
     function stepOne() {
-        const shortcuts = weekendShortcuts();
-        const dayButtons = shortcuts.map((iso) => h('button', {
-            type: 'button',
-            class: `bs-day${draft.playDate === iso ? ' selected' : ''}`,
-            text: prettyDate(iso),
-            onclick: () => { draft.playDate = iso; refreshQuota(); }
-        }));
-
+        // One date input, no shortcuts. A shortcut that guesses wrong costs more than the
+        // two seconds a picker takes, and the calendar already knows which dates are legal.
         const picker = h('input', {
             type: 'date',
-            class: 'bs-day bs-day-picker',
+            class: 'bs-date',
             min: isoDate(earliestPlayDate()),
-            value: shortcuts.includes(draft.playDate) ? '' : (draft.playDate || '')
+            value: draft.playDate || ''
         });
         picker.addEventListener('change', () => {
             if (picker.value) { draft.playDate = picker.value; refreshQuota(); }
@@ -230,8 +212,8 @@
             ]),
             h('div', { class: 'bs-field' }, [
                 h('label', { class: 'bs-label', text: 'Day you want to play' }),
-                h('div', { class: 'bs-days' }, [...dayButtons, picker]),
-                h('p', { class: 'bs-note', text: `Shortcuts are the next two weekend days we can still book. Nothing before ${prettyDate(isoDate(earliestPlayDate()))} — those windows have already closed.` })
+                picker,
+                h('p', { class: 'bs-note', text: `Nothing before ${prettyDate(isoDate(earliestPlayDate()))} — those windows have already closed.` })
             ])
         ];
 
@@ -261,27 +243,22 @@
             onclick: () => { draft.durationHours = value; renderStep(); }
         })));
 
-        const starts = h('div', { class: 'bs-grid' }, START_TIMES.map((time) => h('button', {
-            type: 'button',
-            class: `bs-time${draft.startPreferred === time ? ' selected' : ''}`,
-            text: time,
-            onclick: () => {
-                draft.startPreferred = time;
-                if (draft.startAlternative === time) draft.startAlternative = null;
-                renderStep();
-            }
-        })));
+        // Typed times, not a grid of six guesses: halls run outside 16:00-21:00 and a
+        // grid quietly makes anything it omits feel unbookable.
+        const timeInput = (value, onset) => {
+            const input = h('input', { type: 'time', class: 'bs-time-input', step: 900, value: value || '' });
+            input.addEventListener('change', () => { onset(input.value || null); renderStep(); });
+            return input;
+        };
 
-        const alternatives = h('div', { class: 'bs-grid' }, START_TIMES.map((time) => {
-            const taken = time === draft.startPreferred;
-            return h('button', {
-                type: 'button',
-                class: `bs-time bs-alt${draft.startAlternative === time ? ' selected' : ''}${taken ? ' disabled' : ''}`,
-                text: time,
-                disabled: taken,
-                onclick: () => { if (!taken) { draft.startAlternative = time; renderStep(); } }
-            });
-        }));
+        const starts = timeInput(draft.startPreferred, (value) => {
+            draft.startPreferred = value;
+            if (value && draft.startAlternative === value) draft.startAlternative = null;
+        });
+
+        const alternatives = timeInput(draft.startAlternative, (value) => {
+            draft.startAlternative = value;
+        });
 
         const example = draft.startPreferred && draft.startAlternative
             ? `${draft.startPreferred}–${addHours(draft.startPreferred, draft.durationHours)}, or ${draft.startAlternative}–${addHours(draft.startAlternative, draft.durationHours)}.`
@@ -327,8 +304,9 @@
     }
 
     function stepThree() {
-        const email = h('input', { type: 'email', class: 'bs-input', placeholder: 'name@student.kuleuven.be', value: draft.email || '' });
-        const phone = h('input', { type: 'tel', class: 'bs-input', placeholder: '+32 4xx xx xx xx', value: draft.phone || '' });
+        const kept = draft.editingId ? 'leave blank to keep the one on file' : null;
+        const email = h('input', { type: 'email', class: 'bs-input', placeholder: kept || 'name@student.kuleuven.be', value: draft.email || '' });
+        const phone = h('input', { type: 'tel', class: 'bs-input', placeholder: kept || '+32 4xx xx xx xx', value: draft.phone || '' });
         email.addEventListener('input', () => { draft.email = email.value.trim(); });
         phone.addEventListener('input', () => { draft.phone = phone.value.trim(); });
 
@@ -488,6 +466,9 @@
         if (quota && quota.remaining === 0) return false;
         if (draft.step === 1) return Boolean(draft.name && draft.sport && draft.playDate);
         if (draft.step === 2) return Boolean(draft.startPreferred && draft.startAlternative);
+        // Editing starts with the contact fields blank on purpose: the board never receives
+        // them, and blank means "keep what the server already has".
+        if (draft.editingId) return draft.validSportsCard === true;
         return Boolean(draft.email && draft.phone && draft.validSportsCard);
     }
 
@@ -518,7 +499,8 @@
         if (draft.step > 1) {
             footer.append(h('button', { type: 'button', class: 'btn ghost', text: 'Back', onclick: () => goTo(draft.step - 1) }));
         }
-        const label = draft.step === 1 ? 'Next — times' : draft.step === 2 ? 'Next — who is booking' : 'Put it in the queue';
+        const last = draft.editingId ? 'Save changes' : 'Put it in the queue';
+        const label = draft.step === 1 ? 'Next — times' : draft.step === 2 ? 'Next — who is booking' : last;
         const next = h('button', {
             type: 'button',
             class: `btn ${draft.step === 3 ? 'dark' : 'accent'} bs-next`,
@@ -543,7 +525,7 @@
             : `Step ${draft.step} of 3 · ${STEP_TITLES[draft.step - 1]}`;
         root.querySelector('.bs-title').textContent = draft.sport && draft.playDate && draft.step > 1
             ? `${draft.sport} · ${prettyDate(draft.playDate)}`
-            : 'Queue a slot';
+            : (draft.editingId ? 'Edit this slot' : 'Queue a slot');
 
         const bars = root.querySelectorAll('.bs-bar');
         bars.forEach((bar, index) => bar.classList.toggle('done', !full && index < draft.step));
@@ -556,7 +538,7 @@
         setError(null);
         const next = root.querySelector('.bs-next');
         next.disabled = true;
-        next.textContent = 'Queueing…';
+        next.textContent = draft.editingId ? 'Saving…' : 'Queueing…';
 
         const payload = {
             sport: draft.sport,
@@ -578,8 +560,9 @@
         };
 
         try {
-            const response = await fetch('/api/bookings', {
-                method: 'POST',
+            const response = await fetch(
+                draft.editingId ? `/api/bookings/${encodeURIComponent(draft.editingId)}` : '/api/bookings', {
+                method: draft.editingId ? 'PUT' : 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             });
@@ -590,9 +573,11 @@
                     return renderStep();
                 }
                 renderFooter();
-                return setError(data.message || 'Could not queue that slot.');
+                return setError(data.message || (draft.editingId ? 'Could not save that change.' : 'Could not queue that slot.'));
             }
-            writeStore(STORE, { name: draft.name, email: draft.email, phone: draft.phone });
+            if (!draft.editingId) {
+                writeStore(STORE, { name: draft.name, email: draft.email, phone: draft.phone });
+            }
             writeStore(DEFAULTS_STORE, {
                 players: draft.players,
                 indoorOutdoor: draft.indoorOutdoor,
@@ -629,12 +614,44 @@
         renderStep();
     }
 
-    function open() {
+    /*
+     * `entry` turns the sheet into an edit of an existing queued slot. Email and phone are
+     * deliberately absent from board data, so they start blank and the server keeps what it
+     * already has unless something is typed — the contact details never leave the server.
+     */
+    function open(entry) {
         if (root) return;
         const saved = readStore(STORE, {});
         const defaults = readStore(DEFAULTS_STORE, {});
-        draft = {
+        const clock = (iso) => {
+            const parts = new Intl.DateTimeFormat('en-GB', {
+                timeZone: 'Europe/Brussels', hour: '2-digit', minute: '2-digit', hour12: false
+            }).formatToParts(new Date(iso));
+            const get = (type) => parts.find((part) => part.type === type).value;
+            return `${get('hour')}:${get('minute')}`;
+        };
+
+        draft = entry ? {
             step: 1,
+            editingId: entry.id,
+            name: entry.name,
+            email: '',
+            phone: '',
+            sport: entry.sport,
+            playDate: entry.playDate,
+            startPreferred: clock(entry.startPreferred),
+            startAlternative: clock(entry.startAlternative),
+            durationHours: Number(entry.durationHours),
+            players: entry.players,
+            indoorOutdoor: entry.indoorOutdoor,
+            facility: entry.facility || '',
+            otherFacility: entry.otherFacility || '',
+            remarks: entry.remarks || '',
+            validSportsCard: true,
+            error: null
+        } : {
+            step: 1,
+            editingId: null,
             name: saved.name || '',
             email: saved.email || '',
             phone: saved.phone || '',
@@ -655,11 +672,11 @@
 
         root = h('div', { class: 'bs-root' }, [
             h('div', { class: 'bs-backdrop', onclick: close }),
-            h('section', { class: 'bs-sheet', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Queue a slot' }, [
+            h('section', { class: 'bs-sheet', role: 'dialog', 'aria-modal': 'true', 'aria-label': draft.editingId ? 'Edit this slot' : 'Queue a slot' }, [
                 h('div', { class: 'bs-handle' }),
                 h('header', { class: 'bs-head' }, [
                     h('div', {}, [
-                        h('div', { class: 'bs-title', text: 'Queue a slot' }),
+                        h('div', { class: 'bs-title', text: draft.editingId ? 'Edit this slot' : 'Queue a slot' }),
                         h('div', { class: 'bs-step', text: 'Step 1 of 3 · what and when' })
                     ]),
                     h('div', { class: 'bs-bars' }, [1, 2, 3].map(() => h('span', { class: 'bs-bar' }))),
@@ -682,4 +699,5 @@
     });
 
     window.openBookingSheet = open;
+    window.editBookingSheet = (entry) => open(entry);
 })();

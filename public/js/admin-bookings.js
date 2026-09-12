@@ -145,12 +145,12 @@
         return Math.round((key(to) - key(from)) / DAY);
     }
 
+    // Always name the month. "Sun 4" is ambiguous the moment a queue spans a month end,
+    // which a fourteen-day booking window guarantees it will.
     function dayAndMonth(date) {
         const p = partsOf(date);
-        const sameYear = partsOf(new Date()).year === p.year;
-        const month = MONTHS[Number(p.month) - 1];
-        const base = `${p.weekday} ${Number(p.day)}`;
-        return sameYear && dayGap(new Date(), date) < 60 ? base : `${base} ${month}`;
+        const label = `${p.weekday} ${Number(p.day)} ${MONTHS[Number(p.month) - 1]}`;
+        return partsOf(new Date()).year === p.year ? label : `${label} ${p.year}`;
     }
 
     /** The absolute moment under a waiting row's countdown. */
@@ -194,11 +194,10 @@
      * "Yuki Chen" shows as "Yuki C." A name without spaces — most Chinese and Japanese
      * names — is shown whole, because chopping it would mangle it rather than shorten it.
      */
+    // The board shows the whole name. An initial is not enough to tell two people apart,
+    // and the name is what the two-a-week gate counts.
     function displayName(name) {
-        const parts = String(name || '').trim().split(/\s+/);
-        if (parts.length < 2) return parts[0] || '';
-        const last = parts[parts.length - 1];
-        return `${parts.slice(0, -1).join(' ')} ${last[0]}.`;
+        return String(name || '').trim().replace(/\s+/g, ' ');
     }
 
     function plural(n, word) {
@@ -262,9 +261,57 @@
         aside.append(node('div', 'bq-who', displayName(entry.name)));
         aside.append(node('div', 'bq-aside-sub', `queued ${dayAndMonth(new Date(entry.queuedAt))}`));
 
+        // Only a slot still waiting can be changed. Once the scheduler has claimed it there
+        // is nothing left to edit, so the actions are simply absent rather than disabled.
+        if (entry.status === 'queued') {
+            const actions = node('div', 'bq-actions');
+            const edit = node('button', 'bq-action-link', 'Edit');
+            edit.type = 'button';
+            edit.addEventListener('click', () => window.editBookingSheet(entry));
+
+            const cancel = node('button', 'bq-action-link bq-action-danger', 'Cancel');
+            cancel.type = 'button';
+            cancel.addEventListener('click', () => cancelEntry(entry, cancel));
+
+            actions.append(edit, cancel);
+            aside.append(actions);
+        }
+
         row.append(gutter, body, aside);
         if (entry.status === 'sending') row.classList.add('bq-inflight');
         return row;
+    }
+
+    /*
+     * Cancelling asks once, in the row. A slot someone else queued can be cancelled by
+     * anyone who can reach this page — social cost, not authentication, like the rest of
+     * the site. The confirm exists because the action cannot be undone, not to gate it.
+     */
+    async function cancelEntry(entry, button) {
+        const label = `${entry.sport} on ${dayAndMonth(new Date(entry.startPreferred))} for ${displayName(entry.name)}`;
+        if (!window.confirm(`Cancel ${label}?\n\nThe slot leaves the queue and no request is sent.`)) return;
+
+        button.disabled = true;
+        button.textContent = 'Cancelling…';
+        try {
+            const response = await fetch(`/api/bookings/${encodeURIComponent(entry.id)}`, {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ cancelledBy: rememberedName() || null })
+            });
+            const data = await response.json();
+            if (!data.success) {
+                window.alert(data.message || 'Could not cancel that slot.');
+                button.disabled = false;
+                button.textContent = 'Cancel';
+                return;
+            }
+            load();
+        } catch (error) {
+            window.alert('Could not reach the server. Try again.');
+            button.disabled = false;
+            button.textContent = 'Cancel';
+        }
     }
 
     function sentRow(entry, now) {
@@ -346,7 +393,6 @@
         }
 
         renderMeta(waiting, now);
-        renderRail(waiting, now);
         renderQuota();
         renderMidnight(waiting, now);
         renderExplainer(waiting);
@@ -372,36 +418,15 @@
     function renderMeta(waiting, now) {
         const meta = el('bq-meta');
         if (waiting.length === 0) {
-            meta.textContent = 'Nothing queued';
+            // The gap above the rule already carries "Nothing queued"; saying it twice,
+            // eight pixels apart, reads as a rendering fault rather than as emphasis.
+            meta.textContent = state.history.length > 0
+                ? 'Everything queued has gone out'
+                : 'Nothing queued';
             return;
         }
         const next = new Date(waiting[0].opensAt);
         meta.textContent = `${plural(waiting.length, 'slot')} queued · nearest window ${absoluteOpening(next, now)}`;
-    }
-
-    function renderRail(waiting, now) {
-        const list = el('bq-key-list');
-        list.textContent = '';
-        for (const key of ['sent', 'unconfirmed', 'failed', 'missed']) {
-            const outcome = OUTCOMES[key];
-            const dt = node('dt');
-            dt.append(node('span', `bq-dot bq-dot-${outcome.dot}`));
-            dt.append(node('span', 'bq-key-label', outcome.label));
-            list.append(dt, node('dd', null, outcome.blurb));
-        }
-
-        const time = el('bq-tonight-time');
-        const note = el('bq-tonight-note');
-        if (waiting.length === 0) {
-            time.textContent = '—';
-            note.textContent = 'Nothing is queued yet.';
-            return;
-        }
-        const next = new Date(waiting[0].opensAt);
-        time.textContent = clockOf(next);
-        const sameWindow = waiting.filter((entry) => entry.opensAt === waiting[0].opensAt).length;
-        const verb = sameWindow === 1 ? '1 request goes' : `${sameWindow} requests go`;
-        note.textContent = `${absoluteOpening(next, now)} — ${verb} out then.`;
     }
 
     /*

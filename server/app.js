@@ -14,6 +14,7 @@ const { bookingSettings, sampleSendAfter } = require('./booking-settings');
 const { createBookingSchema } = require('./booking-schema');
 const { BookingFormClient, readFormOptions } = require('./booking-form');
 const { createScheduler } = require('./booking-scheduler');
+const { mergeContact, sendAfterForEdit } = require('./booking-edit');
 
 // Load environment variables
 require('dotenv').config();
@@ -1133,6 +1134,113 @@ app.post('/api/bookings', async (req, res) => {
     } catch (error) {
         await client.query('ROLLBACK').catch(() => {});
         console.error('Error queueing booking:', error);
+        res.status(500).json({ success: false, message: 'Internal server error' });
+    } finally {
+        client.release();
+    }
+});
+
+/*
+ * Edit a queued entry. Only while it is still `queued`: once the scheduler has claimed it
+ * the request is either in flight or already answered, and there is nothing left to change.
+ *
+ * The whole entry is re-validated, not patched field by field, so an edit cannot produce a
+ * combination the create path would have refused.
+ */
+app.put('/api/bookings/:id', async (req, res) => {
+    const settings = bookingSettings(appConfig);
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+
+        const current = await client.query(
+            'SELECT * FROM booking_queue WHERE id = $1 FOR UPDATE', [req.params.id]);
+        if (current.rows.length === 0) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({ success: false, message: 'No such entry' });
+        }
+        const before = current.rows[0];
+        if (before.status !== 'queued') {
+            await client.query('ROLLBACK');
+            return res.status(409).json({
+                success: false,
+                message: `That request has already gone out (${before.status}). It cannot be changed.`
+            });
+        }
+
+        /*
+         * Email and phone are never sent to the board, so an edit form cannot show them
+         * back. Blank means "leave them as they are" rather than "clear them" — which is
+         * what lets the entry be edited without the contact details ever leaving the server.
+         */
+        let entry;
+        try {
+            entry = validateBooking(mergeContact(req.body, before));
+        } catch (error) {
+            await client.query('ROLLBACK');
+            if (error instanceof BookingInputError) {
+                return res.status(400).json({ success: false, message: error.message, field: error.field });
+            }
+            throw error;
+        }
+
+        const now = new Date();
+        const deadline = new Date(entry.opensAt.getTime() + settings.lateSubmissionGraceSeconds * 1000);
+        if (now > deadline) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({
+                success: false, field: 'playDate',
+                message: 'That booking window has already closed.'
+            });
+        }
+        if (now >= entry.startPreferred && now >= entry.startAlternative) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ success: false, field: 'playDate', message: 'That slot is already in the past.' });
+        }
+
+        // Same lock as the create path, against the week the entry is moving INTO.
+        const week = weekBounds(entry.playDate);
+        await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1, 0))', [`${entry.nameKey}|${week.start}`]);
+
+        const held = await countHeld(client, entry.nameKey, entry.playDate, { excludeId: before.id });
+        if (held >= QUOTA_PER_WEEK) {
+            await client.query('ROLLBACK');
+            const quota = await quotaFor(client, entry.name, entry.playDate);
+            return res.status(409).json({
+                success: false,
+                reason: 'quota_reached',
+                message: `That week is full for ${quota.name} — ${held} of ${QUOTA_PER_WEEK}.`,
+                quota
+            });
+        }
+
+        const sendAfter = sendAfterForEdit(before, entry.opensAt, settings);
+
+        const updated = await client.query(`
+            UPDATE booking_queue SET
+                sport = $2, play_date = $3, start_preferred = $4, start_alternative = $5,
+                duration_hours = $6, players = $7, indoor_outdoor = $8, facility = $9,
+                other_facility = $10, language = $11, valid_sports_card = $12,
+                name = $13, name_key = $14, email = $15, phone = $16, remarks = $17,
+                opens_at = $18, send_after = $19
+            WHERE id = $1 AND status = 'queued'
+            RETURNING *
+        `, [
+            before.id, entry.sport, entry.playDate, entry.startPreferred, entry.startAlternative,
+            entry.durationHours, entry.players, entry.indoorOutdoor, entry.facility,
+            entry.otherFacility, entry.language, entry.validSportsCard,
+            entry.name, entry.nameKey, entry.email, entry.phone, entry.remarks,
+            entry.opensAt, sendAfter
+        ]);
+
+        await client.query('COMMIT');
+
+        const board = toBoardEntry(updated.rows[0]);
+        broadcast({ type: 'booking_update', booking: board });
+        res.json({ success: true, booking: board, quotaPerWeek: QUOTA_PER_WEEK });
+    } catch (error) {
+        await client.query('ROLLBACK').catch(() => {});
+        console.error('Error editing booking:', error);
         res.status(500).json({ success: false, message: 'Internal server error' });
     } finally {
         client.release();

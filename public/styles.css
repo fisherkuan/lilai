@@ -1882,7 +1882,6 @@ body.menu-open { overflow: hidden; }
     margin-bottom: var(--s-7);
 }
 .bq-main { min-width: 0; }
-.bq-rail { display: none; }
 
 /* Explainer (first visit) */
 .bq-explainer { padding: var(--s-5); margin-bottom: var(--s-4); }
@@ -2095,20 +2094,30 @@ body.menu-open { overflow: hidden; }
 .bq-more:hover { color: var(--text); border-color: var(--text-muted); }
 .bq-guide-link { font-size: 13px; font-weight: 500; color: var(--accent); }
 
-/* Rail cards */
-.bq-key h3, .bq-privacy h3 { font-size: 14px; margin-bottom: var(--s-3); }
-.bq-key dl { margin: 0; display: grid; gap: var(--s-3); }
-.bq-key dt { display: grid; grid-template-columns: 14px minmax(0, 1fr); gap: var(--s-2); align-items: start; font-size: 13px; font-weight: 600; }
-.bq-key dt .bq-dot { margin-top: 5px; }
-.bq-key dd { margin: 0 0 0 22px; font-size: 13px; color: var(--text-secondary); }
-.bq-key-foot { margin-top: var(--s-4); font-size: 13px; color: var(--text-muted); }
-.bq-tonight-time { font-family: var(--font-display); font-weight: 500; font-size: 30px; margin: var(--s-1) 0; }
-.bq-tonight p, .bq-privacy p { font-size: 13px; color: var(--text-secondary); }
+/* Row actions. Quiet until the row is hovered on a pointer device, always present on
+   touch, where there is no hover to reveal them. */
+.bq-actions { display: flex; gap: var(--s-3); margin-top: var(--s-2); }
+.bq-action-link {
+    background: none;
+    border: 0;
+    padding: 0;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--accent);
+    cursor: pointer;
+}
+.bq-action-link:hover { text-decoration: underline; }
+.bq-action-link:disabled { color: var(--text-muted); cursor: default; text-decoration: none; }
+.bq-action-danger { color: var(--text-secondary); }
+.bq-action-danger:hover { color: var(--danger); }
+@media (hover: hover) and (min-width: 960px) {
+    .bq-actions { opacity: 0; transition: opacity 0.15s ease; }
+    .bq-row-waiting:hover .bq-actions,
+    .bq-actions:focus-within { opacity: 1; }
+}
 
 @media (min-width: 960px) {
-    .bq-layout { grid-template-columns: minmax(0, 1fr) 340px; gap: var(--s-6); }
-    .bq-rail { display: flex; flex-direction: column; gap: var(--s-4); }
-    .bq-rail .card { padding: var(--s-5); }
 
     /* The action becomes one strip rather than a full-width dark card. */
     .bq-action {
@@ -2249,6 +2258,22 @@ textarea.bs-input { min-height: 64px; }
 .bs-days { display: flex; flex-wrap: wrap; gap: var(--s-2); }
 .bs-day, .bs-time { border-radius: var(--r-md); }
 .bs-day-picker { min-width: 150px; color: var(--text-secondary); }
+
+/* The date and time inputs are the only way in now, so they get input weight, not pill
+   weight — they are fields to fill, not options to choose between. */
+.bs-date, .bs-time-input {
+    width: 100%;
+    max-width: 220px;
+    padding: 10px var(--s-3);
+    font: inherit;
+    font-size: 15px;
+    color: var(--text);
+    background: var(--surface);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--r-md);
+}
+.bs-date:focus, .bs-time-input:focus { outline: 2px solid var(--accent); outline-offset: -1px; border-color: var(--accent); }
+.bs-hint { margin: calc(var(--s-1) * -1) 0 var(--s-2); color: var(--text-muted); }
 
 .bs-segment { display: inline-flex; gap: 4px; background: var(--surface-muted); border-radius: 12px; padding: 4px; }
 .bs-seg { border: 1px solid transparent; background: transparent; border-radius: 9px; padding: 8px var(--s-4); }
