@@ -13,6 +13,7 @@ const { QUOTA_PER_WEEK, countHeld, quotaFor } = require('./booking-quota');
 const { bookingSettings, sampleSendAfter } = require('./booking-settings');
 const { createBookingSchema } = require('./booking-schema');
 const { BookingFormClient, readFormOptions } = require('./booking-form');
+const { createScheduler } = require('./booking-scheduler');
 
 // Load environment variables
 require('dotenv').config();
@@ -1220,9 +1221,24 @@ app.use((err, req, res, next) => {
 });
 
 // Initialize database and start server
+/*
+ * Submission is off unless BOOKING_SUBMIT=live is set. Dry run exercises the claim and
+ * the whole state machine without sending anything to KU Leuven.
+ */
+const bookingScheduler = createScheduler({
+    pool,
+    broadcast,
+    settings: bookingSettings(appConfig),
+    live: process.env.BOOKING_SUBMIT === 'live',
+    toBoardEntry
+});
+
 initializeDatabase().then(() => {
     server.listen(PORT, () => {
         console.log(`🚀 Event Attendance App server running on http://localhost:${PORT}`);
         console.log('🎉 Ready to accept RSVPs!');
+    });
+    bookingScheduler.start().catch((error) => {
+        console.error('Booking scheduler failed to start:', error.message);
     });
 });
