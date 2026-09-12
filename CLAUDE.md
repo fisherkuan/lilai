@@ -27,11 +27,18 @@ The server runs on `http://localhost:3000` by default (configurable via PORT env
 ### Database
 - PostgreSQL is used for production (connection via `DATABASE_URL` env var)
 - Database schema is auto-initialized on server startup via `initializeDatabase()` in server/app.js
-- Tables: `events`, `rsvps`, `donations`
+- Tables: `events`, `rsvps`, `donations`, `booking_queue`
 - Schema migrations are idempotent and run automatically on startup
 
 ### Testing
-No test suite is currently configured. The package.json test script exits with error code 1.
+```bash
+npm test                    # node --test, unit tests only (DB-backed tests skip)
+npm run test:db             # also runs the DB-backed tests
+```
+`test:db` needs a scratch Postgres database and refuses to run unless the database
+name contains `test`, `scratch` or `local` — the suite truncates tables. Override the
+target with `TEST_DATABASE_URL`; it defaults to `postgresql://localhost/lilai_booking_test`.
+Files run with `--test-concurrency=1` because several truncate the same tables.
 
 ## Architecture Overview
 
@@ -160,10 +167,41 @@ Required in `.env`:
 - `GET /api/donation-progress` - Get current/goal for progress bar
 - `POST /api/create-donation-checkout-session` - Create Stripe checkout session
 
+### Booking Queue Endpoints
+- `GET /api/bookings` - Board data: `queued[]`, `history[]`, `historyHasMore`, `quotaPerWeek`, `graceSeconds`. Params: `limit`, `before=<ISO>`
+- `GET /api/bookings/quota?name=` - Live quota tally for a typed name
+- `GET /api/bookings/names` - Names already in the queue, for autocomplete
+- `GET /api/bookings/form-options` - Sports and facilities read from the live KU Leuven form
+- `POST /api/bookings` - Queue a slot
+- `GET /api/bookings/:id` - One entry, including what was submitted
+- `DELETE /api/bookings/:id` - Cancel a queued entry (used by the quota swap)
+
 ### Configuration
 - `GET /api/config` - Get app configuration (calendars, settings)
 - `GET /api/stripe-key` - Get Stripe publishable key
 - `GET /api/health` - Health check
+
+## Booking Queue
+
+Queues KU Leuven sports-facility requests and submits them when the booking window
+opens — midnight Brussels, 14 days before the play date.
+
+- `server/booking-time.js` — Brussels wall-clock arithmetic; rejects ambiguous and nonexistent local times rather than guessing
+- `server/booking-form.js` — the Plone EasyForm client (parse, build, encode, classify)
+- `server/booking-scheduler.js` — the 15s tick. Claims a row (`UPDATE … WHERE status='queued'`) *before* the POST, so a request is never sent twice. A POST whose outcome cannot be read becomes `unconfirmed` and is never retried automatically
+- `server/booking-quota.js` — two slots per name per Mon–Sun week, enforced under a Postgres advisory lock
+- `config/app.json` → `booking` — delay bounds and `lateSubmissionGraceSeconds`
+
+**Submission is off unless `BOOKING_SUBMIT=live` is set.** Without it the scheduler runs
+the whole path and stops short of the POST. `server/../.plans/` holds the design notes.
+
+Recovery is stateless: an entry stays due from its opening until opening + grace, so any
+process alive inside that window picks it up through the ordinary check. There is no
+catch-up path. This does mean **something has to be awake at 00:00 Brussels** — a sleeping
+dyno is not woken by the grace window.
+
+`~/code/sports-booking-bot` is the verified Python reference for the form protocol. It is
+a specification, never called at runtime.
 
 ## Deployment Notes
 
