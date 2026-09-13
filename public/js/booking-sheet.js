@@ -12,7 +12,6 @@
 (() => {
     'use strict';
 
-    const STORE = 'lilai.booking.requester';
     const DEFAULTS_STORE = 'lilai.booking.defaults';
 
     // Padel, tennis, table tennis, beach volleyball and outdoor basketball go through
@@ -26,7 +25,6 @@
     let root = null;
     let draft = null;
     let options = { facilities: [], languages: ['English', 'Nederlands'] };
-    let knownNames = [];
     let quota = null;
 
     // --- Storage (best effort; Safari private mode throws) ---------------------------
@@ -51,10 +49,13 @@
         return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
     }
 
+    // Name the year only when it is not this one. A queue that reaches into next season
+    // would otherwise offer "Wed 10 Feb" twice over and mean two different days.
     function prettyDate(iso) {
         const [y, m, d] = iso.split('-').map(Number);
         const date = new Date(y, m - 1, d);
-        return `${WEEKDAYS[date.getDay()]} ${d} ${MONTHS[m - 1]}`;
+        const label = `${WEEKDAYS[date.getDay()]} ${d} ${MONTHS[m - 1]}`;
+        return y === new Date().getFullYear() ? label : `${label} ${y}`;
     }
 
     // One definition, on the board, so the quota line and the day picker cannot disagree
@@ -150,34 +151,52 @@
 
     // --- Steps ---------------------------------------------------------------------------
 
+    /*
+     * Who the booking is for: a pick from the address book, not a name typed again.
+     *
+     * The name is asked first because the quota counts on it, and it is a pick rather than
+     * free text because two spellings of one person used to become two people with four
+     * slots a week. Adding someone happens here too — it is always something you are in the
+     * middle of, never the errand you set out on.
+     */
+    function pickPerson(person) {
+        draft.profileId = person.id;
+        draft.name = person.name;
+        window.bookingPeople.rememberLast(person.id);
+        refreshQuota();
+    }
+
     function stepWho() {
-        const list = h('datalist', { id: 'bs-names' }, knownNames.map((name) => h('option', { value: name })));
-        const input = h('input', {
-            type: 'text',
-            class: 'bs-input',
-            list: 'bs-names',
-            placeholder: 'Family name first, e.g. Kuan Fisher',
-            value: draft.name || '',
-            maxlength: '100',
-            autocomplete: 'off'
-        });
-        input.addEventListener('change', () => {
-            draft.name = input.value.trim();
-            refreshQuota();
-        });
-        input.addEventListener('blur', () => {
-            if (input.value.trim() !== draft.name) {
-                draft.name = input.value.trim();
-                refreshQuota();
+        const people = window.bookingPeople.list();
+
+        const add = h('button', {
+            type: 'button',
+            class: 'bs-person-add',
+            text: people.length === 0 ? 'Add the first person' : '+ Add a person',
+            onclick: async () => {
+                const saved = await window.bookingPeople.openEditor(null);
+                if (saved) pickPerson(saved);
+                else renderStep();
             }
         });
 
+        const rows = people.map((person) => h('button', {
+            type: 'button',
+            class: `bs-person-row${person.id === draft.profileId ? ' selected' : ''}`,
+            onclick: () => pickPerson(person)
+        }, [
+            h('span', { class: 'bs-person-name', text: person.name }),
+            h('span', { class: 'bs-person-contact', text: `${person.emailMasked} · ${person.phoneMasked}` })
+        ]));
+
         return h('div', { class: 'bs-field' }, [
             h('label', { class: 'bs-label', text: 'Who the booking is for' }),
-            h('p', { class: 'bs-note bs-hint', text: 'Family name first, then given name — the order KU Leuven expects.' }),
-            list,
-            input,
-            h('p', { class: 'bs-note', text: 'This name goes on the form, and it is what counts the two slots a week. Pick an existing name where you can, so one person is not counted twice.' })
+            people.length === 0
+                ? h('p', { class: 'bs-note', text: window.bookingPeople.loaded()
+                    ? 'Nobody in the list yet. Add a person once and their email and phone are never asked for again.'
+                    : 'Loading the people who book…' })
+                : h('p', { class: 'bs-note bs-hint', text: 'Their email and phone are already on file. This name goes on the form, and it is what counts the two slots a week.' }),
+            h('div', { class: 'bs-person-list' }, [...rows, add])
         ]);
     }
 
@@ -209,7 +228,7 @@
                 h('label', { class: 'bs-label', text: 'Day you want to play' }),
                 picker,
                 h('p', { class: 'bs-note', text: options.seasonEndsOn
-                    ? `Nothing before ${prettyDate(isoDate(earliestPlayDate()))} — those windows have already closed — and nothing after ${prettyDate(options.seasonEndsOn)} ${options.seasonEndsOn.slice(0, 4)}, when this season's sports card runs out.`
+                    ? `Nothing before ${prettyDate(isoDate(earliestPlayDate()))} — those windows have already closed — and nothing after ${prettyDate(options.seasonEndsOn)}, when this season's sports card runs out.`
                     : `Nothing before ${prettyDate(isoDate(earliestPlayDate()))} — those windows have already closed.` })
             ])
         ];
@@ -301,11 +320,7 @@
     }
 
     function stepThree() {
-        const kept = draft.editingId ? 'leave blank to keep the one on file' : null;
-        const email = h('input', { type: 'email', class: 'bs-input', placeholder: kept || 'name@student.kuleuven.be', value: draft.email || '' });
-        const phone = h('input', { type: 'tel', class: 'bs-input', placeholder: kept || '+32 4xx xx xx xx', value: draft.phone || '' });
-        email.addEventListener('input', () => { draft.email = email.value.trim(); });
-        phone.addEventListener('input', () => { draft.phone = phone.value.trim(); });
+        const person = draft.profileId ? window.bookingPeople.byId(draft.profileId) : null;
 
         const rows = [
             ['Sport', draft.sport],
@@ -317,22 +332,31 @@
             ['Goes out', `${openingLabel(draft.playDate).text}`]
         ];
 
+        /*
+         * No contact fields. The email and phone come from the person picked in step 1, so
+         * this step confirms who rather than asking a third time. An older entry whose
+         * person has since been removed keeps the details it was queued with; the server
+         * holds them and this step says so.
+         */
         return [
             h('div', { class: 'bs-field' }, [
                 h('label', { class: 'bs-label', text: 'Booking for' }),
                 h('div', { class: 'bs-person' }, [
-                    h('div', { class: 'bs-person-name', text: draft.name }),
+                    h('div', {}, [
+                        h('div', { class: 'bs-person-name', text: draft.name }),
+                        h('div', { class: 'bs-person-contact', text: person
+                            ? `${person.emailMasked} · ${person.phoneMasked}`
+                            : 'Contact details kept with this entry' })
+                    ]),
                     h('button', { type: 'button', class: 'text-link-btn', text: 'Not them?', onclick: () => goTo(1) })
                 ])
             ]),
-            h('div', { class: 'bs-field' }, [
-                h('label', { class: 'bs-label', text: 'Email KU Leuven replies to' }),
-                email
-            ]),
-            h('div', { class: 'bs-field' }, [
-                h('label', { class: 'bs-label', text: 'Phone' }),
-                phone
-            ]),
+            person
+                ? h('button', {
+                    type: 'button', class: 'text-link-btn bs-person-edit', text: 'Change their email or phone',
+                    onclick: async () => { if (await window.bookingPeople.openEditor(person)) renderStep(); }
+                })
+                : null,
             h('p', { class: 'bs-note', text: 'A valid KU Leuven sports card is required to book. We do not check it and never could — that is between the player and KU Leuven.' }),
             h('p', { class: 'bs-note', text: 'Email and phone never appear on the board — only the name does. The name is what counts the two slots a week.' }),
             h('div', { class: 'bs-table' }, [
@@ -468,12 +492,11 @@
 
     function canAdvance() {
         if (quota && quota.remaining === 0) return false;
-        if (draft.step === 1) return Boolean(draft.name && draft.sport && draft.playDate);
+        if (draft.step === 1) return Boolean(draft.profileId && draft.sport && draft.playDate);
         if (draft.step === 2) return Boolean(draft.startPreferred && draft.startAlternative);
-        // Editing starts with the contact fields blank on purpose: the board never receives
-        // them, and blank means "keep what the server already has".
-        if (draft.editingId) return true;
-        return Boolean(draft.email && draft.phone);
+        // An edit of an entry whose person has since been removed carries no profile. The
+        // server keeps the contact details it already has, so there is nothing left to ask.
+        return Boolean(draft.profileId || draft.editingId);
     }
 
     function goTo(step) {
@@ -522,7 +545,7 @@
         const body = root.querySelector('.bs-body');
         body.textContent = '';
         const step = full ? stepFull() : draft.step === 1 ? stepOne() : draft.step === 2 ? stepTwo() : stepThree();
-        for (const part of step) body.append(part);
+        for (const part of step) { if (part) body.append(part); }
 
         root.querySelector('.bs-step').textContent = full
             ? 'That week is full'
@@ -556,9 +579,9 @@
             otherFacility: draft.otherFacility,
             language: 'English',
             validSportsCard: true,
-            name: draft.name,
-            email: draft.email,
-            phone: draft.phone,
+            // The server reads name, email and phone off the profile. Sending them from here
+            // would let a sheet opened before an edit overwrite what the address book says.
+            profileId: draft.profileId,
             remarks: draft.remarks,
             queuedBy: draft.name
         };
@@ -578,9 +601,6 @@
                 }
                 renderFooter();
                 return setError(data.message || (draft.editingId ? 'Could not save that change.' : 'Could not queue that slot.'));
-            }
-            if (!draft.editingId) {
-                writeStore(STORE, { name: draft.name, email: draft.email, phone: draft.phone });
             }
             writeStore(DEFAULTS_STORE, {
                 players: draft.players,
@@ -605,16 +625,23 @@
     }
 
     async function loadReference() {
-        const [optionsResponse, namesResponse] = await Promise.allSettled([
+        const [optionsResponse] = await Promise.allSettled([
             fetch('/api/bookings/form-options').then((r) => r.json()),
-            fetch('/api/bookings/names').then((r) => r.json())
+            window.bookingPeople.load()
         ]);
         if (optionsResponse.status === 'fulfilled' && optionsResponse.value.success) {
             options = optionsResponse.value;
         }
-        if (namesResponse.status === 'fulfilled' && namesResponse.value.success) {
-            knownNames = namesResponse.value.names;
+        // A person removed since this entry was queued is no longer pickable, so the draft
+        // must let go of them rather than send an id the server will refuse.
+        if (draft.profileId && !window.bookingPeople.byId(draft.profileId)) draft.profileId = null;
+        // A create with nobody chosen falls back to whoever this browser picked last —
+        // one click saved, and no claim about who is actually typing.
+        if (!draft.profileId && !draft.editingId) {
+            const last = window.bookingPeople.byId(window.bookingPeople.readLast());
+            if (last) { draft.profileId = last.id; draft.name = last.name; }
         }
+        if (draft.profileId && draft.playDate) return refreshQuota();
         renderStep();
     }
 
@@ -625,7 +652,6 @@
      */
     function open(entry, { duplicate = false } = {}) {
         if (root) return;
-        const saved = readStore(STORE, {});
         const defaults = readStore(DEFAULTS_STORE, {});
         const clock = (iso) => {
             const parts = new Intl.DateTimeFormat('en-GB', {
@@ -649,8 +675,9 @@
             source: `${entry.sport} · ${prettyDate(entry.playDate)}`,
             editingId: duplicate ? null : entry.id,
             name: entry.name,
-            email: duplicate ? (saved.email || '') : '',
-            phone: duplicate ? (saved.phone || '') : '',
+            // Both an edit and a duplicate start from the person the entry was booked for.
+            // If that person has since been removed, step 1 asks for a new one.
+            profileId: entry.profileId || null,
             sport: entry.sport,
             playDate: reusableDate,
             startPreferred: clock(entry.startPreferred),
@@ -668,9 +695,9 @@
             mode: 'create',
             source: null,
             editingId: null,
-            name: saved.name || '',
-            email: saved.email || '',
-            phone: saved.phone || '',
+            name: '',
+            // Filled in by loadReference from whoever this browser picked last.
+            profileId: null,
             sport: defaults.sport || 'Badminton',
             playDate: '',
             startPreferred: '18:00',

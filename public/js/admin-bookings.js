@@ -107,13 +107,17 @@
         return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
     }
 
-    /* The name this browser last queued under. Social identity, not auth. */
+    /*
+     * Whose tally the quota pill shows: the person this browser last queued for.
+     *
+     * The people themselves live on the server now, so this is only a pointer — social
+     * identity, not auth. A pointer at someone since removed resolves to nobody, and the
+     * pill simply stays hidden rather than reporting a stranger's week.
+     */
     function rememberedName() {
-        try {
-            return (JSON.parse(localStorage.getItem('lilai.booking.requester')) || {}).name || '';
-        } catch (error) {
-            return '';
-        }
+        if (!window.bookingPeople) return '';
+        const person = window.bookingPeople.byId(window.bookingPeople.readLast());
+        return person ? person.name : '';
     }
 
     // --- Brussels formatting ----------------------------------------------------------
@@ -664,6 +668,7 @@
      * button would land you in.
      */
     async function loadQuota() {
+        if (window.bookingPeople && !window.bookingPeople.loaded()) await window.bookingPeople.load();
         const name = rememberedName();
         if (!name) { state.quota = null; return; }
         try {
@@ -829,6 +834,9 @@
         el('bq-queue-btn').addEventListener('click', () => {
             // Step 4 mounts the queue sheet here.
             if (window.openBookingSheet) window.openBookingSheet();
+        });
+        el('bq-people').addEventListener('click', () => {
+            if (window.bookingPeople) window.bookingPeople.openManager();
         });
         document.addEventListener('visibilitychange', () => {
             if (!document.hidden) render();

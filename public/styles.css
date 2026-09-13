@@ -2093,27 +2093,7 @@ body.menu-open { overflow: hidden; }
 .bq-empty-title { font-size: 14px; color: var(--text); }
 .bq-empty-note { font-size: 14px; color: var(--text-secondary); margin-top: var(--s-1); }
 
-    border: 1px solid var(--accent);
-    background: var(--accent-soft);
-    color: var(--accent-hover);
-    border-radius: 999px;
-    padding: 6px 14px;
-    font-size: 13px;
-    font-weight: 500;
-    cursor: pointer;
-    margin-bottom: var(--s-2);
-}
 .bq-footer { display: flex; flex-direction: column; align-items: center; gap: var(--s-3); margin-top: var(--s-4); }
-    width: 100%;
-    border: 1px dashed var(--border-strong);
-    border-radius: var(--r-md);
-    background: transparent;
-    color: var(--text-muted);
-    font-size: 13px;
-    font-weight: 500;
-    padding: var(--s-3);
-    cursor: pointer;
-}
 .bq-guide-link { font-size: 13px; font-weight: 500; color: var(--accent); }
 
 /* A run of collapsed rows, shown as one line. Reads as part of the timeline, not as a
@@ -2370,8 +2350,40 @@ textarea.bs-input { min-height: 64px; }
 
 .bs-person { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); background: var(--surface-muted); border-radius: var(--r-md); padding: var(--s-3) var(--s-4); }
 .bs-person-name { font-size: 15px; font-weight: 600; }
-.bs-declare { display: flex; gap: var(--s-3); align-items: flex-start; font-size: 13px; color: var(--text-secondary); line-height: 1.5; }
-.bs-check { width: 20px; height: 20px; margin-top: 2px; flex: none; accent-color: var(--accent); }
+.bs-person-contact { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+
+/* The address book, as a picker */
+.bs-person-list { display: flex; flex-direction: column; gap: var(--s-2); }
+.bs-person-row {
+    display: flex; flex-direction: column; align-items: flex-start; gap: 0;
+    width: 100%; min-height: 52px; padding: var(--s-3) var(--s-4); text-align: left;
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-md);
+    cursor: pointer; font: inherit; color: inherit;
+}
+.bs-person-row:hover { border-color: var(--border-strong); }
+.bs-person-row.selected { border-color: var(--text); background: var(--surface-muted); box-shadow: inset 0 0 0 1px var(--text); }
+.bs-person-add {
+    min-height: 48px; padding: var(--s-3) var(--s-4); font: inherit; font-size: 14px; font-weight: 500;
+    color: var(--accent); background: transparent; border: 1px dashed var(--border-strong);
+    border-radius: var(--r-md); cursor: pointer;
+}
+.bs-person-add:hover { background: var(--surface-muted); }
+.bs-person-edit { align-self: flex-start; font-size: 13px; }
+
+/* People manager */
+.bp-layer { z-index: 130; }
+.bp-row { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); padding-bottom: var(--s-3); border-bottom: 1px solid var(--border); }
+.bp-who { min-width: 0; }
+.bp-name { font-size: 15px; font-weight: 600; }
+.bp-contact { font-size: 12px; color: var(--text-muted); margin-top: 2px; overflow-wrap: anywhere; }
+.bp-acts { display: flex; gap: var(--s-2); flex: none; }
+.bp-remove {
+    min-height: 40px; padding: 8px var(--s-3); font: inherit; font-size: 13px; cursor: pointer;
+    color: var(--danger); background: transparent; border: 1px solid var(--border); border-radius: var(--r-md);
+}
+.bp-remove:hover { border-color: var(--danger); }
+.bp-error { color: var(--danger); }
+.bq-people-link { background: none; border: 0; padding: 0; font: inherit; cursor: pointer; }
 
 .bs-table { border: 1px solid var(--border); border-radius: var(--r-lg); overflow: hidden; }
 .bs-table-head { padding: 11px var(--s-4); font-size: 13px; font-weight: 600; background: var(--surface-muted); }

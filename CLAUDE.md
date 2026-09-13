@@ -170,8 +170,8 @@ Required in `.env`:
 ### Booking Queue Endpoints
 - `GET /api/bookings` - Board data: `queued[]`, `history[]`, `historyHasMore`, `quotaPerWeek`. Params: `limit`, `before=<ISO>`
 - `GET /api/bookings/quota?name=` - Live quota tally for a typed name
-- `GET /api/bookings/names` - Names already in the queue, for autocomplete
-- `GET /api/bookings/form-options` - Sports and facilities read from the live KU Leuven form
+- `GET /api/bookings/form-options` - Sports and facilities read from the live KU Leuven form, plus `seasonEndsOn`
+- `GET|POST /api/booking-profiles`, `GET|PUT|DELETE /api/booking-profiles/:id` - The address book. The list masks email and phone; only a single read returns them in full
 - `POST /api/bookings` - Queue a slot
 - `GET /api/bookings/:id` - One entry, including what was submitted
 - `DELETE /api/bookings/:id` - Cancel a queued entry (used by the quota swap)

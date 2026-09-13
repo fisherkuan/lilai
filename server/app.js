@@ -15,6 +15,9 @@ const { createBookingSchema } = require('./booking-schema');
 const { BookingFormClient, readFormOptions } = require('./booking-form');
 const { createScheduler } = require('./booking-scheduler');
 const { mergeContact, sendAfterForEdit } = require('./booking-edit');
+const {
+    createProfileSchema, publicProfile, fullProfile, validateProfile
+} = require('./booking-profiles');
 
 // Load environment variables
 require('dotenv').config();
@@ -282,6 +285,10 @@ async function initializeDatabase() {
         }
 
         await createBookingSchema(client);
+        const seeded = await createProfileSchema(client, uuidv4);
+        if (seeded.created > 0) {
+            console.log(`[bookings] address book seeded from the queue: ${seeded.created} people, ${seeded.linked} entries linked.`);
+        }
 
         // Create indexes for performance
         await client.query('CREATE INDEX IF NOT EXISTS idx_rsvps_event_id ON rsvps(event_id)');
@@ -953,6 +960,9 @@ function toBoardEntry(row) {
         otherFacility: row.other_facility,
         remarks: row.remarks,
         name: row.name,
+        // Which address book entry this was booked for — an id, so the sheet can preselect
+        // the person on an edit. The contact details behind it still never come this way.
+        profileId: row.profile_id || null,
         status: row.status,
         opensAt: row.opens_at,
         queuedAt: row.queued_at,
@@ -1025,18 +1035,148 @@ app.get('/api/bookings/quota', async (req, res) => {
     }
 });
 
-// Names known to the queue, newest first — the autocomplete behind the name field.
-app.get('/api/bookings/names', async (req, res) => {
+/*
+ * The address book.
+ *
+ * Three facts per person, kept on the server so they survive a cleared cache and reach
+ * every device. No login guards these routes, by the same decision the rest of this app
+ * makes: it is a small community board, and a profile is an address book entry, not an
+ * account. What the routes DO protect is bulk contact details — the list masks them, and
+ * only a read of one profile returns the full record.
+ */
+app.get('/api/booking-profiles', async (req, res) => {
     const client = await pool.connect();
     try {
-        const result = await client.query(`
-            SELECT DISTINCT ON (name_key) name_key, name
-            FROM booking_queue
-            ORDER BY name_key, queued_at DESC
-        `);
-        res.json({ success: true, names: result.rows.map((row) => row.name) });
+        const result = await client.query('SELECT * FROM booking_profiles ORDER BY name ASC');
+        res.json({ success: true, profiles: result.rows.map(publicProfile) });
     } catch (error) {
-        console.error('Error listing booking names:', error);
+        console.error('Error listing booking profiles:', error);
+        res.status(500).json({ success: false, message: 'Internal server error' });
+    } finally {
+        client.release();
+    }
+});
+
+app.get('/api/booking-profiles/:id', async (req, res) => {
+    const client = await pool.connect();
+    try {
+        const result = await client.query('SELECT * FROM booking_profiles WHERE id = $1', [req.params.id]);
+        if (result.rowCount === 0) return res.status(404).json({ success: false, message: 'No such person' });
+        res.json({ success: true, profile: fullProfile(result.rows[0]) });
+    } catch (error) {
+        console.error('Error reading booking profile:', error);
+        res.status(500).json({ success: false, message: 'Internal server error' });
+    } finally {
+        client.release();
+    }
+});
+
+app.post('/api/booking-profiles', async (req, res) => {
+    let person;
+    try {
+        person = validateProfile(req.body);
+    } catch (error) {
+        if (error instanceof BookingInputError) {
+            return res.status(400).json({ success: false, message: error.message, field: error.field });
+        }
+        throw error;
+    }
+
+    const client = await pool.connect();
+    try {
+        const result = await client.query(
+            `INSERT INTO booking_profiles (id, name, name_key, email, phone)
+             VALUES ($1, $2, $3, $4, $5)
+             ON CONFLICT (name_key) DO NOTHING
+             RETURNING *`,
+            [uuidv4(), person.name, person.nameKey, person.email, person.phone]
+        );
+        // The conflict is on the folded name — the same key the weekly quota counts on —
+        // so the answer has to name the person who already holds it, not the spelling typed.
+        if (result.rowCount === 0) {
+            const existing = await client.query('SELECT * FROM booking_profiles WHERE name_key = $1', [person.nameKey]);
+            return res.status(409).json({
+                success: false,
+                reason: 'already_exists',
+                message: `${existing.rows[0].name} is already in the list.`,
+                field: 'name',
+                profile: publicProfile(existing.rows[0])
+            });
+        }
+        res.status(201).json({ success: true, profile: fullProfile(result.rows[0]) });
+    } catch (error) {
+        console.error('Error creating booking profile:', error);
+        res.status(500).json({ success: false, message: 'Internal server error' });
+    } finally {
+        client.release();
+    }
+});
+
+/*
+ * Editing a profile changes what the NEXT request will carry. Bookings already queued keep
+ * the details they were made with: the row the scheduler posts has to be the row someone
+ * read and approved, and history has to say what was actually sent.
+ */
+app.put('/api/booking-profiles/:id', async (req, res) => {
+    let person;
+    try {
+        person = validateProfile(req.body);
+    } catch (error) {
+        if (error instanceof BookingInputError) {
+            return res.status(400).json({ success: false, message: error.message, field: error.field });
+        }
+        throw error;
+    }
+
+    const client = await pool.connect();
+    try {
+        const clash = await client.query(
+            'SELECT name FROM booking_profiles WHERE name_key = $1 AND id <> $2',
+            [person.nameKey, req.params.id]
+        );
+        if (clash.rowCount > 0) {
+            return res.status(409).json({
+                success: false,
+                reason: 'already_exists',
+                message: `${clash.rows[0].name} already holds that name.`,
+                field: 'name'
+            });
+        }
+        const result = await client.query(
+            `UPDATE booking_profiles
+             SET name = $1, name_key = $2, email = $3, phone = $4, updated_at = NOW()
+             WHERE id = $5 RETURNING *`,
+            [person.name, person.nameKey, person.email, person.phone, req.params.id]
+        );
+        if (result.rowCount === 0) return res.status(404).json({ success: false, message: 'No such person' });
+        res.json({ success: true, profile: fullProfile(result.rows[0]) });
+    } catch (error) {
+        console.error('Error updating booking profile:', error);
+        res.status(500).json({ success: false, message: 'Internal server error' });
+    } finally {
+        client.release();
+    }
+});
+
+/*
+ * Removal takes the person out of the picker and nothing else. Their bookings keep the
+ * name, email and phone they were queued with (profile_id is ON DELETE SET NULL), so a
+ * request waiting for midnight still goes out complete. The count says how many, because
+ * "this removes nothing else" is only believable with a number attached.
+ */
+app.delete('/api/booking-profiles/:id', async (req, res) => {
+    const client = await pool.connect();
+    try {
+        const held = await client.query(
+            `SELECT COUNT(*)::int AS waiting FROM booking_queue
+             WHERE profile_id = $1 AND status IN ('queued', 'sending')`,
+            [req.params.id]
+        );
+        const result = await client.query('DELETE FROM booking_profiles WHERE id = $1 RETURNING *', [req.params.id]);
+        if (result.rowCount === 0) return res.status(404).json({ success: false, message: 'No such person' });
+        res.json({ success: true, profile: publicProfile(result.rows[0]), stillQueued: held.rows[0].waiting });
+    } catch (error) {
+        console.error('Error deleting booking profile:', error);
         res.status(500).json({ success: false, message: 'Internal server error' });
     } finally {
         client.release();
@@ -1076,11 +1216,36 @@ app.get('/api/bookings/form-options', async (req, res) => {
     }
 });
 
+/*
+ * A request that names a profile takes its name, email and phone from the server.
+ *
+ * The profile is the one place those three facts are edited, so letting a client override
+ * them would reintroduce exactly the drift profiles exist to remove. A request with no
+ * profileId still carries its own contact details — the import path and any older client
+ * work unchanged.
+ */
+async function applyProfile(body) {
+    const profileId = typeof body.profileId === 'string' ? body.profileId.trim() : '';
+    if (!profileId) return { body, profileId: null };
+    const result = await pool.query('SELECT * FROM booking_profiles WHERE id = $1', [profileId]);
+    if (result.rowCount === 0) {
+        throw new BookingInputError('That person is no longer in the list.', 'name');
+    }
+    const person = result.rows[0];
+    return {
+        body: { ...body, name: person.name, email: person.email, phone: person.phone },
+        profileId
+    };
+}
+
 // Queue a slot.
 app.post('/api/bookings', async (req, res) => {
     let entry;
+    let profileId = null;
     try {
-        entry = validateBooking(req.body, { seasonEndsOn: bookingSettings(appConfig).seasonEndsOn });
+        const resolved = await applyProfile(req.body);
+        profileId = resolved.profileId;
+        entry = validateBooking(resolved.body, { seasonEndsOn: bookingSettings(appConfig).seasonEndsOn });
     } catch (error) {
         if (error instanceof BookingInputError) {
             return res.status(400).json({ success: false, message: error.message, field: error.field });
@@ -1137,14 +1302,14 @@ app.post('/api/bookings', async (req, res) => {
             INSERT INTO booking_queue (
                 id, sport, play_date, start_preferred, start_alternative, duration_hours,
                 players, indoor_outdoor, facility, other_facility, language, valid_sports_card,
-                name, name_key, email, phone, remarks, queued_by, opens_at, send_after, status
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, 'queued')
+                name, name_key, email, phone, remarks, queued_by, opens_at, send_after, profile_id, status
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, 'queued')
             RETURNING *
         `, [
             id, entry.sport, entry.playDate, entry.startPreferred, entry.startAlternative, entry.durationHours,
             entry.players, entry.indoorOutdoor, entry.facility, entry.otherFacility, entry.language,
             entry.validSportsCard, entry.name, entry.nameKey, entry.email, entry.phone, entry.remarks,
-            queuedBy, entry.opensAt, sendAfter
+            queuedBy, entry.opensAt, sendAfter, profileId
         ]);
 
         await client.query('COMMIT');
@@ -1195,8 +1360,13 @@ app.put('/api/bookings/:id', async (req, res) => {
          * what lets the entry be edited without the contact details ever leaving the server.
          */
         let entry;
+        let profileId = before.profile_id;
         try {
-            entry = validateBooking(mergeContact(req.body, before), { seasonEndsOn: settings.seasonEndsOn });
+            // A profile named in the edit replaces all three contact facts at once; without
+            // one, blank fields keep what is already stored.
+            const resolved = await applyProfile(req.body);
+            if (resolved.profileId) profileId = resolved.profileId;
+            entry = validateBooking(mergeContact(resolved.body, before), { seasonEndsOn: settings.seasonEndsOn });
         } catch (error) {
             await client.query('ROLLBACK');
             if (error instanceof BookingInputError) {
@@ -1243,7 +1413,7 @@ app.put('/api/bookings/:id', async (req, res) => {
                 duration_hours = $6, players = $7, indoor_outdoor = $8, facility = $9,
                 other_facility = $10, language = $11, valid_sports_card = $12,
                 name = $13, name_key = $14, email = $15, phone = $16, remarks = $17,
-                opens_at = $18, send_after = $19
+                opens_at = $18, send_after = $19, profile_id = $20
             WHERE id = $1 AND status = 'queued'
             RETURNING *
         `, [
@@ -1251,7 +1421,7 @@ app.put('/api/bookings/:id', async (req, res) => {
             entry.durationHours, entry.players, entry.indoorOutdoor, entry.facility,
             entry.otherFacility, entry.language, entry.validSportsCard,
             entry.name, entry.nameKey, entry.email, entry.phone, entry.remarks,
-            entry.opensAt, sendAfter
+            entry.opensAt, sendAfter, profileId
         ]);
 
         await client.query('COMMIT');
