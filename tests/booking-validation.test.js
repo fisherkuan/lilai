@@ -89,6 +89,17 @@ test('an empty sport is refused', () => {
     assert.equal(fieldOf(good({ sport: '   ' })), 'sport');
 });
 
+// The field is free text: the picker's five suggestions are a shortcut, not the rule.
+test('a sport outside the suggestions is accepted, tidied of stray whitespace', () => {
+    assert.equal(validateBooking(good({ sport: '  Futsal ' })).sport, 'Futsal');
+    assert.equal(validateBooking(good({ sport: 'Ultimate  frisbee' })).sport, 'Ultimate frisbee');
+});
+
+test('a sport longer than the column is refused', () => {
+    assert.equal(fieldOf(good({ sport: 'x'.repeat(101) })), 'sport');
+    assert.equal(validateBooking(good({ sport: 'x'.repeat(100) })).sport, 'x'.repeat(100));
+});
+
 // --- Facility ------------------------------------------------------------------------
 
 test('"Andere / Other" needs the facility named', () => {

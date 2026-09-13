@@ -20,6 +20,7 @@ const SPORTS_ELSEWHERE = new Set([
     'padel', 'tennis', 'tabletennis', 'tafeltennis', 'beachvolleyball', 'beachvolleybal'
 ]);
 const BASKETBALL = new Set(['basketball', 'basketbal']);
+const MAX_SPORT_LENGTH = 100;
 
 function sportKey(sport) {
     return String(sport).toLowerCase().replace(/[ -]/g, '');
@@ -127,8 +128,11 @@ function validateBooking(input = {}, { seasonEndsOn = null } = {}) {
     const language = input.language ?? 'English';
     if (!LANGUAGES.includes(language)) fail('Language must be English or Nederlands.', 'language');
 
-    const sport = typeof input.sport === 'string' ? input.sport.trim() : '';
+    // Free text, because the KU Leuven form's own sport field is free text. The only
+    // limits are that something was typed and that it fits the column.
+    const sport = typeof input.sport === 'string' ? input.sport.replace(/\s+/g, ' ').trim() : '';
     if (!sport) fail('Sport is required.', 'sport');
+    if (sport.length > MAX_SPORT_LENGTH) fail('That sport name is too long.', 'sport');
 
     const placement = input.indoorOutdoor;
     if (!PLACEMENTS.includes(placement)) fail('Choose Indoor or Outdoor.', 'indoorOutdoor');
