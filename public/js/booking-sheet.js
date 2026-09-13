@@ -12,6 +12,8 @@
 (() => {
     'use strict';
 
+    const { h, readJson, isoDate, MONTHS } = window.bookingShared;
+
     const DEFAULTS_STORE = 'lilai.booking.defaults';
 
     // Padel, tennis, table tennis, beach volleyball and outdoor basketball go through
@@ -19,7 +21,6 @@
     const SPORTS = ['Badminton', 'Basketball', 'Volleyball', 'Squash', 'Handball'];
     const DURATIONS = [1, 1.5, 2];
 
-    const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
     let root = null;
@@ -44,10 +45,6 @@
     }
 
     // --- Dates -----------------------------------------------------------------------
-
-    function isoDate(date) {
-        return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-    }
 
     // Name the year only when it is not this one. A queue that reaches into next season
     // would otherwise offer "Wed 10 Feb" twice over and mean two different days.
@@ -132,20 +129,9 @@
 
     // --- Small DOM helpers -------------------------------------------------------------
 
-    function h(tag, attrs = {}, children = []) {
-        const node = document.createElement(tag);
-        for (const [key, value] of Object.entries(attrs)) {
-            if (key === 'class') node.className = value;
-            else if (key === 'text') node.textContent = value;
-            else if (key === 'html') node.innerHTML = value;
-            else if (key.startsWith('on')) node.addEventListener(key.slice(2), value);
-            else if (value === true) node.setAttribute(key, '');
-            else if (value !== false && value != null) node.setAttribute(key, value);
-        }
-        for (const child of [].concat(children)) {
-            if (child) node.append(child.nodeType ? child : document.createTextNode(child));
-        }
-        return node;
+    /** What the sheet is for right now — the same words wherever the sheet names itself. */
+    function sheetTitle() {
+        return draft.editingId ? 'Edit this slot' : draft.editingSeriesId ? 'Edit this schedule' : 'Queue a slot';
     }
 
     function pillGroup(values, current, onPick, labelOf = (v) => v) {
@@ -742,7 +728,7 @@
             : `Step ${draft.step} of 3 · ${STEP_TITLES[draft.step - 1]}`;
         root.querySelector('.bs-title').textContent = draft.sport && draft.playDate && draft.step > 1
             ? `${draft.sport} · ${prettyDate(draft.playDate)}`
-            : (draft.editingId ? 'Edit this slot' : draft.editingSeriesId ? 'Edit this schedule' : 'Queue a slot');
+            : sheetTitle();
 
         const bars = root.querySelectorAll('.bs-bar');
         bars.forEach((bar, index) => bar.classList.toggle('done', !full && index < draft.step));
@@ -824,22 +810,6 @@
         } catch (error) {
             renderFooter();
             setError(error.staleServer ? error.message : 'Could not reach the server. Try again.');
-        }
-    }
-
-    /*
-     * A response that is not JSON is not a network failure. Saying so sends people to check
-     * their wifi over a server that is simply running older code — its SPA fallback answers
-     * an unknown path with the page itself.
-     */
-    async function readJson(response) {
-        const text = await response.text();
-        try {
-            return JSON.parse(text);
-        } catch (error) {
-            const stale = new Error('This server is running older code and does not know this request. Restart it.');
-            stale.staleServer = true;
-            throw stale;
         }
     }
 
@@ -961,7 +931,6 @@
             facility: entry.facility || '',
             otherFacility: entry.otherFacility || '',
             remarks: entry.remarks || '',
-            validSportsCard: true,
             repeatOn: Boolean(series),
             repeatEvery: series ? series.rule.every : 1,
             repeatUnit: series ? series.rule.unit : 'week',
@@ -987,7 +956,6 @@
             facility: defaults.facility || '',
             otherFacility: defaults.otherFacility || '',
             remarks: '',
-            validSportsCard: true,
             repeatOn: false,
             repeatEvery: 1,
             repeatUnit: 'week',
@@ -999,7 +967,7 @@
 
         root = h('div', { class: 'bs-root' }, [
             h('div', { class: 'bs-backdrop', onclick: close }),
-            h('section', { class: 'bs-sheet', role: 'dialog', 'aria-modal': 'true', 'aria-label': draft.editingId ? 'Edit this slot' : draft.editingSeriesId ? 'Edit this schedule' : 'Queue a slot' }, [
+            h('section', { class: 'bs-sheet', role: 'dialog', 'aria-modal': 'true', 'aria-label': sheetTitle() }, [
                 h('div', { class: 'bs-handle' }),
                 h('div', { class: `bs-mode bs-mode-${draft.mode}` }, [
                     h('span', { class: 'bs-mode-tag', text: MODE_TAG[draft.mode] }),
@@ -1007,7 +975,7 @@
                 ].filter(Boolean)),
                 h('header', { class: 'bs-head' }, [
                     h('div', {}, [
-                        h('div', { class: 'bs-title', text: draft.editingId ? 'Edit this slot' : draft.editingSeriesId ? 'Edit this schedule' : 'Queue a slot' }),
+                        h('div', { class: 'bs-title', text: sheetTitle() }),
                         h('div', { class: 'bs-step', text: 'Step 1 of 3 · what and when' })
                     ]),
                     h('div', { class: 'bs-bars' }, [1, 2, 3].map(() => h('span', { class: 'bs-bar' }))),

@@ -7,7 +7,7 @@
 (() => {
     'use strict';
 
-    const BRUSSELS = 'Europe/Brussels';
+    const { h, BRUSSELS } = window.bookingShared;
 
     const OUTCOMES = {
         queued: {
@@ -67,19 +67,6 @@
     const secondsOf = (iso) => fmt({ hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }).format(new Date(iso));
     const longDate = (iso) => fmt({ weekday: 'long', day: 'numeric', month: 'long' }).format(new Date(iso));
     const shortStamp = (iso) => fmt({ weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date(iso));
-
-    function h(tag, attrs = {}, children = []) {
-        const node = document.createElement(tag);
-        for (const [key, value] of Object.entries(attrs)) {
-            if (key === 'class') node.className = value;
-            else if (key === 'text') node.textContent = value;
-            else if (value != null && value !== false) node.setAttribute(key, value);
-        }
-        for (const child of [].concat(children)) {
-            if (child) node.append(child.nodeType ? child : document.createTextNode(child));
-        }
-        return node;
-    }
 
     function displayName(name) {
         const parts = String(name || '').trim().split(/\s+/);

@@ -13,6 +13,8 @@
 (() => {
     'use strict';
 
+    const { h, readJson } = window.bookingShared;
+
     // Which person this browser picked last. A convenience, not identity — the people
     // themselves live on the server, so losing this loses one click and nothing else.
     const LAST_PERSON = 'lilai.booking.lastPerson';
@@ -20,23 +22,6 @@
     let people = [];
     let loaded = false;
     let root = null;
-
-    // --- DOM ---------------------------------------------------------------------------
-
-    function h(tag, attrs = {}, children = []) {
-        const node = document.createElement(tag);
-        for (const [key, value] of Object.entries(attrs)) {
-            if (key === 'class') node.className = value;
-            else if (key === 'text') node.textContent = value;
-            else if (key.startsWith('on')) node.addEventListener(key.slice(2), value);
-            else if (value === true) node.setAttribute(key, '');
-            else if (value !== false && value != null) node.setAttribute(key, value);
-        }
-        for (const child of [].concat(children)) {
-            if (child) node.append(child.nodeType ? child : document.createTextNode(child));
-        }
-        return node;
-    }
 
     function readLast() {
         try {
@@ -53,23 +38,6 @@
     }
 
     // --- Data --------------------------------------------------------------------------
-
-    /*
-     * A response that is not JSON is not a network failure, and reporting it as one sends
-     * people to check their wifi over a server that is simply out of date. The case that
-     * actually produces it: a server started before these routes existed, whose SPA
-     * fallback answers every unknown path with the page itself.
-     */
-    async function readJson(response) {
-        const text = await response.text();
-        try {
-            return JSON.parse(text);
-        } catch (error) {
-            const stale = new Error('This server does not know about people yet — it is running older code. Restart it.');
-            stale.staleServer = true;
-            throw stale;
-        }
-    }
 
     const whyItFailed = (error) => error.staleServer
         ? error.message

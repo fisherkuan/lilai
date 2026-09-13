@@ -23,9 +23,9 @@
      *
      * Bump it when changing anything in public/js or public/styles.css.
      */
-    const BUILD = '2026-09-13f';
+    const BUILD = '2026-09-13g';
 
-    const BRUSSELS = 'Europe/Brussels';
+    const { BRUSSELS, MONTHS, isoDate } = window.bookingShared;
     const MINUTE = 60000;
     const HOUR = 3600000;
     const DAY = 86400000;
@@ -120,10 +120,6 @@
         return play;
     }
 
-    function isoDate(date) {
-        return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-    }
-
     /*
      * Whose tally the quota pill shows: the person this browser last queued for.
      *
@@ -154,8 +150,6 @@
             return out;
         };
     })();
-
-    const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
     function clockOf(date) {
         const p = partsOf(date);
@@ -388,24 +382,35 @@
         return actions;
     }
 
-    async function restoreEntry(entry, button) {
+    /*
+     * Every row button follows one shape: go busy, ask the server, and on any failure come
+     * back with the label it had and say what went wrong next to it. Three copies of this
+     * had already begun to word the same failure differently.
+     */
+    async function rowAction(button, { busy, idle, request, failed, onSuccess = () => load() }) {
         button.disabled = true;
-        button.textContent = 'Restoring…';
+        button.textContent = busy;
         try {
-            const response = await fetch(`/api/bookings/${encodeURIComponent(entry.id)}/restore`, { method: 'POST' });
-            const data = await response.json();
+            const data = await (await request()).json();
             if (!data.success) {
                 button.disabled = false;
-                button.textContent = 'Undo';
-                sayTrouble(button, data.message || 'Could not restore that slot.');
+                button.textContent = idle;
+                sayTrouble(button, data.message || failed);
                 return;
             }
-            load();
+            await onSuccess(data);
         } catch (error) {
             button.disabled = false;
-            button.textContent = 'Undo';
+            button.textContent = idle;
             sayTrouble(button, 'Could not reach the server. Try again.');
         }
+    }
+
+    function restoreEntry(entry, button) {
+        return rowAction(button, {
+            busy: 'Restoring…', idle: 'Undo', failed: 'Could not restore that slot.',
+            request: () => fetch(`/api/bookings/${encodeURIComponent(entry.id)}/restore`, { method: 'POST' })
+        });
     }
 
     /*
@@ -422,28 +427,15 @@
         );
     }
 
-    async function sendCancel(entry, button) {
-        button.disabled = true;
-        button.textContent = 'Cancelling…';
-        try {
-            const response = await fetch(`/api/bookings/${encodeURIComponent(entry.id)}`, {
+    function sendCancel(entry, button) {
+        return rowAction(button, {
+            busy: 'Cancelling…', idle: 'Cancel it', failed: 'Could not cancel that slot.',
+            request: () => fetch(`/api/bookings/${encodeURIComponent(entry.id)}`, {
                 method: 'DELETE',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({})
-            });
-            const data = await response.json();
-            if (!data.success) {
-                button.disabled = false;
-                button.textContent = 'Cancel it';
-                sayTrouble(button, data.message || 'Could not cancel that slot.');
-                return;
-            }
-            load();
-        } catch (error) {
-            button.disabled = false;
-            button.textContent = 'Cancel it';
-            sayTrouble(button, 'Could not reach the server. Try again.');
-        }
+            })
+        });
     }
 
     function sentRow(entry, now) {
@@ -680,34 +672,22 @@
         }
     }
 
-    async function seriesAction(series, action, button) {
-        const label = button.textContent;
-        button.disabled = true;
-        button.textContent = '…';
-        try {
-            const response = await fetch(
-                `/api/booking-series/${encodeURIComponent(series.id)}/${action}`, { method: 'POST' });
-            const data = await response.json();
-            if (!data.success) {
-                button.disabled = false;
-                button.textContent = label;
-                sayTrouble(button, data.message || 'That did not work.');
-                return;
+    function seriesAction(series, action, button) {
+        return rowAction(button, {
+            busy: '…', idle: button.textContent, failed: 'That did not work.',
+            request: () => fetch(`/api/booking-series/${encodeURIComponent(series.id)}/${action}`, { method: 'POST' }),
+            onSuccess: async (data) => {
+                /*
+                 * Say what could NOT be touched. A request already sent cannot be recalled,
+                 * and a bulk button that quietly leaves some behind is exactly the kind of
+                 * silence that gets noticed at midnight instead of now.
+                 */
+                notice(data.alreadyGone > 0
+                    ? `${data.alreadyGone} of them had already gone to KU Leuven and cannot be taken back.`
+                    : '');
+                await load();
             }
-            /*
-             * Say what could NOT be touched. A request already sent cannot be recalled, and
-             * a bulk button that quietly leaves some behind is exactly the kind of silence
-             * that gets noticed at midnight instead of now.
-             */
-            notice(data.alreadyGone > 0
-                ? `${data.alreadyGone} of them had already gone to KU Leuven and cannot be taken back.`
-                : '');
-            await load();
-        } catch (error) {
-            button.disabled = false;
-            button.textContent = label;
-            sayTrouble(button, 'Could not reach the server.');
-        }
+        });
     }
 
     function render() {
@@ -1058,12 +1038,22 @@
      * — which, on a queue seventy rows long, was always, and the pill itself was off-screen
      * at the top. The result looked like a page that simply did not refresh. Anchoring on a
      * row that is actually on screen gives live updates with nothing moving under the eye.
+     *
+     * A bulk action arrives as one message per row — a repeat of fifty-two is fifty-two
+     * messages in the same instant — so the redraw waits for the next frame and happens
+     * once, whatever arrived in between.
      */
+    let redrawPending = false;
     function receive(booking) {
-        const anchor = visibleAnchor();
         applyUpdate(booking);
-        render();
-        restoreAnchor(anchor);
+        if (redrawPending) return;
+        redrawPending = true;
+        requestAnimationFrame(() => {
+            redrawPending = false;
+            const anchor = visibleAnchor();
+            render();
+            restoreAnchor(anchor);
+        });
     }
 
     /** The first timeline row at or below the top of the viewport, and where it sits. */
