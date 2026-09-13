@@ -2079,6 +2079,32 @@ body.menu-open { overflow: hidden; }
 .bq-empty-title { font-size: 14px; color: var(--text); }
 .bq-empty-note { font-size: 14px; color: var(--text-secondary); margin-top: var(--s-1); }
 
+/* Recurring schedules. A card per habit, above the timeline, because a habit is one thing
+   and acting on it row by row is how an occurrence gets missed. */
+.bq-series { margin-bottom: var(--s-5); }
+.bq-series-list { display: flex; flex-direction: column; gap: var(--s-3); }
+.bq-series-card {
+    border: 1px solid var(--border);
+    border-radius: var(--r-lg);
+    background: var(--surface);
+    padding: var(--s-4);
+}
+.bq-series-who { font-size: 12px; color: var(--text-muted); }
+.bq-series-title { font-size: 16px; font-weight: 600; margin-top: 2px; }
+.bq-series-rule { font-size: 13px; color: var(--text-secondary); margin-top: 2px; }
+.bq-series-tally { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2); margin-top: var(--s-3); }
+.bq-tally { font-size: 12px; padding: 3px 10px; border-radius: 999px; border: 1px solid var(--border); }
+.bq-tally-wait { border-color: var(--border-strong); color: var(--text); }
+.bq-tally-sent { border-color: var(--success); color: var(--success); }
+.bq-tally-off { color: var(--text-muted); }
+.bq-series-next { font-size: 12px; color: var(--text-muted); }
+.bq-series-actions {
+    display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-3);
+    margin-top: var(--s-3); padding-top: var(--s-3); border-top: 1px solid var(--border);
+}
+/* The time left on an undo, beside its button — it is a fact, not a control. */
+.bq-action-note { font-size: 12px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+
 .bq-footer { display: flex; flex-direction: column; align-items: center; gap: var(--s-3); margin-top: var(--s-4); }
 .bq-guide-link { font-size: 13px; font-weight: 500; color: var(--accent); }
 
@@ -2276,6 +2302,27 @@ textarea.bs-input { min-height: 64px; }
 }
 .bs-date:focus, .bs-time-input:focus { outline: 2px solid var(--accent); outline-offset: -1px; border-color: var(--accent); }
 .bs-hint { margin: calc(var(--s-1) * -1) 0 var(--s-2); color: var(--text-muted); }
+
+/* "every [3] [weeks]" reads as one sentence, so it is laid out as one. */
+.bs-every { display: flex; align-items: center; gap: var(--s-2); flex-wrap: wrap; }
+.bs-every-word { font-size: 14px; color: var(--text-secondary); }
+/* input.bs-number, not .bs-number: the global input[type="number"] rule sets width:100%
+   and outranks a bare class. */
+input.bs-number {
+    width: 72px;
+    flex: none;
+    padding: 10px var(--s-3);
+    font: inherit;
+    font-size: 15px;
+    color: var(--text);
+    background: var(--surface);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--r-md);
+}
+input.bs-number:focus { outline: 2px solid var(--accent); outline-offset: -1px; border-color: var(--accent); }
+select.bs-unit { width: auto; min-width: 120px; max-width: 160px; flex: none; }
+/* Seven weekday pills must fit a phone, so they lose the roomy pill padding. */
+.bs-day-pill { min-width: 48px; padding: 8px var(--s-2); text-align: center; }
 
 /* Mode banner. Sits above the header and never changes as the steps advance, because the
    title becomes the booking's own name from step 2 and can no longer say what is going on. */

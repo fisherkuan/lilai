@@ -82,6 +82,8 @@
         midnight: null,
         quota: null,
         graceSeconds: 43200,
+        cancelUndoSeconds: 300,
+        series: [],
         seen: new Set()
     };
 
@@ -296,18 +298,19 @@
         const actions = node('div', 'bq-actions');
 
         /*
-         * A cancelled slot keeps a way back for as long as putting it back would mean
-         * anything — that is, while the scheduler could still send it. Past that it is a
-         * record like any other row behind the rule, and offering Undo would promise
-         * something the server would refuse.
+         * A cancelled slot keeps a way back for a short while, and says how long is left.
+         * The countdown is not decoration: past it the row leaves the board entirely, and a
+         * button that vanishes without warning reads as a fault. The server enforces the
+         * same window, so the two cannot disagree.
          */
         if (entry.status === 'cancelled') {
-            const restorable = Date.now() <= new Date(entry.opensAt).getTime() + state.graceSeconds * 1000;
-            if (!restorable) return actions;
+            const left = undoMsLeft(entry, Date.now());
+            if (left <= 0) return actions;
             const undo = node('button', 'bq-action-link', 'Undo');
             undo.type = 'button';
             undo.addEventListener('click', () => restoreEntry(entry, undo));
             actions.append(undo);
+            actions.append(node('span', 'bq-action-note', `${countdown(left)} left`));
             return actions;
         }
 
@@ -447,11 +450,39 @@
     }
 
     /*
-     * A cancelled slot sits ahead of NOW until its window opens, then belongs behind it.
-     * The server draws that line on every fetch; this redraws it on every render, so a page
-     * left open overnight does not keep a cancelled row below a rule it has already crossed.
+     * How long a cancelled row may still be undone. Zero once the window has run out, and
+     * zero for a cancellation from before the server recorded the moment — which is the
+     * right reading: those are long over.
+     */
+    function undoMsLeft(entry, now) {
+        if (entry.status !== 'cancelled' || !entry.cancelledAt) return 0;
+        const deadline = new Date(entry.cancelledAt).getTime() + state.cancelUndoSeconds * 1000;
+        // A slot whose window has closed cannot come back however recently it was cancelled.
+        const sendable = new Date(entry.opensAt).getTime() + state.graceSeconds * 1000;
+        return Math.min(deadline, sendable) - now;
+    }
+
+    function countdown(ms) {
+        const total = Math.max(0, Math.ceil(ms / 1000));
+        return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`;
+    }
+
+    /*
+     * Two redraws the server would also make, applied here so a page left open stays honest
+     * between fetches.
+     *
+     * A cancelled slot sits ahead of NOW until its window opens, then belongs behind it —
+     * position is time, not status. And once its undo window has run out it leaves the
+     * board altogether: nothing is deleted, but a timeline of things that are NOT happening
+     * is noise, and a called-off recurring schedule generates it a dozen rows at a time.
      */
     function reconcile(now) {
+        const expired = (entry) => entry.status === 'cancelled' && undoMsLeft(entry, now.getTime()) <= 0;
+        const before = state.queued.length + state.history.length;
+        state.queued = state.queued.filter((entry) => !expired(entry));
+        state.history = state.history.filter((entry) => !expired(entry));
+        state.historyShown -= before - (state.queued.length + state.history.length);
+
         const crossed = state.queued.filter((entry) =>
             entry.status === 'cancelled' && new Date(entry.opensAt) <= now);
         if (crossed.length === 0) return;
@@ -461,12 +492,138 @@
         state.historyShown += crossed.length;
     }
 
+    // --- Recurring schedules ------------------------------------------------------------
+
+    async function loadSeries() {
+        try {
+            const response = await fetch('/api/booking-series');
+            const data = await response.json();
+            state.series = data.success ? data.series : [];
+        } catch (error) {
+            state.series = [];
+        }
+    }
+
+    /*
+     * One card per habit: what it books, how often, and what became of it. The counts are
+     * the point — a schedule with eight still to go and two already sent is a different
+     * thing from one that has run its course, and the buttons follow that.
+     */
+    function renderSeries(now) {
+        const section = el('bq-series');
+        section.hidden = state.series.length === 0;
+        if (section.hidden) return;
+
+        el('bq-series-meta').textContent = `${state.series.length} ${state.series.length === 1 ? 'schedule' : 'schedules'}`;
+        const list = el('bq-series-list');
+        list.textContent = '';
+
+        for (const series of state.series) {
+            const card = node('div', 'bq-series-card');
+
+            const title = node('div', 'bq-series-title', `${series.sport} · ${series.startPreferred}`);
+            const rule = node('div', 'bq-series-rule',
+                `${series.summary} · until ${dayAndMonth(new Date(`${series.until}T12:00:00Z`))}`);
+
+            const tally = node('div', 'bq-series-tally');
+            for (const [count, label, tone] of [
+                [series.queued, 'waiting', 'wait'],
+                [series.sent, 'sent', 'sent'],
+                [series.cancelled, 'cancelled', 'off']
+            ]) {
+                if (count > 0) tally.append(node('span', `bq-tally bq-tally-${tone}`, `${count} ${label}`));
+            }
+            if (series.nextPlayDate && series.queued > 0) {
+                tally.append(node('span', 'bq-series-next',
+                    `next ${dayAndMonth(new Date(`${series.nextPlayDate}T12:00:00Z`))}`));
+            }
+
+            card.append(node('div', 'bq-series-who', series.name), title, rule, tally);
+
+            /*
+             * "Undo all" outranks "Cancel the rest" while a bulk cancellation is still
+             * inside its window: cancelling eleven occurrences and then having to restore
+             * them one at a time would not be an undo.
+             */
+            const undoLeft = series.lastCancelledAt
+                ? new Date(series.lastCancelledAt).getTime() + state.cancelUndoSeconds * 1000 - now.getTime()
+                : 0;
+
+            const actions = node('div', 'bq-series-actions');
+            if (undoLeft > 0) {
+                const undo = node('button', 'bq-action-link', 'Undo all');
+                undo.type = 'button';
+                undo.addEventListener('click', () => seriesAction(series, 'restore-remaining', undo));
+                actions.append(undo, node('span', 'bq-action-note', `${countdown(undoLeft)} left`));
+            }
+            if (series.queued > 0) {
+                const cancel = node('button', 'bq-action-link bq-action-danger', `Cancel the remaining ${series.queued}`);
+                cancel.type = 'button';
+                cancel.addEventListener('click', () => seriesAction(series, 'cancel-remaining', cancel));
+                actions.append(cancel);
+            }
+            const forget = node('button', 'bq-action-link', 'Forget this schedule');
+            forget.type = 'button';
+            forget.addEventListener('click', () => forgetSeries(series, forget));
+            actions.append(forget);
+
+            card.append(actions);
+            list.append(card);
+        }
+    }
+
+    async function seriesAction(series, action, button) {
+        const label = button.textContent;
+        button.disabled = true;
+        button.textContent = '…';
+        try {
+            const response = await fetch(
+                `/api/booking-series/${encodeURIComponent(series.id)}/${action}`, { method: 'POST' });
+            const data = await response.json();
+            if (!data.success) {
+                window.alert(data.message || 'That did not work.');
+                button.disabled = false;
+                button.textContent = label;
+                return;
+            }
+            /*
+             * Say what could NOT be touched. A request already sent cannot be recalled, and
+             * a bulk button that quietly leaves some behind is exactly the kind of silence
+             * that gets noticed at midnight instead of now.
+             */
+            if (data.alreadyGone > 0) {
+                window.alert(`${data.alreadyGone} of them had already gone to KU Leuven and cannot be taken back.`);
+            }
+            await load();
+        } catch (error) {
+            window.alert('Could not reach the server.');
+            button.disabled = false;
+            button.textContent = label;
+        }
+    }
+
+    async function forgetSeries(series, button) {
+        if (series.queued > 0 && !window.confirm(
+            `${series.queued} bookings from this schedule are still waiting to go out. Forgetting it removes the schedule from this list and leaves every one of them queued. Carry on?`)) {
+            return;
+        }
+        button.disabled = true;
+        try {
+            await fetch(`/api/booking-series/${encodeURIComponent(series.id)}`, { method: 'DELETE' });
+            await load();
+        } catch (error) {
+            window.alert('Could not reach the server.');
+            button.disabled = false;
+        }
+    }
+
     function render() {
         const now = new Date();
         const list = el('bq-timeline');
         list.textContent = '';
 
         reconcile(now);
+        renderSeries(now);
         // Newest first, matching the order the server pages history in.
         state.history.sort((a, b) => axisMoment(b) - axisMoment(a));
 
@@ -641,6 +798,10 @@
      */
     function scheduleTick(waiting, now) {
         let every = 0;
+        // A running undo countdown needs the second hand, wherever the row happens to sit.
+        const counting = state.queued.concat(state.history)
+            .some((entry) => undoMsLeft(entry, now.getTime()) > 0);
+        if (counting) every = 1000;
         for (const entry of waiting) {
             const ms = new Date(entry.opensAt) - now;
             const justOpened = ms <= 0 && -ms < LIVE_WINDOW_MS;
@@ -720,6 +881,8 @@
             state.historyHasMore = data.historyHasMore;
             state.quotaPerWeek = data.quotaPerWeek;
             if (data.graceSeconds) state.graceSeconds = data.graceSeconds;
+            if (data.cancelUndoSeconds) state.cancelUndoSeconds = data.cancelUndoSeconds;
+            await loadSeries();
             await loadQuota();
             render();
         } catch (error) {

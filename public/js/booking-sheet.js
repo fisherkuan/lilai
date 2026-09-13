@@ -83,36 +83,45 @@
     }
 
     /*
-     * The dates a repeat would cover, counted the same way the server counts them: whole
-     * calendar days, so every occurrence keeps its weekday across the October clock change.
-     * The preview is built from this, which is why the preview cannot promise a date the
-     * server then refuses.
+     * What the rule would produce, asked of the server.
+     *
+     * Deliberately not computed here. A preview built from a second implementation of the
+     * calendar rule drifts from the one that actually expands it, and a preview that
+     * promises a date the server refuses is worse than none. `preview` holds the last
+     * answer: dates, or the reason there are none.
      */
-    function repeatDates() {
-        if (!draft.repeatEvery || !draft.playDate || !draft.repeatUntil) return [];
-        const dates = [];
-        const last = toUtcDay(draft.repeatUntil);
-        const cap = options.repeatMax || 26;
-        for (let at = toUtcDay(draft.playDate); at <= last && dates.length < cap; at += draft.repeatEvery * 86400000) {
-            dates.push(fromUtcDay(at));
+    let preview = null;
+    let previewToken = 0;
+
+    function repeatQuery() {
+        return new URLSearchParams({
+            playDate: draft.playDate || '',
+            every: String(draft.repeatEvery),
+            unit: draft.repeatUnit,
+            weekdays: draft.repeatUnit === 'week' ? draft.repeatWeekdays.join(',') : '',
+            until: draft.repeatUntil || ''
+        }).toString();
+    }
+
+    async function refreshPreview() {
+        if (!draft.repeatOn || !draft.playDate || !draft.repeatUntil) {
+            preview = null;
+            return renderStep();
         }
-        return dates;
-    }
-
-    const toUtcDay = (iso) => { const [y, m, d] = iso.split('-').map(Number); return Date.UTC(y, m - 1, d); };
-
-    function fromUtcDay(ms) {
-        const date = new Date(ms);
-        return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}-${String(date.getUTCDate()).padStart(2, '0')}`;
-    }
-
-    /* The furthest the repeat may run: the season's end, or the cap, whichever comes first. */
-    function repeatCeiling() {
-        if (!draft.playDate || !draft.repeatEvery) return null;
-        const [y, m, d] = draft.playDate.split('-').map(Number);
-        const cap = options.repeatMax || 26;
-        const iso = fromUtcDay(Date.UTC(y, m - 1, d) + (cap - 1) * draft.repeatEvery * 86400000);
-        return options.seasonEndsOn && options.seasonEndsOn < iso ? options.seasonEndsOn : iso;
+        // Answers can land out of order while someone clicks through weekdays; only the
+        // newest one is allowed to paint.
+        const token = ++previewToken;
+        try {
+            const data = await readJson(await fetch(`/api/bookings/repeat-preview?${repeatQuery()}`));
+            if (token !== previewToken) return;
+            preview = data.success
+                ? { dates: data.dates, summary: data.summary }
+                : { dates: [], message: data.message };
+        } catch (error) {
+            if (token !== previewToken) return;
+            preview = { dates: [], message: 'Could not work out those dates.' };
+        }
+        renderStep();
     }
 
     function addHours(time, hours) {
@@ -292,12 +301,29 @@
             onclick: () => { draft.durationHours = value; renderStep(); }
         })));
 
-        // Typed times, not a grid of six guesses: halls run outside 16:00-21:00 and a
-        // grid quietly makes anything it omits feel unbookable.
+        /*
+         * Courts are handed out on the hour and the half hour, so those are the only times
+         * offered. A free time field accepted 19:07 and sent it to KU Leuven, where nobody
+         * could grant it — the server refuses those now, and a list means never having to.
+         *
+         * A stored value outside the list is added rather than dropped, so editing an old
+         * entry cannot silently move its time.
+         */
         const timeInput = (value, onset) => {
-            const input = h('input', { type: 'time', class: 'bs-time-input', step: 900, value: value || '' });
-            input.addEventListener('change', () => { onset(input.value || null); renderStep(); });
-            return input;
+            const times = [];
+            for (let minutes = 6 * 60; minutes <= 23 * 60 + 30; minutes += 30) {
+                times.push(`${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`);
+            }
+            if (value && !times.includes(value)) times.push(value);
+            times.sort();
+
+            const select = h('select', { class: 'bs-time-input' }, [
+                h('option', { value: '', text: 'Pick a time' }),
+                ...times.map((time) => h('option', { value: time, text: time }))
+            ]);
+            select.value = value || '';
+            select.addEventListener('change', () => { onset(select.value || null); renderStep(); });
+            return select;
         };
 
         const starts = timeInput(draft.startPreferred, (value) => {
@@ -354,50 +380,106 @@
     }
 
     /*
-     * Repeat: the same slot, every week, typed once.
+     * Repeat: a habit, typed once.
+     *
+     * Three questions, because they are genuinely different: how often, on which days, and
+     * until when. Weekdays appear only for a weekly rule — offering them beside "every 3
+     * days" would suggest a combination the server has no meaning for.
      *
      * Offered only when making a new booking. An edit changes one queued row, and turning
      * one row into twelve from an edit screen would be a different act wearing the same
-     * button. The preview counts the actual dates rather than promising "weekly": the
-     * season's end and the twenty-six cap both bite, and they should bite visibly.
+     * button.
      */
+    const WEEKDAY_PILLS = [
+        [1, 'Mon'], [2, 'Tue'], [3, 'Wed'], [4, 'Thu'], [5, 'Fri'], [6, 'Sat'], [0, 'Sun']
+    ];
+
     function repeatField() {
         if (draft.editingId) return null;
 
-        const choices = [0, ...(options.repeatIntervals || [7, 14]).filter((d) => d === 7 || d === 14)];
-        const label = (days) => days === 0 ? 'Just once' : days === 7 ? 'Every week' : `Every ${days / 7} weeks`;
-
         const parts = [
             h('label', { class: 'bs-label', text: 'Repeat' }),
-            pillGroup(choices, draft.repeatEvery || 0, (value) => {
-                draft.repeatEvery = value;
-                // A fresh interval makes the old end date meaningless; ask again.
-                draft.repeatUntil = '';
+            pillGroup([false, true], draft.repeatOn, (value) => {
+                draft.repeatOn = value;
+                if (!value) preview = null;
                 renderStep();
-            }, label)
+                if (value) refreshPreview();
+            }, (value) => value ? 'Repeat' : 'Just once')
         ];
 
-        if (draft.repeatEvery) {
-            const ceiling = repeatCeiling();
-            const until = h('input', {
-                type: 'date',
-                class: 'bs-date',
-                min: draft.playDate,
-                max: ceiling,
-                value: draft.repeatUntil || ''
-            });
-            until.addEventListener('change', () => { draft.repeatUntil = until.value; renderStep(); });
-            parts.push(h('div', { class: 'bs-field' }, [
-                h('label', { class: 'bs-label bs-label-sm', text: 'Until' }),
-                until
-            ]));
+        if (!draft.repeatOn) return h('div', { class: 'bs-field' }, parts);
 
-            const dates = repeatDates();
-            parts.push(h('p', { class: 'bs-note bs-example', text: dates.length === 0
-                ? `Pick the last day. Nothing past ${prettyDate(ceiling)} — that is as far as the season and the ${options.repeatMax || 26}-booking limit reach.`
-                : `${dates.length} ${dates.length === 1 ? 'booking' : 'bookings'} — ${prettyDate(dates[0])} to ${prettyDate(dates[dates.length - 1])}.` }));
-            parts.push(h('p', { class: 'bs-note', text: 'Each one is queued on its own: editable, cancellable, and counted against its own week. Weeks already full are reported, not silently skipped.' }));
+        const every = h('input', {
+            type: 'number', class: 'bs-number', min: '1',
+            max: String(options.repeatMaxEvery || 12), value: String(draft.repeatEvery)
+        });
+        every.addEventListener('change', () => {
+            const value = Number(every.value);
+            draft.repeatEvery = Number.isInteger(value) && value >= 1 ? value : 1;
+            renderStep();
+            refreshPreview();
+        });
+
+        const unit = h('select', { class: 'bs-time-input bs-unit' }, (options.repeatUnits || ['day', 'week', 'month'])
+            .map((value) => h('option', { value, text: draft.repeatEvery === 1 ? value : `${value}s` })));
+        unit.value = draft.repeatUnit;
+        unit.addEventListener('change', () => {
+            draft.repeatUnit = unit.value;
+            renderStep();
+            refreshPreview();
+        });
+
+        parts.push(h('div', { class: 'bs-every' }, [
+            h('span', { class: 'bs-every-word', text: 'every' }),
+            every,
+            unit
+        ]));
+
+        if (draft.repeatUnit === 'week') {
+            parts.push(h('div', { class: 'bs-field' }, [
+                h('label', { class: 'bs-label bs-label-sm', text: 'On these days' }),
+                h('div', { class: 'bs-pills' }, WEEKDAY_PILLS.map(([day, label]) => h('button', {
+                    type: 'button',
+                    class: `bs-pill bs-day-pill${draft.repeatWeekdays.includes(day) ? ' selected' : ''}`,
+                    text: label,
+                    onclick: () => {
+                        draft.repeatWeekdays = draft.repeatWeekdays.includes(day)
+                            ? draft.repeatWeekdays.filter((picked) => picked !== day)
+                            : [...draft.repeatWeekdays, day].sort((a, b) => a - b);
+                        renderStep();
+                        refreshPreview();
+                    }
+                }))),
+                h('p', { class: 'bs-note', text: draft.repeatWeekdays.length === 0
+                    ? `Nothing chosen means the day the first booking falls on${draft.playDate ? ` — ${prettyDate(draft.playDate).split(' ')[0]}` : ''}.`
+                    : 'Two slots a week is the limit per person, so a third day will be reported as full.' })
+            ]));
         }
+
+        const until = h('input', {
+            type: 'date', class: 'bs-date',
+            min: draft.playDate,
+            max: options.seasonEndsOn || null,
+            value: draft.repeatUntil || ''
+        });
+        until.addEventListener('change', () => {
+            draft.repeatUntil = until.value;
+            renderStep();
+            refreshPreview();
+        });
+        parts.push(h('div', { class: 'bs-field' }, [
+            h('label', { class: 'bs-label bs-label-sm', text: 'Until' }),
+            until
+        ]));
+
+        // Whatever the server says the rule expands to, verbatim — including its refusals.
+        const dates = preview ? preview.dates : [];
+        parts.push(h('p', { class: 'bs-note bs-example', text: !draft.repeatUntil
+            ? 'Pick the last day to see what this books.'
+            : preview && preview.message ? preview.message
+                : dates.length === 0 ? 'Working out the dates…'
+                    : `${dates.length} ${dates.length === 1 ? 'booking' : 'bookings'} — ${prettyDate(dates[0])} to ${prettyDate(dates[dates.length - 1])}.` }));
+        parts.push(h('p', { class: 'bs-note', text: 'Each one is queued on its own: editable, cancellable, and counted against its own week. Weeks already full are reported, not silently skipped.' }));
 
         return h('div', { class: 'bs-field' }, parts);
     }
@@ -412,11 +494,12 @@
             ['Duration', draft.durationHours === 1 ? '1 hr' : `${draft.durationHours} hrs`],
             ['Players', String(draft.players)],
             ['Where', `${draft.indoorOutdoor}${draft.facility ? ` · ${draft.facility === 'Andere / Other' ? draft.otherFacility : draft.facility}` : ''}`],
-            [draft.repeatEvery ? 'First goes out' : 'Goes out', `${openingLabel(draft.playDate).text}`]
+            [draft.repeatOn ? 'First goes out' : 'Goes out', `${openingLabel(draft.playDate).text}`]
         ];
-        if (draft.repeatEvery) {
-            const dates = repeatDates();
-            rows.splice(2, 0, ['Repeat', `${dates.length} bookings, ${draft.repeatEvery === 7 ? 'weekly' : `every ${draft.repeatEvery / 7} weeks`} to ${prettyDate(dates[dates.length - 1])}`]);
+        if (draft.repeatOn && preview && preview.dates.length > 0) {
+            const dates = preview.dates;
+            rows.splice(2, 0, ['Repeat',
+                `${dates.length} bookings · ${preview.summary} · to ${prettyDate(dates[dates.length - 1])}`]);
         }
 
         /*
@@ -586,7 +669,9 @@
         if (quota && quota.remaining === 0) return false;
         if (draft.step === 1) return Boolean(draft.profileId && draft.sport && draft.playDate);
         if (draft.step === 2) {
-            if (draft.repeatEvery && repeatDates().length === 0) return false;
+            // A repeat may not advance on a preview that has not answered, or that refused:
+            // the count on the button has to be a number the server agreed to.
+            if (draft.repeatOn && (!preview || preview.dates.length === 0)) return false;
             return Boolean(draft.startPreferred && draft.startAlternative);
         }
         // An edit of an entry whose person has since been removed carries no profile. The
@@ -621,7 +706,7 @@
         if (draft.step > 1) {
             footer.append(h('button', { type: 'button', class: 'btn ghost', text: 'Back', onclick: () => goTo(draft.step - 1) }));
         }
-        const count = draft.repeatEvery ? repeatDates().length : 1;
+        const count = draft.repeatOn && preview ? preview.dates.length : 1;
         const last = draft.editingId ? 'Save changes'
             : count > 1 ? `Queue all ${count}` : 'Put it in the queue';
         const label = draft.step === 1 ? 'Next — times' : draft.step === 2 ? 'Next — who is booking' : last;
@@ -680,7 +765,12 @@
             // would let a sheet opened before an edit overwrite what the address book says.
             profileId: draft.profileId,
             remarks: draft.remarks,
-            repeat: draft.repeatEvery ? { every: draft.repeatEvery, until: draft.repeatUntil } : null,
+            repeat: draft.repeatOn ? {
+                every: draft.repeatEvery,
+                unit: draft.repeatUnit,
+                weekdays: draft.repeatUnit === 'week' ? draft.repeatWeekdays : [],
+                until: draft.repeatUntil
+            } : null,
             queuedBy: draft.name
         };
 
@@ -842,7 +932,10 @@
             otherFacility: entry.otherFacility || '',
             remarks: entry.remarks || '',
             validSportsCard: true,
-            repeatEvery: 0,
+            repeatOn: false,
+            repeatEvery: 1,
+            repeatUnit: 'week',
+            repeatWeekdays: [],
             repeatUntil: '',
             error: null
         } : {
@@ -864,7 +957,10 @@
             otherFacility: defaults.otherFacility || '',
             remarks: '',
             validSportsCard: true,
-            repeatEvery: 0,
+            repeatOn: false,
+            repeatEvery: 1,
+            repeatUnit: 'week',
+            repeatWeekdays: [],
             repeatUntil: '',
             error: null
         };

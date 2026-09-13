@@ -172,7 +172,12 @@ Required in `.env`:
 - `GET /api/bookings/quota?name=` - Live quota tally for a typed name
 - `GET /api/bookings/form-options` - Sports and facilities read from the live KU Leuven form, plus `seasonEndsOn`
 - `GET|POST /api/booking-profiles`, `GET|PUT|DELETE /api/booking-profiles/:id` - The address book. The list masks email and phone; only a single read returns them in full
-- `POST /api/bookings` - Queue a slot. `profileId` takes name/email/phone from the address book; `repeat: {every, until}` expands into one row per occurrence and answers with `created[]` and `skipped[]`
+- `POST /api/bookings` - Queue a slot. `profileId` takes name/email/phone from the address book; `repeat: {every, unit, weekdays, until}` expands into one row per occurrence and answers with `created[]` and `skipped[]`
+- `GET /api/bookings/repeat-preview` - What a rule would expand to. The sheet's preview, so it cannot promise a date the server refuses
+- `GET /api/booking-series` - Recurring schedules with their tallies
+- `POST /api/booking-series/:id/cancel-remaining` - Cancel every occurrence not yet sent; reports how many had already gone
+- `POST /api/booking-series/:id/restore-remaining` - Undo that, inside the undo window
+- `DELETE /api/booking-series/:id` - Forget the schedule, keep every booking it made
 - `GET /api/bookings/:id` - One entry, including what was submitted
 - `DELETE /api/bookings/:id` - Cancel a queued entry (used by the quota swap)
 
@@ -191,8 +196,13 @@ opens — midnight Brussels, 14 days before the play date.
 - `server/booking-scheduler.js` — the 15s tick. Claims a row (`UPDATE … WHERE status='queued'`) *before* the POST, so a request is never sent twice. A POST whose outcome cannot be read becomes `unconfirmed` and is never retried automatically
 - `server/booking-quota.js` — two slots per name per Mon–Sun week, enforced under a Postgres advisory lock
 - `server/booking-profiles.js` — the address book, plus the `profile_id` link and its backfill from the existing queue
-- `server/booking-repeat.js` — expands a repeat into play dates; whole weeks only, capped at 26, bounded by the season
-- `config/app.json` → `booking` — delay bounds, `lateSubmissionGraceSeconds`, and `seasonEndsOn` (the last bookable play date; renew it each September)
+- `server/booking-repeat.js` — expands a repeat rule (every N days / weeks on chosen weekdays / months) into play dates; capped at 52, bounded by the season. A month without the anchor date is skipped, never slid
+- `server/booking-series.js` — the recurring schedule as a record you can act on. A label on rows, never their owner: deleting it cancels nothing
+- `config/app.json` → `booking` — delay bounds, `lateSubmissionGraceSeconds`, `cancelUndoSeconds` (how long a cancelled row keeps its Undo before leaving the board — nothing is deleted) and `seasonEndsOn` (the last bookable play date; renew it each September)
+
+Start times are :00 or :30 only. Courts are handed out on the hour and half hour, so
+`assertHalfHour` in `booking-validation.js` refuses anything else — the picker offers only
+those, and the rule is enforced server-side because the import path arrives the same way.
 
 **Submission is off unless `BOOKING_SUBMIT=live` is set.** Without it the scheduler runs
 the whole path and stops short of the POST. `server/../.plans/` holds the design notes.

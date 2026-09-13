@@ -15,7 +15,16 @@ const DEFAULTS = {
     openingDelayMinSeconds: 5,
     openingDelayMaxSeconds: 60,
     minimumRequestIntervalSeconds: 10,
-    lateSubmissionGraceSeconds: 300
+    lateSubmissionGraceSeconds: 300,
+    /*
+     * How long a cancelled slot stays on the board offering Undo.
+     *
+     * A cancellation is usually either a mistake caught at once or a decision already made,
+     * so the window is short. Past it the row leaves the board rather than accumulating: a
+     * timeline of things that are not happening is noise. Nothing is deleted — the row keeps
+     * its cancelled status, it simply stops being shown.
+     */
+    cancelUndoSeconds: 300
 };
 
 function isWholeNumber(value) {

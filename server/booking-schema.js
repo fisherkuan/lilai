@@ -46,11 +46,21 @@ const TABLE_SQL = `
         submitted_at TIMESTAMPTZ,
         response_note TEXT,
         cancelled_by VARCHAR(255),
+        cancelled_at TIMESTAMPTZ,
         CONSTRAINT booking_queue_players_min CHECK (players >= 10),
         CONSTRAINT booking_queue_duration CHECK (duration_hours IN (1, 1.5, 2)),
         CONSTRAINT booking_queue_status CHECK (status IN
             ('queued', 'sending', 'sent', 'unconfirmed', 'failed', 'missed', 'cancelled'))
     );
+`;
+
+/*
+ * When a cancellation happened, so the board can offer Undo for a short while and then let
+ * the row go. Added separately because the table predates it; the column is nullable and
+ * every historical cancellation simply has none, which reads correctly as "long over".
+ */
+const CANCELLED_AT_SQL = `
+    ALTER TABLE booking_queue ADD COLUMN IF NOT EXISTS cancelled_at TIMESTAMPTZ;
 `;
 
 const INDEX_SQL = [
@@ -63,9 +73,10 @@ const INDEX_SQL = [
 
 async function createBookingSchema(client) {
     await client.query(TABLE_SQL);
+    await client.query(CANCELLED_AT_SQL);
     for (const sql of INDEX_SQL) {
         await client.query(sql);
     }
 }
 
-module.exports = { TABLE_SQL, INDEX_SQL, createBookingSchema };
+module.exports = { TABLE_SQL, CANCELLED_AT_SQL, INDEX_SQL, createBookingSchema };

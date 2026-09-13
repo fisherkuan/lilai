@@ -15,7 +15,10 @@ const { createBookingSchema } = require('./booking-schema');
 const { BookingFormClient, readFormOptions } = require('./booking-form');
 const { createScheduler } = require('./booking-scheduler');
 const { mergeContact, sendAfterForEdit } = require('./booking-edit');
-const { expandRepeat, RepeatError, INTERVALS, MAX_OCCURRENCES } = require('./booking-repeat');
+const {
+    expandRepeat, validateRule, describeRule, RepeatError, UNITS, MAX_EVERY, MAX_OCCURRENCES
+} = require('./booking-repeat');
+const { createSeriesSchema, toSeriesView, LIST_SQL: SERIES_LIST_SQL } = require('./booking-series');
 const {
     createProfileSchema, publicProfile, fullProfile, validateProfile
 } = require('./booking-profiles');
@@ -286,6 +289,7 @@ async function initializeDatabase() {
         }
 
         await createBookingSchema(client);
+        await createSeriesSchema(client);
         const seeded = await createProfileSchema(client, uuidv4);
         if (seeded.created > 0) {
             console.log(`[bookings] address book seeded from the queue: ${seeded.created} people, ${seeded.linked} entries linked.`);
@@ -938,8 +942,21 @@ const HISTORY_STATUSES = ['sent', 'unconfirmed', 'failed', 'missed', 'cancelled'
  * Sweeping it into history put a December booking above tomorrow's, which is simply the
  * wrong order.
  */
-const STILL_AHEAD = `(status = ANY($1) OR (status = 'cancelled' AND opens_at > NOW()))`;
-const ALREADY_BEHIND = `(status = ANY($1) AND NOT (status = 'cancelled' AND opens_at > NOW()))`;
+
+/*
+ * A cancellation shows for a short while, offering Undo, and then leaves the board.
+ *
+ * It is never deleted — the row keeps its cancelled status and its place in the record —
+ * but a timeline of things that are NOT happening is noise, and it grows fastest exactly
+ * when a recurring schedule is called off. $2 is the undo window in seconds. A cancellation
+ * from before cancelled_at existed has none, which reads correctly as long over.
+ */
+const STILL_UNDOABLE = `(cancelled_at IS NOT NULL AND cancelled_at > NOW() - make_interval(secs => $2::int))`;
+
+const STILL_AHEAD = `(status = ANY($1) OR (status = 'cancelled' AND opens_at > NOW() AND ${STILL_UNDOABLE}))`;
+const ALREADY_BEHIND = `(status = ANY($1)
+    AND NOT (status = 'cancelled' AND opens_at > NOW() AND ${STILL_UNDOABLE})
+    AND (status <> 'cancelled' OR ${STILL_UNDOABLE}))`;
 
 /*
  * The privacy boundary, in one place: the board shows names, never contact details.
@@ -964,6 +981,10 @@ function toBoardEntry(row) {
         // Which address book entry this was booked for — an id, so the sheet can preselect
         // the person on an edit. The contact details behind it still never come this way.
         profileId: row.profile_id || null,
+        // Which recurring schedule produced it, so a row can be read as part of a habit.
+        seriesId: row.series_id || null,
+        // When it was cancelled, so the board can run the Undo window down to zero.
+        cancelledAt: row.cancelled_at || null,
         status: row.status,
         opensAt: row.opens_at,
         queuedAt: row.queued_at,
@@ -977,13 +998,15 @@ app.get('/api/bookings', async (req, res) => {
     const client = await pool.connect();
     try {
         const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 20, 1), 100);
+        const settings = bookingSettings(appConfig);
+        const undoWindow = settings.cancelUndoSeconds;
 
         const queued = await client.query(
             `SELECT * FROM booking_queue WHERE ${STILL_AHEAD} ORDER BY send_after ASC`,
-            [QUEUED_STATUSES]
+            [QUEUED_STATUSES, undoWindow]
         );
 
-        const params = [HISTORY_STATUSES];
+        const params = [HISTORY_STATUSES, undoWindow];
         let historySql = `SELECT * FROM booking_queue WHERE ${ALREADY_BEHIND}`;
         if (req.query.before) {
             const before = new Date(req.query.before);
@@ -1007,7 +1030,10 @@ app.get('/api/bookings', async (req, res) => {
             quotaPerWeek: QUOTA_PER_WEEK,
             // The board offers "Undo" only where a restore could actually succeed, which is
             // bounded by the grace window. It has to be the server's number.
-            graceSeconds: bookingSettings(appConfig).lateSubmissionGraceSeconds
+            graceSeconds: settings.lateSubmissionGraceSeconds,
+            // How long a cancelled row keeps its Undo before it leaves the board. The
+            // client counts it down, so it must be the same number the server enforces.
+            cancelUndoSeconds: undoWindow
         });
     } catch (error) {
         console.error('Error listing booking queue:', error);
@@ -1030,6 +1056,169 @@ app.get('/api/bookings/quota', async (req, res) => {
         res.json({ success: true, ...(await quotaFor(client, name, playDate)) });
     } catch (error) {
         console.error('Error reading booking quota:', error);
+        res.status(500).json({ success: false, message: 'Internal server error' });
+    } finally {
+        client.release();
+    }
+});
+
+/*
+ * What a repeat rule would actually produce.
+ *
+ * The sheet shows a count and a last date while someone is still choosing. That preview has
+ * to be the server's own expansion, not a copy of the rule maths in the browser: a preview
+ * that promises a date the server then refuses is worse than no preview, and two
+ * implementations of a calendar rule drift.
+ */
+app.get('/api/bookings/repeat-preview', (req, res) => {
+    const { seasonEndsOn } = bookingSettings(appConfig);
+    const playDate = String(req.query.playDate || '').trim();
+    const weekdays = String(req.query.weekdays || '')
+        .split(',')
+        .filter((part) => part !== '')
+        .map(Number);
+
+    try {
+        const rule = {
+            every: Number(req.query.every),
+            unit: String(req.query.unit || ''),
+            weekdays,
+            until: String(req.query.until || '').trim()
+        };
+        const dates = expandRepeat(playDate, rule, { seasonEndsOn });
+        res.json({
+            success: true,
+            dates,
+            summary: describeRule(validateRule(rule, playDate, seasonEndsOn))
+        });
+    } catch (error) {
+        if (error instanceof RepeatError) {
+            return res.status(400).json({ success: false, message: error.message, field: error.field });
+        }
+        throw error;
+    }
+});
+
+/*
+ * Recurring schedules.
+ *
+ * A series is the handle on a habit — "cancel the rest of the Tuesday badminton" is one
+ * intent, and doing it one row at a time is how an occurrence gets missed. The rows remain
+ * the truth: a series knows what it created and nothing more.
+ */
+app.get('/api/booking-series', async (req, res) => {
+    const client = await pool.connect();
+    try {
+        const result = await client.query(SERIES_LIST_SQL);
+        res.json({ success: true, series: result.rows.map(toSeriesView) });
+    } catch (error) {
+        console.error('Error listing booking series:', error);
+        res.status(500).json({ success: false, message: 'Internal server error' });
+    } finally {
+        client.release();
+    }
+});
+
+/*
+ * Cancel everything in a series that has not gone out yet.
+ *
+ * Only `queued` rows: once the scheduler has claimed one it is in flight or already
+ * answered, and a bulk button must not pretend to recall it. Those are counted and
+ * reported rather than silently left behind.
+ */
+app.post('/api/booking-series/:id/cancel-remaining', async (req, res) => {
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+
+        const series = await client.query('SELECT * FROM booking_series WHERE id = $1', [req.params.id]);
+        if (series.rowCount === 0) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({ success: false, message: 'No such schedule' });
+        }
+
+        const cancelled = await client.query(`
+            UPDATE booking_queue SET status = 'cancelled', cancelled_at = NOW()
+            WHERE series_id = $1 AND status = 'queued'
+            RETURNING *
+        `, [req.params.id]);
+
+        const untouched = await client.query(`
+            SELECT COUNT(*)::int AS n FROM booking_queue
+            WHERE series_id = $1 AND status NOT IN ('queued', 'cancelled')
+        `, [req.params.id]);
+
+        await client.query('COMMIT');
+
+        const boards = cancelled.rows.map(toBoardEntry);
+        for (const board of boards) broadcast({ type: 'booking_update', booking: board });
+        res.json({ success: true, cancelled: boards, alreadyGone: untouched.rows[0].n });
+    } catch (error) {
+        await client.query('ROLLBACK').catch(() => {});
+        console.error('Error cancelling a booking series:', error);
+        res.status(500).json({ success: false, message: 'Internal server error' });
+    } finally {
+        client.release();
+    }
+});
+
+/*
+ * Undo a bulk cancellation, while it is still undoable.
+ *
+ * Cancelling eleven occurrences in one click and then having to restore them one at a time
+ * inside a five-minute window is not an undo. Bounded by the same window as a single Undo,
+ * and by the same closed-window rule: a slot whose midnight has passed cannot come back.
+ */
+app.post('/api/booking-series/:id/restore-remaining', async (req, res) => {
+    const settings = bookingSettings(appConfig);
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+
+        const restored = await client.query(`
+            UPDATE booking_queue SET status = 'queued', cancelled_at = NULL
+            WHERE series_id = $1
+              AND status = 'cancelled'
+              AND cancelled_at > NOW() - make_interval(secs => $2::int)
+              AND opens_at + make_interval(secs => $3::int) > NOW()
+            RETURNING *
+        `, [req.params.id, settings.cancelUndoSeconds, settings.lateSubmissionGraceSeconds]);
+
+        await client.query('COMMIT');
+
+        /*
+         * No quota check, deliberately — the same call the single Undo makes. These slots
+         * held their week moments ago; refusing to give them back because the week now
+         * reads as full would punish someone for the cancellation they are undoing.
+         */
+        const boards = restored.rows.map(toBoardEntry);
+        for (const board of boards) broadcast({ type: 'booking_update', booking: board });
+        res.json({ success: true, restored: boards });
+    } catch (error) {
+        await client.query('ROLLBACK').catch(() => {});
+        console.error('Error restoring a booking series:', error);
+        res.status(500).json({ success: false, message: 'Internal server error' });
+    } finally {
+        client.release();
+    }
+});
+
+/*
+ * Forget the schedule, keep every booking it made. The link is ON DELETE SET NULL, so the
+ * occurrences carry on exactly as they were — this removes a row from a list, nothing else.
+ */
+app.delete('/api/booking-series/:id', async (req, res) => {
+    const client = await pool.connect();
+    try {
+        const still = await client.query(
+            `SELECT COUNT(*)::int AS n FROM booking_queue WHERE series_id = $1 AND status = 'queued'`,
+            [req.params.id]
+        );
+        const result = await client.query('DELETE FROM booking_series WHERE id = $1 RETURNING *', [req.params.id]);
+        if (result.rowCount === 0) return res.status(404).json({ success: false, message: 'No such schedule' });
+        res.json({ success: true, stillQueued: still.rows[0].n });
+    } catch (error) {
+        console.error('Error deleting a booking series:', error);
         res.status(500).json({ success: false, message: 'Internal server error' });
     } finally {
         client.release();
@@ -1202,7 +1391,8 @@ app.get('/api/bookings/form-options', async (req, res) => {
     const season = {
         seasonEndsOn: bookingSettings(appConfig).seasonEndsOn,
         // The sheet must not offer a repeat the server would refuse.
-        repeatIntervals: INTERVALS,
+        repeatUnits: UNITS,
+        repeatMaxEvery: MAX_EVERY,
         repeatMax: MAX_OCCURRENCES
     };
     const fresh = Date.now() - formOptionsCache.fetchedAt < FORM_OPTIONS_TTL;
@@ -1252,11 +1442,16 @@ app.post('/api/bookings', async (req, res) => {
     let profileId = null;
     let dates;
     let body;
+    let rule = null;
     try {
         const resolved = await applyProfile(req.body);
         profileId = resolved.profileId;
         body = resolved.body;
-        dates = expandRepeat(String(body.playDate || '').trim(), body.repeat, { seasonEndsOn: settings.seasonEndsOn });
+        const playDate = String(body.playDate || '').trim();
+        dates = expandRepeat(playDate, body.repeat, { seasonEndsOn: settings.seasonEndsOn });
+        // Normalised here so the series record stores what was actually expanded, not what
+        // was typed — an omitted weekday set becomes the first booking's own day.
+        if (body.repeat) rule = validateRule(body.repeat, playDate, settings.seasonEndsOn);
     } catch (error) {
         if (error instanceof BookingInputError || error instanceof RepeatError) {
             return res.status(400).json({ success: false, message: error.message, field: error.field });
@@ -1321,6 +1516,26 @@ app.post('/api/bookings', async (req, res) => {
             await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1, 0))', [key]);
         }
 
+        /*
+         * A repeat gets a series row: the handle the board needs to cancel the rest of it in
+         * one act. It is a label on the occurrences, never their owner — the rows carry
+         * everything needed to submit, and deleting the series cancels nothing.
+         */
+        let seriesId = null;
+        if (rule) {
+            seriesId = uuidv4();
+            await client.query(`
+                INSERT INTO booking_series (
+                    id, name, name_key, profile_id, sport, every, unit, weekdays,
+                    starts_on, until, start_preferred, start_alternative
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+            `, [
+                seriesId, wanted[0].name, wanted[0].nameKey, profileId, wanted[0].sport,
+                rule.every, rule.unit, rule.weekdays, dates[0], rule.until,
+                String(body.startPreferred).trim(), String(body.startAlternative).trim()
+            ]);
+        }
+
         // Counted once per week up front, then spent down in memory, so two occurrences in
         // one week cannot both be told there is room for one.
         const roomLeft = new Map();
@@ -1352,14 +1567,15 @@ app.post('/api/bookings', async (req, res) => {
                 INSERT INTO booking_queue (
                     id, sport, play_date, start_preferred, start_alternative, duration_hours,
                     players, indoor_outdoor, facility, other_facility, language, valid_sports_card,
-                    name, name_key, email, phone, remarks, queued_by, opens_at, send_after, profile_id, status
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, 'queued')
+                    name, name_key, email, phone, remarks, queued_by, opens_at, send_after,
+                    profile_id, series_id, status
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, 'queued')
                 RETURNING *
             `, [
                 uuidv4(), entry.sport, entry.playDate, entry.startPreferred, entry.startAlternative, entry.durationHours,
                 entry.players, entry.indoorOutdoor, entry.facility, entry.otherFacility, entry.language,
                 entry.validSportsCard, entry.name, entry.nameKey, entry.email, entry.phone, entry.remarks,
-                queuedBy, entry.opensAt, sampleSendAfter(entry.opensAt, settings), profileId
+                queuedBy, entry.opensAt, sampleSendAfter(entry.opensAt, settings), profileId, seriesId
             ]);
             created.push(toBoardEntry(inserted.rows[0]));
         }
@@ -1574,6 +1790,23 @@ app.post('/api/bookings/:id/restore', async (req, res) => {
         }
 
         const settings = bookingSettings(appConfig);
+
+        /*
+         * Undo is bounded by the same window the board shows it in. Once the row has left
+         * the board there is no button to press, so accepting a restore after that would
+         * only make the two disagree. A cancellation from before this column existed has no
+         * cancelled_at, which reads correctly as long over.
+         */
+        const cancelledAt = entry.cancelled_at ? new Date(entry.cancelled_at).getTime() : 0;
+        if (Date.now() > cancelledAt + settings.cancelUndoSeconds * 1000) {
+            await client.query('ROLLBACK');
+            return res.status(409).json({
+                success: false,
+                message: 'The undo window for that cancellation has passed.'
+            });
+        }
+
+        // Restoring cannot put a slot back into a window that has since closed.
         const deadline = new Date(new Date(entry.opens_at).getTime() + settings.lateSubmissionGraceSeconds * 1000);
         if (new Date() > deadline) {
             await client.query('ROLLBACK');
@@ -1584,7 +1817,7 @@ app.post('/api/bookings/:id/restore', async (req, res) => {
         }
 
         const restored = await client.query(`
-            UPDATE booking_queue SET status = 'queued'
+            UPDATE booking_queue SET status = 'queued', cancelled_at = NULL
             WHERE id = $1 AND status = 'cancelled'
             RETURNING *
         `, [entry.id]);
@@ -1614,7 +1847,7 @@ app.delete('/api/bookings/:id', async (req, res) => {
          */
         const result = await client.query(`
             UPDATE booking_queue
-            SET status = 'cancelled'
+            SET status = 'cancelled', cancelled_at = NOW()
             WHERE id = $1 AND status = 'queued'
             RETURNING *
         `, [req.params.id]);

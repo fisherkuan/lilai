@@ -66,6 +66,22 @@
                 </div>
             </div>
 
+            <!--
+                Recurring schedules, above the timeline: a habit is read as one thing, and
+                acting on it one row at a time is how an occurrence gets missed. Hidden
+                entirely when there are none, so a one-off board is not told about a feature
+                it is not using.
+            -->
+            <section class="bq-series" id="bq-series" hidden>
+                <div class="section-header">
+                    <div>
+                        <h2 class="section-title">Recurring</h2>
+                        <div class="section-meta" id="bq-series-meta"></div>
+                    </div>
+                </div>
+                <div class="bq-series-list" id="bq-series-list"></div>
+            </section>
+
             <div class="section-header">
                 <div>
                     <h2 class="section-title">Timeline</h2>

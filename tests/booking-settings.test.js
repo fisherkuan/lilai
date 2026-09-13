@@ -9,6 +9,7 @@ test('defaults match the verified reference implementation', () => {
         openingDelayMaxSeconds: 60,
         minimumRequestIntervalSeconds: 10,
         lateSubmissionGraceSeconds: 300,
+        cancelUndoSeconds: 300,
         seasonEndsOn: null
     });
 });

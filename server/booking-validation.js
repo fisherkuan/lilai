@@ -75,6 +75,20 @@ function fail(message, field) {
 }
 
 /*
+ * Courts are handed out on the hour and the half hour, so a start time of 19:07 is a
+ * request nobody at KU Leuven can grant. Checked here rather than left to the picker: a
+ * typed time, an older client and the import path all arrive through this function.
+ */
+function assertHalfHour(timeText, field) {
+    const match = /^(\d{2}):(\d{2})$/.exec(String(timeText ?? '').trim());
+    if (!match) return; // shape is the parser's complaint, not this one's
+    const minute = Number(match[2]);
+    if (minute !== 0 && minute !== 30) {
+        fail('Start times run on the hour or the half hour — :00 or :30.', field);
+    }
+}
+
+/*
  * The last play date the season covers.
  *
  * A KU Leuven sports card runs from mid-September to the next mid-September, so a request
@@ -147,6 +161,9 @@ function validateBooking(input = {}, { seasonEndsOn = null } = {}) {
 
     const playDate = typeof input.playDate === 'string' ? input.playDate.trim() : '';
 
+    assertHalfHour(input.startPreferred, 'startPreferred');
+    assertHalfHour(input.startAlternative, 'startAlternative');
+
     let startPreferred;
     try {
         startPreferred = parseBrusselsWallTime(playDate, input.startPreferred);
@@ -198,6 +215,7 @@ function validateBooking(input = {}, { seasonEndsOn = null } = {}) {
 }
 
 module.exports = {
+    assertHalfHour,
     assertWithinSeason,
     BookingInputError,
     DURATIONS,
