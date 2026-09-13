@@ -16,9 +16,13 @@
 
     const DEFAULTS_STORE = 'lilai.booking.defaults';
 
-    // Padel, tennis, table tennis, beach volleyball and outdoor basketball go through
-    // KU Leuven's separate online tool, so they are not offered here at all.
-    const SPORTS = ['Badminton', 'Basketball', 'Volleyball', 'Squash', 'Handball'];
+    // KU Leuven's own form asks for the sport as free text, so this one does too — the
+    // five below are only a shortcut for the usual ones, never the whole of what may be
+    // typed. Padel, tennis, table tennis, beach volleyball and outdoor basketball go
+    // through KU Leuven's separate online tool, and the server refuses them whatever the
+    // spelling.
+    const SPORT_SUGGESTIONS = ['Badminton', 'Basketball', 'Volleyball', 'Squash', 'Handball'];
+    const SPORT_MAX = 100;
     const DURATIONS = [1, 1.5, 2];
 
     const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -313,11 +317,26 @@
             if (picker.value) { draft.playDate = picker.value; refreshQuota(); }
         });
 
+        const sport = h('input', {
+            type: 'text',
+            class: 'bs-input',
+            list: 'bs-sport-options',
+            maxlength: String(SPORT_MAX),
+            placeholder: 'Badminton, basketball, …',
+            value: draft.sport || '',
+            'aria-label': 'Sport'
+        });
+        // Re-rendering the step on every keystroke would take the caret with it. Only the
+        // footer reads this field, so only the footer is refreshed while typing.
+        sport.addEventListener('input', () => { draft.sport = sport.value.trim(); renderFooter(); });
+
         const body = [
             stepWho(),
             h('div', { class: 'bs-field' }, [
                 h('label', { class: 'bs-label', text: 'Sport' }),
-                pillGroup(SPORTS, draft.sport, (value) => { draft.sport = value; renderStep(); }),
+                sport,
+                h('datalist', { id: 'bs-sport-options' },
+                    SPORT_SUGGESTIONS.map((name) => h('option', { value: name }))),
                 h('p', { class: 'bs-note', text: 'Padel, tennis, table tennis and beach volleyball are booked through KU Leuven’s separate online tool, not this form.' })
             ]),
             h('div', { class: 'bs-field' }, [
@@ -1022,7 +1041,7 @@
             name: '',
             // Filled in by loadReference from whoever this browser picked last.
             profileId: null,
-            sport: defaults.sport || 'Badminton',
+            sport: defaults.sport || '',
             playDate: '',
             startPreferred: '18:00',
             startAlternative: null,
