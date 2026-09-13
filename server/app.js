@@ -1349,7 +1349,7 @@ app.put('/api/booking-series/:id', async (req, res) => {
          */
         if (!profileId) {
             const stored = await pool.query(
-                'SELECT email, phone FROM booking_queue WHERE series_id = $1 ORDER BY play_date DESC LIMIT 1',
+                'SELECT name, email, phone FROM booking_queue WHERE series_id = $1 ORDER BY play_date DESC LIMIT 1',
                 [req.params.id]
             );
             if (stored.rowCount > 0) body = mergeContact(body, stored.rows[0]);

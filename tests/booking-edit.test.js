@@ -27,6 +27,13 @@ test('a missing contact field keeps the one already stored', () => {
     assert.equal(merged.phone, '0470000000');
 });
 
+test('a missing name keeps the one already stored — the sheet sends a profile, never a name', () => {
+    const stored = { ...STORED, name: 'Yuki Chen' };
+    assert.equal(mergeContact({ email: '', phone: '' }, stored).name, 'Yuki Chen');
+    assert.equal(mergeContact({ name: '  ' }, stored).name, 'Yuki Chen');
+    assert.equal(mergeContact({ name: 'Wei Lin' }, stored).name, 'Wei Lin');
+});
+
 test('whitespace is blank, not a new value', () => {
     const merged = mergeContact({ email: '   ', phone: '\t' }, STORED);
     assert.equal(merged.email, 'kept@example.com');

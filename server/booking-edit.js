@@ -14,11 +14,15 @@ const { sampleSendAfter } = require('./booking-settings');
  * Email and phone never reach the board, so an edit form starts with them blank. Blank
  * therefore has to mean "keep what is stored", not "clear it" — otherwise every edit of
  * anything would destroy the contact details the request needs.
+ *
+ * The name too: the sheet sends a profile id, never a name, so an entry whose person has
+ * since left the address book arrives with neither and must keep the one it was made with.
  */
 function mergeContact(body, stored) {
     const supplied = (value) => typeof value === 'string' && value.trim() !== '';
     return {
         ...body,
+        name: supplied(body.name) ? body.name : stored.name,
         email: supplied(body.email) ? body.email : stored.email,
         phone: supplied(body.phone) ? body.phone : stored.phone
     };
