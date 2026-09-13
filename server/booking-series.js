@@ -7,9 +7,11 @@
  * Tuesday badminton" is a single intent, and without a series it meant clicking Cancel
  * eleven times and hoping none were missed.
  *
- * So the series is a LABEL on rows, not their owner. Deleting it cancels nothing; cancelling
- * every remaining occurrence leaves the series visible with nothing left to cancel. The rows
- * stay the truth, which is what keeps history honest.
+ * So the series is a LABEL on rows, not their owner. There is one way to stop it — cancel
+ * every remaining occurrence — and afterwards the series stays listed with nothing left to
+ * cancel. The rows stay the truth, which is what keeps history honest. (An earlier cut also
+ * let you "forget" a schedule while its requests stayed queued; that read as cancelling
+ * without cancelling, and went.)
  */
 
 const { describeRule } = require('./booking-repeat');
@@ -34,8 +36,9 @@ const TABLE_SQL = `
 `;
 
 /*
- * ON DELETE SET NULL, like profile_id: removing the schedule from the list must never take
- * a queued request with it. The row keeps everything it needs to be submitted.
+ * ON DELETE SET NULL, like profile_id: nothing deletes a series today, but if one is ever
+ * removed by hand it must never take a queued request with it. The row keeps everything it
+ * needs to be submitted.
  */
 const LINK_SQL = `
     ALTER TABLE booking_queue

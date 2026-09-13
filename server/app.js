@@ -1521,28 +1521,6 @@ app.put('/api/booking-series/:id', async (req, res) => {
 });
 
 /*
- * Forget the schedule, keep every booking it made. The link is ON DELETE SET NULL, so the
- * occurrences carry on exactly as they were — this removes a row from a list, nothing else.
- */
-app.delete('/api/booking-series/:id', async (req, res) => {
-    const client = await pool.connect();
-    try {
-        const still = await client.query(
-            `SELECT COUNT(*)::int AS n FROM booking_queue WHERE series_id = $1 AND status = 'queued'`,
-            [req.params.id]
-        );
-        const result = await client.query('DELETE FROM booking_series WHERE id = $1 RETURNING *', [req.params.id]);
-        if (result.rowCount === 0) return res.status(404).json({ success: false, message: 'No such schedule' });
-        res.json({ success: true, stillQueued: still.rows[0].n });
-    } catch (error) {
-        console.error('Error deleting a booking series:', error);
-        res.status(500).json({ success: false, message: 'Internal server error' });
-    } finally {
-        client.release();
-    }
-});
-
-/*
  * The address book.
  *
  * Three facts per person, kept on the server so they survive a cleared cache and reach

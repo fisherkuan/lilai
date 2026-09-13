@@ -23,7 +23,7 @@
      *
      * Bump it when changing anything in public/js or public/styles.css.
      */
-    const BUILD = '2026-09-13d';
+    const BUILD = '2026-09-13e';
 
     const BRUSSELS = 'Europe/Brussels';
     const MINUTE = 60000;
@@ -654,10 +654,6 @@
                 ));
                 actions.append(cancel);
             }
-            const forget = node('button', 'bq-action-link', 'Forget this schedule');
-            forget.type = 'button';
-            forget.addEventListener('click', () => forgetSeries(series, forget));
-            actions.append(forget);
 
             card.append(actions);
             list.append(card);
@@ -709,29 +705,6 @@
         } catch (error) {
             button.disabled = false;
             button.textContent = label;
-            sayTrouble(button, 'Could not reach the server.');
-        }
-    }
-
-    function forgetSeries(series, button) {
-        if (series.queued === 0) return sendForget(series, button);
-        askThen(
-            button,
-            `Forget it? ${plural(series.queued, 'booking')} stay queued.`,
-            'Forget it',
-            (yes) => sendForget(series, yes)
-        );
-    }
-
-    async function sendForget(series, button) {
-        button.disabled = true;
-        button.textContent = 'Forgetting…';
-        try {
-            await fetch(`/api/booking-series/${encodeURIComponent(series.id)}`, { method: 'DELETE' });
-            await load();
-        } catch (error) {
-            button.disabled = false;
-            button.textContent = 'Forget it';
             sayTrouble(button, 'Could not reach the server.');
         }
     }
