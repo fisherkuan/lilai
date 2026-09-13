@@ -1,7 +1,8 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { dueState } = require('../server/booking-scheduler');
+const { dueState, createScheduler, TICK_MS } = require('../server/booking-scheduler');
+const { bookingSettings } = require('../server/booking-settings');
 
 const GRACE = 300;
 
@@ -64,4 +65,44 @@ test('a missing alternative falls back to the preferred start', () => {
     };
     assert.equal(dueState(single, new Date('2026-10-01T15:00:00Z'), 86400), 'due');
     assert.equal(dueState(single, new Date('2026-10-01T16:00:01Z'), 86400), 'missed');
+});
+
+// --- Surviving the database ---------------------------------------------------------------
+
+const quiet = { info() {}, warn() {}, error() {} };
+
+/** A pool that refuses the first `failures` connections and then hands out an empty database. */
+function flakyPool(failures) {
+    const pool = { connects: 0 };
+    pool.connect = async () => {
+        pool.connects += 1;
+        if (pool.connects <= failures) throw new Error('connection refused');
+        return { query: async () => ({ rows: [] }), release() {} };
+    };
+    return pool;
+}
+
+test('a connection refused on one tick does not retire the scheduler', async () => {
+    const pool = flakyPool(1);
+    const scheduler = createScheduler({ pool, settings: bookingSettings({}), log: quiet });
+
+    await assert.rejects(scheduler.tick(), /connection refused/);
+    const summary = await scheduler.tick();
+
+    assert.equal(summary.skipped, undefined, 'the next tick must run, not report "already running"');
+    assert.equal(pool.connects, 2);
+});
+
+test('a database unreachable at boot costs one pass, not the interval', async (t) => {
+    t.mock.timers.enable({ apis: ['setInterval'] });
+    const pool = flakyPool(1);
+    const scheduler = createScheduler({ pool, settings: bookingSettings({}), log: quiet });
+
+    await scheduler.start();
+    assert.equal(pool.connects, 1, 'the first pass tried and was refused');
+
+    t.mock.timers.tick(TICK_MS);
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.equal(pool.connects, 2, 'the interval fired and tried again');
+    scheduler.stop();
 });

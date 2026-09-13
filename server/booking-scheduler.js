@@ -54,6 +54,9 @@ function createScheduler({
     let nextAllowedAt = 0;
     let timer = null;
     let running = false;
+    // Interrupted rows are recovered on the first pass that reaches the database, not at
+    // start(): a connection blip at boot must not leave them `sending` until the next deploy.
+    let recovered = false;
 
     async function finish(client, id, status, note) {
         const result = await client.query(`
@@ -167,8 +170,16 @@ function createScheduler({
         if (running) return { skipped: 'already running' };
         running = true;
         const summary = { due: 0, sent: 0, missed: 0, paced: 0, errors: 0 };
-        const client = await pool.connect();
+        // Inside the try: `running` is cleared on every exit, a refused connection included.
+        // Outside it, one refused pool.connect() would report "already running" for the
+        // rest of the process's life, and nothing would ever be sent again.
+        let client = null;
         try {
+            client = await pool.connect();
+            if (!recovered) {
+                await recoverInterrupted(client);
+                recovered = true;
+            }
             const grace = settings.lateSubmissionGraceSeconds;
             const candidates = await client.query(`
                 SELECT * FROM booking_queue
@@ -207,25 +218,24 @@ function createScheduler({
                 }
             }
         } finally {
-            client.release();
+            if (client) client.release();
             running = false;
         }
         return summary;
     }
 
+    /*
+     * The interval is installed before the first pass runs, so a database that is briefly
+     * unreachable at boot costs one pass and nothing more. The first pass itself runs at
+     * once rather than waiting out the interval: the grace window may be exactly what a
+     * boot is recovering.
+     */
     async function start() {
-        const client = await pool.connect();
-        try {
-            await recoverInterrupted(client);
-        } finally {
-            client.release();
-        }
         log.info(`[bookings] scheduler started in ${live ? 'LIVE' : 'DRY RUN'} mode`);
-        // Run immediately rather than waiting out the first interval: the grace window is
-        // only five minutes, and a boot may well be what is recovering it.
-        await tick();
-        timer = setInterval(() => tick().catch((error) => log.error('[bookings] tick failed:', error.message)), TICK_MS);
+        const guarded = (label) => (error) => log.error(`[bookings] ${label}:`, error.message);
+        timer = setInterval(() => tick().catch(guarded('tick failed')), TICK_MS);
         if (timer.unref) timer.unref();
+        await tick().catch(guarded('first pass failed, the next tick retries'));
     }
 
     function stop() {
