@@ -11,7 +11,7 @@ const WebSocket = require('ws');
 const { weekBounds } = require('./booking-time');
 const { validateBooking, BookingInputError } = require('./booking-validation');
 const { QUOTA_PER_WEEK, countHeld, quotaFor } = require('./booking-quota');
-const { bookingSettings, sampleSendAfter } = require('./booking-settings');
+const { bookingSettings, sampleSendAfter, graceDeadline } = require('./booking-settings');
 const { createBookingSchema } = require('./booking-schema');
 const { BookingFormClient, readFormOptions } = require('./booking-form');
 const { createScheduler } = require('./booking-scheduler');
@@ -1028,29 +1028,79 @@ function toBoardEntry(row) {
 }
 
 /*
- * The booking block of config/app.json is edited by hand once a year (seasonEndsOn), and a
- * typo there must not take the calendar, RSVPs and donations down with it. Checked once,
- * here: when it fails, every booking route answers 503 with the reason, the scheduler is
- * not started, and the rest of the app runs as it always did.
+ * The booking settings, read once. config/app.json is loaded once too, so re-parsing it on
+ * every request bought nothing; and its booking block is edited by hand once a year
+ * (seasonEndsOn), so a typo there must not take the calendar, RSVPs and donations down
+ * with it. When it fails, the routes that read these settings answer 503 with the reason,
+ * the scheduler is not started, and the rest of the app — the address book included, which
+ * never reads them — runs as it always did.
  */
+let BOOKING_SETTINGS = null;
 let bookingConfigError = null;
 try {
-    bookingSettings(appConfig);
+    BOOKING_SETTINGS = bookingSettings(appConfig);
 } catch (error) {
     bookingConfigError = error;
     console.error(`Bookings are off until config/app.json is fixed: ${error.message}`);
 }
-app.use(['/api/bookings', '/api/booking-series', '/api/booking-profiles'], (req, res, next) => {
+app.use(['/api/bookings', '/api/booking-series'], (req, res, next) => {
     if (!bookingConfigError) return next();
     res.status(503).json({ success: false, message: `Bookings are off: ${bookingConfigError.message}` });
 });
+
+/*
+ * One expanded date, checked the way both queue paths check it: the entry validates, its
+ * window has not closed, and the slot is not already in the past. A window that has closed
+ * is refused rather than accepted as an entry that can only ever become `missed`; inside
+ * the grace window is fine, it fires at once. Returns the entry or the refusal — the caller
+ * decides whether that refusal is the request's problem (the first date) or a date to
+ * report as skipped (the rest).
+ */
+function screenOccurrence(body, playDate, now) {
+    let entry;
+    try {
+        entry = validateBooking({ ...body, playDate }, { seasonEndsOn: BOOKING_SETTINGS.seasonEndsOn });
+    } catch (error) {
+        if (!(error instanceof BookingInputError)) throw error;
+        return { refused: { message: error.message, field: error.field } };
+    }
+    if (now > graceDeadline(entry.opensAt, BOOKING_SETTINGS)) {
+        return { refused: { message: 'That booking window has already closed.', field: 'playDate' } };
+    }
+    if (now >= entry.startPreferred && now >= entry.startAlternative) {
+        return { refused: { message: 'That slot is already in the past.', field: 'playDate' } };
+    }
+    return { entry };
+}
+
+/*
+ * One row into the queue, for the create path and the schedule edit alike. A column added
+ * to one INSERT and not the other is exactly the drift this exists to make impossible.
+ */
+async function queueOccurrence(client, entry, { queuedBy, profileId, seriesId }) {
+    const inserted = await client.query(`
+        INSERT INTO booking_queue (
+            id, sport, play_date, start_preferred, start_alternative, duration_hours,
+            players, indoor_outdoor, facility, other_facility, language, valid_sports_card,
+            name, name_key, email, phone, remarks, queued_by, opens_at, send_after,
+            profile_id, series_id, status
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, 'queued')
+        RETURNING *
+    `, [
+        uuidv4(), entry.sport, entry.playDate, entry.startPreferred, entry.startAlternative, entry.durationHours,
+        entry.players, entry.indoorOutdoor, entry.facility, entry.otherFacility, entry.language,
+        entry.validSportsCard, entry.name, entry.nameKey, entry.email, entry.phone, entry.remarks,
+        queuedBy, entry.opensAt, sampleSendAfter(entry.opensAt, BOOKING_SETTINGS), profileId, seriesId
+    ]);
+    return toBoardEntry(inserted.rows[0]);
+}
 
 // List the board: everything still owed a submission, plus a page of what has gone out.
 app.get('/api/bookings', async (req, res) => {
     const client = await pool.connect();
     try {
         const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 20, 1), 100);
-        const settings = bookingSettings(appConfig);
+        const settings = BOOKING_SETTINGS;
         const undoWindow = settings.cancelUndoSeconds;
 
         const queued = await client.query(
@@ -1140,7 +1190,7 @@ app.get('/api/bookings/quota', async (req, res) => {
  * implementations of a calendar rule drift.
  */
 app.get('/api/bookings/repeat-preview', (req, res) => {
-    const { seasonEndsOn } = bookingSettings(appConfig);
+    const { seasonEndsOn } = BOOKING_SETTINGS;
     const playDate = String(req.query.playDate || '').trim();
     const weekdays = String(req.query.weekdays || '')
         .split(',')
@@ -1239,7 +1289,7 @@ app.post('/api/booking-series/:id/cancel-remaining', async (req, res) => {
  * and by the same closed-window rule: a slot whose midnight has passed cannot come back.
  */
 app.post('/api/booking-series/:id/restore-remaining', async (req, res) => {
-    const settings = bookingSettings(appConfig);
+    const settings = BOOKING_SETTINGS;
     const client = await pool.connect();
     try {
         await client.query('BEGIN');
@@ -1323,7 +1373,7 @@ app.get('/api/booking-series/:id', async (req, res) => {
  * KU Leuven, and no amount of editing the habit may rewrite it.
  */
 app.put('/api/booking-series/:id', async (req, res) => {
-    const settings = bookingSettings(appConfig);
+    const settings = BOOKING_SETTINGS;
     const now = new Date();
 
     let profileId = null;
@@ -1368,26 +1418,12 @@ app.put('/api/booking-series/:id', async (req, res) => {
     const wanted = new Map();
     const skipped = [];
     for (const playDate of dates) {
-        let entry;
-        try {
-            entry = validateBooking({ ...body, playDate }, { seasonEndsOn: settings.seasonEndsOn });
-        } catch (error) {
-            if (!(error instanceof BookingInputError)) throw error;
+        const { entry, refused } = screenOccurrence(body, playDate, now);
+        if (refused) {
             if (playDate === dates[0]) {
-                return res.status(400).json({ success: false, message: error.message, field: error.field });
+                return res.status(400).json({ success: false, message: refused.message, field: refused.field });
             }
-            skipped.push({ playDate, reason: error.message });
-            continue;
-        }
-        const deadline = new Date(entry.opensAt.getTime() + settings.lateSubmissionGraceSeconds * 1000);
-        if (now > deadline || (now >= entry.startPreferred && now >= entry.startAlternative)) {
-            const message = now > deadline
-                ? 'That booking window has already closed.'
-                : 'That slot is already in the past.';
-            if (playDate === dates[0]) {
-                return res.status(400).json({ success: false, field: 'playDate', message });
-            }
-            skipped.push({ playDate, reason: message });
+            skipped.push({ playDate, reason: refused.message });
             continue;
         }
         wanted.set(playDate, entry);
@@ -1500,21 +1536,7 @@ app.put('/api/booking-series/:id', async (req, res) => {
                 continue;
             }
 
-            const inserted = await client.query(`
-                INSERT INTO booking_queue (
-                    id, sport, play_date, start_preferred, start_alternative, duration_hours,
-                    players, indoor_outdoor, facility, other_facility, language, valid_sports_card,
-                    name, name_key, email, phone, remarks, queued_by, opens_at, send_after,
-                    profile_id, series_id, status
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, 'queued')
-                RETURNING *
-            `, [
-                uuidv4(), entry.sport, playDate, entry.startPreferred, entry.startAlternative, entry.durationHours,
-                entry.players, entry.indoorOutdoor, entry.facility, entry.otherFacility, entry.language,
-                entry.validSportsCard, entry.name, entry.nameKey, entry.email, entry.phone, entry.remarks,
-                queuedBy, entry.opensAt, sampleSendAfter(entry.opensAt, settings), profileId, req.params.id
-            ]);
-            created.push(toBoardEntry(inserted.rows[0]));
+            created.push(await queueOccurrence(client, entry, { queuedBy, profileId, seriesId: req.params.id }));
         }
 
         if (kept.length === 0 && created.length === 0) {
@@ -1726,7 +1748,7 @@ app.get('/api/bookings/form-options', async (req, res) => {
      * effect at once instead of an hour later.
      */
     const season = {
-        seasonEndsOn: bookingSettings(appConfig).seasonEndsOn,
+        seasonEndsOn: BOOKING_SETTINGS.seasonEndsOn,
         // The sheet must not offer a repeat the server would refuse.
         repeatUnits: UNITS,
         repeatMaxEvery: MAX_EVERY,
@@ -1773,7 +1795,7 @@ async function applyProfile(body) {
 
 // Queue a slot.
 app.post('/api/bookings', async (req, res) => {
-    const settings = bookingSettings(appConfig);
+    const settings = BOOKING_SETTINGS;
     const now = new Date();
 
     let profileId = null;
@@ -1804,31 +1826,14 @@ app.post('/api/bookings', async (req, res) => {
     const wanted = [];
     const skipped = [];
     for (const playDate of dates) {
-        let entry;
-        try {
-            entry = validateBooking({ ...body, playDate }, { seasonEndsOn: settings.seasonEndsOn });
-        } catch (error) {
-            if (!(error instanceof BookingInputError)) throw error;
+        const { entry, refused } = screenOccurrence(body, playDate, now);
+        if (refused) {
             // The first date's problems are the request's problems — a typo in the times is
             // not something to report as "week 1 skipped".
             if (playDate === dates[0]) {
-                return res.status(400).json({ success: false, message: error.message, field: error.field });
+                return res.status(400).json({ success: false, message: refused.message, field: refused.field });
             }
-            skipped.push({ playDate, reason: error.message });
-            continue;
-        }
-
-        // Refuse a window that has already closed rather than accepting an entry that can
-        // only ever become `missed`. Inside the grace window is fine: it fires immediately.
-        const deadline = new Date(entry.opensAt.getTime() + settings.lateSubmissionGraceSeconds * 1000);
-        if (now > deadline || (now >= entry.startPreferred && now >= entry.startAlternative)) {
-            const message = now > deadline
-                ? 'That booking window has already closed.'
-                : 'That slot is already in the past.';
-            if (playDate === dates[0]) {
-                return res.status(400).json({ success: false, field: 'playDate', message });
-            }
-            skipped.push({ playDate, reason: message });
+            skipped.push({ playDate, reason: refused.message });
             continue;
         }
         wanted.push(entry);
@@ -1900,21 +1905,7 @@ app.post('/api/bookings', async (req, res) => {
             }
             roomLeft.set(weekKey, roomLeft.get(weekKey) - 1);
 
-            const inserted = await client.query(`
-                INSERT INTO booking_queue (
-                    id, sport, play_date, start_preferred, start_alternative, duration_hours,
-                    players, indoor_outdoor, facility, other_facility, language, valid_sports_card,
-                    name, name_key, email, phone, remarks, queued_by, opens_at, send_after,
-                    profile_id, series_id, status
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, 'queued')
-                RETURNING *
-            `, [
-                uuidv4(), entry.sport, entry.playDate, entry.startPreferred, entry.startAlternative, entry.durationHours,
-                entry.players, entry.indoorOutdoor, entry.facility, entry.otherFacility, entry.language,
-                entry.validSportsCard, entry.name, entry.nameKey, entry.email, entry.phone, entry.remarks,
-                queuedBy, entry.opensAt, sampleSendAfter(entry.opensAt, settings), profileId, seriesId
-            ]);
-            created.push(toBoardEntry(inserted.rows[0]));
+            created.push(await queueOccurrence(client, entry, { queuedBy, profileId, seriesId }));
         }
 
         if (created.length === 0) {
@@ -1954,7 +1945,7 @@ app.post('/api/bookings', async (req, res) => {
  * combination the create path would have refused.
  */
 app.put('/api/bookings/:id', async (req, res) => {
-    const settings = bookingSettings(appConfig);
+    const settings = BOOKING_SETTINGS;
     const client = await pool.connect();
     try {
         await client.query('BEGIN');
@@ -1996,7 +1987,7 @@ app.put('/api/bookings/:id', async (req, res) => {
         }
 
         const now = new Date();
-        const deadline = new Date(entry.opensAt.getTime() + settings.lateSubmissionGraceSeconds * 1000);
+        const deadline = graceDeadline(entry.opensAt, settings);
         if (now > deadline) {
             await client.query('ROLLBACK');
             return res.status(400).json({
@@ -2126,7 +2117,7 @@ app.post('/api/bookings/:id/restore', async (req, res) => {
             });
         }
 
-        const settings = bookingSettings(appConfig);
+        const settings = BOOKING_SETTINGS;
 
         /*
          * Undo is bounded by the same window the board shows it in. Once the row has left
@@ -2144,7 +2135,7 @@ app.post('/api/bookings/:id/restore', async (req, res) => {
         }
 
         // Restoring cannot put a slot back into a window that has since closed.
-        const deadline = new Date(new Date(entry.opens_at).getTime() + settings.lateSubmissionGraceSeconds * 1000);
+        const deadline = graceDeadline(new Date(entry.opens_at), settings);
         if (new Date() > deadline) {
             await client.query('ROLLBACK');
             return res.status(409).json({
@@ -2266,7 +2257,7 @@ app.use((err, req, res, next) => {
 const bookingScheduler = bookingConfigError ? null : createScheduler({
     pool,
     broadcast,
-    settings: bookingSettings(appConfig),
+    settings: BOOKING_SETTINGS,
     live: process.env.BOOKING_SUBMIT === 'live',
     toBoardEntry
 });

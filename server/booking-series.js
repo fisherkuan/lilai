@@ -56,13 +56,6 @@ async function createSeriesSchema(client) {
     for (const sql of INDEX_SQL) await client.query(sql);
 }
 
-/*
- * Statuses that a "cancel the rest" may still touch. Only `queued`: once the scheduler has
- * claimed a row it is in flight or already answered, and a bulk action must not pretend
- * otherwise. The count of what it could NOT touch is reported alongside.
- */
-const CANCELLABLE = ['queued'];
-
 /** The shape the board reads: the rule, plus what became of it. */
 function toSeriesView(row) {
     const rule = {
@@ -120,12 +113,8 @@ const LIST_SQL = selectSeries('');
 const ONE_SQL = selectSeries('WHERE s.id = $1');
 
 module.exports = {
-    TABLE_SQL,
-    LINK_SQL,
-    INDEX_SQL,
     LIST_SQL,
     ONE_SQL,
-    CANCELLABLE,
     createSeriesSchema,
     toSeriesView
 };

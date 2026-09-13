@@ -132,10 +132,6 @@ function validateProfile(input = {}) {
 }
 
 module.exports = {
-    TABLE_SQL,
-    LINK_SQL,
-    INDEX_SQL,
-    backfillProfiles,
     createProfileSchema,
     maskEmail,
     maskPhone,
