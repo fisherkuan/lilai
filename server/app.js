@@ -38,6 +38,21 @@ if (missingVars.length > 0) {
 }
 
 const app = express();
+
+/*
+ * Express 4 does not catch a rejected async handler: the request never answers, and Node
+ * treats the rejection as fatal for the whole process. Every async route defined below is
+ * wrapped so an unexpected error — a pool timeout before a handler's own try, or a rethrow
+ * that means "this is not input trouble" — reaches the error middleware and becomes a 500.
+ */
+for (const method of ['get', 'post', 'put', 'delete']) {
+    const define = app[method].bind(app);
+    app[method] = (path, ...handlers) => handlers.length === 0
+        ? define(path) // app.get('setting') is a getter, not a route
+        : define(path, ...handlers.map((handler) => handler.constructor.name !== 'AsyncFunction'
+            ? handler
+            : (req, res, next) => handler(req, res, next).catch(next)));
+}
 const PORT = process.env.PORT || 3000;
 
 // Middleware
