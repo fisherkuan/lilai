@@ -1027,6 +1027,24 @@ function toBoardEntry(row) {
     };
 }
 
+/*
+ * The booking block of config/app.json is edited by hand once a year (seasonEndsOn), and a
+ * typo there must not take the calendar, RSVPs and donations down with it. Checked once,
+ * here: when it fails, every booking route answers 503 with the reason, the scheduler is
+ * not started, and the rest of the app runs as it always did.
+ */
+let bookingConfigError = null;
+try {
+    bookingSettings(appConfig);
+} catch (error) {
+    bookingConfigError = error;
+    console.error(`Bookings are off until config/app.json is fixed: ${error.message}`);
+}
+app.use(['/api/bookings', '/api/booking-series', '/api/booking-profiles'], (req, res, next) => {
+    if (!bookingConfigError) return next();
+    res.status(503).json({ success: false, message: `Bookings are off: ${bookingConfigError.message}` });
+});
+
 // List the board: everything still owed a submission, plus a page of what has gone out.
 app.get('/api/bookings', async (req, res) => {
     const client = await pool.connect();
@@ -2236,7 +2254,7 @@ app.use((err, req, res, next) => {
  * Submission is off unless BOOKING_SUBMIT=live is set. Dry run exercises the claim and
  * the whole state machine without sending anything to KU Leuven.
  */
-const bookingScheduler = createScheduler({
+const bookingScheduler = bookingConfigError ? null : createScheduler({
     pool,
     broadcast,
     settings: bookingSettings(appConfig),
@@ -2249,7 +2267,9 @@ initializeDatabase().then(() => {
         console.log(`🚀 Event Attendance App server running on http://localhost:${PORT}`);
         console.log('🎉 Ready to accept RSVPs!');
     });
-    bookingScheduler.start().catch((error) => {
-        console.error('Booking scheduler failed to start:', error.message);
-    });
+    if (bookingScheduler) {
+        bookingScheduler.start().catch((error) => {
+            console.error('Booking scheduler failed to start:', error.message);
+        });
+    }
 });
