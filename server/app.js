@@ -1434,11 +1434,20 @@ app.put('/api/booking-series/:id', async (req, res) => {
             ? body.queuedBy.trim().slice(0, 100)
             : [...wanted.values()][0].name;
 
+        /*
+         * No cancelled_at, deliberately. That column is what offers Undo — on the row, and
+         * through the schedule's last_cancelled_at the card's "Undo all" — and an occurrence
+         * the new rule no longer wants must not come back through either: restoring the
+         * Tuesdays next to the Thursdays that replaced them would double the queue past the
+         * quota and contradict the schedule that says Thursday. The undo of an edit is
+         * another edit. Without the stamp these rows leave the board at once and still count
+         * as cancelled in the schedule's tally.
+         */
         const cancelled = [];
         for (const [playDate, row] of queuedByDate) {
             if (wanted.has(playDate)) continue;
             const gone = await client.query(`
-                UPDATE booking_queue SET status = 'cancelled', cancelled_at = NOW()
+                UPDATE booking_queue SET status = 'cancelled', cancelled_at = NULL
                 WHERE id = $1 AND status = 'queued' RETURNING *
             `, [row.id]);
             if (gone.rowCount > 0) cancelled.push(toBoardEntry(gone.rows[0]));
