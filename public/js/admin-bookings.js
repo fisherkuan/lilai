@@ -11,6 +11,20 @@
 (() => {
     'use strict';
 
+    /*
+     * What this file is.
+     *
+     * There is no build step here, so a page has no other way to know whether the script it
+     * is running is the script on disk. A stale service-worker copy has now three times
+     * looked like a broken feature — a missing repeat field, a dead Undo, a Cancel button
+     * that did nothing — and each time it cost a round of debugging the wrong thing. The
+     * server reads this same constant out of the file and reports it; when the two disagree,
+     * the page says so instead of misbehaving silently.
+     *
+     * Bump it when changing anything in public/js or public/styles.css.
+     */
+    const BUILD = '2026-09-13a';
+
     const BRUSSELS = 'Europe/Brussels';
     const MINUTE = 60000;
     const HOUR = 3600000;
@@ -499,6 +513,17 @@
         state.historyShown += crossed.length;
     }
 
+    /*
+     * The page is running code older than the server has. Nothing here can fix that — only a
+     * reload can — so it says exactly that, with the reason, rather than letting buttons
+     * behave in ways the current code does not explain.
+     */
+    function showStaleBanner(serverBuild) {
+        const banner = el('bq-stale');
+        if (!banner) return;
+        banner.hidden = !serverBuild || serverBuild === BUILD;
+    }
+
     // --- Recurring schedules ------------------------------------------------------------
 
     async function loadSeries() {
@@ -921,6 +946,7 @@
             state.quotaPerWeek = data.quotaPerWeek;
             if (data.graceSeconds) state.graceSeconds = data.graceSeconds;
             if (data.cancelUndoSeconds) state.cancelUndoSeconds = data.cancelUndoSeconds;
+            showStaleBanner(data.build);
             await loadSeries();
             await loadQuota();
             render();

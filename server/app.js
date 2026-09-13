@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
 const path = require('path');
+const fs = require('fs');
 const { Pool } = require('pg');
 const { v4: uuidv4 } = require('uuid');
 const http = require('http');
@@ -930,6 +931,24 @@ app.post('/api/donations', requireAdminKey, async (req, res) => {
 // Sports booking queue
 // ---------------------------------------------------------------------------
 
+/*
+ * The build marker the board's script declares about itself.
+ *
+ * Read from disk rather than duplicated here, so the two can only disagree when the browser
+ * is genuinely running an older copy — which is exactly the condition worth reporting. Read
+ * once at boot: the file does not change under a running server, and a failed read simply
+ * means no claim is made.
+ */
+const BOARD_BUILD = (() => {
+    try {
+        const source = fs.readFileSync(path.join(__dirname, '../public/js/admin-bookings.js'), 'utf8');
+        const match = /const BUILD = '([^']+)'/.exec(source);
+        return match ? match[1] : null;
+    } catch (error) {
+        return null;
+    }
+})();
+
 const QUEUED_STATUSES = ['queued', 'sending'];
 const HISTORY_STATUSES = ['sent', 'unconfirmed', 'failed', 'missed', 'cancelled'];
 
@@ -1033,7 +1052,10 @@ app.get('/api/bookings', async (req, res) => {
             graceSeconds: settings.lateSubmissionGraceSeconds,
             // How long a cancelled row keeps its Undo before it leaves the board. The
             // client counts it down, so it must be the same number the server enforces.
-            cancelUndoSeconds: undoWindow
+            cancelUndoSeconds: undoWindow,
+            // What the board's script should be. A browser running an older copy compares
+            // this with its own constant and tells the reader, instead of misbehaving.
+            build: BOARD_BUILD
         });
     } catch (error) {
         console.error('Error listing booking queue:', error);

@@ -67,6 +67,16 @@
             </div>
 
             <!--
+                Shown only when the script this page is running is older than the one on the
+                server — a stale service-worker copy. Nothing on the page can fix that, so it
+                says so plainly instead of letting buttons misbehave.
+            -->
+            <div class="bq-stale" id="bq-stale" hidden>
+                <strong>This page is running older code.</strong>
+                Reload to pick up the current version — buttons may not work until you do.
+            </div>
+
+            <!--
                 Recurring schedules, above the timeline: a habit is read as one thing, and
                 acting on it one row at a time is how an occurrence gets missed. Hidden
                 entirely when there are none, so a one-off board is not told about a feature

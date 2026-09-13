@@ -2079,6 +2079,18 @@ body.menu-open { overflow: hidden; }
 .bq-empty-title { font-size: 14px; color: var(--text); }
 .bq-empty-note { font-size: 14px; color: var(--text-secondary); margin-top: var(--s-1); }
 
+/* "You are running older code." Amber, not red: nothing is broken, the page is just behind. */
+.bq-stale {
+    border: 1px solid var(--warning);
+    background: #fdf4e3;
+    color: #8a5a00;
+    border-radius: var(--r-md);
+    padding: var(--s-3) var(--s-4);
+    font-size: 13px;
+    line-height: 1.5;
+    margin-bottom: var(--s-4);
+}
+
 /* Recurring schedules. A card per habit, above the timeline, because a habit is one thing
    and acting on it row by row is how an occurrence gets missed. */
 .bq-series { margin-bottom: var(--s-5); }
