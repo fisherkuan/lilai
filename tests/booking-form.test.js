@@ -291,6 +291,20 @@ function stubResponse({ status = 200, body = '', headers = {} } = {}) {
     };
 }
 
+test('a body that stalls after the headers is abandoned by the same timer', async () => {
+    const fetchImpl = async (url, init) => ({
+        status: 200,
+        headers: { get: () => null, getSetCookie: () => [] },
+        // Headers answered; the body never comes — unless the signal fires, as a real body would.
+        text: () => new Promise((resolve, reject) => {
+            init.signal.addEventListener('abort', () => reject(new Error('aborted')), { once: true });
+        })
+    });
+
+    const client = new BookingFormClient({ fetchImpl, timeoutMs: 20 });
+    await assert.rejects(client.request(FORM_URL, { method: 'GET', headers: {} }), /aborted/);
+});
+
 test('the session cookie from the GET is carried into the POST', async () => {
     const seen = [];
     const fetchImpl = async (url, init) => {

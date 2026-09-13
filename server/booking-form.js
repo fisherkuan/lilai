@@ -294,11 +294,16 @@ class BookingFormClient {
         let currentInit = init;
 
         for (let hop = 0; hop <= maxRedirects; hop += 1) {
+            /*
+             * One timer for the whole exchange, body included. Headers arriving is not an
+             * answer: a server that sends 200 and then stalls the body would otherwise hang
+             * this call — and, at midnight, the scheduler behind it — with nothing left to
+             * abort it.
+             */
             const controller = new AbortController();
             const timer = setTimeout(() => controller.abort(), this.timeoutMs);
-            let response;
             try {
-                response = await this.fetchImpl(current, {
+                const response = await this.fetchImpl(current, {
                     ...currentInit,
                     redirect: 'manual',
                     signal: controller.signal,
@@ -308,31 +313,31 @@ class BookingFormClient {
                         ...currentInit.headers
                     }
                 });
+
+                const setCookie = typeof response.headers.getSetCookie === 'function'
+                    ? response.headers.getSetCookie()
+                    : [response.headers.get('set-cookie')].filter(Boolean);
+                this.jar.store(setCookie);
+
+                if (response.status >= 300 && response.status < 400 && response.headers.get('location')) {
+                    // urllib only replays 301/302/303, and always as a GET. Same rule here.
+                    if (currentInit.method === 'POST' && ![301, 302, 303].includes(response.status)) {
+                        throw new Error('Refusing to replay POST after redirect');
+                    }
+                    const target = assertSafeRedirect(
+                        response.headers.get('location'),
+                        current,
+                        currentInit.method === 'POST' ? null : currentInit.method
+                    );
+                    current = target.toString();
+                    currentInit = { method: 'GET', headers: {} };
+                    continue;
+                }
+
+                return { status: response.status, url: current, html: await response.text() };
             } finally {
                 clearTimeout(timer);
             }
-
-            const setCookie = typeof response.headers.getSetCookie === 'function'
-                ? response.headers.getSetCookie()
-                : [response.headers.get('set-cookie')].filter(Boolean);
-            this.jar.store(setCookie);
-
-            if (response.status >= 300 && response.status < 400 && response.headers.get('location')) {
-                // urllib only replays 301/302/303, and always as a GET. Same rule here.
-                if (currentInit.method === 'POST' && ![301, 302, 303].includes(response.status)) {
-                    throw new Error('Refusing to replay POST after redirect');
-                }
-                const target = assertSafeRedirect(
-                    response.headers.get('location'),
-                    current,
-                    currentInit.method === 'POST' ? null : currentInit.method
-                );
-                current = target.toString();
-                currentInit = { method: 'GET', headers: {} };
-                continue;
-            }
-
-            return { status: response.status, url: current, html: await response.text() };
         }
         throw new Error('Too many redirects');
     }
