@@ -2091,6 +2091,36 @@ body.menu-open { overflow: hidden; }
     margin-bottom: var(--s-4);
 }
 
+/* A standing message from the board: what a bulk action could not do, and the like. */
+.bq-notice {
+    border: 1px solid var(--border);
+    background: var(--surface);
+    border-radius: var(--r-md);
+    padding: var(--s-3) var(--s-4);
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--text);
+    margin-bottom: var(--s-4);
+}
+
+/* Asking in the row, in place of the buttons it replaces. */
+.bq-ask {
+    /* The question takes the whole line, so Yes and No sit together underneath it rather
+       than being squeezed into whatever the question leaves — at 390px that broke both
+       labels across two lines each. */
+    flex: 1 0 100%;
+    font-size: 13px;
+    color: var(--text);
+}
+
+.bq-action-trouble {
+    display: block;
+    width: 100%;
+    font-size: 12px;
+    color: var(--danger);
+    margin-top: var(--s-1);
+}
+
 /* Recurring schedules. A card per habit, above the timeline, because a habit is one thing
    and acting on it row by row is how an occurrence gets missed. */
 .bq-series { margin-bottom: var(--s-5); }
@@ -2139,7 +2169,7 @@ body.menu-open { overflow: hidden; }
 
 /* Row actions. Quiet until the row is hovered on a pointer device, always present on
    touch, where there is no hover to reveal them. */
-.bq-actions { display: flex; gap: var(--s-3); margin-top: var(--s-2); }
+.bq-actions { display: flex; flex-wrap: wrap; gap: var(--s-3); margin-top: var(--s-2); }
 .bq-action-link {
     background: none;
     border: 0;
@@ -2148,6 +2178,7 @@ body.menu-open { overflow: hidden; }
     font-size: 13px;
     font-weight: 500;
     color: var(--accent);
+    white-space: nowrap;
     cursor: pointer;
 }
 .bq-action-link:hover { text-decoration: underline; }
@@ -2504,9 +2535,16 @@ select.bs-unit { width: auto; min-width: 120px; max-width: 160px; flex: none; }
 .bd-card h3 { font-size: 15px; margin-bottom: var(--s-4); }
 
 .bd-steps { list-style: none; margin: 0; padding: 0; }
+/*
+ * The rail and the dots share one centre line.
+ *
+ * Every dot is the same 9px, whatever it marks, and the column is 9px wide: an odd width
+ * puts the centre on a whole pixel, so the 1px rail underneath lands on it exactly instead
+ * of half a pixel to one side. The last dot differs by its ring, never by its size.
+ */
 .bd-steps li {
     display: grid;
-    grid-template-columns: 16px minmax(0, 1fr);
+    grid-template-columns: 9px minmax(0, 1fr);
     gap: var(--s-3);
     position: relative;
     padding-bottom: var(--s-4);
@@ -2514,15 +2552,23 @@ select.bs-unit { width: auto; min-width: 120px; max-width: 160px; flex: none; }
 .bd-steps li:not(.last)::before {
     content: "";
     position: absolute;
-    left: 7px;
-    top: 12px;
-    bottom: 0;
+    left: 4px;
+    top: 15px;
+    /* Down to the top of the next dot, not to the edge of this row: a rail that stops
+       short leaves a gap that reads as a break in the sequence. */
+    bottom: -5px;
     width: 1px;
     background: var(--border);
 }
 .bd-steps li:last-child { padding-bottom: 0; }
-.bd-step-dot { width: 8px; height: 8px; margin-top: 5px; border-radius: 50%; background: var(--border-strong); }
-.bd-steps li.last .bd-step-dot { background: var(--surface); border: 2px solid var(--accent); width: 10px; height: 10px; margin-top: 4px; }
+.bd-step-dot {
+    width: 9px;
+    height: 9px;
+    margin-top: 5px;
+    border-radius: 50%;
+    background: var(--border-strong);
+}
+.bd-steps li.last .bd-step-dot { background: var(--surface); border: 2px solid var(--accent); }
 .bd-step-label { display: block; font-size: 14px; font-weight: 500; }
 .bd-step-when { display: block; font-size: 13px; color: var(--text-muted); }
 

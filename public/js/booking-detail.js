@@ -1,5 +1,5 @@
 /*
- * One entry in full, and the status guide (artboard 2e).
+ * One entry in full.
  *
  * The heading of the explanation card is the whole point of this page: a request that
  * reached KU Leuven is NOT a booked court. Everything else here is supporting detail.
@@ -91,13 +91,21 @@
         return timeOf(new Date(new Date(startIso).getTime() + Number(hours) * 3600000).toISOString());
     }
 
+    /*
+     * Every step carries its own date. A bare "00:00:03" is unreadable on a page whose three
+     * moments can be weeks apart — queued today, window opening in ten days, submitted at a
+     * midnight somewhere in between.
+     */
+    const stampWithSeconds = (iso) => `${fmt({ weekday: 'short', day: 'numeric', month: 'short' }).format(new Date(iso))}, ${secondsOf(iso)}`;
+
     function timeline(booking) {
         const steps = [['Queued by', `${displayName(booking.queuedBy || booking.name)} · ${shortStamp(booking.queuedAt)}`]];
         const opened = new Date(booking.opensAt) <= new Date();
-        steps.push(['Window opened', opened ? secondsOf(booking.opensAt) : `${shortStamp(booking.opensAt)} — not yet`]);
+        steps.push(['Window opened', opened ? stampWithSeconds(booking.opensAt) : `${shortStamp(booking.opensAt)} — not yet`]);
+        // Submitting the form and the outcome of submitting it happen at the same instant;
+        // two steps a second apart implied a wait that never existed.
         if (booking.submittedAt) {
-            steps.push(['Form submitted', secondsOf(booking.submittedAt)]);
-            steps.push([OUTCOMES[booking.status].label, secondsOf(booking.submittedAt)]);
+            steps.push([OUTCOMES[booking.status].label, stampWithSeconds(booking.submittedAt)]);
         }
         return h('div', { class: 'card bd-card' }, [
             h('h3', { text: 'What happened' }),
@@ -119,8 +127,7 @@
             ['Duration', `${Number(booking.durationHours)} ${Number(booking.durationHours) === 1 ? 'hr' : 'hrs'}`],
             ['Players', String(booking.players)],
             ['Where', where],
-            ['Responsible', displayName(booking.name)],
-            ['Contact', 'hidden']
+            ['Responsible', booking.name]
         ];
         if (booking.remarks) rows.splice(4, 0, ['Remarks', booking.remarks]);
 
@@ -128,9 +135,8 @@
             h('h3', { text: booking.submittedAt ? 'What we sent' : 'What we will send' }),
             h('div', { class: 'bd-table' }, rows.map(([label, value]) => h('div', { class: 'bd-row' }, [
                 h('span', { class: 'bd-row-label', text: label }),
-                h('span', { class: `bd-row-value${value === 'hidden' ? ' muted' : ''}`, text: value })
-            ]))),
-            h('p', { class: 'bd-note', text: 'Names are public here; email and phone never are. The name is what counts the two slots a week.' })
+                h('span', { class: 'bd-row-value', text: value })
+            ])))
         ]);
     }
 
