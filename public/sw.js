@@ -1,4 +1,4 @@
-const CACHE_NAME = 'lilai-cache-v7'; // Bumped version
+const CACHE_NAME = 'lilai-cache-v10'; // Bumped version
 const urlsToCache = [
   '/',
   '/index.html',
@@ -37,13 +37,47 @@ self.addEventListener('activate', event => {
   );
 });
 
+/*
+ * Our own code is fetched from the network first.
+ *
+ * Stale-while-revalidate served the PREVIOUS script on the first load after every deploy,
+ * so a fresh feature appeared to be missing and a fixed bug appeared to be unfixed — twice
+ * now, each time diagnosed as a broken feature rather than a stale file. HTML, JS and CSS
+ * we author are cheap to re-fetch and expensive to get wrong, so they go to the network
+ * and fall back to the cache only when it is unreachable.
+ *
+ * Everything else — icons, fonts, images, the manifest — keeps stale-while-revalidate.
+ * Those are content-stable: a month-old copy is the same file.
+ */
+function isOurCode(url) {
+    return url.origin === self.location.origin
+        && (/\.(?:js|css|html)$/.test(url.pathname) || url.pathname === '/');
+}
+
 self.addEventListener('fetch', (event) => {
     // Ignore non-GET requests and requests to non-web-standard schemes
     if (event.request.method !== 'GET' || !event.request.url.startsWith('http')) {
         return;
     }
 
-    // Stale-while-revalidate for all requests
+    if (isOurCode(new URL(event.request.url))) {
+        event.respondWith(
+            fetch(event.request).then(networkResponse => {
+                if (networkResponse && networkResponse.status === 200) {
+                    const copy = networkResponse.clone();
+                    caches.open(CACHE_NAME).then(cache => cache.put(event.request, copy));
+                }
+                return networkResponse;
+            }).catch(() => caches.match(event.request).then(
+                // Offline: a cached page beats no page. It may be a version behind, which
+                // is the right trade when the alternative is nothing at all.
+                cached => cached || Promise.reject(new Error('offline and not cached'))
+            ))
+        );
+        return;
+    }
+
+    // Stale-while-revalidate for everything else
     event.respondWith(
         caches.open(CACHE_NAME).then(cache => {
             return cache.match(event.request).then(response => {

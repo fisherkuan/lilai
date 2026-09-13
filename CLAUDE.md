@@ -27,11 +27,18 @@ The server runs on `http://localhost:3000` by default (configurable via PORT env
 ### Database
 - PostgreSQL is used for production (connection via `DATABASE_URL` env var)
 - Database schema is auto-initialized on server startup via `initializeDatabase()` in server/app.js
-- Tables: `events`, `rsvps`, `donations`
+- Tables: `events`, `rsvps`, `donations`, `booking_queue`, `booking_profiles`, `booking_series`
 - Schema migrations are idempotent and run automatically on startup
 
 ### Testing
-No test suite is currently configured. The package.json test script exits with error code 1.
+```bash
+npm test                    # node --test, unit tests only (DB-backed tests skip)
+npm run test:db             # also runs the DB-backed tests
+```
+`test:db` needs a scratch Postgres database and refuses to run unless the database
+name contains `test`, `scratch` or `local` — the suite truncates tables. Override the
+target with `TEST_DATABASE_URL`; it defaults to `postgresql://localhost/lilai_booking_test`.
+Files run with `--test-concurrency=1` because several truncate the same tables.
 
 ## Architecture Overview
 
@@ -160,10 +167,63 @@ Required in `.env`:
 - `GET /api/donation-progress` - Get current/goal for progress bar
 - `POST /api/create-donation-checkout-session` - Create Stripe checkout session
 
+### Booking Queue Endpoints
+- `GET /api/bookings` - Board data: `queued[]`, `history[]`, `historyHasMore`, `quotaPerWeek`. Params: `limit`, `before=<ISO>`
+- `GET /api/bookings/quota?name=` - Live quota tally for a typed name
+- `GET /api/bookings/form-options` - Sports and facilities read from the live KU Leuven form, plus `seasonEndsOn`
+- `GET|POST /api/booking-profiles`, `GET|PUT|DELETE /api/booking-profiles/:id` - The address book. The list masks email and phone; only a single read returns them in full
+- `POST /api/bookings` - Queue a slot. `profileId` takes name/email/phone from the address book; `repeat: {every, unit, weekdays, until}` expands into one row per occurrence and answers with `created[]` and `skipped[]`
+- `GET /api/bookings/repeat-preview` - What a rule would expand to. The sheet's preview, so it cannot promise a date the server refuses
+- `GET /api/booking-series` - Recurring schedules with their tallies
+- `GET /api/booking-series/:id` - One schedule plus a template occurrence, which is what the edit sheet opens from
+- `PUT /api/booking-series/:id` - Change the rule, the details, or both. Reconciles the queue against the new rule: a queued occurrence the rule still wants is updated in place and keeps its id, one it no longer wants is cancelled, a newly wanted date is queued. Anything already sent is never touched
+- `POST /api/booking-series/:id/cancel-remaining` - Cancel every occurrence not yet sent; reports how many had already gone
+- `POST /api/booking-series/:id/restore-remaining` - Undo that, inside the undo window
+- `GET /api/bookings/:id` - One entry, including what was submitted
+- `PUT /api/bookings/:id` - Edit a queued entry. Re-validated whole; the send delay is re-rolled only when the opening moves
+- `POST /api/bookings/:id/restore` - Undo a cancellation inside the undo window, without a quota check
+- `DELETE /api/bookings/:id` - Cancel a queued entry (used by the quota swap)
+
 ### Configuration
 - `GET /api/config` - Get app configuration (calendars, settings)
 - `GET /api/stripe-key` - Get Stripe publishable key
 - `GET /api/health` - Health check
+
+## Booking Queue
+
+Queues KU Leuven sports-facility requests and submits them when the booking window
+opens — midnight Brussels, 14 days before the play date.
+
+- `server/booking-time.js` — Brussels wall-clock arithmetic; rejects ambiguous and nonexistent local times rather than guessing
+- `server/booking-form.js` — the Plone EasyForm client (parse, build, encode, classify)
+- `server/booking-scheduler.js` — the 15s tick. Claims a row (`UPDATE … WHERE status='queued'`) *before* the POST, so a request is never sent twice. A POST whose outcome cannot be read becomes `unconfirmed` and is never retried automatically
+- `server/booking-quota.js` — two slots per name per Mon–Sun week, enforced under a Postgres advisory lock
+- `server/booking-profiles.js` — the address book, plus the `profile_id` link and its backfill from the existing queue
+- `server/booking-repeat.js` — expands a repeat rule (every N days / weeks on chosen weekdays / months) into play dates; capped at 52, bounded by the season. A month without the anchor date is skipped, never slid
+- `server/booking-series.js` — the recurring schedule as a record you can act on. A label on rows, never their owner; the only way to stop one is `cancel-remaining`, and it stays listed afterwards as the record of what it booked. Editing one re-expands the rule and reconciles the queue against it — see `PUT /api/booking-series/:id`. A schedule's own still-queued occurrences are excluded from the quota while it is being rebuilt (`countHeld`/`quotaFor` take `excludeSeries`), or it would block its own edit
+- `config/app.json` → `booking` — delay bounds, `lateSubmissionGraceSeconds`, `cancelUndoSeconds` (how long a cancelled row keeps its Undo before leaving the board — nothing is deleted) and `seasonEndsOn` (the last bookable play date; renew it each September)
+
+Start times are :00 or :30 only. Courts are handed out on the hour and half hour, so
+`assertHalfHour` in `booking-validation.js` refuses anything else — the picker offers only
+those, and the rule is enforced server-side because the import path arrives the same way.
+
+**Submission is off unless `BOOKING_SUBMIT=live` is set.** Without it the scheduler runs
+the whole path and stops short of the POST. `server/../.plans/` holds the design notes.
+
+Recovery is stateless: an entry stays due from its opening until opening + grace, so any
+process alive inside that window picks it up through the ordinary check. There is no
+catch-up path. `lateSubmissionGraceSeconds` is 43200 — twelve hours, matching the Python
+reference's live config — so a process that was not running at midnight still sends when
+it next comes up. A late request will usually get a worse court than a punctual one, but
+it is not nothing.
+
+The board's midnight banner is deliberately **not** driven by this number: it uses its own
+five-minute `LIVE_WINDOW_MS`, because a countdown clock running all morning would misstate
+what is happening. A slot that goes out late still lifts out of the timeline and lands with
+a fade; it just carries a "catching up" label instead of a countdown.
+
+`~/code/sports-booking-bot` is the verified Python reference for the form protocol. It is
+a specification, never called at runtime.
 
 ## Deployment Notes
 

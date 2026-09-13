@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin — Booking queue</title>
+    <link rel="stylesheet" href="/styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,500;9..144,600&display=swap" rel="stylesheet">
+    <link rel="icon" href="/icons/favicon.ico" type="image/x-icon">
+</head>
+<body>
+<div class="container container-wide">
+    <header class="admin-header">
+        <div>
+            <div class="eyebrow">Admin</div>
+            <h1>Booking queue</h1>
+            <p>Courts open 14 days ahead at midnight. Queue a slot and we submit KU Leuven's form for you.</p>
+        </div>
+        <nav class="tabs" aria-label="Admin sections">
+            <a href="/admin/events">Events</a>
+            <a href="/admin/donations">Donations</a>
+            <a href="/admin/bookings" class="active">Booking queue</a>
+            <a href="/">Back to site</a>
+        </nav>
+    </header>
+
+    <main class="bq-layout">
+        <section class="bq-main">
+            <!-- First visit: the explainer stands in for an intro nobody needs twice. -->
+            <div class="bq-explainer card" id="bq-explainer" hidden>
+                <h2>Courts open 14 days ahead, at midnight. They're gone in a minute.</h2>
+                <p>Tell us the slot you want. It waits here, and we submit KU Leuven's form in the first
+                   seconds after it opens — so nobody sits up at midnight.</p>
+                <ol class="bq-steps">
+                    <li><span class="bq-step-n">1</span><span>You queue a slot — sport, day, time. Any future date.</span></li>
+                    <li><span class="bq-step-n">2</span><span>At <strong>play date minus 14 days, 00:00</strong> we submit the form for you.</span></li>
+                    <li><span class="bq-step-n">3</span><span>KU Leuven emails you the yes or no — <strong>a sent request is not a booked court.</strong></span></li>
+                </ol>
+            </div>
+
+            <div class="bq-action" id="bq-action">
+                <button type="button" class="bq-cta" id="bq-queue-btn">
+                    <span class="bq-cta-text">
+                        <span class="bq-cta-label">Queue a slot</span>
+                        <span class="bq-cta-sub" id="bq-cta-sub" hidden>Two slots per person per week</span>
+                    </span>
+                    <span class="bq-cta-arrow" aria-hidden="true">→</span>
+                </button>
+                <div class="bq-quota" id="bq-quota" hidden>
+                    <span class="bq-pips" id="bq-pips" aria-hidden="true"></span>
+                    <span class="bq-quota-text" id="bq-quota-text"></span>
+                    <span class="bq-quota-week" id="bq-quota-week"></span>
+                </div>
+                <span class="chip bq-offline" id="bq-live" hidden><span class="bq-offline-dot" aria-hidden="true"></span>Not updating — refresh</span>
+            </div>
+
+            <!-- The midnight banner replaces the quota line while a window is open. -->
+            <div class="bq-midnight" id="bq-midnight" hidden>
+                <div class="bq-midnight-left">
+                    <div class="bq-midnight-title"><span class="bq-midnight-dot" aria-hidden="true"></span><span id="bq-midnight-headline">The window is open</span></div>
+                    <div class="bq-midnight-sub" id="bq-midnight-sub"></div>
+                </div>
+                <div class="bq-midnight-clock">
+                    <div class="bq-clock" id="bq-clock">00:00:00</div>
+                    <div class="bq-clock-zone">Brussels</div>
+                </div>
+            </div>
+
+            <!--
+                Shown only when the script this page is running is older than the one on the
+                server — a stale service-worker copy. Nothing on the page can fix that, so it
+                says so plainly instead of letting buttons misbehave.
+            -->
+            <div class="bq-stale" id="bq-stale" hidden>
+                <strong>This page is running older code.</strong>
+                Reload to pick up the current version — buttons may not work until you do.
+            </div>
+
+            <!-- Something the board needs to say that outlives the redraw that caused it. -->
+            <div class="bq-notice" id="bq-notice" hidden></div>
+
+            <!--
+                Recurring schedules, above the timeline: a habit is read as one thing, and
+                acting on it one row at a time is how an occurrence gets missed. Hidden
+                entirely when there are none, so a one-off board is not told about a feature
+                it is not using.
+            -->
+            <section class="bq-series" id="bq-series" hidden>
+                <div class="section-header">
+                    <div>
+                        <h2 class="section-title">Recurring</h2>
+                        <div class="section-meta" id="bq-series-meta"></div>
+                    </div>
+                </div>
+                <div class="bq-series-list" id="bq-series-list"></div>
+            </section>
+
+            <div class="section-header">
+                <div>
+                    <h2 class="section-title">Timeline</h2>
+                    <div class="section-meta" id="bq-meta">Loading…</div>
+                </div>
+            </div>
+
+
+            <ol class="bq-timeline" id="bq-timeline" aria-live="polite"></ol>
+
+            <div class="bq-footer">
+                <button type="button" class="bq-guide-link bq-people-link" id="bq-people">People who book</button>
+            </div>
+        </section>
+
+    </main>
+
+    <footer class="bottom-banner">
+        <div class="banner-content">
+            <p class="copyright">&copy; Built by Fisher Kuan</p>
+        </div>
+    </footer>
+</div>
+
+<script src="/js/booking-shared.js"></script>
+<script src="/js/booking-people.js"></script>
+<script src="/js/admin-bookings.js"></script>
+<script src="/js/booking-sheet.js"></script>
+</body>
+</html>

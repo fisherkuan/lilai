@@ -33,5 +33,13 @@
       "goal": 1000
     }
   },
-  "joinGroupUrl": "https://groups.google.com/g/leuven-taiwanese"
+  "joinGroupUrl": "https://groups.google.com/g/leuven-taiwanese",
+  "booking": {
+    "openingDelayMinSeconds": 5,
+    "openingDelayMaxSeconds": 60,
+    "minimumRequestIntervalSeconds": 15,
+    "lateSubmissionGraceSeconds": 43200,
+    "cancelUndoSeconds": 300,
+    "seasonEndsOn": "2027-09-30"
+  }
 }

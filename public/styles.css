@@ -1866,3 +1866,719 @@ body.menu-open { overflow: hidden; }
         transition-duration: 0.01ms !important;
     }
 }
+
+/* ---------- Booking queue ----------
+ * One merged timeline split by a NOW rule. Existing tokens only.
+ * --success is deliberately absent: nothing on this board is ever a success.
+ */
+/* Several blocks below set display:flex, which would otherwise beat the browser's own
+ * [hidden] rule and show elements the script is deliberately keeping out of the way. */
+.bq-layout [hidden], .bq-action [hidden], .bq-midnight[hidden] { display: none !important; }
+.bq-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--s-5);
+    align-items: start;
+    margin-bottom: var(--s-7);
+}
+.bq-main { min-width: 0; }
+
+/* Explainer (first visit) */
+.bq-explainer { padding: var(--s-5); margin-bottom: var(--s-4); }
+.bq-explainer h2 {
+    font-family: var(--font-display);
+    font-weight: 500;
+    font-size: 20px;
+    margin-bottom: var(--s-2);
+}
+.bq-explainer p { color: var(--text-secondary); font-size: 14px; }
+.bq-steps {
+    list-style: none;
+    margin: var(--s-4) 0 0;
+    padding: var(--s-4) 0 0;
+    border-top: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-3);
+}
+.bq-steps li { display: grid; grid-template-columns: 20px minmax(0, 1fr); gap: var(--s-3); font-size: 14px; }
+.bq-step-n { font-family: var(--font-display); font-size: 15px; color: var(--accent); }
+
+/* Primary action */
+.bq-action { display: flex; flex-direction: column; gap: var(--s-3); margin-bottom: var(--s-5); }
+.bq-cta {
+    display: flex;
+    align-items: center;
+    gap: var(--s-3);
+    width: 100%;
+    min-height: 56px;
+    padding: var(--s-4);
+    background: var(--text);
+    color: #fff;
+    border: none;
+    border-radius: var(--r-lg);
+    cursor: pointer;
+    text-align: left;
+}
+.bq-cta:hover { background: #000; }
+.bq-cta-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.bq-cta-label { font-size: 16px; font-weight: 600; }
+.bq-cta-sub { font-size: 13px; color: var(--border-strong); }
+.bq-cta-arrow { font-size: 18px; }
+
+.bq-quota { display: flex; align-items: center; gap: var(--s-2); padding: 0 var(--s-1); font-size: 13px; }
+.bq-pips { display: inline-flex; gap: 4px; }
+.bq-pip { width: 7px; height: 7px; border-radius: 50%; background: var(--surface); border: 1px solid var(--border-strong); }
+.bq-pip.used { background: var(--accent); border-color: var(--accent); }
+.bq-quota-text { color: var(--text); }
+.bq-quota-week { margin-left: auto; color: var(--text-muted); }
+
+.bq-offline { display: inline-flex; align-items: center; gap: 6px; align-self: flex-start; background: #fdf4e3; color: #8a5a00; border-color: transparent; }
+.bq-offline-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--warning); }
+@keyframes bq-pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.35; transform: scale(0.82); }
+}
+
+/* Midnight banner */
+.bq-midnight {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--s-4);
+    background: var(--text);
+    border-radius: var(--r-lg);
+    padding: var(--s-4);
+    margin-bottom: var(--s-5);
+    color: #fff;
+}
+.bq-midnight-title { display: flex; align-items: center; gap: var(--s-2); font-size: 16px; font-weight: 600; }
+.bq-midnight-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent-soft); animation: bq-pulse 1.2s ease-in-out infinite; }
+.bq-midnight-sub { font-size: 13px; color: var(--border-strong); margin-top: 2px; }
+.bq-midnight-clock { text-align: right; }
+.bq-clock { font-family: var(--font-display); font-weight: 500; font-size: 22px; font-variant-numeric: tabular-nums; }
+.bq-clock-zone { font-size: 11px; color: var(--text-muted); }
+
+/* Once the batch is done the banner collapses to one quiet line. */
+.bq-midnight.done { background: var(--surface); border: 1px solid var(--border); color: var(--text-secondary); padding: var(--s-3) var(--s-4); }
+.bq-midnight.done .bq-midnight-title { font-size: 14px; font-weight: 500; color: var(--text); }
+.bq-midnight.done .bq-midnight-dot { background: var(--text-muted); animation: none; }
+.bq-midnight.done .bq-midnight-sub { color: var(--text-secondary); }
+
+/* Timeline */
+.bq-timeline { list-style: none; margin: 0; padding: 0; }
+.bq-row {
+    display: grid;
+    grid-template-columns: 82px minmax(0, 1fr);
+    gap: var(--s-3);
+    padding: var(--s-3) 0;
+    border-bottom: 1px solid var(--border);
+}
+.bq-gutter { text-align: right; min-width: 0; }
+.bq-gutter-main { font-size: 14px; font-weight: 600; letter-spacing: -0.01em; color: var(--text); }
+.bq-gutter-age { font-size: 13px; font-weight: 500; color: var(--text-secondary); }
+.bq-gutter-sub { font-size: 11px; color: var(--text-muted); }
+
+/* A cancelled slot holds its place in the timeline, greyed rather than gone, so the
+   order never changes under a cancellation and the row can be put back. */
+.bq-row-cancelled .bq-title,
+.bq-row-cancelled .bq-gutter-main { color: var(--text-muted); }
+.bq-row-cancelled .bq-title { text-decoration: line-through; }
+.bq-row-cancelled .bq-details, .bq-row-cancelled .bq-who { color: var(--text-muted); }
+.bq-sending { color: var(--accent-hover); }
+.bq-body { min-width: 0; }
+.bq-title { font-size: 15px; font-weight: 600; letter-spacing: -0.01em; }
+.bq-details { font-size: 13px; color: var(--text-secondary); }
+/* Load-bearing: this sentence is what stops "sent" being read as "booked". Never muted. */
+.bq-outcome { font-size: 14px; color: var(--text); margin-top: 2px; }
+.bq-sent-head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--s-2); }
+.bq-aside { grid-column: 2; margin-top: var(--s-1); }
+/* On mobile the sent row already names the person in its outcome clause. */
+.bq-row-sent .bq-aside { display: none; }
+.bq-who { font-size: 13px; color: var(--text-muted); }
+.bq-aside-sub { display: none; }
+
+.bq-dot { flex: none; width: 8px; height: 8px; border-radius: 50%; margin-top: 6px; }
+.bq-dot-solid-success { background: var(--success); }
+.bq-dot-ring { background: var(--surface); border: 2px solid var(--accent); }
+.bq-dot-ring-warning { background: var(--surface); border: 2px solid var(--warning); }
+.bq-dot-solid-danger { background: var(--danger); }
+.bq-dot-solid-warning { background: var(--warning); }
+.bq-dot-solid-muted { background: var(--text-muted); }
+
+/* The in-flight row lifts out of the timeline. Only one row ever does. */
+.bq-inflight {
+    position: relative;
+    background: var(--surface);
+    border: 1px solid var(--accent);
+    border-radius: var(--r-lg);
+    box-shadow: var(--shadow-md);
+    /* The card grows outwards by exactly its own padding, so its columns stay on the
+       same vertical lines as the plain rows above and below it. */
+    padding: var(--s-4);
+    margin: 0 calc(var(--s-4) * -1);
+    overflow: hidden;
+}
+/* Narrow screens have less side gutter than the card wants to borrow: keep it inside. */
+@media (max-width: 639px) {
+    .bq-inflight { margin: 0; padding: var(--s-4) var(--s-3); }
+}
+.bq-inflight::before {
+    content: "";
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 3px;
+    background: var(--accent-soft);
+}
+.bq-inflight::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 33%;
+    height: 3px;
+    background: var(--accent);
+    animation: bq-sweep 1.6s linear infinite;
+}
+@keyframes bq-sweep {
+    from { transform: translateX(-100%); }
+    to { transform: translateX(300%); }
+}
+.bq-landed { animation: bq-fadein 0.4s ease-out; }
+@keyframes bq-fadein {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: none; }
+}
+
+/* The NOW rule renders even on an empty board: it explains the layout. */
+.bq-fold-past { border-top: 0; border-bottom: 1px dashed var(--border); }
+
+/* The NOW rule is itself a divider, so the last past row must not draw one too —
+   otherwise the two sit a few pixels apart and read as a rendering fault. */
+.bq-row:has(+ .bq-now) { border-bottom: 0; }
+.bq-now { display: flex; align-items: center; gap: var(--s-3); padding: 18px 0 10px; }
+.bq-now-line { flex: 1; height: 1px; background: var(--border); }
+.bq-now-pill {
+    flex: none;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--accent);
+    background: var(--accent-soft);
+    border-radius: 999px;
+    padding: 4px 10px;
+}
+.bq-none { padding: var(--s-4) 0; font-size: 14px; color: var(--text-muted); }
+.bq-empty {
+    border: 1px dashed var(--border-strong);
+    border-radius: var(--r-lg);
+    padding: 20px var(--s-4);
+    text-align: center;
+}
+.bq-empty-title { font-size: 14px; color: var(--text); }
+.bq-empty-note { font-size: 14px; color: var(--text-secondary); margin-top: var(--s-1); }
+
+/* "You are running older code." Amber, not red: nothing is broken, the page is just behind. */
+.bq-stale {
+    border: 1px solid var(--warning);
+    background: #fdf4e3;
+    color: #8a5a00;
+    border-radius: var(--r-md);
+    padding: var(--s-3) var(--s-4);
+    font-size: 13px;
+    line-height: 1.5;
+    margin-bottom: var(--s-4);
+}
+
+/* A standing message from the board: what a bulk action could not do, and the like. */
+.bq-notice {
+    border: 1px solid var(--border);
+    background: var(--surface);
+    border-radius: var(--r-md);
+    padding: var(--s-3) var(--s-4);
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--text);
+    margin-bottom: var(--s-4);
+}
+
+/* Asking in the row, in place of the buttons it replaces. */
+.bq-ask {
+    /* The question takes the whole line, so Yes and No sit together underneath it rather
+       than being squeezed into whatever the question leaves — at 390px that broke both
+       labels across two lines each. */
+    flex: 1 0 100%;
+    font-size: 13px;
+    color: var(--text);
+}
+
+.bq-action-trouble {
+    display: block;
+    width: 100%;
+    font-size: 12px;
+    color: var(--danger);
+    margin-top: var(--s-1);
+}
+
+/* Recurring schedules. A card per habit, above the timeline, because a habit is one thing
+   and acting on it row by row is how an occurrence gets missed. */
+.bq-series { margin-bottom: var(--s-5); }
+.bq-series-list { display: flex; flex-direction: column; gap: var(--s-3); }
+.bq-series-card {
+    border: 1px solid var(--border);
+    border-radius: var(--r-lg);
+    background: var(--surface);
+    padding: var(--s-4);
+}
+.bq-series-who { font-size: 12px; color: var(--text-muted); }
+.bq-series-title { font-size: 16px; font-weight: 600; margin-top: 2px; }
+.bq-series-rule { font-size: 13px; color: var(--text-secondary); margin-top: 2px; }
+.bq-series-tally { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2); margin-top: var(--s-3); }
+.bq-tally { font-size: 12px; padding: 3px 10px; border-radius: 999px; border: 1px solid var(--border); }
+.bq-tally-wait { border-color: var(--border-strong); color: var(--text); }
+.bq-series-next { font-size: 12px; color: var(--text-muted); }
+.bq-series-actions {
+    display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-3);
+    margin-top: var(--s-3); padding-top: var(--s-3); border-top: 1px solid var(--border);
+}
+/* The time left on an undo, beside its button — it is a fact, not a control. */
+.bq-action-note { font-size: 12px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+
+.bq-footer { display: flex; flex-direction: column; align-items: center; gap: var(--s-3); margin-top: var(--s-4); }
+.bq-guide-link { font-size: 13px; font-weight: 500; color: var(--accent); }
+
+/* A run of collapsed rows, shown as one line. Reads as part of the timeline, not as a
+   control bolted onto it. */
+.bq-fold { padding: var(--s-3) 0; border-top: 1px dashed var(--border); }
+.bq-fold-btn {
+    background: none;
+    border: 0;
+    padding: 0;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    cursor: pointer;
+}
+.bq-fold-btn:hover { color: var(--text); }
+.bq-fold-btn::before { content: "+ "; }
+
+
+/* Row actions. Quiet until the row is hovered on a pointer device, always present on
+   touch, where there is no hover to reveal them. */
+.bq-actions { display: flex; flex-wrap: wrap; gap: var(--s-3); margin-top: var(--s-2); }
+.bq-action-link {
+    background: none;
+    border: 0;
+    padding: 0;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--accent);
+    white-space: nowrap;
+    cursor: pointer;
+}
+.bq-action-link:hover { text-decoration: underline; }
+.bq-action-link:disabled { color: var(--text-muted); cursor: default; text-decoration: none; }
+.bq-action-danger { color: var(--text-secondary); }
+.bq-action-danger:hover { color: var(--danger); }
+/* Not hidden until hover: `opacity: 0` still reserves the line, so hiding them would cost
+   the same vertical space while making the actions hard to find. */
+
+@media (min-width: 960px) {
+
+    /* The action becomes one strip rather than a full-width dark card. */
+    .bq-action {
+        flex-direction: row;
+        align-items: center;
+        gap: var(--s-4);
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--r-lg);
+        box-shadow: var(--shadow-xs);
+        padding: var(--s-3) 20px;
+    }
+    .bq-cta { width: auto; min-height: 40px; padding: 10px var(--s-4); background: var(--accent); border-radius: var(--r-md); }
+    .bq-cta:hover { background: var(--accent-hover); }
+    .bq-cta-text { flex: none; }
+    .bq-cta-label { font-size: 14px; }
+    .bq-quota { margin: 0; }
+    .bq-quota-week { margin-left: var(--s-2); }
+    .bq-offline { margin-left: auto; align-self: center; }
+
+    .bq-row { grid-template-columns: 130px minmax(0, 1fr) 220px; gap: 20px; padding: var(--s-4) 0; align-items: baseline; }
+    .bq-gutter-main { font-size: 15px; }
+    .bq-title { font-size: 16px; }
+    .bq-aside, .bq-row-sent .bq-aside { display: block; grid-column: 3; margin-top: 0; text-align: right; }
+    .bq-who { font-size: 14px; color: var(--text); }
+    .bq-aside-sub { display: block; font-size: 12px; color: var(--text-muted); }
+    .bq-aside-link { color: var(--accent); }
+    .bq-footer { flex-direction: row; justify-content: space-between; }
+}
+
+/* ---------- Queue-a-slot sheet ----------
+ * Bottom sheet on phones, centred dialog from 960px. Existing tokens only.
+ */
+.bs-root { position: fixed; inset: 0; z-index: 120; display: flex; align-items: flex-end; justify-content: center; }
+.bs-backdrop { position: absolute; inset: 0; background: rgba(28, 25, 23, 0.5); backdrop-filter: blur(4px); }
+.bs-sheet {
+    position: relative;
+    width: 100%;
+    max-height: 92vh;
+    display: flex;
+    flex-direction: column;
+    background: var(--surface);
+    border-radius: var(--r-xl) var(--r-xl) 0 0;
+    box-shadow: var(--shadow-lg);
+}
+.bs-handle { width: 36px; height: 4px; border-radius: 999px; background: var(--border-strong); margin: var(--s-2) auto 0; }
+.bs-head {
+    display: flex;
+    align-items: center;
+    gap: var(--s-3);
+    padding: var(--s-3) var(--s-4);
+    border-bottom: 1px solid var(--border);
+}
+.bs-head > div:first-child { flex: 1; min-width: 0; }
+.bs-title { font-family: var(--font-display); font-size: 18px; font-weight: 600; }
+.bs-step { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+.bs-bars { display: flex; gap: 4px; }
+.bs-bar { width: 20px; height: 3px; border-radius: 999px; background: var(--border); }
+.bs-bar.done { background: var(--accent); }
+.bs-close {
+    width: 32px; height: 32px; flex: none;
+    border: 0; background: transparent; color: var(--text-secondary);
+    font-size: 24px; line-height: 1; cursor: pointer; border-radius: var(--r-sm);
+}
+.bs-close:hover { background: var(--surface-muted); color: var(--text); }
+
+.bs-body { flex: 1; overflow-y: auto; padding: var(--s-4); display: flex; flex-direction: column; gap: var(--s-4); }
+.bs-footer {
+    display: flex;
+    gap: var(--s-2);
+    padding: var(--s-3) var(--s-4);
+    border-top: 1px solid var(--border);
+}
+.bs-footer .btn { min-height: 48px; }
+.bs-next { flex: 1; }
+.bs-wide { flex: 1; }
+.btn.dark { background: var(--text); color: #fff; border-color: var(--text); }
+.btn.dark:hover:not(:disabled) { background: #000; }
+.bs-footer .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.bs-error {
+    margin: 0 var(--s-4);
+    padding: var(--s-3);
+    border: 1px solid var(--danger);
+    border-radius: var(--r-md);
+    color: var(--danger);
+    font-size: 13px;
+}
+.bs-root [hidden] { display: none !important; }
+
+/* Quota strip */
+.bs-quota {
+    display: flex;
+    align-items: center;
+    gap: var(--s-2);
+    flex-wrap: wrap;
+    background: var(--surface-muted);
+    border: 1px solid var(--border);
+    border-radius: var(--r-md);
+    padding: 10px var(--s-4);
+    font-size: 13px;
+}
+.bs-quota.full { border-color: var(--warning); }
+.bs-pips { display: inline-flex; gap: 4px; }
+.bq-pip.warn { background: var(--warning); border-color: var(--warning); }
+.bs-quota-who { font-weight: 500; }
+.bs-quota-when { margin-left: auto; color: var(--text-muted); }
+
+/* Fields */
+.bs-field { display: flex; flex-direction: column; gap: var(--s-2); }
+.bs-label { font-size: 14px; font-weight: 600; }
+.bs-label-sm { font-size: 13px; font-weight: 500; color: var(--text-secondary); }
+.bs-note { font-size: 12px; color: var(--text-secondary); line-height: 1.5; }
+.bs-input {
+    width: 100%;
+    min-height: 44px;
+    padding: 10px var(--s-3);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--r-md);
+    background: var(--surface);
+    color: var(--text);
+}
+.bs-input:focus { outline: 2px solid var(--accent); outline-offset: -1px; border-color: var(--accent); }
+textarea.bs-input { min-height: 64px; }
+
+.bs-pills { display: flex; flex-wrap: wrap; gap: var(--s-2); }
+.bs-pill, .bs-day, .bs-time, .bs-seg {
+    min-height: 44px;
+    padding: 10px var(--s-4);
+    border: 1px solid var(--border-strong);
+    background: var(--surface);
+    color: var(--text);
+    font-size: 14px;
+    cursor: pointer;
+}
+.bs-pill { border-radius: 999px; }
+.bs-pill.selected, .bs-day.selected, .bs-time.selected { background: var(--text); color: #fff; border-color: var(--text); }
+.bs-days { display: flex; flex-wrap: wrap; gap: var(--s-2); }
+.bs-day, .bs-time { border-radius: var(--r-md); }
+.bs-day-picker { min-width: 150px; color: var(--text-secondary); }
+
+/* The date and time inputs are the only way in now, so they get input weight, not pill
+   weight — they are fields to fill, not options to choose between. */
+.bs-date, .bs-time-input {
+    width: 100%;
+    max-width: 220px;
+    padding: 10px var(--s-3);
+    font: inherit;
+    font-size: 15px;
+    color: var(--text);
+    background: var(--surface);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--r-md);
+}
+.bs-date:focus, .bs-time-input:focus { outline: 2px solid var(--accent); outline-offset: -1px; border-color: var(--accent); }
+.bs-hint { margin: calc(var(--s-1) * -1) 0 var(--s-2); color: var(--text-muted); }
+
+/* "every [3] [weeks]" reads as one sentence, so it is laid out as one. */
+.bs-every { display: flex; align-items: center; gap: var(--s-2); flex-wrap: wrap; }
+.bs-every-word { font-size: 14px; color: var(--text-secondary); }
+/* input.bs-number, not .bs-number: the global input[type="number"] rule sets width:100%
+   and outranks a bare class. */
+input.bs-number {
+    width: 72px;
+    flex: none;
+    padding: 10px var(--s-3);
+    font: inherit;
+    font-size: 15px;
+    color: var(--text);
+    background: var(--surface);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--r-md);
+}
+input.bs-number:focus { outline: 2px solid var(--accent); outline-offset: -1px; border-color: var(--accent); }
+select.bs-unit { width: auto; min-width: 120px; max-width: 160px; flex: none; }
+/* Seven weekday pills must fit a phone, so they lose the roomy pill padding. */
+.bs-day-pill { min-width: 48px; padding: 8px var(--s-2); text-align: center; }
+
+/* Mode banner. Sits above the header and never changes as the steps advance, because the
+   title becomes the booking's own name from step 2 and can no longer say what is going on. */
+.bs-mode {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: var(--s-2);
+    padding: 10px var(--s-5);
+    font-size: 12px;
+    border-bottom: 1px solid var(--border);
+}
+.bs-mode-tag { font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+.bs-mode-src { color: var(--text-secondary); }
+.bs-mode-create { background: var(--surface-muted); color: var(--text-secondary); }
+.bs-mode-duplicate { background: var(--surface-muted); color: var(--text-secondary); }
+/* Editing changes a slot someone is already counting on, so it does not look like the
+   other two. */
+.bs-mode-edit { background: #fdf4e3; color: #8a5a00; border-bottom-color: #f0dcb4; }
+
+.bs-segment { display: inline-flex; gap: 4px; background: var(--surface-muted); border-radius: 12px; padding: 4px; }
+.bs-seg { border: 1px solid transparent; background: transparent; border-radius: 9px; padding: 8px var(--s-4); }
+.bs-seg.selected { background: var(--surface); box-shadow: var(--shadow-xs); font-weight: 600; }
+
+.bs-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--s-2); }
+.bs-grid .bs-time { padding: 10px var(--s-2); }
+
+/* The one bordered field: people read the second choice as an end time. */
+.bs-boxed {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-2);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--r-lg);
+    background: var(--bg);
+    padding: var(--s-4);
+}
+.bs-boxed-head { display: flex; align-items: baseline; gap: var(--s-2); }
+.bs-boxed-title { font-size: 14px; font-weight: 600; }
+.bs-required { font-size: 12px; color: var(--text-muted); }
+.bs-alt.selected { background: var(--accent-soft); color: var(--accent-hover); border-color: var(--accent); }
+.bs-time.disabled, .bs-time:disabled { background: var(--surface-muted); color: var(--text-muted); cursor: not-allowed; }
+.bs-example { color: var(--text); }
+
+.bs-summary {
+    display: flex;
+    align-items: center;
+    gap: var(--s-3);
+    border: 1px solid var(--border);
+    border-radius: var(--r-lg);
+    padding: var(--s-3) var(--s-4);
+}
+.bs-summary-main { flex: 1; min-width: 0; }
+.bs-summary-title { font-size: 14px; font-weight: 600; }
+.bs-summary-text { font-size: 13px; color: var(--text-secondary); }
+
+.bs-panel { background: var(--bg); border: 1px solid var(--border); border-radius: var(--r-md); padding: var(--s-4); }
+.bs-panel-lead { font-size: 14px; margin-bottom: var(--s-1); }
+
+.bs-person { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); background: var(--surface-muted); border-radius: var(--r-md); padding: var(--s-3) var(--s-4); }
+.bs-person-name { font-size: 15px; font-weight: 600; }
+.bs-person-contact { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+
+/* The address book, as a picker */
+.bs-person-list { display: flex; flex-direction: column; gap: var(--s-2); }
+.bs-person-row {
+    display: flex; flex-direction: column; align-items: flex-start; gap: 0;
+    width: 100%; min-height: 52px; padding: var(--s-3) var(--s-4); text-align: left;
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-md);
+    cursor: pointer; font: inherit; color: inherit;
+}
+.bs-person-row:hover { border-color: var(--border-strong); }
+.bs-person-row.selected { border-color: var(--text); background: var(--surface-muted); box-shadow: inset 0 0 0 1px var(--text); }
+.bs-person-add {
+    min-height: 48px; padding: var(--s-3) var(--s-4); font: inherit; font-size: 14px; font-weight: 500;
+    color: var(--accent); background: transparent; border: 1px dashed var(--border-strong);
+    border-radius: var(--r-md); cursor: pointer;
+}
+.bs-person-add:hover { background: var(--surface-muted); }
+.bs-person-edit { align-self: flex-start; font-size: 13px; }
+
+/* People manager */
+.bp-layer { z-index: 130; }
+.bp-row { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); padding-bottom: var(--s-3); border-bottom: 1px solid var(--border); }
+.bp-who { min-width: 0; }
+.bp-name { font-size: 15px; font-weight: 600; }
+.bp-contact { font-size: 12px; color: var(--text-muted); margin-top: 2px; overflow-wrap: anywhere; }
+.bp-acts { display: flex; gap: var(--s-2); flex: none; }
+.bp-remove {
+    min-height: 40px; padding: 8px var(--s-3); font: inherit; font-size: 13px; cursor: pointer;
+    color: var(--danger); background: transparent; border: 1px solid var(--border); border-radius: var(--r-md);
+}
+.bp-remove:hover { border-color: var(--danger); }
+.bp-error { color: var(--danger); }
+.bq-people-link { background: none; border: 0; padding: 0; font: inherit; cursor: pointer; }
+
+.bs-table { border: 1px solid var(--border); border-radius: var(--r-lg); overflow: hidden; }
+.bs-table-head { padding: 11px var(--s-4); font-size: 13px; font-weight: 600; background: var(--surface-muted); }
+.bs-table-row { display: flex; justify-content: space-between; gap: var(--s-3); padding: 11px var(--s-4); border-top: 1px solid var(--border); }
+.bs-table-label { font-size: 13px; color: var(--text-secondary); }
+.bs-table-value { font-size: 14px; text-align: right; }
+
+/* Quota reached */
+.bs-full { border: 1px solid var(--warning); border-radius: var(--r-lg); padding: var(--s-4); display: flex; flex-direction: column; gap: var(--s-3); }
+.bs-full-head { display: flex; align-items: center; gap: var(--s-2); }
+.bs-full-title { font-size: 15px; font-weight: 600; }
+.bs-held { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); border-top: 1px solid var(--border); padding-top: var(--s-3); }
+.bs-held-title { font-size: 14px; font-weight: 500; }
+.bs-swap { min-height: 40px; padding: 8px var(--s-3); border: 0; border-radius: var(--r-md); background: var(--text); color: #fff; font-size: 13px; cursor: pointer; }
+.bs-locked { font-size: 13px; color: var(--text-muted); }
+
+/* Details sub-sheet */
+.bs-modal { position: absolute; inset: 0; background: rgba(28, 25, 23, 0.45); display: flex; align-items: flex-end; justify-content: center; z-index: 2; }
+.bs-modal-card { width: 100%; max-height: 88%; overflow-y: auto; background: var(--surface); border-radius: var(--r-xl) var(--r-xl) 0 0; padding: var(--s-4); }
+.bs-modal-card h3 { font-family: var(--font-display); font-size: 18px; margin-bottom: var(--s-4); }
+.bs-details { display: flex; flex-direction: column; gap: var(--s-4); }
+.bs-modal-actions { display: flex; gap: var(--s-2); }
+.bs-modal-actions .btn { flex: 1; min-height: 44px; }
+
+@media (min-width: 960px) {
+    .bs-root { align-items: center; }
+    .bs-sheet { max-width: 560px; border-radius: var(--r-xl); max-height: 86vh; }
+    .bs-handle { display: none; }
+    .bs-modal { align-items: center; }
+    .bs-modal-card { max-width: 480px; border-radius: var(--r-xl); }
+}
+
+/* ---------- Booking entry detail ---------- */
+.bd-topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--s-3);
+    padding: var(--s-4) 0 var(--s-3);
+    border-bottom: 1px solid var(--border);
+}
+.bd-back { font-size: 13px; color: var(--text-secondary); }
+.bd-back:hover { color: var(--text); text-decoration: none; }
+.bd-ref { font-size: 13px; color: var(--text-muted); }
+
+.bd-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-5); margin: var(--s-5) 0 var(--s-7); align-items: start; }
+.bd-main { min-width: 0; display: flex; flex-direction: column; gap: var(--s-4); }
+.bd-title { font-family: var(--font-display); font-weight: 500; font-size: 28px; letter-spacing: -0.01em; }
+.bd-main .eyebrow + .bd-title { margin-top: var(--s-1); }
+
+.bd-pill {
+    align-self: flex-start;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--s-2);
+    font-size: 13px;
+    font-weight: 500;
+    padding: 7px 12px;
+    border-radius: 999px;
+    border: 1px solid var(--border-strong);
+    background: var(--surface);
+}
+.bd-pill .bq-dot { margin-top: 0; }
+.bd-tone-accent { border-color: var(--border-strong); }
+.bd-tone-warning { border-color: var(--warning); }
+.bd-tone-danger { border-color: var(--danger); }
+.bd-tone-muted { border-color: var(--border); color: var(--text-secondary); }
+
+.bd-card, .bd-headline { padding: var(--s-5); }
+.bd-headline h2 { font-family: var(--font-display); font-weight: 500; font-size: 19px; margin-bottom: var(--s-2); }
+.bd-headline p, .bd-note { font-size: 14px; color: var(--text-secondary); line-height: 1.6; }
+.bd-card h3 { font-size: 15px; margin-bottom: var(--s-4); }
+
+.bd-steps { list-style: none; margin: 0; padding: 0; }
+/*
+ * The rail and the dots share one centre line.
+ *
+ * Every dot is the same 9px, whatever it marks, and the column is 9px wide: an odd width
+ * puts the centre on a whole pixel, so the 1px rail underneath lands on it exactly instead
+ * of half a pixel to one side. The last dot differs by its ring, never by its size.
+ */
+.bd-steps li {
+    display: grid;
+    grid-template-columns: 9px minmax(0, 1fr);
+    gap: var(--s-3);
+    position: relative;
+    padding-bottom: var(--s-4);
+}
+.bd-steps li:not(.last)::before {
+    content: "";
+    position: absolute;
+    left: 4px;
+    top: 15px;
+    /* Down to the top of the next dot, not to the edge of this row: a rail that stops
+       short leaves a gap that reads as a break in the sequence. */
+    bottom: -5px;
+    width: 1px;
+    background: var(--border);
+}
+.bd-steps li:last-child { padding-bottom: 0; }
+.bd-step-dot {
+    width: 9px;
+    height: 9px;
+    margin-top: 5px;
+    border-radius: 50%;
+    background: var(--border-strong);
+}
+.bd-steps li.last .bd-step-dot { background: var(--surface); border: 2px solid var(--accent); }
+.bd-step-label { display: block; font-size: 14px; font-weight: 500; }
+.bd-step-when { display: block; font-size: 13px; color: var(--text-muted); }
+
+.bd-table { border: 1px solid var(--border); border-radius: var(--r-md); overflow: hidden; }
+.bd-row { display: flex; justify-content: space-between; gap: var(--s-3); padding: 11px var(--s-4); }
+.bd-row + .bd-row { border-top: 1px solid var(--border); }
+.bd-row-label { font-size: 13px; color: var(--text-secondary); }
+.bd-row-value { font-size: 14px; text-align: right; }
+.bd-row-value.muted { color: var(--text-muted); }
+.bd-card .bd-note { margin-top: var(--s-3); font-size: 13px; }
+
+
+@media (min-width: 960px) {
+    .bd-title { font-size: 32px; }
+}
