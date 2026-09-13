@@ -1297,10 +1297,17 @@ app.get('/api/bookings/:id', async (req, res) => {
 /*
  * Undo a cancellation, while the window is still ahead.
  *
- * The slot was given back when it was cancelled, so this is a fresh claim on it: the quota
- * is checked again under the same lock as the create path, because someone else may have
- * taken the week in between. The original send delay is kept, so undoing does not quietly
- * move the request to a different place in the night's order.
+ * No quota check. This puts back exactly what was there a moment ago, so the count returns
+ * to what it already was; the gate exists to stop someone taking a THIRD slot in a week,
+ * and an undo takes none. Re-checking made undo unusable for the imported bookings, which
+ * are deliberately over the limit and whose names are still being sorted out — a button
+ * that only works sometimes, for reasons the reader cannot see, is worse than the small
+ * gap it closes. (The gap: cancel one, book another, then undo the first. Doing that on
+ * purpose is possible; the two-a-week rule is a convention among people who know each
+ * other, not a security boundary.)
+ *
+ * The original send delay is kept, so undoing does not quietly move the request to a
+ * different place in the night's order.
  */
 app.post('/api/bookings/:id/restore', async (req, res) => {
     const client = await pool.connect();
@@ -1329,21 +1336,6 @@ app.post('/api/bookings/:id/restore', async (req, res) => {
             return res.status(409).json({
                 success: false,
                 message: 'That window has closed — the slot can no longer go out.'
-            });
-        }
-
-        const week = weekBounds(entry.play_date);
-        await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1, 0))', [`${entry.name_key}|${week.start}`]);
-
-        const held = await countHeld(client, entry.name_key, entry.play_date, { excludeId: entry.id });
-        if (held >= QUOTA_PER_WEEK) {
-            await client.query('ROLLBACK');
-            const quota = await quotaFor(client, entry.name, entry.play_date);
-            return res.status(409).json({
-                success: false,
-                reason: 'quota_reached',
-                message: `That week is full for ${quota.name} again — ${held} of ${QUOTA_PER_WEEK}.`,
-                quota
             });
         }
 
