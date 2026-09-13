@@ -1071,11 +1071,17 @@ app.get('/api/bookings/quota', async (req, res) => {
     try {
         const name = typeof req.query.name === 'string' ? req.query.name.trim() : '';
         const playDate = typeof req.query.playDate === 'string' ? req.query.playDate.trim() : '';
+        /*
+         * An entry being edited must not count against itself. Without this the second slot
+         * of a week, reopened and saved unchanged, reads as a third: the sheet declares the
+         * week full and offers to swap the entry for itself.
+         */
+        const excludeId = typeof req.query.excludeId === 'string' ? req.query.excludeId.trim() : '';
         if (!name) return res.status(400).json({ success: false, message: 'A name is required' });
         if (!/^\d{4}-\d{2}-\d{2}$/.test(playDate)) {
             return res.status(400).json({ success: false, message: 'playDate must be YYYY-MM-DD' });
         }
-        res.json({ success: true, ...(await quotaFor(client, name, playDate)) });
+        res.json({ success: true, ...(await quotaFor(client, name, playDate, { excludeId: excludeId || null })) });
     } catch (error) {
         console.error('Error reading booking quota:', error);
         res.status(500).json({ success: false, message: 'Internal server error' });
@@ -1701,7 +1707,7 @@ app.put('/api/bookings/:id', async (req, res) => {
         const held = await countHeld(client, entry.nameKey, entry.playDate, { excludeId: before.id });
         if (held >= QUOTA_PER_WEEK) {
             await client.query('ROLLBACK');
-            const quota = await quotaFor(client, entry.name, entry.playDate);
+            const quota = await quotaFor(client, entry.name, entry.playDate, { excludeId: before.id });
             return res.status(409).json({
                 success: false,
                 reason: 'quota_reached',

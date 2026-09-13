@@ -224,6 +224,39 @@ test('only a slot that has not gone out yet is offered as swappable', async (t) 
     }
 });
 
+/*
+ * Editing the second slot of a full week must not count that slot against itself.
+ *
+ * Without the exclusion, reopening an entry that is already one of the two reads as a
+ * third: the sheet declares the week full and offers to swap the entry for itself, which
+ * is a question with no sensible answer.
+ */
+test('an entry being edited does not fill its own week', async (t) => {
+    if (skipUnlessReachable(t)) return;
+    const client = await fresh();
+    try {
+        const first = await insert(client, { playDate: '2026-09-22', startPreferred: '18:00', startAlternative: '20:00' });
+        const second = await insert(client, { playDate: '2026-09-24', startPreferred: '19:00', startAlternative: '21:00' });
+
+        // A brand new third slot: the week really is full, and both are offered as swaps.
+        const asNew = await quotaFor(client, 'Yuki Chen', '2026-09-26');
+        assert.equal(asNew.used, QUOTA_PER_WEEK);
+        assert.equal(asNew.remaining, 0);
+        assert.deepEqual(asNew.entries.map((e) => e.id).sort(), [first, second].sort());
+
+        // Editing the second: one slot used, one left, and it is not among its own swaps.
+        const editing = await quotaFor(client, 'Yuki Chen', '2026-09-26', { excludeId: second });
+        assert.equal(editing.used, 1);
+        assert.equal(editing.remaining, 1);
+        assert.deepEqual(editing.entries.map((e) => e.id), [first]);
+
+        // And the count the edit route gates on agrees with what the sheet was shown.
+        assert.equal(await countHeld(client, 'yuki chen', '2026-09-26', { excludeId: second }), 1);
+    } finally {
+        client.release();
+    }
+});
+
 test('two simultaneous requests for the last slot: exactly one gets in', async (t) => {
     if (skipUnlessReachable(t)) return;
 

@@ -23,7 +23,7 @@
      *
      * Bump it when changing anything in public/js or public/styles.css.
      */
-    const BUILD = '2026-09-13b';
+    const BUILD = '2026-09-13c';
 
     const BRUSSELS = 'Europe/Brussels';
     const MINUTE = 60000;

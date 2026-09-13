@@ -163,7 +163,10 @@
         quota = null;
         if (!draft.name || !draft.playDate) return renderStep();
         try {
-            const response = await fetch(`/api/bookings/quota?name=${encodeURIComponent(draft.name)}&playDate=${draft.playDate}`);
+            // While editing, the entry itself is not competition for its own slot.
+            const mine = draft.editingId ? `&excludeId=${encodeURIComponent(draft.editingId)}` : '';
+            const response = await fetch(
+                `/api/bookings/quota?name=${encodeURIComponent(draft.name)}&playDate=${draft.playDate}${mine}`);
             const data = await response.json();
             if (data.success) quota = data;
         } catch (error) { /* leave the strip generic */ }
