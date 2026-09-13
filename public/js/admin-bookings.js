@@ -18,24 +18,25 @@
 
     /*
      * The four outcomes. No --success and no ticks anywhere: the best honest result is
-     * "the request reached KU Leuven", and a green check would stop someone watching
-     * their inbox. "Sent — unconfirmed" is its own state rather than a kind of failure,
-     * because the word "failed" invites a re-queue and a re-queue can double-book.
+     * "the request reached KU Leuven", and a green check would read as a court being
+     * booked, which this app never knows. "Sent — unconfirmed" is its own state rather
+     * than a kind of failure, because the word "failed" invites a re-queue and a re-queue
+     * can double-book.
      */
     const OUTCOMES = {
         sent: {
             label: 'Request sent',
             tone: 'accent',
             dot: 'ring',
-            clause: 'reply comes by email',
-            blurb: 'The request reached KU Leuven. They answer separately, by email, and it can be a no.'
+            clause: 'not a booking yet',
+            blurb: 'The request reached KU Leuven. They decide separately, and it can be a no.'
         },
         unconfirmed: {
             label: 'Sent — unconfirmed',
             tone: 'warning',
             dot: 'ring-warning',
-            clause: 'we could not read their answer — check your email before queueing it again',
-            blurb: 'It may well have gone through. Check the inbox before re-queueing: sending twice can double-book.'
+            clause: 'we could not read their answer — check before queueing it again',
+            blurb: 'It may well have gone through. Check before re-queueing: sending twice can double-book.'
         },
         failed: {
             label: 'Request failed',
@@ -325,7 +326,7 @@
             const response = await fetch(`/api/bookings/${encodeURIComponent(entry.id)}`, {
                 method: 'DELETE',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ cancelledBy: rememberedName() || null })
+                body: JSON.stringify({})
             });
             const data = await response.json();
             if (!data.success) {
@@ -360,10 +361,7 @@
         body.append(head);
         body.append(node('div', 'bq-outcome', outcome.label));
         // --text-secondary, never muted: this line is what stops "sent" reading as "booked".
-        const clause = entry.status === 'cancelled' && entry.cancelledBy
-            ? `removed by ${displayName(entry.cancelledBy)}`
-            : outcome.clause;
-        body.append(node('div', 'bq-clause', `${displayName(entry.name)} · ${clause}`));
+        body.append(node('div', 'bq-clause', `${displayName(entry.name)} · ${outcome.clause}`));
 
         const aside = node('div', 'bq-aside');
         aside.append(node('div', 'bq-who', displayName(entry.name)));

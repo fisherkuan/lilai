@@ -57,14 +57,6 @@
         return `${WEEKDAYS[date.getDay()]} ${d} ${MONTHS[m - 1]}`;
     }
 
-    /*
-     * The earliest play date still worth queueing.
-     *
-     * A slot opens at play date minus 14 days, 00:00, and closes five minutes later. So
-     * the first usable opening is the next midnight that has not already passed, and the
-     * play date is fourteen days after it. Offering anything sooner would hand people a
-     * date whose window shut before they typed it.
-     */
     // One definition, on the board, so the quota line and the day picker cannot disagree
     // about which dates are still worth offering.
     const earliestPlayDate = () => window.bookingBoard.earliestPlayDate();
@@ -392,7 +384,7 @@
         const response = await fetch(`/api/bookings/${id}`, {
             method: 'DELETE',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ cancelledBy: draft.name })
+            body: JSON.stringify({})
         });
         const data = await response.json();
         if (!data.success) return setError(data.message);

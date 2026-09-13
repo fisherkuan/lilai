@@ -2044,6 +2044,9 @@ body.menu-open { overflow: hidden; }
 }
 
 /* The NOW rule renders even on an empty board: it explains the layout. */
+/* The NOW rule is itself a divider, so the last past row must not draw one too —
+   otherwise the two sit a few pixels apart and read as a rendering fault. */
+.bq-row:has(+ .bq-now) { border-bottom: 0; }
 .bq-now { display: flex; align-items: center; gap: var(--s-3); padding: 18px 0 10px; }
 .bq-now-line { flex: 1; height: 1px; background: var(--border); }
 .bq-now-pill {

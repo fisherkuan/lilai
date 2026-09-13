@@ -945,8 +945,7 @@ function toBoardEntry(row) {
         opensAt: row.opens_at,
         queuedAt: row.queued_at,
         queuedBy: row.queued_by,
-        submittedAt: row.submitted_at,
-        cancelledBy: row.cancelled_by
+        submittedAt: row.submitted_at
     };
 }
 
@@ -1283,16 +1282,18 @@ app.get('/api/bookings/:id', async (req, res) => {
 app.delete('/api/bookings/:id', async (req, res) => {
     const client = await pool.connect();
     try {
-        const by = typeof req.body.cancelledBy === 'string' && req.body.cancelledBy.trim()
-            ? req.body.cancelledBy.trim().slice(0, 100)
-            : null;
-
+        /*
+         * No attribution. There is no login here, so the only name available is whatever
+         * the browser last booked under — a guess, and printing a guess as "removed by X"
+         * states something the app cannot know. The cancelled_by column stays for the rows
+         * already carrying one; nothing writes it any more.
+         */
         const result = await client.query(`
             UPDATE booking_queue
-            SET status = 'cancelled', cancelled_by = $2
+            SET status = 'cancelled'
             WHERE id = $1 AND status = 'queued'
             RETURNING *
-        `, [req.params.id, by]);
+        `, [req.params.id]);
 
         if (result.rows.length === 0) {
             const existing = await client.query('SELECT status FROM booking_queue WHERE id = $1', [req.params.id]);

@@ -29,14 +29,14 @@
             tone: 'accent',
             dot: 'ring',
             headline: 'This is not a booked court.',
-            blurb: 'The request reached KU Leuven. They decide, and email the person directly — usually within a day or two. This entry will not change again. Check the inbox, and the spam folder.'
+            blurb: 'The request reached KU Leuven. They decide separately, and it can be a no. This entry will not change again.'
         },
         unconfirmed: {
             label: 'Sent — unconfirmed',
             tone: 'warning',
             dot: 'ring-warning',
             headline: 'We could not read their answer.',
-            blurb: 'The request may well have gone through — we simply cannot tell. Check the inbox before queueing it again: sending the same slot twice can double-book it, and we will not retry on our own.'
+            blurb: 'The request may well have gone through — we simply cannot tell. Check before queueing it again: sending the same slot twice can double-book it, and we will not retry on our own.'
         },
         failed: {
             label: 'Request failed',
@@ -50,7 +50,7 @@
             tone: 'warning',
             dot: 'solid-warning',
             headline: 'The window passed before we could send it.',
-            blurb: 'Nothing broke — the clock ran out. Requests more than five minutes late are never submitted behind your back.'
+            blurb: 'Nothing broke — the clock ran out. Once a window has fully closed the request is never submitted behind your back.'
         },
         cancelled: {
             label: 'Cancelled',
@@ -107,7 +107,7 @@
                     h('dd', { text: outcome.blurb })
                 ];
             })),
-            h('p', { class: 'bd-guide-foot', text: 'The "sent" dot is hollow on purpose. A filled circle or a tick would read as "booked", and the answer is still coming separately, by email, and can be a no.' })
+            h('p', { class: 'bd-guide-foot', text: 'The "sent" dot is hollow on purpose. A filled circle or a tick would read as "booked", and the answer is still coming separately, and can be a no.' })
         ]);
     }
 
