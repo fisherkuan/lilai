@@ -398,11 +398,11 @@
         return li;
     }
 
-    function emptyBelow() {
+    function emptyAbove() {
         const li = node('li', 'bq-empty');
         li.append(node('div', 'bq-empty-title', 'Nothing has gone out yet.'));
         li.append(node('div', 'bq-empty-note',
-            'Slots waiting for their midnight appear above this line. Everything we have sent stays below it.'));
+            'Everything we have sent stays above this line. Slots still waiting for their midnight are below it.'));
         return li;
     }
 
@@ -415,8 +415,35 @@
 
         const waiting = state.queued.slice().sort((a, b) => new Date(a.opensAt) - new Date(b.opensAt));
 
-        // Nearest windows first, so the collapse sits between the near future and the
-        // distant one — where the timeline genuinely thins out.
+        /*
+         * One timeline, read top to bottom as time runs forward: what already happened,
+         * then NOW, then what is still coming. Both far ends collapse, because a recurring
+         * booking puts seventy slots below the rule and months of outcomes above it, and
+         * neither end is what anyone opens this page to see.
+         */
+        const shownHistory = state.history.slice(0, state.historyShown);
+        const heldBack = state.history.length - shownHistory.length;
+        if (heldBack > 0 || state.historyHasMore) {
+            list.append(foldRow(
+                heldBack > 0 ? `${heldBack} earlier` : 'earlier',
+                loadMore
+            ));
+        }
+
+        if (state.history.length === 0) {
+            list.append(emptyAbove());
+        } else {
+            // Oldest first, so the most recent outcome sits directly against the NOW rule.
+            for (const entry of shownHistory.slice().reverse()) list.append(sentRow(entry, now));
+        }
+
+        // The NOW rule renders even with no data: it is the element that explains the layout.
+        list.append(nowRule(now));
+
+        if (waiting.length === 0 && state.history.length > 0) {
+            list.append(node('li', 'bq-none', 'Nothing queued'));
+        }
+
         const upcomingShown = state.showAllUpcoming ? waiting.length : Math.min(waiting.length, UPCOMING_AT_REST);
         for (const entry of waiting.slice(0, upcomingShown)) list.append(waitingRow(entry, now));
         if (waiting.length > upcomingShown) {
@@ -428,27 +455,12 @@
             list.append(foldRow('Show fewer', () => { state.showAllUpcoming = false; render(); }));
         }
 
-        // The section meta already says "Nothing queued"; only mark the gap when there is
-        // history below the rule and the reader needs to see the top half is genuinely empty.
-        if (waiting.length === 0 && state.history.length > 0) {
-            list.append(node('li', 'bq-none', 'Nothing queued'));
-        }
-
-        // The NOW rule renders even with no data: it is the element that explains the layout.
-        list.append(nowRule(now));
-
-        if (state.history.length === 0) {
-            list.append(emptyBelow());
-        } else {
-            for (const entry of state.history.slice(0, state.historyShown)) list.append(sentRow(entry, now));
-        }
-
         renderMeta(waiting, now);
         renderQuota();
         renderMidnight(waiting, now);
         renderExplainer(waiting);
 
-        // Rows that were not below the rule a moment ago arrive with a fade, so the change
+        // Rows that were not above the rule a moment ago arrive with a fade, so the change
         // is noticed without anything jumping. Only history ids are remembered: the whole
         // point of the fade is the slot that just crossed the NOW rule, and it was in
         // `waiting` right before it crossed.
@@ -458,13 +470,6 @@
             if (row && state.seen.size > 0) row.classList.add('bq-landed');
         }
         for (const entry of state.history) state.seen.add(entry.id);
-
-        // "Show earlier" reveals what is already loaded before going back to the server,
-        // so the common case costs no request.
-        const more = el('bq-more');
-        const heldBack = state.history.length - state.historyShown;
-        more.hidden = heldBack <= 0 && !state.historyHasMore;
-        more.textContent = heldBack > 0 ? `Show ${heldBack} earlier` : 'Show earlier';
 
         scheduleTick(waiting, now);
     }
@@ -666,7 +671,8 @@
     async function loadMore() {
         if (state.history.length > state.historyShown) {
             state.historyShown = state.history.length;
-            return render();
+            render();
+            return;
         }
         const oldest = state.history[state.history.length - 1];
         if (!oldest) return;
@@ -758,7 +764,6 @@
     // --- Wiring --------------------------------------------------------------------------
 
     function init() {
-        el('bq-more').addEventListener('click', loadMore);
         el('bq-queue-btn').addEventListener('click', () => {
             // Step 4 mounts the queue sheet here.
             if (window.openBookingSheet) window.openBookingSheet();

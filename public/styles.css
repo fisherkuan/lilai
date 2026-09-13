@@ -2078,7 +2078,6 @@ body.menu-open { overflow: hidden; }
     margin-bottom: var(--s-2);
 }
 .bq-footer { display: flex; flex-direction: column; align-items: center; gap: var(--s-3); margin-top: var(--s-4); }
-.bq-more {
     width: 100%;
     border: 1px dashed var(--border-strong);
     border-radius: var(--r-md);
@@ -2089,7 +2088,6 @@ body.menu-open { overflow: hidden; }
     padding: var(--s-3);
     cursor: pointer;
 }
-.bq-more:hover { color: var(--text); border-color: var(--text-muted); }
 .bq-guide-link { font-size: 13px; font-weight: 500; color: var(--accent); }
 
 /* A run of collapsed rows, shown as one line. Reads as part of the timeline, not as a
@@ -2107,6 +2105,7 @@ body.menu-open { overflow: hidden; }
 }
 .bq-fold-btn:hover { color: var(--text); }
 .bq-fold-btn::before { content: "+ "; }
+.bq-fold:first-child { border-top: 0; border-bottom: 1px dashed var(--border); }
 
 /* Row actions. Quiet until the row is hovered on a pointer device, always present on
    touch, where there is no hover to reveal them. */
@@ -2157,7 +2156,6 @@ body.menu-open { overflow: hidden; }
     .bq-aside-sub { display: block; font-size: 12px; color: var(--text-muted); }
     .bq-aside-link { color: var(--accent); }
     .bq-footer { flex-direction: row; justify-content: space-between; }
-    .bq-more { width: auto; padding: var(--s-2) var(--s-4); }
 }
 
 /* ---------- Queue-a-slot sheet ----------
