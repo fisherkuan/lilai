@@ -133,7 +133,10 @@ test('dry run exercises the claim without sending anything', async (t) => {
 
         assert.equal(fake.calls.submit, 0, 'a dry run must not POST');
         const row = await statusOf(client, id);
-        assert.equal(row.status, 'unconfirmed');
+        // `not_sent`, never `unconfirmed`: the board reports `unconfirmed` as "Request
+        // sent", and nothing was sent. A dry run must be legible as one from the outside.
+        assert.equal(row.status, 'not_sent');
+        assert.notEqual(row.status, 'unconfirmed', 'a dry run must not read as a send');
         assert.match(row.response_note, /DRY RUN/);
     } finally { client.release(); }
 });

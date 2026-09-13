@@ -45,6 +45,18 @@
             headline: 'The request went in, but the form never answered.',
             blurb: 'It may well have gone through — we simply cannot tell from here. Check your email before queueing this slot again: sending the same one twice can double-book it, and we never retry on our own.'
         },
+        /*
+         * Submission was switched off when this slot's midnight came round. We know
+         * exactly what happened, which is nothing — so it is not `unconfirmed`, and not a
+         * failure either: nothing broke. The one page that can explain it, does.
+         */
+        not_sent: {
+            label: 'Not sent',
+            tone: 'muted',
+            dot: 'solid-muted',
+            headline: 'Nothing was submitted.',
+            blurb: 'Submitting is switched off on this server, so the slot reached its opening and we deliberately sent no request. KU Leuven never heard about it. Set BOOKING_SUBMIT=live to send for real.'
+        },
         failed: {
             label: 'Request failed',
             tone: 'danger',
@@ -126,7 +138,11 @@
         if (booking.remarks) rows.splice(4, 0, ['Remarks', booking.remarks]);
 
         return h('div', { class: 'card bd-card' }, [
-            h('h3', { text: booking.submittedAt ? 'What we sent' : 'What we will send' }),
+            // Nothing was sent for a dry run, so neither heading is true of it: what
+            // the table holds is the request that would have gone.
+            h('h3', { text: booking.status === 'not_sent'
+                ? 'What we would have sent'
+                : (booking.submittedAt ? 'What we sent' : 'What we will send') }),
             h('div', { class: 'bd-table' }, rows.map(([label, value]) => h('div', { class: 'bd-row' }, [
                 h('span', { class: 'bd-row-label', text: label }),
                 h('span', { class: 'bd-row-value', text: value })

@@ -145,8 +145,16 @@ function createScheduler({
         nextAllowedAt = Date.now() + settings.minimumRequestIntervalSeconds * 1000;
 
         if (!live) {
-            // Dry run: the claim and the state machine are exercised, nothing is sent.
-            await finish(client, entry.id, 'unconfirmed',
+            /*
+             * Dry run: the claim and the state machine are exercised, nothing is sent.
+             *
+             * This lands as `not_sent`, not `unconfirmed`. `unconfirmed` means the request
+             * went out and the reply could not be read — the board says "Request sent" for
+             * it, on purpose. Saying that here would be a lie the operator cannot detect:
+             * the reason lives in response_note, which no page renders. A row must never
+             * claim a request went in when none did.
+             */
+            await finish(client, entry.id, 'not_sent',
                 'DRY RUN — nothing was submitted. Set BOOKING_SUBMIT=live to send for real.');
             log.info(`[bookings] DRY RUN would submit ${entry.sport} ${entry.play_date} for ${entry.name}`);
             return 'dry-run';

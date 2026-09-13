@@ -180,6 +180,19 @@ test('only statuses that can hold a court consume a slot', async (t) => {
     }
 });
 
+test('a slot we never submitted costs the week nothing', async (t) => {
+    if (skipUnlessReachable(t)) return;
+    const client = await fresh();
+    try {
+        // Submitting was switched off when its midnight came. No request exists to hold a
+        // court, so the allowance must be untouched — the opposite call from `unconfirmed`.
+        await insert(client, { status: 'not_sent' });
+        assert.equal(await countHeld(client, 'yuki chen', '2026-09-26'), 0);
+    } finally {
+        client.release();
+    }
+});
+
 test('an unconfirmed request counts — the safe side of an unknown', async (t) => {
     if (skipUnlessReachable(t)) return;
     const client = await fresh();
@@ -419,7 +432,7 @@ test('only a slot still waiting can be taken out of the queue', async (t) => {
         assert.equal(cancelled.rows.length, 1, 'a waiting slot can be withdrawn');
 
         // Once a request has reached KU Leuven we cannot take it back, whatever they answer.
-        for (const status of ['sending', 'sent', 'unconfirmed', 'failed', 'missed']) {
+        for (const status of ['sending', 'sent', 'unconfirmed', 'not_sent', 'failed', 'missed']) {
             const id = await insert(client, { status, startPreferred: '20:00', startAlternative: '18:00' });
             const result = await client.query(CANCEL, [id, 'Yuki Chen']);
             assert.equal(result.rows.length, 0, `${status} must not be cancellable`);

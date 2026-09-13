@@ -50,7 +50,7 @@ const TABLE_SQL = `
         CONSTRAINT booking_queue_players_min CHECK (players >= 10),
         CONSTRAINT booking_queue_duration CHECK (duration_hours IN (1, 1.5, 2)),
         CONSTRAINT booking_queue_status CHECK (status IN
-            ('queued', 'sending', 'sent', 'unconfirmed', 'failed', 'missed', 'cancelled'))
+            ('queued', 'sending', 'sent', 'unconfirmed', 'not_sent', 'failed', 'missed', 'cancelled'))
     );
 `;
 
@@ -61,6 +61,22 @@ const TABLE_SQL = `
  */
 const CANCELLED_AT_SQL = `
     ALTER TABLE booking_queue ADD COLUMN IF NOT EXISTS cancelled_at TIMESTAMPTZ;
+`;
+
+/*
+ * `not_sent` — we reached the moment and deliberately did not submit, because
+ * BOOKING_SUBMIT was not set to live. It is its own status rather than a flavour of
+ * `unconfirmed` because there is nothing unconfirmed about it: we know exactly what
+ * happened, which is nothing. Reported as one of the four the CHECK allows, so a row can
+ * never claim a request went out when none did.
+ *
+ * CREATE TABLE IF NOT EXISTS leaves an existing constraint alone, so the constraint is
+ * dropped and re-stated here. Idempotent, and cheap on a table this size.
+ */
+const STATUS_CONSTRAINT_SQL = `
+    ALTER TABLE booking_queue DROP CONSTRAINT IF EXISTS booking_queue_status;
+    ALTER TABLE booking_queue ADD CONSTRAINT booking_queue_status CHECK (status IN
+        ('queued', 'sending', 'sent', 'unconfirmed', 'not_sent', 'failed', 'missed', 'cancelled'));
 `;
 
 const INDEX_SQL = [
@@ -74,9 +90,10 @@ const INDEX_SQL = [
 async function createBookingSchema(client) {
     await client.query(TABLE_SQL);
     await client.query(CANCELLED_AT_SQL);
+    await client.query(STATUS_CONSTRAINT_SQL);
     for (const sql of INDEX_SQL) {
         await client.query(sql);
     }
 }
 
-module.exports = { TABLE_SQL, CANCELLED_AT_SQL, INDEX_SQL, createBookingSchema };
+module.exports = { TABLE_SQL, CANCELLED_AT_SQL, STATUS_CONSTRAINT_SQL, INDEX_SQL, createBookingSchema };

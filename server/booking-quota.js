@@ -20,8 +20,9 @@ const QUOTA_PER_WEEK = 2;
  *   unconfirmed       — we could not read their answer, so it may well have landed.
  *                       Counting it is the safe side of an unknown.
  *
- * Deliberately excluded: `failed` (nothing was booked), `missed` (never submitted) and
- * `cancelled`. None of those can have taken a court, so none should cost a slot.
+ * Deliberately excluded: `failed` (nothing was booked), `missed` (never submitted),
+ * `not_sent` (submitting was switched off, so no request exists) and `cancelled`. None of
+ * those can have taken a court, so none should cost a slot.
  */
 const HOLDING_STATUSES = ['queued', 'sending', 'sent', 'unconfirmed'];
 

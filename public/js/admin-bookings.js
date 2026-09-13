@@ -23,7 +23,7 @@
      *
      * Bump it when changing anything in public/js or public/styles.css.
      */
-    const BUILD = '2026-09-13j';
+    const BUILD = '2026-09-13l';
 
     const { BRUSSELS, MONTHS } = window.bookingShared;
     const MINUTE = 60000;
@@ -45,10 +45,19 @@
     const OUTCOMES = {
         sent: { label: 'Request sent', dot: 'solid-success', tone: 'accent' },
         failed: { label: 'Request failed', dot: 'solid-danger', tone: 'danger' },
-        missed: { label: 'Missed', dot: 'solid-warning', tone: 'warning' }
+        missed: { label: 'Missed', dot: 'solid-warning', tone: 'warning' },
+        /*
+         * The fourth word, and the only one that is about this app rather than about the
+         * booking. It appears when submission is switched off: the slot reached its
+         * midnight and we deliberately sent nothing. It is not an outcome of a request, so
+         * it takes the muted dot — but it has to be visible, because the alternative is a
+         * board that says "Request sent" when nothing left the building.
+         */
+        not_sent: { label: 'Not sent', dot: 'solid-muted', tone: 'muted' }
     };
 
     const NO_REPLY = '· no reply from the form — check your email before re-queueing';
+    const NOT_LIVE = '· submitting is switched off — nothing went to KU Leuven';
 
     /*
      * How much of the timeline is worth showing at rest.
@@ -408,6 +417,7 @@
         // re-queue can double-book.
         const noReply = entry.status === 'unconfirmed';
         const outcome = noReply ? OUTCOMES.sent : (OUTCOMES[entry.status] || OUTCOMES.failed);
+        const clause = noReply ? NO_REPLY : (entry.status === 'not_sent' ? NOT_LIVE : null);
         const when = new Date(entry.submittedAt || entry.opensAt);
 
         const row = node('li', 'bq-row bq-row-sent');
@@ -425,9 +435,9 @@
         const line = node('div', 'bq-outcome');
         line.append(node('span', `bq-dot bq-dot-${noReply ? 'ring-success' : outcome.dot}`));
         const words = node('span', '', outcome.label);
-        if (noReply) {
+        if (clause) {
             words.append(document.createTextNode(' '));
-            words.append(node('span', 'bq-outcome-clause', NO_REPLY));
+            words.append(node('span', 'bq-outcome-clause', clause));
             line.classList.add('bq-outcome-wrap');
         }
         line.append(words);
@@ -816,13 +826,20 @@
         if (!open) {
             stopClock();
             // The window has just closed: say so once, quietly, instead of vanishing.
-            const done = state.history.filter((entry) =>
-                entry.submittedAt && now - new Date(entry.submittedAt) < 60 * 60 * 1000).length;
-            if (done > 0) {
+            // A dry run reaches its opening and is stamped like any other, but no
+            // request left the building. Counting it here would put the lie back one
+            // line above the row that corrects it.
+            const closed = state.history.filter((entry) =>
+                entry.submittedAt && now - new Date(entry.submittedAt) < 60 * 60 * 1000);
+            const done = closed.filter((entry) => entry.status !== 'not_sent').length;
+            const skipped = closed.length - done;
+            if (closed.length > 0) {
                 banner.hidden = false;
                 banner.classList.add('done');
                 el('bq-midnight-headline').textContent = 'Tonight\u2019s window is done';
-                el('bq-midnight-sub').textContent = `${plural(done, 'request')} went out.`;
+                el('bq-midnight-sub').textContent = done > 0
+                    ? `${plural(done, 'request')} went out.`
+                    : `${plural(skipped, 'slot')} reached the window. Submitting is switched off, so nothing was sent.`;
                 el('bq-clock').textContent = '';
                 el('bq-midnight').querySelector('.bq-clock-zone').textContent = '';
             }

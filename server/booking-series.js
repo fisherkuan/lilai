@@ -96,7 +96,8 @@ const selectSeries = (where) => `
     SELECT s.*,
            COUNT(q.id) FILTER (WHERE q.status IN ('queued', 'sending'))                 AS queued,
            COUNT(q.id) FILTER (WHERE q.status IN ('sent', 'unconfirmed'))               AS sent,
-           COUNT(q.id) FILTER (WHERE q.status IN ('cancelled', 'failed', 'missed'))     AS cancelled,
+           COUNT(q.id) FILTER (WHERE q.status IN
+               ('cancelled', 'failed', 'missed', 'not_sent'))                           AS cancelled,
            MIN(q.opens_at)  FILTER (WHERE q.status = 'queued')                          AS next_opens_at,
            MIN(q.play_date) FILTER (WHERE q.status = 'queued')                          AS next_play_date,
            -- The most recent cancellation, so the card can offer "Undo all" for as long as

@@ -208,7 +208,9 @@ Start times are :00 or :30 only. Courts are handed out on the hour and half hour
 those, and the rule is enforced server-side because the import path arrives the same way.
 
 **Submission is off unless `BOOKING_SUBMIT=live` is set.** Without it the scheduler runs
-the whole path and stops short of the POST. `server/../.plans/` holds the design notes.
+the whole path and stops short of the POST, and the row lands as `not_sent` — its own
+terminal status, never `unconfirmed`, so a board that says "Request sent" always means one
+was. `not_sent` costs the week no quota, because no request exists to hold a court. `server/../.plans/` holds the design notes.
 
 Recovery is stateless: an entry stays due from its opening until opening + grace, so any
 process alive inside that window picks it up through the ordinary check. There is no

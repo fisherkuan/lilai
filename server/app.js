@@ -965,7 +965,7 @@ const BOARD_BUILD = (() => {
 })();
 
 const QUEUED_STATUSES = ['queued', 'sending'];
-const HISTORY_STATUSES = ['sent', 'unconfirmed', 'failed', 'missed', 'cancelled'];
+const HISTORY_STATUSES = ['sent', 'unconfirmed', 'not_sent', 'failed', 'missed', 'cancelled'];
 
 /*
  * Which half of the timeline a row belongs to.
