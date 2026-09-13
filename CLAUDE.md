@@ -175,6 +175,8 @@ Required in `.env`:
 - `POST /api/bookings` - Queue a slot. `profileId` takes name/email/phone from the address book; `repeat: {every, unit, weekdays, until}` expands into one row per occurrence and answers with `created[]` and `skipped[]`
 - `GET /api/bookings/repeat-preview` - What a rule would expand to. The sheet's preview, so it cannot promise a date the server refuses
 - `GET /api/booking-series` - Recurring schedules with their tallies
+- `GET /api/booking-series/:id` - One schedule plus a template occurrence, which is what the edit sheet opens from
+- `PUT /api/booking-series/:id` - Change the rule, the details, or both. Reconciles the queue against the new rule: a queued occurrence the rule still wants is updated in place and keeps its id, one it no longer wants is cancelled, a newly wanted date is queued. Anything already sent is never touched
 - `POST /api/booking-series/:id/cancel-remaining` - Cancel every occurrence not yet sent; reports how many had already gone
 - `POST /api/booking-series/:id/restore-remaining` - Undo that, inside the undo window
 - `DELETE /api/booking-series/:id` - Forget the schedule, keep every booking it made
@@ -197,7 +199,7 @@ opens — midnight Brussels, 14 days before the play date.
 - `server/booking-quota.js` — two slots per name per Mon–Sun week, enforced under a Postgres advisory lock
 - `server/booking-profiles.js` — the address book, plus the `profile_id` link and its backfill from the existing queue
 - `server/booking-repeat.js` — expands a repeat rule (every N days / weeks on chosen weekdays / months) into play dates; capped at 52, bounded by the season. A month without the anchor date is skipped, never slid
-- `server/booking-series.js` — the recurring schedule as a record you can act on. A label on rows, never their owner: deleting it cancels nothing
+- `server/booking-series.js` — the recurring schedule as a record you can act on. A label on rows, never their owner: deleting it cancels nothing. Editing one re-expands the rule and reconciles the queue against it — see `PUT /api/booking-series/:id`. A schedule's own still-queued occurrences are excluded from the quota while it is being rebuilt (`countHeld`/`quotaFor` take `excludeSeries`), or it would block its own edit
 - `config/app.json` → `booking` — delay bounds, `lateSubmissionGraceSeconds`, `cancelUndoSeconds` (how long a cancelled row keeps its Undo before leaving the board — nothing is deleted) and `seasonEndsOn` (the last bookable play date; renew it each September)
 
 Start times are :00 or :30 only. Courts are handed out on the hour and half hour, so

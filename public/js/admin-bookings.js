@@ -23,7 +23,7 @@
      *
      * Bump it when changing anything in public/js or public/styles.css.
      */
-    const BUILD = '2026-09-13c';
+    const BUILD = '2026-09-13d';
 
     const BRUSSELS = 'Europe/Brussels';
     const MINUTE = 60000;
@@ -636,6 +636,11 @@
                 actions.append(undo, note);
                 startCountdowns();
             }
+            const edit = node('button', 'bq-action-link', 'Edit');
+            edit.type = 'button';
+            edit.addEventListener('click', () => editSeries(series, edit));
+            actions.append(edit);
+
             if (series.queued > 0) {
                 const cancel = node('button', 'bq-action-link bq-action-danger', `Cancel the remaining ${series.queued}`);
                 cancel.type = 'button';
@@ -656,6 +661,25 @@
 
             card.append(actions);
             list.append(card);
+        }
+    }
+
+    /*
+     * The rule is on the schedule; duration, players and the rest are on the rows it made.
+     * So the sheet is opened from one occurrence, fetched here rather than kept on the card:
+     * the board has no use for it until someone actually edits.
+     */
+    async function editSeries(series, button) {
+        button.disabled = true;
+        try {
+            const response = await fetch(`/api/booking-series/${encodeURIComponent(series.id)}`);
+            const data = await response.json();
+            if (!data.success) throw new Error(data.message);
+            window.editSeriesSheet(data.series, data.template);
+        } catch (error) {
+            sayTrouble(button, 'Could not open that schedule.');
+        } finally {
+            button.disabled = false;
         }
     }
 

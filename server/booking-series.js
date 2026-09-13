@@ -92,8 +92,11 @@ function toSeriesView(row) {
 /*
  * One query, counting rows by outcome per series. A series with nothing left to send is
  * still listed — it is the record of a habit, and its history is the point.
+ *
+ * The board and the edit sheet read the same shape, so the tallies they show cannot drift:
+ * one `where` for the list, another for a single schedule, and nothing else differs.
  */
-const LIST_SQL = `
+const selectSeries = (where) => `
     SELECT s.*,
            COUNT(q.id) FILTER (WHERE q.status IN ('queued', 'sending'))                 AS queued,
            COUNT(q.id) FILTER (WHERE q.status IN ('sent', 'unconfirmed'))               AS sent,
@@ -105,15 +108,20 @@ const LIST_SQL = `
            MAX(q.cancelled_at) FILTER (WHERE q.status = 'cancelled')                    AS last_cancelled_at
     FROM booking_series s
     LEFT JOIN booking_queue q ON q.series_id = s.id
+    ${where}
     GROUP BY s.id
     ORDER BY s.created_at DESC
 `;
+
+const LIST_SQL = selectSeries('');
+const ONE_SQL = selectSeries('WHERE s.id = $1');
 
 module.exports = {
     TABLE_SQL,
     LINK_SQL,
     INDEX_SQL,
     LIST_SQL,
+    ONE_SQL,
     CANCELLABLE,
     createSeriesSchema,
     toSeriesView

@@ -27,9 +27,14 @@ const HOLDING_STATUSES = ['queued', 'sending', 'sent', 'unconfirmed'];
 
 /**
  * Count the slots a name already holds in the play date's week.
- * Pass `excludeId` when re-checking an entry that is itself already in the table.
+ *
+ * `excludeId` re-checks an entry that is itself already in the table. `excludeSeries`
+ * does the same for a whole schedule being rebuilt: its queued occurrences are about to
+ * be kept, moved or cancelled, so counting them as competition would have the schedule
+ * blocking its own edit. Occurrences of that series which have already gone out are NOT
+ * excluded — those really do hold a court.
  */
-async function countHeld(client, nameKey, playDate, { excludeId = null } = {}) {
+async function countHeld(client, nameKey, playDate, { excludeId = null, excludeSeries = null } = {}) {
     const week = weekBounds(playDate);
     const params = [nameKey, week.start, week.end, HOLDING_STATUSES];
     let sql = `
@@ -42,6 +47,15 @@ async function countHeld(client, nameKey, playDate, { excludeId = null } = {}) {
     if (excludeId) {
         params.push(excludeId);
         sql += ` AND id <> $${params.length}`;
+    }
+    if (excludeSeries) {
+        params.push(excludeSeries);
+        /*
+         * IS DISTINCT FROM, not `NOT (series_id = $n AND ...)`. Most rows have no series at
+         * all, and NULL = 'abc' is NULL, so the negation is NULL too — every ordinary
+         * booking would drop out of the count and the week would read as empty.
+         */
+        sql += ` AND (series_id IS DISTINCT FROM $${params.length} OR status <> 'queued')`;
     }
     const result = await client.query(sql, params);
     return result.rows[0].held;
@@ -56,7 +70,7 @@ async function quotaFor(client, name, playDate, options = {}) {
     const week = weekBounds(playDate);
 
     const result = await client.query(`
-        SELECT id, sport, play_date, start_preferred, status, name
+        SELECT id, sport, play_date, start_preferred, status, name, series_id
         FROM booking_queue
         WHERE name_key = $1
           AND play_date BETWEEN $2 AND $3
@@ -64,9 +78,11 @@ async function quotaFor(client, name, playDate, options = {}) {
         ORDER BY start_preferred ASC
     `, [nameKey, week.start, week.end, HOLDING_STATUSES]);
 
-    const entries = options.excludeId
-        ? result.rows.filter((row) => row.id !== options.excludeId)
-        : result.rows;
+    // Whatever is being edited is not competition for its own slot — one entry, or a whole
+    // schedule's worth of still-queued occurrences. See countHeld for why `sent` stays in.
+    const mine = (row) => (options.excludeId && row.id === options.excludeId)
+        || (options.excludeSeries && row.series_id === options.excludeSeries && row.status === 'queued');
+    const entries = result.rows.filter((row) => !mine(row));
 
     // Answer in the spelling the queue already knows, so "yuki CHEN" is told about
     // "Yuki Chen" rather than being shown its own typing back.

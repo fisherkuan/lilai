@@ -19,7 +19,7 @@ const { mergeContact, sendAfterForEdit } = require('./booking-edit');
 const {
     expandRepeat, validateRule, describeRule, RepeatError, UNITS, MAX_EVERY, MAX_OCCURRENCES
 } = require('./booking-repeat');
-const { createSeriesSchema, toSeriesView, LIST_SQL: SERIES_LIST_SQL } = require('./booking-series');
+const { createSeriesSchema, toSeriesView, LIST_SQL: SERIES_LIST_SQL, ONE_SQL: SERIES_ONE_SQL } = require('./booking-series');
 const {
     createProfileSchema, publicProfile, fullProfile, validateProfile
 } = require('./booking-profiles');
@@ -1077,11 +1077,19 @@ app.get('/api/bookings/quota', async (req, res) => {
          * week full and offers to swap the entry for itself.
          */
         const excludeId = typeof req.query.excludeId === 'string' ? req.query.excludeId.trim() : '';
+        // The same courtesy for a whole schedule being rebuilt.
+        const excludeSeries = typeof req.query.excludeSeries === 'string' ? req.query.excludeSeries.trim() : '';
         if (!name) return res.status(400).json({ success: false, message: 'A name is required' });
         if (!/^\d{4}-\d{2}-\d{2}$/.test(playDate)) {
             return res.status(400).json({ success: false, message: 'playDate must be YYYY-MM-DD' });
         }
-        res.json({ success: true, ...(await quotaFor(client, name, playDate, { excludeId: excludeId || null })) });
+        res.json({
+            success: true,
+            ...(await quotaFor(client, name, playDate, {
+                excludeId: excludeId || null,
+                excludeSeries: excludeSeries || null
+            }))
+        });
     } catch (error) {
         console.error('Error reading booking quota:', error);
         res.status(500).json({ success: false, message: 'Internal server error' });
@@ -1225,6 +1233,287 @@ app.post('/api/booking-series/:id/restore-remaining', async (req, res) => {
     } catch (error) {
         await client.query('ROLLBACK').catch(() => {});
         console.error('Error restoring a booking series:', error);
+        res.status(500).json({ success: false, message: 'Internal server error' });
+    } finally {
+        client.release();
+    }
+});
+
+/*
+ * One schedule, with a template to edit it from.
+ *
+ * The rule lives on the series; everything else about a booking — duration, players,
+ * indoor or out, remarks — lives on the occurrences. So the sheet needs one of them to
+ * start from: the next one still waiting, or failing that the most recent, because a
+ * schedule that has run its course can still be picked up and pointed at new dates.
+ */
+app.get('/api/booking-series/:id', async (req, res) => {
+    const client = await pool.connect();
+    try {
+        const series = await client.query(SERIES_ONE_SQL, [req.params.id]);
+        if (series.rowCount === 0) return res.status(404).json({ success: false, message: 'No such schedule' });
+
+        const template = await client.query(`
+            SELECT * FROM booking_queue
+            WHERE series_id = $1
+            ORDER BY (status = 'queued') DESC, play_date ASC
+            LIMIT 1
+        `, [req.params.id]);
+
+        res.json({
+            success: true,
+            series: toSeriesView(series.rows[0]),
+            template: template.rowCount > 0 ? toBoardEntry(template.rows[0]) : null
+        });
+    } catch (error) {
+        console.error('Error reading a booking series:', error);
+        res.status(500).json({ success: false, message: 'Internal server error' });
+    } finally {
+        client.release();
+    }
+});
+
+/*
+ * Edit a schedule: change the rule, the details, or both, and make the queue match.
+ *
+ * The reconciliation is the whole job, and it is deliberately conservative about what it
+ * will touch:
+ *
+ *   a queued occurrence on a date the new rule still wants  → updated in place, keeping
+ *     its id, so the board does not flicker a row out and an identical one back in
+ *   a queued occurrence on a date the rule no longer wants  → cancelled, undoable like
+ *     any other cancellation
+ *   a date the rule wants with nothing queued for it        → a new occurrence
+ *   anything already sent, in flight, or answered           → untouched, always
+ *
+ * That last line is the one that matters. A schedule's history is a record of what went to
+ * KU Leuven, and no amount of editing the habit may rewrite it.
+ */
+app.put('/api/booking-series/:id', async (req, res) => {
+    const settings = bookingSettings(appConfig);
+    const now = new Date();
+
+    let profileId = null;
+    let body;
+    let rule;
+    let dates;
+    try {
+        const resolved = await applyProfile(req.body);
+        profileId = resolved.profileId;
+        body = resolved.body;
+        const playDate = String(body.playDate || '').trim();
+        if (!body.repeat) {
+            return res.status(400).json({
+                success: false, field: 'repeatUntil',
+                message: 'A schedule needs a repeat. To keep a single booking, edit the slot itself.'
+            });
+        }
+        /*
+         * Email and phone never reach the board, so the sheet cannot send them back. With a
+         * profile the server reads them from the address book; without one it keeps what the
+         * schedule's own occurrences already carry — the same rule the single-entry edit
+         * follows, and for the same reason: blank must mean "unchanged", never "clear it".
+         */
+        if (!profileId) {
+            const stored = await pool.query(
+                'SELECT email, phone FROM booking_queue WHERE series_id = $1 ORDER BY play_date DESC LIMIT 1',
+                [req.params.id]
+            );
+            if (stored.rowCount > 0) body = mergeContact(body, stored.rows[0]);
+        }
+        rule = validateRule(body.repeat, playDate, settings.seasonEndsOn);
+        dates = expandRepeat(playDate, body.repeat, { seasonEndsOn: settings.seasonEndsOn });
+    } catch (error) {
+        if (error instanceof BookingInputError || error instanceof RepeatError) {
+            return res.status(400).json({ success: false, message: error.message, field: error.field });
+        }
+        throw error;
+    }
+
+    // Validated before anything is written, exactly as the create path does it: the first
+    // date's problems are the request's problems, later ones are reported as skipped.
+    const wanted = new Map();
+    const skipped = [];
+    for (const playDate of dates) {
+        let entry;
+        try {
+            entry = validateBooking({ ...body, playDate }, { seasonEndsOn: settings.seasonEndsOn });
+        } catch (error) {
+            if (!(error instanceof BookingInputError)) throw error;
+            if (playDate === dates[0]) {
+                return res.status(400).json({ success: false, message: error.message, field: error.field });
+            }
+            skipped.push({ playDate, reason: error.message });
+            continue;
+        }
+        const deadline = new Date(entry.opensAt.getTime() + settings.lateSubmissionGraceSeconds * 1000);
+        if (now > deadline || (now >= entry.startPreferred && now >= entry.startAlternative)) {
+            const message = now > deadline
+                ? 'That booking window has already closed.'
+                : 'That slot is already in the past.';
+            if (playDate === dates[0]) {
+                return res.status(400).json({ success: false, field: 'playDate', message });
+            }
+            skipped.push({ playDate, reason: message });
+            continue;
+        }
+        wanted.set(playDate, entry);
+    }
+
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+
+        const found = await client.query('SELECT * FROM booking_series WHERE id = $1', [req.params.id]);
+        if (found.rowCount === 0) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({ success: false, message: 'No such schedule' });
+        }
+
+        /*
+         * Locks over the union of the weeks being left AND the weeks being entered, in one
+         * sorted pass. An edit that moves Tuesday to Thursday touches the same week twice
+         * and two overlapping edits in opposite orders would otherwise deadlock.
+         */
+        const existing = await client.query(
+            'SELECT * FROM booking_queue WHERE series_id = $1 ORDER BY play_date ASC', [req.params.id]);
+        const nameKeys = new Set([...wanted.values()].map((entry) => entry.nameKey));
+        const weeks = new Set();
+        for (const entry of wanted.values()) weeks.add(`${entry.nameKey}|${weekBounds(entry.playDate).start}`);
+        for (const row of existing.rows) {
+            if (row.status !== 'queued') continue;
+            for (const nameKey of nameKeys) weeks.add(`${nameKey}|${weekBounds(row.play_date).start}`);
+            weeks.add(`${row.name_key}|${weekBounds(row.play_date).start}`);
+        }
+        for (const key of [...weeks].sort()) {
+            await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1, 0))', [key]);
+        }
+
+        // A date already covered by a request that went out is not a date to book again.
+        const spoken = new Set(existing.rows
+            .filter((row) => !['queued', 'cancelled'].includes(row.status))
+            .map((row) => row.play_date));
+        const queuedByDate = new Map(existing.rows
+            .filter((row) => row.status === 'queued')
+            .map((row) => [row.play_date, row]));
+
+        const queuedBy = typeof body.queuedBy === 'string' && body.queuedBy.trim()
+            ? body.queuedBy.trim().slice(0, 100)
+            : [...wanted.values()][0].name;
+
+        const cancelled = [];
+        for (const [playDate, row] of queuedByDate) {
+            if (wanted.has(playDate)) continue;
+            const gone = await client.query(`
+                UPDATE booking_queue SET status = 'cancelled', cancelled_at = NOW()
+                WHERE id = $1 AND status = 'queued' RETURNING *
+            `, [row.id]);
+            if (gone.rowCount > 0) cancelled.push(toBoardEntry(gone.rows[0]));
+        }
+
+        /*
+         * Room is counted once per week with this schedule's own queued rows left out —
+         * they are the thing being rebuilt — then spent down in memory, so two occurrences
+         * in one week cannot both be told there is space for one.
+         */
+        const roomLeft = new Map();
+        const kept = [];
+        const created = [];
+        for (const [playDate, entry] of wanted) {
+            if (spoken.has(playDate)) {
+                skipped.push({ playDate, reason: 'A request for that day has already gone out.' });
+                continue;
+            }
+            const weekKey = `${entry.nameKey}|${weekBounds(playDate).start}`;
+            if (!roomLeft.has(weekKey)) {
+                roomLeft.set(weekKey, QUOTA_PER_WEEK
+                    - await countHeld(client, entry.nameKey, playDate, { excludeSeries: req.params.id }));
+            }
+            if (roomLeft.get(weekKey) <= 0) {
+                skipped.push({ playDate, reason: `That week is already full for ${entry.name}.` });
+                continue;
+            }
+            roomLeft.set(weekKey, roomLeft.get(weekKey) - 1);
+
+            const standing = queuedByDate.get(playDate);
+            if (standing) {
+                // Kept, not replaced: the id survives, so an occurrence someone is looking
+                // at does not vanish and come back as a stranger.
+                const updated = await client.query(`
+                    UPDATE booking_queue SET
+                        sport = $2, start_preferred = $3, start_alternative = $4, duration_hours = $5,
+                        players = $6, indoor_outdoor = $7, facility = $8, other_facility = $9,
+                        language = $10, valid_sports_card = $11, name = $12, name_key = $13,
+                        email = $14, phone = $15, remarks = $16, opens_at = $17, send_after = $18,
+                        profile_id = $19
+                    WHERE id = $1 AND status = 'queued'
+                    RETURNING *
+                `, [
+                    standing.id, entry.sport, entry.startPreferred, entry.startAlternative, entry.durationHours,
+                    entry.players, entry.indoorOutdoor, entry.facility, entry.otherFacility, entry.language,
+                    entry.validSportsCard, entry.name, entry.nameKey, entry.email, entry.phone, entry.remarks,
+                    entry.opensAt, sendAfterForEdit(standing, entry.opensAt, settings), profileId
+                ]);
+                if (updated.rowCount > 0) kept.push(toBoardEntry(updated.rows[0]));
+                continue;
+            }
+
+            const inserted = await client.query(`
+                INSERT INTO booking_queue (
+                    id, sport, play_date, start_preferred, start_alternative, duration_hours,
+                    players, indoor_outdoor, facility, other_facility, language, valid_sports_card,
+                    name, name_key, email, phone, remarks, queued_by, opens_at, send_after,
+                    profile_id, series_id, status
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, 'queued')
+                RETURNING *
+            `, [
+                uuidv4(), entry.sport, playDate, entry.startPreferred, entry.startAlternative, entry.durationHours,
+                entry.players, entry.indoorOutdoor, entry.facility, entry.otherFacility, entry.language,
+                entry.validSportsCard, entry.name, entry.nameKey, entry.email, entry.phone, entry.remarks,
+                queuedBy, entry.opensAt, sampleSendAfter(entry.opensAt, settings), profileId, req.params.id
+            ]);
+            created.push(toBoardEntry(inserted.rows[0]));
+        }
+
+        if (kept.length === 0 && created.length === 0) {
+            await client.query('ROLLBACK');
+            return res.status(409).json({
+                success: false,
+                reason: 'nothing_queued',
+                message: 'None of those dates could be queued, so the schedule is unchanged.',
+                skipped
+            });
+        }
+
+        const first = [...wanted.values()][0];
+        const saved = await client.query(`
+            UPDATE booking_series SET
+                name = $2, name_key = $3, profile_id = $4, sport = $5, every = $6, unit = $7,
+                weekdays = $8, starts_on = $9, until = $10, start_preferred = $11, start_alternative = $12
+            WHERE id = $1
+            RETURNING id
+        `, [
+            req.params.id, first.name, first.nameKey, profileId, first.sport,
+            rule.every, rule.unit, rule.weekdays, dates[0], rule.until,
+            String(body.startPreferred).trim(), String(body.startAlternative).trim()
+        ]);
+        if (saved.rowCount === 0) throw new Error('the schedule vanished mid-edit');
+
+        await client.query('COMMIT');
+
+        for (const board of [...cancelled, ...kept, ...created]) {
+            broadcast({ type: 'booking_update', booking: board });
+        }
+        res.json({
+            success: true,
+            kept: kept.length,
+            created,
+            cancelled: cancelled.length,
+            skipped
+        });
+    } catch (error) {
+        await client.query('ROLLBACK').catch(() => {});
+        console.error('Error editing a booking series:', error);
         res.status(500).json({ success: false, message: 'Internal server error' });
     } finally {
         client.release();

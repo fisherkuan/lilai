@@ -17,6 +17,7 @@ const assert = require('node:assert/strict');
 const { Pool } = require('pg');
 
 const { createBookingSchema } = require('../server/booking-schema');
+const { createSeriesSchema } = require('../server/booking-series');
 const { validateBooking } = require('../server/booking-validation');
 const { weekBounds } = require('../server/booking-time');
 const { QUOTA_PER_WEEK, countHeld, quotaFor } = require('../server/booking-quota');
@@ -49,7 +50,10 @@ test('connect to the scratch database', async (t) => {
     pool = new Pool({ connectionString: CONNECTION, max: 8 });
     try {
         const client = await pool.connect();
+        // Both, and in the order the server applies them: a test against a schema that has
+        // drifted from production proves nothing, and series_id lives in the second one.
         await createBookingSchema(client);
+        await createSeriesSchema(client);
         client.release();
         reachable = true;
     } catch (error) {
@@ -70,7 +74,7 @@ function skipUnlessReachable(t) {
 let counter = 0;
 
 async function insert(client, overrides = {}) {
-    const { status = 'queued', ...rest } = overrides;
+    const { status = 'queued', seriesId = null, ...rest } = overrides;
     const entry = validateBooking({
         sport: 'Badminton',
         playDate: '2026-09-26',
@@ -92,20 +96,23 @@ async function insert(client, overrides = {}) {
         INSERT INTO booking_queue (
             id, sport, play_date, start_preferred, start_alternative, duration_hours,
             players, indoor_outdoor, facility, other_facility, language, valid_sports_card,
-            name, name_key, email, phone, remarks, queued_by, opens_at, send_after, status
-        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21)
+            name, name_key, email, phone, remarks, queued_by, opens_at, send_after, status, series_id
+        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22)
     `, [
         id, entry.sport, entry.playDate, entry.startPreferred, entry.startAlternative, entry.durationHours,
         entry.players, entry.indoorOutdoor, entry.facility, entry.otherFacility, entry.language,
         entry.validSportsCard, entry.name, entry.nameKey, entry.email, entry.phone, entry.remarks,
-        entry.name, entry.opensAt, sampleSendAfter(entry.opensAt, settings), status
+        entry.name, entry.opensAt, sampleSendAfter(entry.opensAt, settings), status, seriesId
     ]);
     return id;
 }
 
 async function fresh() {
     const client = await pool.connect();
+    // booking_queue first: it carries the reference, so it has to let go before the
+    // schedules it points at can be removed.
     await client.query('TRUNCATE booking_queue');
+    await client.query('TRUNCATE booking_series CASCADE');
     return client;
 }
 
@@ -252,6 +259,54 @@ test('an entry being edited does not fill its own week', async (t) => {
 
         // And the count the edit route gates on agrees with what the sheet was shown.
         assert.equal(await countHeld(client, 'yuki chen', '2026-09-26', { excludeId: second }), 1);
+    } finally {
+        client.release();
+    }
+});
+
+/*
+ * The same courtesy for a whole schedule being rebuilt.
+ *
+ * Editing a repeat re-expands its rule and reconciles the queue against it, so every one of
+ * its still-waiting occurrences is about to be kept, moved or cancelled. Counting those as
+ * competition would have a schedule blocking its own edit — in a week it fills by itself,
+ * it would find no room to put anything back.
+ */
+test('a schedule being rebuilt is not competition for its own slots', async (t) => {
+    if (skipUnlessReachable(t)) return;
+    const client = await fresh();
+    try {
+        await client.query(`
+            INSERT INTO booking_series (
+                id, name, name_key, sport, every, unit, weekdays,
+                starts_on, until, start_preferred, start_alternative
+            ) VALUES ('series-1', 'Yuki Chen', 'yuki chen', 'Badminton', 1, 'week', ARRAY[2, 4],
+                      '2026-09-22', '2026-10-20', '18:00', '20:00')
+        `);
+        const tue = await insert(client, { playDate: '2026-09-22', seriesId: 'series-1' });
+        await insert(client, { playDate: '2026-09-24', seriesId: 'series-1', startPreferred: '19:00', startAlternative: '21:00' });
+
+        // Both belong to the schedule, so rebuilding it sees an empty week.
+        assert.equal(await countHeld(client, 'yuki chen', '2026-09-26'), QUOTA_PER_WEEK);
+        assert.equal(await countHeld(client, 'yuki chen', '2026-09-26', { excludeSeries: 'series-1' }), 0);
+
+        const rebuilding = await quotaFor(client, 'Yuki Chen', '2026-09-26', { excludeSeries: 'series-1' });
+        assert.equal(rebuilding.used, 0);
+        assert.deepEqual(rebuilding.entries, []);
+
+        /*
+         * An occurrence that has already gone out is a different matter: a court may well be
+         * held, so it keeps costing a slot no matter what the rule says now.
+         */
+        await client.query(`UPDATE booking_queue SET status = 'sent' WHERE id = $1`, [tue]);
+        assert.equal(await countHeld(client, 'yuki chen', '2026-09-26', { excludeSeries: 'series-1' }), 1);
+        const withSent = await quotaFor(client, 'Yuki Chen', '2026-09-26', { excludeSeries: 'series-1' });
+        assert.equal(withSent.used, 1);
+        assert.deepEqual(withSent.entries.map((e) => e.id), [tue]);
+
+        // Somebody else's booking in that week is competition, schedule or no schedule.
+        await insert(client, { playDate: '2026-09-23', name: 'Wei Lin', seriesId: null });
+        assert.equal(await countHeld(client, 'wei lin', '2026-09-26', { excludeSeries: 'series-1' }), 1);
     } finally {
         client.release();
     }

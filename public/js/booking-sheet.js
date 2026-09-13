@@ -163,8 +163,10 @@
         quota = null;
         if (!draft.name || !draft.playDate) return renderStep();
         try {
-            // While editing, the entry itself is not competition for its own slot.
-            const mine = draft.editingId ? `&excludeId=${encodeURIComponent(draft.editingId)}` : '';
+            // While editing, neither the entry nor the schedule is competition for its own slot.
+            const mine = draft.editingId ? `&excludeId=${encodeURIComponent(draft.editingId)}`
+                : draft.editingSeriesId ? `&excludeSeries=${encodeURIComponent(draft.editingSeriesId)}`
+                    : '';
             const response = await fetch(
                 `/api/bookings/quota?name=${encodeURIComponent(draft.name)}&playDate=${draft.playDate}${mine}`);
             const data = await response.json();
@@ -389,9 +391,10 @@
      * until when. Weekdays appear only for a weekly rule — offering them beside "every 3
      * days" would suggest a combination the server has no meaning for.
      *
-     * Offered only when making a new booking. An edit changes one queued row, and turning
-     * one row into twelve from an edit screen would be a different act wearing the same
-     * button.
+     * Offered when making a new booking and when editing a schedule, never when editing one
+     * queued row: turning one row into twelve from that screen would be a different act
+     * wearing the same button. Editing a schedule cannot turn it OFF for the same reason —
+     * to keep a single booking, edit the slot itself.
      */
     const WEEKDAY_PILLS = [
         [1, 'Mon'], [2, 'Tue'], [3, 'Wed'], [4, 'Thu'], [5, 'Fri'], [6, 'Sat'], [0, 'Sun']
@@ -402,7 +405,7 @@
 
         const parts = [
             h('label', { class: 'bs-label', text: 'Repeat' }),
-            pillGroup([false, true], draft.repeatOn, (value) => {
+            draft.editingSeriesId ? null : pillGroup([false, true], draft.repeatOn, (value) => {
                 draft.repeatOn = value;
                 if (!value) preview = null;
                 renderStep();
@@ -677,9 +680,10 @@
             if (draft.repeatOn && (!preview || preview.dates.length === 0)) return false;
             return Boolean(draft.startPreferred && draft.startAlternative);
         }
-        // An edit of an entry whose person has since been removed carries no profile. The
-        // server keeps the contact details it already has, so there is nothing left to ask.
-        return Boolean(draft.profileId || draft.editingId);
+        // An edit whose person has since been removed carries no profile — one entry's or a
+        // whole schedule's. The server keeps the contact details it already has, so there is
+        // nothing left to ask.
+        return Boolean(draft.profileId || draft.editingId || draft.editingSeriesId);
     }
 
     function goTo(step) {
@@ -711,7 +715,8 @@
         }
         const count = draft.repeatOn && preview ? preview.dates.length : 1;
         const last = draft.editingId ? 'Save changes'
-            : count > 1 ? `Queue all ${count}` : 'Put it in the queue';
+            : draft.editingSeriesId ? 'Save the schedule'
+                : count > 1 ? `Queue all ${count}` : 'Put it in the queue';
         const label = draft.step === 1 ? 'Next — times' : draft.step === 2 ? 'Next — who is booking' : last;
         const next = h('button', {
             type: 'button',
@@ -737,7 +742,7 @@
             : `Step ${draft.step} of 3 · ${STEP_TITLES[draft.step - 1]}`;
         root.querySelector('.bs-title').textContent = draft.sport && draft.playDate && draft.step > 1
             ? `${draft.sport} · ${prettyDate(draft.playDate)}`
-            : (draft.editingId ? 'Edit this slot' : 'Queue a slot');
+            : (draft.editingId ? 'Edit this slot' : draft.editingSeriesId ? 'Edit this schedule' : 'Queue a slot');
 
         const bars = root.querySelectorAll('.bs-bar');
         bars.forEach((bar, index) => bar.classList.toggle('done', !full && index < draft.step));
@@ -750,7 +755,7 @@
         setError(null);
         const next = root.querySelector('.bs-next');
         next.disabled = true;
-        next.textContent = draft.editingId ? 'Saving…' : 'Queueing…';
+        next.textContent = (draft.editingId || draft.editingSeriesId) ? 'Saving…' : 'Queueing…';
 
         const payload = {
             sport: draft.sport,
@@ -777,10 +782,18 @@
             queuedBy: draft.name
         };
 
+        /*
+         * Three destinations, one payload. A schedule PUTs to its own route because the
+         * server has to reconcile a queue against a rule there — keep what still fits,
+         * cancel what no longer does, add what is newly wanted — and none of that is
+         * anything the single-entry routes do.
+         */
+        const target = draft.editingId ? `/api/bookings/${encodeURIComponent(draft.editingId)}`
+            : draft.editingSeriesId ? `/api/booking-series/${encodeURIComponent(draft.editingSeriesId)}`
+                : '/api/bookings';
         try {
-            const response = await fetch(
-                draft.editingId ? `/api/bookings/${encodeURIComponent(draft.editingId)}` : '/api/bookings', {
-                method: draft.editingId ? 'PUT' : 'POST',
+            const response = await fetch(target, {
+                method: (draft.editingId || draft.editingSeriesId) ? 'PUT' : 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             });
@@ -794,7 +807,8 @@
                     return showOutcome([], data.skipped || []);
                 }
                 renderFooter();
-                return setError(data.message || (draft.editingId ? 'Could not save that change.' : 'Could not queue that slot.'));
+                return setError(data.message
+                    || ((draft.editingId || draft.editingSeriesId) ? 'Could not save that change.' : 'Could not queue that slot.'));
             }
             writeStore(DEFAULTS_STORE, {
                 players: draft.players,
@@ -887,6 +901,9 @@
             const last = window.bookingPeople.byId(window.bookingPeople.readLast());
             if (last) { draft.profileId = last.id; draft.name = last.name; }
         }
+        // A schedule opens with its rule already on, so its preview is owed from the start:
+        // step 2 will not advance on a count the server has not agreed to.
+        if (draft.repeatOn) refreshPreview();
         if (draft.profileId && draft.playDate) return refreshQuota();
         renderStep();
     }
@@ -896,7 +913,7 @@
      * deliberately absent from board data, so they start blank and the server keeps what it
      * already has unless something is typed — the contact details never leave the server.
      */
-    function open(entry, { duplicate = false } = {}) {
+    function open(entry, { duplicate = false, series = null } = {}) {
         if (root) return;
         const defaults = readStore(DEFAULTS_STORE, {});
         const clock = (iso) => {
@@ -917,17 +934,27 @@
 
         draft = entry ? {
             step: 1,
-            mode: duplicate ? 'duplicate' : 'edit',
-            source: `${entry.sport} · ${prettyDate(entry.playDate)}`,
-            editingId: duplicate ? null : entry.id,
+            mode: series ? 'series' : duplicate ? 'duplicate' : 'edit',
+            source: series ? series.summary : `${entry.sport} · ${prettyDate(entry.playDate)}`,
+            // A schedule edit changes the rule and every occurrence still waiting under it;
+            // it is not an edit of the one row it happens to be seeded from.
+            editingId: (duplicate || series) ? null : entry.id,
+            editingSeriesId: series ? series.id : null,
             name: entry.name,
             // Both an edit and a duplicate start from the person the entry was booked for.
             // If that person has since been removed, step 1 asks for a new one.
             profileId: entry.profileId || null,
-            sport: entry.sport,
-            playDate: reusableDate,
-            startPreferred: clock(entry.startPreferred),
-            startAlternative: clock(entry.startAlternative),
+            sport: series ? series.sport : entry.sport,
+            /*
+             * A schedule is re-expanded from its first date, so that is where the sheet
+             * starts — unless that day has gone by, in which case the run has to be pointed
+             * at a new first day before anything can be queued.
+             */
+            playDate: series
+                ? (series.startsOn >= isoDate(earliestPlayDate()) ? series.startsOn : '')
+                : reusableDate,
+            startPreferred: series ? series.startPreferred : clock(entry.startPreferred),
+            startAlternative: series ? series.startAlternative : clock(entry.startAlternative),
             durationHours: Number(entry.durationHours),
             players: entry.players,
             indoorOutdoor: entry.indoorOutdoor,
@@ -935,17 +962,18 @@
             otherFacility: entry.otherFacility || '',
             remarks: entry.remarks || '',
             validSportsCard: true,
-            repeatOn: false,
-            repeatEvery: 1,
-            repeatUnit: 'week',
-            repeatWeekdays: [],
-            repeatUntil: '',
+            repeatOn: Boolean(series),
+            repeatEvery: series ? series.rule.every : 1,
+            repeatUnit: series ? series.rule.unit : 'week',
+            repeatWeekdays: series && series.rule.weekdays ? [...series.rule.weekdays] : [],
+            repeatUntil: series ? series.until : '',
             error: null
         } : {
             step: 1,
             mode: 'create',
             source: null,
             editingId: null,
+            editingSeriesId: null,
             name: '',
             // Filled in by loadReference from whoever this browser picked last.
             profileId: null,
@@ -971,7 +999,7 @@
 
         root = h('div', { class: 'bs-root' }, [
             h('div', { class: 'bs-backdrop', onclick: close }),
-            h('section', { class: 'bs-sheet', role: 'dialog', 'aria-modal': 'true', 'aria-label': draft.editingId ? 'Edit this slot' : 'Queue a slot' }, [
+            h('section', { class: 'bs-sheet', role: 'dialog', 'aria-modal': 'true', 'aria-label': draft.editingId ? 'Edit this slot' : draft.editingSeriesId ? 'Edit this schedule' : 'Queue a slot' }, [
                 h('div', { class: 'bs-handle' }),
                 h('div', { class: `bs-mode bs-mode-${draft.mode}` }, [
                     h('span', { class: 'bs-mode-tag', text: MODE_TAG[draft.mode] }),
@@ -979,7 +1007,7 @@
                 ].filter(Boolean)),
                 h('header', { class: 'bs-head' }, [
                     h('div', {}, [
-                        h('div', { class: 'bs-title', text: draft.editingId ? 'Edit this slot' : 'Queue a slot' }),
+                        h('div', { class: 'bs-title', text: draft.editingId ? 'Edit this slot' : draft.editingSeriesId ? 'Edit this schedule' : 'Queue a slot' }),
                         h('div', { class: 'bs-step', text: 'Step 1 of 3 · what and when' })
                     ]),
                     h('div', { class: 'bs-bars' }, [1, 2, 3].map(() => h('span', { class: 'bs-bar' }))),
@@ -1004,4 +1032,12 @@
     window.openBookingSheet = open;
     window.editBookingSheet = (entry) => open(entry);
     window.duplicateBookingSheet = (entry) => open(entry, { duplicate: true });
+    // `template` is any one occurrence: the schedule knows the rule, the sport and the
+    // times, but duration, players and the rest live on the rows it made.
+    window.editSeriesSheet = (series, template) => open(template || {
+        sport: series.sport, name: series.name, profileId: series.profileId,
+        playDate: series.startsOn, startPreferred: series.startPreferred,
+        startAlternative: series.startAlternative,
+        durationHours: 2, players: 10, indoorOutdoor: 'Indoor', facility: '', otherFacility: '', remarks: ''
+    }, { series });
 })();
