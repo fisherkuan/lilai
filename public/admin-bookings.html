@@ -38,6 +38,12 @@
                 </ol>
             </div>
 
+            <!--
+                Every control on the page, on one line and without a frame of its own. The
+                per-browser quota tally that used to sit here has moved into the sheet: this
+                page has no login, so a tally keyed off whoever this browser last queued for
+                was claiming an identity it does not have.
+            -->
             <div class="bq-action" id="bq-action">
                 <button type="button" class="bq-cta" id="bq-queue-btn">
                     <span class="bq-cta-text">
@@ -46,15 +52,11 @@
                     </span>
                     <span class="bq-cta-arrow" aria-hidden="true">→</span>
                 </button>
-                <div class="bq-quota" id="bq-quota" hidden>
-                    <span class="bq-pips" id="bq-pips" aria-hidden="true"></span>
-                    <span class="bq-quota-text" id="bq-quota-text"></span>
-                    <span class="bq-quota-week" id="bq-quota-week"></span>
-                </div>
+                <button type="button" class="bq-guide-link bq-people-link" id="bq-people">Manage people</button>
                 <span class="chip bq-offline" id="bq-live" hidden><span class="bq-offline-dot" aria-hidden="true"></span>Not updating — refresh</span>
             </div>
 
-            <!-- The midnight banner replaces the quota line while a window is open. -->
+            <!-- The midnight banner takes over the top of the board while a window is open. -->
             <div class="bq-midnight" id="bq-midnight" hidden>
                 <div class="bq-midnight-left">
                     <div class="bq-midnight-title"><span class="bq-midnight-dot" aria-hidden="true"></span><span id="bq-midnight-headline">The window is open</span></div>
@@ -86,28 +88,19 @@
                 it is not using.
             -->
             <section class="bq-series" id="bq-series" hidden>
-                <div class="section-header">
-                    <div>
-                        <h2 class="section-title">Recurring</h2>
-                        <div class="section-meta" id="bq-series-meta"></div>
-                    </div>
+                <div class="bq-head">
+                    <h2 class="section-title">Recurring</h2>
+                    <span class="section-meta" id="bq-series-meta"></span>
                 </div>
                 <div class="bq-series-list" id="bq-series-list"></div>
             </section>
 
-            <div class="section-header">
-                <div>
-                    <h2 class="section-title">Timeline</h2>
-                    <div class="section-meta" id="bq-meta">Loading…</div>
-                </div>
+            <div class="bq-head">
+                <h2 class="section-title">Timeline</h2>
+                <span class="section-meta" id="bq-meta">Loading…</span>
             </div>
-
 
             <ol class="bq-timeline" id="bq-timeline" aria-live="polite"></ol>
-
-            <div class="bq-footer">
-                <button type="button" class="bq-guide-link bq-people-link" id="bq-people">People who book</button>
-            </div>
         </section>
 
     </main>

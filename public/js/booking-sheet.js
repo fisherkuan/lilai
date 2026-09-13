@@ -134,6 +134,20 @@
         return draft.editingId ? 'Edit this slot' : draft.editingSeriesId ? 'Edit this schedule' : 'Queue a slot';
     }
 
+    /*
+     * Two mutually exclusive answers laid out as one control: tiles that share their
+     * borders, so the choice reads as a single object rather than as loose buttons. Used
+     * for duration and for the repeat toggle, which are the same shape of question.
+     */
+    function segment(values, current, onPick, labelOf = (v) => v) {
+        return h('div', { class: 'bs-segment' }, values.map((value) => h('button', {
+            type: 'button',
+            class: `bs-seg${value === current ? ' selected' : ''}`,
+            text: labelOf(value),
+            onclick: () => onPick(value)
+        })));
+    }
+
     function pillGroup(values, current, onPick, labelOf = (v) => v) {
         return h('div', { class: 'bs-pills' }, values.map((value) => h('button', {
             type: 'button',
@@ -161,24 +175,26 @@
         renderStep();
     }
 
+    /*
+     * The tally, under the name it counts.
+     *
+     * It used to be a grey strip at the top of the sheet, saying "Two slots per person per
+     * week" before anyone had been picked — a rule where a fact belongs. It renders once
+     * the server has answered for a real name and a real week, and not before: a count
+     * without the week it counts is the exact ambiguity people ask about.
+     */
     function quotaStrip() {
+        if (!quota) return null;
         const pips = h('span', { class: 'bs-pips' });
-        const used = quota ? quota.used : 0;
-        const limit = quota ? quota.limit : 2;
-        for (let i = 0; i < limit; i += 1) {
-            pips.append(h('span', { class: `bq-pip${i < used ? ' used' : ''}` }));
+        for (let i = 0; i < quota.limit; i += 1) {
+            pips.append(h('span', { class: `bq-pip${i < quota.used ? ' used' : ''}` }));
         }
-
-        const who = draft.name ? `${draft.name} — ${used} of ${limit} slots used` : 'Two slots per person per week';
-        // Always print the week in full: "this week" is exactly the ambiguity people ask about.
-        const when = quota
-            ? `week of ${prettyDate(quota.week.start)} – ${prettyDate(quota.week.end)}`
-            : 'for the week you pick.';
-
-        return h('div', { class: `bs-quota${quota && quota.remaining === 0 ? ' full' : ''}` }, [
+        return h('div', { class: 'bs-tally' }, [
             pips,
-            h('span', { class: 'bs-quota-who', text: who }),
-            h('span', { class: 'bs-quota-when', text: when })
+            h('span', {}, [
+                h('span', { class: 'bs-tally-used', text: `${quota.used} of ${quota.limit} slots used` }),
+                ` · week of ${prettyDate(quota.week.start)} – ${prettyDate(quota.week.end)}`
+            ])
         ]);
     }
 
@@ -199,37 +215,85 @@
         refreshQuota();
     }
 
+    async function addPerson() {
+        const saved = await window.bookingPeople.openEditor(null);
+        if (saved) pickPerson(saved);
+        else renderStep();
+    }
+
+    /*
+     * The people manager, opened from inside the sheet.
+     *
+     * It owns its own layer and does not report when it closes, so the step is repainted
+     * when that layer leaves the DOM — a person added in there has to appear in the select
+     * that sent you to it, and a person deleted in there must not stay picked.
+     */
+    async function openPeopleManager() {
+        const before = document.querySelectorAll('.bs-root').length;
+        await window.bookingPeople.openManager();
+        const roots = document.querySelectorAll('.bs-root');
+        const layer = roots.length > before ? roots[roots.length - 1] : null;
+        if (!layer) return renderStep();
+        const watch = new MutationObserver(() => {
+            if (layer.isConnected) return;
+            watch.disconnect();
+            // The manager releases the page scroll on its way out, but this sheet is still
+            // open behind it and still owns it.
+            if (root) document.body.style.overflow = 'hidden';
+            if (draft.profileId && !window.bookingPeople.byId(draft.profileId)) {
+                draft.profileId = null;
+                draft.name = '';
+                quota = null;
+            }
+            renderStep();
+        });
+        watch.observe(document.body, { childList: true });
+    }
+
+    /*
+     * One line, not a list.
+     *
+     * The address book used to render as full-width rows carrying a masked email and phone
+     * each: at four people the sport field was below the fold, and nobody was ever choosing
+     * between two spellings of one person's address. The contact details are a promise kept
+     * on the next screen, not a thing to pick between here.
+     */
     function stepWho() {
         const people = window.bookingPeople.list();
 
-        const add = h('button', {
-            type: 'button',
-            class: 'bs-person-add',
-            text: people.length === 0 ? 'Add the first person' : '+ Add a person',
-            onclick: async () => {
-                const saved = await window.bookingPeople.openEditor(null);
-                if (saved) pickPerson(saved);
-                else renderStep();
-            }
-        });
+        const head = h('div', { class: 'bs-label-row' }, [
+            h('label', { class: 'bs-label', text: 'Booking for' }),
+            h('button', { type: 'button', class: 'text-link-btn bs-manage', text: 'Manage people', onclick: openPeopleManager })
+        ]);
 
-        const rows = people.map((person) => h('button', {
-            type: 'button',
-            class: `bs-person-row${person.id === draft.profileId ? ' selected' : ''}`,
-            onclick: () => pickPerson(person)
-        }, [
-            h('span', { class: 'bs-person-name', text: person.name }),
-            h('span', { class: 'bs-person-contact', text: `${person.emailMasked} · ${person.phoneMasked}` })
-        ]));
-
-        return h('div', { class: 'bs-field' }, [
-            h('label', { class: 'bs-label', text: 'Who the booking is for' }),
-            people.length === 0
-                ? h('p', { class: 'bs-note', text: window.bookingPeople.loaded()
+        if (people.length === 0) {
+            return h('div', { class: 'bs-field' }, [
+                head,
+                h('button', { type: 'button', class: 'bs-person-add', text: 'Add the first person', onclick: addPerson }),
+                h('p', { class: 'bs-note', text: window.bookingPeople.loaded()
                     ? 'Nobody in the list yet. Add a person once and their email and phone are never asked for again.'
                     : 'Loading the people who book…' })
-                : h('p', { class: 'bs-note bs-hint', text: 'Their email and phone are already on file. This name goes on the form, and it is what counts the two slots a week.' }),
-            h('div', { class: 'bs-person-list' }, [...rows, add])
+            ]);
+        }
+
+        // Names only. Adding someone is not a person you can book, and a list that offers
+        // both asks the reader to tell a choice from a command; "Manage people", on the
+        // label row, is where that happens.
+        const select = h('select', { class: 'bs-select', 'aria-label': 'Booking for' }, [
+            draft.profileId ? null : h('option', { value: '', text: 'Choose a person' }),
+            ...people.map((person) => h('option', { value: person.id, text: person.name }))
+        ]);
+        select.value = draft.profileId || '';
+        select.addEventListener('change', () => {
+            const person = window.bookingPeople.byId(select.value);
+            if (person) pickPerson(person);
+        });
+
+        return h('div', { class: 'bs-field' }, [
+            head,
+            select,
+            quotaStrip(),
+            h('p', { class: 'bs-note', text: 'Email and phone come with the name — never asked for twice.' })
         ]);
     }
 
@@ -250,7 +314,6 @@
         });
 
         const body = [
-            quotaStrip(),
             stepWho(),
             h('div', { class: 'bs-field' }, [
                 h('label', { class: 'bs-label', text: 'Sport' }),
@@ -268,9 +331,9 @@
 
         if (draft.playDate) {
             const opening = openingLabel(draft.playDate);
-            body.push(h('div', { class: 'bs-panel' }, [
+            body.push(h('div', { class: 'bs-block' }, [
                 h('div', { class: 'eyebrow', text: 'What happens next' }),
-                h('p', { class: 'bs-panel-lead' }, [
+                h('p', { class: 'bs-block-lead' }, [
                     'The form for ',
                     h('strong', { text: prettyDate(draft.playDate) }),
                     ' opens ',
@@ -285,12 +348,9 @@
     }
 
     function stepTwo() {
-        const duration = h('div', { class: 'bs-segment' }, DURATIONS.map((value) => h('button', {
-            type: 'button',
-            class: `bs-seg${draft.durationHours === value ? ' selected' : ''}`,
-            text: value === 1 ? '1 hr' : `${value} hrs`,
-            onclick: () => { draft.durationHours = value; renderStep(); }
-        })));
+        const duration = segment(DURATIONS, draft.durationHours,
+            (value) => { draft.durationHours = value; renderStep(); },
+            (value) => (value === 1 ? '1 hr' : `${value} hrs`));
 
         /*
          * Courts are handed out on the hour and the half hour, so those are the only times
@@ -326,9 +386,23 @@
             draft.startAlternative = value;
         });
 
+        /*
+         * The one sentence that has to land: both fields are starts.
+         *
+         * It used to take a bordered panel, a "required" tag and three notes to say it,
+         * because the second field was being read as an end time. A sub-label and one
+         * worked example do the same job in a line, and the example is computed from the
+         * draft, so it is this booking's own hours rather than a stock illustration.
+         */
+        const hoursWord = draft.durationHours === 1 ? '1-hour' : `${draft.durationHours}-hour`;
         const example = draft.startPreferred && draft.startAlternative
-            ? `${draft.startPreferred}–${addHours(draft.startPreferred, draft.durationHours)}, or ${draft.startAlternative}–${addHours(draft.startAlternative, draft.durationHours)}.`
-            : 'Pick a first choice, then a fallback.';
+            ? [
+                `Both are ${hoursWord} slots: `,
+                h('span', { class: 'bs-ink', text:
+                    `${draft.startPreferred}–${addHours(draft.startPreferred, draft.durationHours)}, or ${draft.startAlternative}–${addHours(draft.startAlternative, draft.durationHours)}` }),
+                '. The second is another start, not an end time.'
+            ]
+            : [`Both are ${hoursWord} starts, not a start and an end. The second is the fallback if the first is taken.`];
 
         const where = draft.facility === 'Andere / Other'
             ? (draft.otherFacility || 'other — name it')
@@ -341,32 +415,29 @@
                 duration
             ]),
             h('div', { class: 'bs-field' }, [
-                h('label', { class: 'bs-label', text: 'Start at' }),
-                starts
-            ]),
-            // The one field that earns a border: people read it as an end time.
-            h('div', { class: 'bs-boxed' }, [
-                h('div', { class: 'bs-boxed-head' }, [
-                    h('span', { class: 'bs-boxed-title', text: 'Second choice of start time' }),
-                    h('span', { class: 'bs-required', text: 'required' })
+                h('label', { class: 'bs-label', text: 'Start time' }),
+                h('div', { class: 'bs-two' }, [
+                    h('div', { class: 'bs-col' }, [
+                        h('span', { class: 'bs-sublabel', text: 'First choice' }),
+                        starts
+                    ]),
+                    h('div', { class: 'bs-col' }, [
+                        h('span', { class: 'bs-sublabel', text: 'If that\u2019s taken' }),
+                        alternatives
+                    ])
                 ]),
-                h('p', { class: 'bs-note' }, [
-                    'Still ', h('strong', { text: draft.durationHours === 1 ? '1 hour' : `${draft.durationHours} hours` }),
-                    ', just a different start. This is not an end time — it is the fallback if ',
-                    draft.startPreferred || 'your first choice', ' is taken.'
-                ]),
-                alternatives,
-                h('p', { class: 'bs-note bs-example', text: example })
+                h('p', { class: 'bs-note' }, example)
             ]),
             repeatField(),
-            h('div', { class: 'bs-summary' }, [
+            // The truthfulness of the player count belongs beside the players field, which
+            // is in the sub-sheet this row opens — not under a summary of six other things.
+            h('div', { class: 'bs-summary bs-block' }, [
                 h('div', { class: 'bs-summary-main' }, [
                     h('div', { class: 'bs-summary-title', text: 'Everything else' }),
                     h('div', { class: 'bs-summary-text', text: summary })
                 ]),
                 h('button', { type: 'button', class: 'btn ghost sm', text: 'Change', onclick: openDetails })
-            ]),
-            h('p', { class: 'bs-note', text: 'Carried over from your last booking. Players must be truthful — KU Leuven asks for at least 10.' })
+            ])
         ];
     }
 
@@ -391,7 +462,7 @@
 
         const parts = [
             h('label', { class: 'bs-label', text: 'Repeat' }),
-            draft.editingSeriesId ? null : pillGroup([false, true], draft.repeatOn, (value) => {
+            draft.editingSeriesId ? null : segment([false, true], draft.repeatOn, (value) => {
                 draft.repeatOn = value;
                 if (!value) preview = null;
                 renderStep();
@@ -430,7 +501,7 @@
         if (draft.repeatUnit === 'week') {
             parts.push(h('div', { class: 'bs-field' }, [
                 h('label', { class: 'bs-label bs-label-sm', text: 'On these days' }),
-                h('div', { class: 'bs-pills' }, WEEKDAY_PILLS.map(([day, label]) => h('button', {
+                h('div', { class: 'bs-pills bs-pills-days' }, WEEKDAY_PILLS.map(([day, label]) => h('button', {
                     type: 'button',
                     class: `bs-pill bs-day-pill${draft.repeatWeekdays.includes(day) ? ' selected' : ''}`,
                     text: label,
@@ -442,9 +513,11 @@
                         refreshPreview();
                     }
                 }))),
-                h('p', { class: 'bs-note', text: draft.repeatWeekdays.length === 0
-                    ? `Nothing chosen means the day the first booking falls on${draft.playDate ? ` — ${prettyDate(draft.playDate).split(' ')[0]}` : ''}.`
-                    : 'Two slots a week is the limit per person, so a third day will be reported as full.' })
+                // The two-a-week limit is already said by the tally on step 1 and by the
+                // preview below; a third copy here was the one nobody read.
+                draft.repeatWeekdays.length === 0
+                    ? h('p', { class: 'bs-note', text: `Nothing chosen means the day the first booking falls on${draft.playDate ? ` — ${prettyDate(draft.playDate).split(' ')[0]}` : ''}.` })
+                    : null
             ]));
         }
 
@@ -466,12 +539,12 @@
 
         // Whatever the server says the rule expands to, verbatim — including its refusals.
         const dates = preview ? preview.dates : [];
-        parts.push(h('p', { class: 'bs-note bs-example', text: !draft.repeatUntil
+        parts.push(h('p', { class: 'bs-preview', text: !draft.repeatUntil
             ? 'Pick the last day to see what this books.'
             : preview && preview.message ? preview.message
                 : dates.length === 0 ? 'Working out the dates…'
                     : `${dates.length} ${dates.length === 1 ? 'booking' : 'bookings'} — ${prettyDate(dates[0])} to ${prettyDate(dates[dates.length - 1])}.` }));
-        parts.push(h('p', { class: 'bs-note', text: 'Each one is queued on its own: editable, cancellable, and counted against its own week. Weeks already full are reported, not silently skipped.' }));
+        parts.push(h('p', { class: 'bs-note', text: 'Each one is queued on its own: editable, cancellable, counted against its own week. Weeks already full are reported, not silently skipped.' }));
 
         return h('div', { class: 'bs-field' }, parts);
     }
@@ -499,28 +572,28 @@
          * this step confirms who rather than asking a third time. An older entry whose
          * person has since been removed keeps the details it was queued with; the server
          * holds them and this step says so.
+         *
+         * One way back, not two. "Not them?" and "Change their email or phone" were both
+         * on this screen; editing contact details is what Manage people is for, and it is
+         * one tap further from a confirm screen than it should be.
          */
+        const firstName = String(draft.name || '').trim().split(/\s+/)[0] || 'them';
+
         return [
             h('div', { class: 'bs-field' }, [
                 h('label', { class: 'bs-label', text: 'Booking for' }),
                 h('div', { class: 'bs-person' }, [
-                    h('div', {}, [
+                    h('div', { class: 'bs-person-who' }, [
                         h('div', { class: 'bs-person-name', text: draft.name }),
                         h('div', { class: 'bs-person-contact', text: person
                             ? `${person.emailMasked} · ${person.phoneMasked}`
                             : 'Contact details kept with this entry' })
                     ]),
-                    h('button', { type: 'button', class: 'text-link-btn', text: 'Not them?', onclick: () => goTo(1) })
-                ])
+                    h('button', { type: 'button', class: 'text-link-btn', text: 'Change', onclick: () => goTo(1) })
+                ]),
+                // The privacy sentence sits under the contact details it is about.
+                h('p', { class: 'bs-note', text: 'The email and phone go on KU Leuven\u2019s form and nowhere else — the board shows only the name.' })
             ]),
-            person
-                ? h('button', {
-                    type: 'button', class: 'text-link-btn bs-person-edit', text: 'Change their email or phone',
-                    onclick: async () => { if (await window.bookingPeople.openEditor(person)) renderStep(); }
-                })
-                : null,
-            h('p', { class: 'bs-note', text: 'A valid KU Leuven sports card is required to book. We do not check it and never could — that is between the player and KU Leuven.' }),
-            h('p', { class: 'bs-note', text: 'Email and phone never appear on the board — only the name does. The name is what counts the two slots a week.' }),
             h('div', { class: 'bs-table' }, [
                 h('div', { class: 'bs-table-head', text: 'What we will submit' }),
                 ...rows.map(([label, value]) => h('div', { class: 'bs-table-row' }, [
@@ -528,10 +601,13 @@
                     h('span', { class: 'bs-table-value', text: value })
                 ]))
             ]),
-            h('div', { class: 'bs-panel' }, [
-                h('div', { class: 'bs-panel-lead', text: 'Queuing is not booking.' }),
-                h('p', { class: 'bs-note', text: 'We submit the request at midnight. KU Leuven decides, and emails them directly — usually within a day or two.' })
-            ])
+            h('div', { class: 'bs-block' }, [
+                h('div', { class: 'bs-block-title', text: 'Queuing is not booking.' }),
+                h('p', { class: 'bs-block-note', text: `We submit the request at midnight. KU Leuven decides, and emails ${firstName} directly — usually within a day or two.` })
+            ]),
+            // The only fine print left, and it stays readable: 12px muted grey on white is
+            // 2.5:1, which is not a colour this sentence may be set in.
+            h('p', { class: 'bs-note', text: 'A valid KU Leuven sports card is required to book. We do not check it and never could — that is between the player and KU Leuven.' })
         ];
     }
 
@@ -641,7 +717,7 @@
 
     // --- Shell ---------------------------------------------------------------------------
 
-    const STEP_TITLES = ['what and when', 'when exactly', 'who is responsible'];
+    const STEP_TITLES = ['who, sport, day', 'times', 'confirm'];
 
     /*
      * Which of the three things the sheet is doing, said once and never overwritten.
@@ -703,7 +779,7 @@
         const last = draft.editingId ? 'Save changes'
             : draft.editingSeriesId ? 'Save the schedule'
                 : count > 1 ? `Queue all ${count}` : 'Put it in the queue';
-        const label = draft.step === 1 ? 'Next — times' : draft.step === 2 ? 'Next — who is booking' : last;
+        const label = draft.step === 1 ? 'Next — times' : draft.step === 2 ? 'Next — confirm' : last;
         const next = h('button', {
             type: 'button',
             class: `btn ${draft.step === 3 ? 'dark' : 'accent'} bs-next`,
@@ -976,7 +1052,7 @@
                 h('header', { class: 'bs-head' }, [
                     h('div', {}, [
                         h('div', { class: 'bs-title', text: sheetTitle() }),
-                        h('div', { class: 'bs-step', text: 'Step 1 of 3 · what and when' })
+                        h('div', { class: 'bs-step', text: `Step 1 of 3 · ${STEP_TITLES[0]}` })
                     ]),
                     h('div', { class: 'bs-bars' }, [1, 2, 3].map(() => h('span', { class: 'bs-bar' }))),
                     h('button', { type: 'button', class: 'bs-close', 'aria-label': 'Close', text: '×', onclick: close })

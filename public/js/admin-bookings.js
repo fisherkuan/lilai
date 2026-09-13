@@ -23,53 +23,32 @@
      *
      * Bump it when changing anything in public/js or public/styles.css.
      */
-    const BUILD = '2026-09-13g';
+    const BUILD = '2026-09-13j';
 
-    const { BRUSSELS, MONTHS, isoDate } = window.bookingShared;
+    const { BRUSSELS, MONTHS } = window.bookingShared;
     const MINUTE = 60000;
     const HOUR = 3600000;
     const DAY = 86400000;
 
     /*
-     * The four outcomes, measured against what this app is for: getting the request in at
+     * Three outcomes, measured against what this app is for: getting the request in at
      * midnight. "Request sent" is that job done, and it gets a green dot. What KU Leuven
      * decides afterwards is theirs, and this app has no way to observe it.
      *
-     * "Sent — unconfirmed" stays its own state rather than a kind of failure, because the
-     * word "failed" invites a re-queue and a re-queue can double-book.
+     * `unconfirmed` is a server status but not a fourth word. It reads as "Request sent"
+     * with a clause and a hollow dot, because "failed" invites a re-queue and a re-queue
+     * can double-book — while a state of its own made people ask what it meant.
+     *
+     * `cancelled` is not here at all: nothing was sent, so nothing came back. A cancelled
+     * slot stays above the NOW rule, struck through, until its undo runs out.
      */
     const OUTCOMES = {
-        sent: {
-            label: 'Request sent',
-            tone: 'accent',
-            dot: 'solid-success',
-            blurb: 'The request reached KU Leuven. They decide separately, and it can be a no.'
-        },
-        unconfirmed: {
-            label: 'Sent — unconfirmed',
-            tone: 'warning',
-            dot: 'ring-warning',
-            blurb: 'It may well have gone through. Check before re-queueing: sending twice can double-book.'
-        },
-        failed: {
-            label: 'Request failed',
-            tone: 'danger',
-            dot: 'solid-danger',
-            blurb: 'It did not go through, and nothing was booked.'
-        },
-        missed: {
-            label: 'Missed',
-            tone: 'warning',
-            dot: 'solid-warning',
-            blurb: 'The window passed before we could send it. Nothing broke — the clock ran out.'
-        },
-        cancelled: {
-            label: 'Cancelled',
-            tone: 'muted',
-            dot: 'solid-muted',
-            blurb: 'Removed before it went out.'
-        }
+        sent: { label: 'Request sent', dot: 'solid-success', tone: 'accent' },
+        failed: { label: 'Request failed', dot: 'solid-danger', tone: 'danger' },
+        missed: { label: 'Missed', dot: 'solid-warning', tone: 'warning' }
     };
+
+    const NO_REPLY = '· no reply from the form — check your email before re-queueing';
 
     /*
      * How much of the timeline is worth showing at rest.
@@ -86,7 +65,6 @@
         queued: [],
         history: [],
         historyHasMore: false,
-        quotaPerWeek: 2,
         live: false,
         showAllUpcoming: false,
         historyShown: HISTORY_AT_REST,
@@ -94,7 +72,6 @@
         tickEvery: 0,
         clockHandle: null,
         midnight: null,
-        quota: null,
         graceSeconds: 43200,
         cancelUndoSeconds: 300,
         series: [],
@@ -118,19 +95,6 @@
         const play = new Date(opening);
         play.setDate(play.getDate() + 14);
         return play;
-    }
-
-    /*
-     * Whose tally the quota pill shows: the person this browser last queued for.
-     *
-     * The people themselves live on the server now, so this is only a pointer — social
-     * identity, not auth. A pointer at someone since removed resolves to nobody, and the
-     * pill simply stays hidden rather than reporting a stranger's week.
-     */
-    function rememberedName() {
-        if (!window.bookingPeople) return '';
-        const person = window.bookingPeople.byId(window.bookingPeople.readLast());
-        return person ? person.name : '';
     }
 
     // --- Brussels formatting ----------------------------------------------------------
@@ -325,10 +289,10 @@
         body.append(node('div', 'bq-details', rowDetails(entry)));
 
         // Third grid cell: its own column on desktop, stacked under the body on mobile.
+        // Name, then the actions directly under it. When the slot was queued is not
+        // something anyone reads a row for, and the gutter already carries the date.
         const aside = node('div', 'bq-aside');
         aside.append(node('div', 'bq-who', displayName(entry.name)));
-        aside.append(node('div', 'bq-aside-sub', `queued ${dayAndMonth(new Date(entry.queuedAt))}`));
-
         aside.append(rowActions(entry));
 
         row.append(gutter, body, aside);
@@ -439,7 +403,11 @@
     }
 
     function sentRow(entry, now) {
-        const outcome = OUTCOMES[entry.status] || OUTCOMES.failed;
+        // A POST whose answer we could not read reports as sent, with the clause that says
+        // so and a hollow dot. It is not a failure: "failed" invites a re-queue, and a
+        // re-queue can double-book.
+        const noReply = entry.status === 'unconfirmed';
+        const outcome = noReply ? OUTCOMES.sent : (OUTCOMES[entry.status] || OUTCOMES.failed);
         const when = new Date(entry.submittedAt || entry.opensAt);
 
         const row = node('li', 'bq-row bq-row-sent');
@@ -450,19 +418,26 @@
         gutter.append(node('div', 'bq-gutter-sub', secondsClockOf(when)));
 
         const body = node('div', 'bq-body');
-        const head = node('div', 'bq-sent-head');
-        head.append(node('span', 'bq-title', rowTitle(entry)));
-        head.append(node('span', `bq-dot bq-dot-${outcome.dot}`));
-        body.append(head);
-        body.append(node('div', 'bq-outcome', outcome.label));
+        body.append(node('div', 'bq-title', rowTitle(entry)));
+
+        // The dot belongs beside the words it modifies. Appended to the title line it
+        // floated 200px away at the far right, modifying nothing anyone could see.
+        const line = node('div', 'bq-outcome');
+        line.append(node('span', `bq-dot bq-dot-${noReply ? 'ring-success' : outcome.dot}`));
+        const words = node('span', '', outcome.label);
+        if (noReply) {
+            words.append(document.createTextNode(' '));
+            words.append(node('span', 'bq-outcome-clause', NO_REPLY));
+            line.classList.add('bq-outcome-wrap');
+        }
+        line.append(words);
+        body.append(line);
 
         const aside = node('div', 'bq-aside');
         aside.append(node('div', 'bq-who', displayName(entry.name)));
-        const link = node('a', 'bq-aside-link', 'details');
+        const link = node('a', 'bq-aside-link', 'Details');
         link.href = `/admin/bookings/${entry.id}`;
-        const sub = node('div', 'bq-aside-sub');
-        sub.append(document.createTextNode(`${dayAndMonth(new Date(entry.queuedAt))} · `), link);
-        aside.append(sub);
+        aside.append(link);
         aside.append(rowActions(entry));
 
         row.append(gutter, body, aside);
@@ -471,8 +446,8 @@
     }
 
     /* A collapsed run of rows, shown as one line that opens it. */
-    function foldRow(label, onclick, extra) {
-        const row = node('li', `bq-fold${extra ? ' ' + extra : ''}`);
+    function foldRow(label, onclick) {
+        const row = node('li', 'bq-fold');
         const button = node('button', 'bq-fold-btn', label);
         button.type = 'button';
         button.addEventListener('click', onclick);
@@ -526,10 +501,11 @@
      * Two redraws the server would also make, applied here so a page left open stays honest
      * between fetches.
      *
-     * A cancelled slot sits ahead of NOW until its window opens, then belongs behind it —
-     * position is time, not status. And once its undo window has run out it leaves the
-     * board altogether: nothing is deleted, but a timeline of things that are NOT happening
-     * is noise, and a called-off recurring schedule generates it a dozen rows at a time.
+     * A cancelled slot stays above the NOW rule for as long as it is on the board at all.
+     * It is not an outcome — nothing was sent, so nothing came back — and moving it below
+     * the rule filed it with the requests that did go out. Once its undo window has run out
+     * it leaves the board altogether: nothing is deleted, but a timeline of things that are
+     * NOT happening is noise, and a called-off schedule generates it a dozen rows at a time.
      */
     function reconcile(now) {
         const expired = (entry) => entry.status === 'cancelled' && undoMsLeft(entry, now.getTime()) <= 0;
@@ -541,13 +517,16 @@
             state.historyShown - (before - (state.queued.length + state.history.length))
         );
 
-        const crossed = state.queued.filter((entry) =>
-            entry.status === 'cancelled' && new Date(entry.opensAt) <= now);
-        if (crossed.length === 0) return;
-        const ids = new Set(crossed.map((entry) => entry.id));
-        state.queued = state.queued.filter((entry) => !ids.has(entry.id));
-        state.history = state.history.concat(crossed);
-        state.historyShown += crossed.length;
+        // Nothing was sent, so nothing came back: a cancelled slot is not an outcome and
+        // never belongs below the rule. The server pages it into history all the same, and
+        // a cancellation can land there live, so it is lifted back here — otherwise
+        // sentRow, which knows only three outcomes, would report it as "Request failed".
+        const above = state.history.filter((entry) => entry.status === 'cancelled');
+        if (above.length === 0) return;
+        const ids = new Set(above.map((entry) => entry.id));
+        state.history = state.history.filter((entry) => !ids.has(entry.id));
+        state.queued = state.queued.concat(above);
+        state.historyShown = Math.max(HISTORY_AT_REST, state.historyShown - above.length);
     }
 
     /*
@@ -573,10 +552,31 @@
         }
     }
 
+    // Plural weekday names, because the card states a habit rather than a date.
+    const SERIES_WEEKDAYS = ['Sundays', 'Mondays', 'Tuesdays', 'Wednesdays', 'Thursdays', 'Fridays', 'Saturdays'];
+
     /*
-     * One card per habit: what it books, how often, and how many are still to go. That one
-     * count is what the buttons follow — a schedule with eight waiting can be cancelled, one
-     * with none has run its course.
+     * The rule in words, because the rule is what the card IS. Saying only the first start
+     * time read as a one-off, which is the one thing this card is not.
+     *
+     * A weekly rule with no weekdays chosen repeats on the day the run starts — the same
+     * reading the server expands it with — so the card names that day rather than staying
+     * silent about which day it means.
+     */
+    function rulePhrase(series) {
+        const { every, unit, weekdays } = series.rule;
+        if (unit !== 'week') return every === 1 ? `every ${unit}` : `every ${every} ${unit}s`;
+        const days = (weekdays && weekdays.length > 0)
+            ? weekdays
+            : [new Date(`${series.startsOn}T12:00:00Z`).getUTCDay()];
+        const named = days.map((day) => SERIES_WEEKDAYS[day]).join(', ');
+        return every === 1 ? named : `${named}, every ${every} weeks`;
+    }
+
+    /*
+     * One card per habit, on one line: what it books and how often, then who it is for and
+     * how much of it is left. That last count is what the buttons follow — a schedule with
+     * eight waiting can be cancelled, one with none has run its course.
      */
     function renderSeries(now) {
         const section = el('bq-series');
@@ -590,9 +590,9 @@
         for (const series of state.series) {
             const card = node('div', 'bq-series-card');
 
-            const title = node('div', 'bq-series-title', `${series.sport} · ${series.startPreferred}`);
-            const rule = node('div', 'bq-series-rule',
-                `${series.summary} · until ${dayAndMonth(new Date(`${series.until}T12:00:00Z`))}`);
+            const main = node('div', 'bq-series-main');
+            main.append(node('div', 'bq-series-title',
+                `${series.sport} · ${rulePhrase(series)}, ${series.startPreferred}`));
 
             /*
              * One number: how many are still waiting. What has gone out is in the timeline
@@ -600,15 +600,16 @@
              * "8 cancelled" nobody remembers cancelling only asks a question the board
              * cannot answer.
              */
-            const tally = node('div', 'bq-series-tally');
-            tally.append(node('span', 'bq-tally bq-tally-wait',
-                series.queued > 0 ? `${series.queued} waiting` : 'nothing waiting'));
-            if (series.nextPlayDate && series.queued > 0) {
-                tally.append(node('span', 'bq-series-next',
-                    `next ${dayAndMonth(new Date(`${series.nextPlayDate}T12:00:00Z`))}`));
-            }
+            const left = series.queued > 0
+                ? (series.nextPlayDate
+                    ? `${series.queued} waiting, next ${dayAndMonth(new Date(`${series.nextPlayDate}T12:00:00Z`))}`
+                    : `${series.queued} waiting`)
+                : 'nothing waiting';
+            main.append(node('div', 'bq-series-rule', [
+                series.name, left, `until ${dayAndMonth(new Date(`${series.until}T12:00:00Z`))}`
+            ].join(' · ')));
 
-            card.append(node('div', 'bq-series-who', series.name), title, rule, tally);
+            card.append(main);
 
             /*
              * "Undo all" outranks "Cancel the rest" while a bulk cancellation is still
@@ -701,6 +702,13 @@
         state.history.sort((a, b) => axisMoment(b) - axisMoment(a));
 
         const waiting = state.queued.slice().sort((a, b) => new Date(a.opensAt) - new Date(b.opensAt));
+        /*
+         * Everything above the rule is a row; only some of it is a slot we are going to
+         * send. A cancelled row now holds its place there until its undo runs out, and
+         * counting it would say "6 queued" for five, open the midnight banner for
+         * something nobody is submitting, and drive the per-second tick for it.
+         */
+        const pending = waiting.filter((entry) => entry.status !== 'cancelled');
 
         /*
          * One timeline, read top to bottom as time runs forward: what already happened,
@@ -711,11 +719,7 @@
         const shownHistory = state.history.slice(0, state.historyShown);
         const heldBack = state.history.length - shownHistory.length;
         if (heldBack > 0 || state.historyHasMore) {
-            list.append(foldRow(
-                heldBack > 0 ? `${heldBack} earlier` : 'earlier',
-                loadMore,
-                'bq-fold-past'
-            ));
+            list.append(foldRow(heldBack > 0 ? `${heldBack} earlier` : 'earlier', loadMore));
         }
 
         if (state.history.length === 0) {
@@ -743,9 +747,8 @@
             list.append(foldRow('Show fewer', () => { state.showAllUpcoming = false; render(); }));
         }
 
-        renderMeta(waiting, now);
-        renderQuota();
-        renderMidnight(waiting, now);
+        renderMeta(pending, now);
+        renderMidnight(pending, now);
         renderExplainer(waiting);
 
         // Rows that were not above the rule a moment ago arrive with a fade, so the change
@@ -759,12 +762,12 @@
         }
         for (const entry of state.history) state.seen.add(entry.id);
 
-        scheduleTick(waiting, now);
+        scheduleTick(pending, now);
     }
 
-    function renderMeta(waiting, now) {
+    function renderMeta(pending, now) {
         const meta = el('bq-meta');
-        if (waiting.length === 0) {
+        if (pending.length === 0) {
             // The gap above the rule already carries "Nothing queued"; saying it twice,
             // eight pixels apart, reads as a rendering fault rather than as emphasis.
             meta.textContent = state.history.length > 0
@@ -772,8 +775,8 @@
                 : 'Nothing queued';
             return;
         }
-        const next = new Date(waiting[0].opensAt);
-        meta.textContent = `${plural(waiting.length, 'slot')} queued · nearest window ${absoluteOpening(next, now)}`;
+        const next = new Date(pending[0].opensAt);
+        meta.textContent = `${pending.length} queued · nearest window ${absoluteOpening(next, now)}`;
     }
 
     /*
@@ -806,13 +809,9 @@
     function renderMidnight(waiting, now) {
         const open = currentWindow(waiting, now);
         const banner = el('bq-midnight');
-        const quota = el('bq-quota');
 
         state.midnight = open;
         banner.hidden = !open;
-        // The banner replaces the quota line rather than sitting beside it, and hands the
-        // row back when it closes.
-        quota.hidden = open ? true : !state.quota;
 
         if (!open) {
             stopClock();
@@ -925,54 +924,6 @@
 
     // --- Data ----------------------------------------------------------------------------
 
-    /*
-     * The quota line only means something once we know who is reading. It is the tally for
-     * the soonest week anyone can still book into, which is the week the "Queue a slot"
-     * button would land you in.
-     */
-    async function loadQuota() {
-        if (window.bookingPeople && !window.bookingPeople.loaded()) await window.bookingPeople.load();
-        const name = rememberedName();
-        if (!name) { state.quota = null; return; }
-        try {
-            const playDate = isoDate(earliestPlayDate());
-            const response = await fetch(
-                `/api/bookings/quota?name=${encodeURIComponent(name)}&playDate=${playDate}`);
-            const data = await response.json();
-            state.quota = data.success ? data : null;
-        } catch (error) {
-            state.quota = null;
-        }
-    }
-
-    function renderQuota() {
-        const box = el('bq-quota');
-        // While the banner is up it owns this row; renderMidnight decides.
-        if (!state.quota) { box.hidden = true; return; }
-        const { used, limit, week } = state.quota;
-
-        const pips = el('bq-pips');
-        pips.textContent = '';
-        // A full week turns amber rather than red: nothing is wrong, there is just no room.
-        const fill = used >= limit ? ' used warn' : ' used';
-        for (let i = 0; i < limit; i += 1) {
-            pips.append(node('span', `bq-pip${i < used ? fill : ''}`, ''));
-        }
-        el('bq-quota-text').textContent = `${used} of ${limit} slots`;
-        el('bq-quota-week').textContent = `week of ${weekLabel(week)}`;
-        box.hidden = false;
-    }
-
-    // Quota weeks always run Monday to Sunday, so the weekday names are fixed. The month
-    // is named once unless the week straddles two.
-    function weekLabel(week) {
-        if (!week || !week.start || !week.end) return '';
-        const [, sm, sd] = week.start.split('-').map(Number);
-        const [, em, ed] = week.end.split('-').map(Number);
-        const from = sm === em ? `Mon ${sd}` : `Mon ${sd} ${MONTHS[sm - 1]}`;
-        return `${from} – Sun ${ed} ${MONTHS[em - 1]}`;
-    }
-
     async function load() {
         try {
             const response = await fetch('/api/bookings?limit=20');
@@ -981,12 +932,10 @@
             state.queued = data.queued;
             state.history = data.history;
             state.historyHasMore = data.historyHasMore;
-            state.quotaPerWeek = data.quotaPerWeek;
             if (data.graceSeconds) state.graceSeconds = data.graceSeconds;
             if (data.cancelUndoSeconds) state.cancelUndoSeconds = data.cancelUndoSeconds;
             showStaleBanner(data.build);
             await loadSeries();
-            await loadQuota();
             render();
         } catch (error) {
             el('bq-meta').textContent = 'Could not load the queue. Refresh to try again.';
