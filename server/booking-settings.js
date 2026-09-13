@@ -24,10 +24,25 @@ function isWholeNumber(value) {
 
 /** Read and validate the `booking` section of config/app.json. Throws on nonsense. */
 function bookingSettings(appConfig = {}) {
-    const settings = { ...DEFAULTS, ...(appConfig.booking || {}) };
+    const { seasonEndsOn, ...rest } = { ...DEFAULTS, ...(appConfig.booking || {}) };
+    const settings = rest;
 
     for (const [key, value] of Object.entries(settings)) {
         if (!isWholeNumber(value)) throw new Error(`booking.${key} must be a whole number of seconds`);
+    }
+
+    /*
+     * The last play date the season's sports card covers. A plain date, not a duration:
+     * the renewal is a real-world event, so it is set by hand each year rather than
+     * computed. Optional — with none set, nothing is capped.
+     */
+    if (seasonEndsOn !== undefined && seasonEndsOn !== null) {
+        if (typeof seasonEndsOn !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(seasonEndsOn)) {
+            throw new Error('booking.seasonEndsOn must be a YYYY-MM-DD date');
+        }
+        settings.seasonEndsOn = seasonEndsOn;
+    } else {
+        settings.seasonEndsOn = null;
     }
 
     const { openingDelayMinSeconds: low, openingDelayMaxSeconds: high } = settings;

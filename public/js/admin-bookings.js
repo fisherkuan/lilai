@@ -17,17 +17,18 @@
     const DAY = 86400000;
 
     /*
-     * The four outcomes. No --success and no ticks anywhere: the best honest result is
-     * "the request reached KU Leuven", and a green check would read as a court being
-     * booked, which this app never knows. "Sent — unconfirmed" is its own state rather
-     * than a kind of failure, because the word "failed" invites a re-queue and a re-queue
-     * can double-book.
+     * The four outcomes, measured against what this app is for: getting the request in at
+     * midnight. "Request sent" is that job done, and it gets a green dot. What KU Leuven
+     * decides afterwards is theirs, and this app has no way to observe it.
+     *
+     * "Sent — unconfirmed" stays its own state rather than a kind of failure, because the
+     * word "failed" invites a re-queue and a re-queue can double-book.
      */
     const OUTCOMES = {
         sent: {
             label: 'Request sent',
             tone: 'accent',
-            dot: 'ring',
+            dot: 'solid-success',
             blurb: 'The request reached KU Leuven. They decide separately, and it can be a no.'
         },
         unconfirmed: {
@@ -801,11 +802,14 @@
         }
         socket.addEventListener('open', () => {
             state.live = true;
-            el('bq-live').hidden = false;
+            // Silent while it works. "Live" next to the button read as a property of the
+            // queue, and a badge that is always on says nothing; the only fact worth a
+            // word is that the board has STOPPED updating.
+            el('bq-live').hidden = true;
         });
         socket.addEventListener('close', () => {
             state.live = false;
-            el('bq-live').hidden = true;
+            el('bq-live').hidden = false;
             setTimeout(connect, 5000);
         });
         socket.addEventListener('message', (event) => {

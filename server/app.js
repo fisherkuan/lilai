@@ -1052,20 +1052,27 @@ let formOptionsCache = { value: null, fetchedAt: 0 };
 const FORM_OPTIONS_TTL = 60 * 60 * 1000;
 
 app.get('/api/bookings/form-options', async (req, res) => {
+    /*
+     * The season end rides along with the form options because both answer the same
+     * question for the sheet: what may this request say? It is read fresh on every call
+     * rather than folded into the cached form, so renewing the season in config takes
+     * effect at once instead of an hour later.
+     */
+    const season = { seasonEndsOn: bookingSettings(appConfig).seasonEndsOn };
     const fresh = Date.now() - formOptionsCache.fetchedAt < FORM_OPTIONS_TTL;
     if (formOptionsCache.value && fresh) {
-        return res.json({ success: true, cached: true, ...formOptionsCache.value });
+        return res.json({ success: true, cached: true, ...formOptionsCache.value, ...season });
     }
     try {
         const options = readFormOptions(await new BookingFormClient().getForm());
         formOptionsCache = { value: options, fetchedAt: Date.now() };
-        res.json({ success: true, cached: false, ...options });
+        res.json({ success: true, cached: false, ...options, ...season });
     } catch (error) {
         console.error('Error reading booking form options:', error.message);
         if (formOptionsCache.value) {
-            return res.json({ success: true, cached: true, stale: true, ...formOptionsCache.value });
+            return res.json({ success: true, cached: true, stale: true, ...formOptionsCache.value, ...season });
         }
-        res.status(503).json({ success: false, message: 'Could not read the booking form right now' });
+        res.status(503).json({ success: false, message: 'Could not read the booking form right now', ...season });
     }
 });
 
@@ -1073,7 +1080,7 @@ app.get('/api/bookings/form-options', async (req, res) => {
 app.post('/api/bookings', async (req, res) => {
     let entry;
     try {
-        entry = validateBooking(req.body);
+        entry = validateBooking(req.body, { seasonEndsOn: bookingSettings(appConfig).seasonEndsOn });
     } catch (error) {
         if (error instanceof BookingInputError) {
             return res.status(400).json({ success: false, message: error.message, field: error.field });
@@ -1189,7 +1196,7 @@ app.put('/api/bookings/:id', async (req, res) => {
          */
         let entry;
         try {
-            entry = validateBooking(mergeContact(req.body, before));
+            entry = validateBooking(mergeContact(req.body, before), { seasonEndsOn: settings.seasonEndsOn });
         } catch (error) {
             await client.query('ROLLBACK');
             if (error instanceof BookingInputError) {

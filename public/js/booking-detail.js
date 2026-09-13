@@ -27,9 +27,9 @@
         sent: {
             label: 'Request sent',
             tone: 'accent',
-            dot: 'ring',
-            headline: 'This is not a booked court.',
-            blurb: 'The request reached KU Leuven. They decide separately, and it can be a no. This entry will not change again.'
+            dot: 'solid-success',
+            headline: 'The request went in.',
+            blurb: 'It reached KU Leuven inside the opening minute, which is everything this app can do. What they decide is theirs. This entry will not change again.'
         },
         unconfirmed: {
             label: 'Sent — unconfirmed',
@@ -92,11 +92,11 @@
         return timeOf(new Date(new Date(startIso).getTime() + Number(hours) * 3600000).toISOString());
     }
 
-    /** Four outcomes, and no green among them. */
+    /** Four outcomes, measured against getting the request in — not against the answer. */
     function guideCard() {
         return h('div', { class: 'card bd-guide' }, [
-            h('h2', { text: 'Four outcomes, no green' }),
-            h('p', { class: 'bd-guide-intro', text: 'A queued slot has no status — it is waiting, and the board’s shape says so. Once the form has gone, one of four things is true. There is no green anywhere on these pages: the best honest outcome is still only "sent".' }),
+            h('h2', { text: 'Four outcomes' }),
+            h('p', { class: 'bd-guide-intro', text: 'A queued slot has no status — it is waiting, and the board’s shape says so. Once the form has gone, one of four things is true. They describe whether the request got in, which is the part this app controls.' }),
             h('dl', {}, GUIDE_ORDER.flatMap((key) => {
                 const outcome = OUTCOMES[key];
                 return [
@@ -107,7 +107,7 @@
                     h('dd', { text: outcome.blurb })
                 ];
             })),
-            h('p', { class: 'bd-guide-foot', text: 'The "sent" dot is hollow on purpose. A filled circle or a tick would read as "booked", and the answer is still coming separately, and can be a no.' })
+            h('p', { class: 'bd-guide-foot', text: 'Green means the request was delivered, not that a court is yours. Whether KU Leuven grants it is between them and the player.' })
         ]);
     }
 

@@ -27,7 +27,7 @@ function good(overrides = {}) {
 
 function fieldOf(input) {
     try {
-        validateBooking(input);
+        if (typeof input === 'function') input(); else validateBooking(input);
     } catch (error) {
         assert.ok(error instanceof BookingInputError, `expected BookingInputError, got ${error}`);
         return error.field;
@@ -126,10 +126,31 @@ test('DST-invalid start times are refused with the reason', () => {
 
 // --- Contact and the sports-card declaration -------------------------------------------
 
-test('the sports card must be declared, not assumed', () => {
-    assert.equal(fieldOf(good({ validSportsCard: false })), 'validSportsCard');
-    assert.equal(fieldOf(good({ validSportsCard: undefined })), 'validSportsCard');
-    assert.equal(fieldOf(good({ validSportsCard: 'yes' })), 'validSportsCard');
+/*
+ * The card is a precondition of booking anything at KU Leuven, not a per-request question,
+ * so the form's box is always ticked and nothing the client sends can untick it. Asking
+ * added a way for a request to fail for a reason nobody could act on.
+ */
+test('the sports card is always declared, whatever the client sends', () => {
+    for (const sent of [false, undefined, 'yes', null]) {
+        assert.equal(validateBooking(good({ validSportsCard: sent })).validSportsCard, true);
+    }
+});
+
+// --- The season the card covers ---------------------------------------------------------
+
+test('a play date past the season end is refused', () => {
+    const late = good({ playDate: '2027-10-01' });
+    assert.equal(fieldOf(() => validateBooking(late, { seasonEndsOn: '2027-09-30' })), 'playDate');
+});
+
+test('the last day of the season is still bookable', () => {
+    const last = good({ playDate: '2027-09-30' });
+    assert.equal(validateBooking(last, { seasonEndsOn: '2027-09-30' }).playDate, '2027-09-30');
+});
+
+test('with no season configured nothing is capped', () => {
+    assert.equal(validateBooking(good({ playDate: '2030-01-05' })).playDate, '2030-01-05');
 });
 
 test('a usable email is required — it is where KU Leuven replies', () => {

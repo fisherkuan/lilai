@@ -190,6 +190,9 @@
             min: isoDate(earliestPlayDate()),
             value: draft.playDate || ''
         });
+        // A sports card covers one season. Past its end the calendar simply stops, so the
+        // refusal is visible while choosing instead of arriving after the form is filled in.
+        if (options.seasonEndsOn) picker.max = options.seasonEndsOn;
         picker.addEventListener('change', () => {
             if (picker.value) { draft.playDate = picker.value; refreshQuota(); }
         });
@@ -205,7 +208,9 @@
             h('div', { class: 'bs-field' }, [
                 h('label', { class: 'bs-label', text: 'Day you want to play' }),
                 picker,
-                h('p', { class: 'bs-note', text: `Nothing before ${prettyDate(isoDate(earliestPlayDate()))} — those windows have already closed.` })
+                h('p', { class: 'bs-note', text: options.seasonEndsOn
+                    ? `Nothing before ${prettyDate(isoDate(earliestPlayDate()))} — those windows have already closed — and nothing after ${prettyDate(options.seasonEndsOn)} ${options.seasonEndsOn.slice(0, 4)}, when this season's sports card runs out.`
+                    : `Nothing before ${prettyDate(isoDate(earliestPlayDate()))} — those windows have already closed.` })
             ])
         ];
 
@@ -302,10 +307,6 @@
         email.addEventListener('input', () => { draft.email = email.value.trim(); });
         phone.addEventListener('input', () => { draft.phone = phone.value.trim(); });
 
-        const card = h('input', { type: 'checkbox', class: 'bs-check' });
-        card.checked = Boolean(draft.validSportsCard);
-        card.addEventListener('change', () => { draft.validSportsCard = card.checked; renderFooter(); });
-
         const rows = [
             ['Sport', draft.sport],
             ['Day', prettyDate(draft.playDate)],
@@ -332,10 +333,7 @@
                 h('label', { class: 'bs-label', text: 'Phone' }),
                 phone
             ]),
-            h('label', { class: 'bs-declare' }, [
-                card,
-                h('span', { text: `I confirm ${draft.name || 'this person'} holds a valid KU Leuven sports card. We do not check this — the declaration is theirs.` })
-            ]),
+            h('p', { class: 'bs-note', text: 'A valid KU Leuven sports card is required to book. We do not check it and never could — that is between the player and KU Leuven.' }),
             h('p', { class: 'bs-note', text: 'Email and phone never appear on the board — only the name does. The name is what counts the two slots a week.' }),
             h('div', { class: 'bs-table' }, [
                 h('div', { class: 'bs-table-head', text: 'What we will submit' }),
@@ -474,8 +472,8 @@
         if (draft.step === 2) return Boolean(draft.startPreferred && draft.startAlternative);
         // Editing starts with the contact fields blank on purpose: the board never receives
         // them, and blank means "keep what the server already has".
-        if (draft.editingId) return draft.validSportsCard === true;
-        return Boolean(draft.email && draft.phone && draft.validSportsCard);
+        if (draft.editingId) return true;
+        return Boolean(draft.email && draft.phone);
     }
 
     function goTo(step) {
@@ -557,7 +555,7 @@
             facility: draft.facility,
             otherFacility: draft.otherFacility,
             language: 'English',
-            validSportsCard: draft.validSportsCard === true,
+            validSportsCard: true,
             name: draft.name,
             email: draft.email,
             phone: draft.phone,
@@ -663,7 +661,7 @@
             facility: entry.facility || '',
             otherFacility: entry.otherFacility || '',
             remarks: entry.remarks || '',
-            validSportsCard: !duplicate,
+            validSportsCard: true,
             error: null
         } : {
             step: 1,
@@ -683,7 +681,7 @@
             facility: defaults.facility || '',
             otherFacility: defaults.otherFacility || '',
             remarks: '',
-            validSportsCard: false,
+            validSportsCard: true,
             error: null
         };
         quota = null;

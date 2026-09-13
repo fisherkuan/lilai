@@ -1933,8 +1933,8 @@ body.menu-open { overflow: hidden; }
 .bq-quota-text { color: var(--text); }
 .bq-quota-week { margin-left: auto; color: var(--text-muted); }
 
-.bq-live { display: inline-flex; align-items: center; gap: 6px; align-self: flex-start; }
-.bq-live-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); animation: bq-pulse 2.4s ease-in-out infinite; }
+.bq-offline { display: inline-flex; align-items: center; gap: 6px; align-self: flex-start; background: #fdf4e3; color: #8a5a00; border-color: transparent; }
+.bq-offline-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--warning); }
 @keyframes bq-pulse {
     0%, 100% { opacity: 1; transform: scale(1); }
     50% { opacity: 0.35; transform: scale(0.82); }
@@ -1999,6 +1999,7 @@ body.menu-open { overflow: hidden; }
 .bq-aside-sub { display: none; }
 
 .bq-dot { flex: none; width: 8px; height: 8px; border-radius: 50%; margin-top: 6px; }
+.bq-dot-solid-success { background: var(--success); }
 .bq-dot-ring { background: var(--surface); border: 2px solid var(--accent); }
 .bq-dot-ring-warning { background: var(--surface); border: 2px solid var(--warning); }
 .bq-dot-solid-danger { background: var(--danger); }
@@ -2171,7 +2172,7 @@ body.menu-open { overflow: hidden; }
     .bq-cta-label { font-size: 14px; }
     .bq-quota { margin: 0; }
     .bq-quota-week { margin-left: var(--s-2); }
-    .bq-live { margin-left: auto; align-self: center; }
+    .bq-offline { margin-left: auto; align-self: center; }
 
     .bq-row { grid-template-columns: 130px minmax(0, 1fr) 220px; gap: 20px; padding: var(--s-4) 0; align-items: baseline; }
     .bq-gutter-main { font-size: 15px; }

@@ -74,11 +74,26 @@ function fail(message, field) {
     throw new BookingInputError(message, field);
 }
 
+/*
+ * The last play date the season covers.
+ *
+ * A KU Leuven sports card runs from mid-September to the next mid-September, so a request
+ * for a date beyond it would be made on a card nobody holds yet. The cap is a date in
+ * config rather than a computed rule: the renewal is a real-world event with its own date,
+ * and guessing it in code would silently start refusing bookings a year from now.
+ */
+function assertWithinSeason(playDate, seasonEndsOn) {
+    if (!seasonEndsOn) return;
+    if (playDate > seasonEndsOn) {
+        fail(`The season this app books for ends on ${seasonEndsOn}. Dates after that need a sports card nobody holds yet.`, 'playDate');
+    }
+}
+
 /**
  * Validate a queue submission and return the normalized row to persist.
  * Throws BookingInputError with a `field` the client can highlight.
  */
-function validateBooking(input = {}) {
+function validateBooking(input = {}, { seasonEndsOn = null } = {}) {
     const name = validName(input.name);
     if (!name) fail('Name is required, up to 100 characters.', 'name');
 
@@ -88,11 +103,12 @@ function validateBooking(input = {}) {
     const phone = validPhone(input.phone);
     if (!phone) fail('A valid phone number is required by the booking form.', 'phone');
 
-    // The form asks the requester to declare a valid sports card. This app never verifies
-    // it; it only refuses to submit a declaration the requester has not actually made.
-    if (input.validSportsCard !== true) {
-        fail('Confirm the person booking holds a valid KU Leuven sports card.', 'validSportsCard');
-    }
+    /*
+     * The form carries a "I hold a valid sports card" box, and it is always ticked. A card
+     * is a precondition of booking anything at KU Leuven, so asking per request added a way
+     * to fail for a reason nobody could act on. This app has never verified it and could
+     * not: that is between the player and KU Leuven.
+     */
 
     const language = input.language ?? 'English';
     if (!LANGUAGES.includes(language)) fail('Language must be English or Nederlands.', 'language');
@@ -150,6 +166,8 @@ function validateBooking(input = {}) {
         fail('The second choice must be a different start time.', 'startAlternative');
     }
 
+    assertWithinSeason(brusselsDateOf(startPreferred), seasonEndsOn);
+
     const opensAtInstant = openingFor(startPreferred, startAlternative);
 
     // Both preferences must open before the earlier of them is played.
@@ -180,6 +198,7 @@ function validateBooking(input = {}) {
 }
 
 module.exports = {
+    assertWithinSeason,
     BookingInputError,
     DURATIONS,
     MIN_PLAYERS,

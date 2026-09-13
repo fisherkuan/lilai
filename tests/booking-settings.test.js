@@ -8,8 +8,16 @@ test('defaults match the verified reference implementation', () => {
         openingDelayMinSeconds: 5,
         openingDelayMaxSeconds: 60,
         minimumRequestIntervalSeconds: 10,
-        lateSubmissionGraceSeconds: 300
+        lateSubmissionGraceSeconds: 300,
+        seasonEndsOn: null
     });
+});
+
+test('the season end is a date, and an absent one caps nothing', () => {
+    assert.equal(bookingSettings({ booking: { seasonEndsOn: '2027-09-30' } }).seasonEndsOn, '2027-09-30');
+    assert.equal(bookingSettings({ booking: { seasonEndsOn: null } }).seasonEndsOn, null);
+    assert.throws(() => bookingSettings({ booking: { seasonEndsOn: '30-09-2027' } }), /YYYY-MM-DD/);
+    assert.throws(() => bookingSettings({ booking: { seasonEndsOn: 20270930 } }), /YYYY-MM-DD/);
 });
 
 test('config overrides are merged over the defaults', () => {

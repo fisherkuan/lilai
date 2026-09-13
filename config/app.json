@@ -38,6 +38,7 @@
     "openingDelayMinSeconds": 5,
     "openingDelayMaxSeconds": 60,
     "minimumRequestIntervalSeconds": 15,
-    "lateSubmissionGraceSeconds": 43200
+    "lateSubmissionGraceSeconds": 43200,
+    "seasonEndsOn": "2027-09-30"
   }
 }
