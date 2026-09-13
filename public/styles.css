@@ -2287,6 +2287,25 @@ textarea.bs-input { min-height: 64px; }
 .bs-date:focus, .bs-time-input:focus { outline: 2px solid var(--accent); outline-offset: -1px; border-color: var(--accent); }
 .bs-hint { margin: calc(var(--s-1) * -1) 0 var(--s-2); color: var(--text-muted); }
 
+/* Mode banner. Sits above the header and never changes as the steps advance, because the
+   title becomes the booking's own name from step 2 and can no longer say what is going on. */
+.bs-mode {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: var(--s-2);
+    padding: 10px var(--s-5);
+    font-size: 12px;
+    border-bottom: 1px solid var(--border);
+}
+.bs-mode-tag { font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+.bs-mode-src { color: var(--text-secondary); }
+.bs-mode-create { background: var(--surface-muted); color: var(--text-secondary); }
+.bs-mode-duplicate { background: var(--surface-muted); color: var(--text-secondary); }
+/* Editing changes a slot someone is already counting on, so it does not look like the
+   other two. */
+.bs-mode-edit { background: #fdf4e3; color: #8a5a00; border-bottom-color: #f0dcb4; }
+
 .bs-segment { display: inline-flex; gap: 4px; background: var(--surface-muted); border-radius: 12px; padding: 4px; }
 .bs-seg { border: 1px solid transparent; background: transparent; border-radius: 9px; padding: 8px var(--s-4); }
 .bs-seg.selected { background: var(--surface); box-shadow: var(--shadow-xs); font-weight: 600; }

@@ -289,24 +289,19 @@
      */
     function rowActions(entry) {
         const actions = node('div', 'bq-actions');
+        // Only a slot still waiting can be acted on. Past rows are a record; the way to
+        // repeat one is to queue it fresh, where the dates are chosen deliberately.
+        if (entry.status !== 'queued') return actions;
 
-        if (entry.status === 'queued') {
-            const edit = node('button', 'bq-action-link', 'Edit');
-            edit.type = 'button';
-            edit.addEventListener('click', () => window.editBookingSheet(entry));
-            actions.append(edit);
-        }
-
-        const copy = node('button', 'bq-action-link', 'Duplicate');
-        copy.type = 'button';
-        copy.addEventListener('click', () => window.duplicateBookingSheet(entry));
-        actions.append(copy);
-
-        if (entry.status === 'queued') {
-            const cancel = node('button', 'bq-action-link bq-action-danger', 'Cancel');
-            cancel.type = 'button';
-            cancel.addEventListener('click', () => cancelEntry(entry, cancel));
-            actions.append(cancel);
+        for (const [label, extra, onclick] of [
+            ['Edit', '', () => window.editBookingSheet(entry)],
+            ['Duplicate', '', () => window.duplicateBookingSheet(entry)],
+            ['Cancel', ' bq-action-danger', null]
+        ]) {
+            const button = node('button', `bq-action-link${extra}`, label);
+            button.type = 'button';
+            button.addEventListener('click', onclick || (() => cancelEntry(entry, button)));
+            actions.append(button);
         }
         return actions;
     }

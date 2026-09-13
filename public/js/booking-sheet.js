@@ -454,6 +454,20 @@
 
     const STEP_TITLES = ['what and when', 'when exactly', 'who is responsible'];
 
+    /*
+     * Which of the three things the sheet is doing, said once and never overwritten.
+     *
+     * The title turns into "Badminton · Sun 4 Oct" from step 2 onwards, so it cannot carry
+     * the mode; without this banner, editing an existing slot and creating a new one look
+     * identical from the second screen on, and the difference matters — one of them
+     * changes a slot someone is already counting on.
+     */
+    const MODE_TAG = {
+        create: 'New slot',
+        duplicate: 'New slot, copied from',
+        edit: 'Editing'
+    };
+
     function canAdvance() {
         if (quota && quota.remaining === 0) return false;
         if (draft.step === 1) return Boolean(draft.name && draft.sport && draft.playDate);
@@ -633,6 +647,8 @@
 
         draft = entry ? {
             step: 1,
+            mode: duplicate ? 'duplicate' : 'edit',
+            source: `${entry.sport} · ${prettyDate(entry.playDate)}`,
             editingId: duplicate ? null : entry.id,
             name: entry.name,
             email: duplicate ? (saved.email || '') : '',
@@ -651,6 +667,8 @@
             error: null
         } : {
             step: 1,
+            mode: 'create',
+            source: null,
             editingId: null,
             name: saved.name || '',
             email: saved.email || '',
@@ -674,6 +692,10 @@
             h('div', { class: 'bs-backdrop', onclick: close }),
             h('section', { class: 'bs-sheet', role: 'dialog', 'aria-modal': 'true', 'aria-label': draft.editingId ? 'Edit this slot' : 'Queue a slot' }, [
                 h('div', { class: 'bs-handle' }),
+                h('div', { class: `bs-mode bs-mode-${draft.mode}` }, [
+                    h('span', { class: 'bs-mode-tag', text: MODE_TAG[draft.mode] }),
+                    draft.source ? h('span', { class: 'bs-mode-src', text: draft.source }) : null
+                ].filter(Boolean)),
                 h('header', { class: 'bs-head' }, [
                     h('div', {}, [
                         h('div', { class: 'bs-title', text: draft.editingId ? 'Edit this slot' : 'Queue a slot' }),
