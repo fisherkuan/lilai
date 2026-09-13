@@ -84,6 +84,7 @@
         graceSeconds: 43200,
         cancelUndoSeconds: 300,
         series: [],
+        countdownHandle: null,
         seen: new Set()
     };
 
@@ -310,7 +311,10 @@
             undo.type = 'button';
             undo.addEventListener('click', () => restoreEntry(entry, undo));
             actions.append(undo);
-            actions.append(node('span', 'bq-action-note', `${countdown(left)} left`));
+            const note = node('span', 'bq-action-note', `${countdown(left)} left`);
+            note.dataset.undoUntil = String(Date.now() + left);
+            actions.append(note);
+            startCountdowns();
             return actions;
         }
 
@@ -481,7 +485,10 @@
         const before = state.queued.length + state.history.length;
         state.queued = state.queued.filter((entry) => !expired(entry));
         state.history = state.history.filter((entry) => !expired(entry));
-        state.historyShown -= before - (state.queued.length + state.history.length);
+        state.historyShown = Math.max(
+            HISTORY_AT_REST,
+            state.historyShown - (before - (state.queued.length + state.history.length))
+        );
 
         const crossed = state.queued.filter((entry) =>
             entry.status === 'cancelled' && new Date(entry.opensAt) <= now);
@@ -554,7 +561,10 @@
                 const undo = node('button', 'bq-action-link', 'Undo all');
                 undo.type = 'button';
                 undo.addEventListener('click', () => seriesAction(series, 'restore-remaining', undo));
-                actions.append(undo, node('span', 'bq-action-note', `${countdown(undoLeft)} left`));
+                const note = node('span', 'bq-action-note', `${countdown(undoLeft)} left`);
+                note.dataset.undoUntil = String(now.getTime() + undoLeft);
+                actions.append(undo, note);
+                startCountdowns();
             }
             if (series.queued > 0) {
                 const cancel = node('button', 'bq-action-link bq-action-danger', `Cancel the remaining ${series.queued}`);
@@ -798,10 +808,6 @@
      */
     function scheduleTick(waiting, now) {
         let every = 0;
-        // A running undo countdown needs the second hand, wherever the row happens to sit.
-        const counting = state.queued.concat(state.history)
-            .some((entry) => undoMsLeft(entry, now.getTime()) > 0);
-        if (counting) every = 1000;
         for (const entry of waiting) {
             const ms = new Date(entry.opensAt) - now;
             const justOpened = ms <= 0 && -ms < LIVE_WINDOW_MS;
@@ -819,6 +825,39 @@
     function onTick() {
         if (document.hidden) return;
         render();
+    }
+
+    /*
+     * Countdowns are repainted in place, not by re-rendering.
+     *
+     * Driving the whole board from the second hand rebuilt every row once a second, which
+     * pulled the buttons out from under the cursor: going to cancel a second slot meant
+     * clicking a node that had just been replaced. A countdown changes one string; that is
+     * all it may touch. The single re-render that does happen is when one runs out, because
+     * the row then has to leave the board.
+     */
+    function paintCountdowns() {
+        const now = Date.now();
+        let counting = 0;
+        let expired = false;
+        for (const element of document.querySelectorAll('[data-undo-until]')) {
+            const left = Number(element.dataset.undoUntil) - now;
+            if (left <= 0) { expired = true; continue; }
+            element.textContent = `${countdown(left)} left`;
+            counting += 1;
+        }
+        if (expired) return load();
+        if (counting === 0) stopCountdowns();
+    }
+
+    function startCountdowns() {
+        if (state.countdownHandle) return;
+        state.countdownHandle = setInterval(paintCountdowns, 1000);
+    }
+
+    function stopCountdowns() {
+        if (state.countdownHandle) clearInterval(state.countdownHandle);
+        state.countdownHandle = null;
     }
 
     // --- Data ----------------------------------------------------------------------------

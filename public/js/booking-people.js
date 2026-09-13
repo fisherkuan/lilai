@@ -107,8 +107,10 @@
             const email = h('input', {
                 type: 'email', class: 'bs-input', placeholder: 'name@student.kuleuven.be', value: ''
             });
+            // No country code, no spaces: KU Leuven's form takes the number as typed, and a
+            // placeholder shaped like "+32 4xx xx xx xx" reads as a format requirement.
             const phone = h('input', {
-                type: 'tel', class: 'bs-input', placeholder: '+32 4xx xx xx xx', value: ''
+                type: 'tel', class: 'bs-input', placeholder: '0470123456', value: ''
             });
 
             const error = h('div', { class: 'bs-error', hidden: true });
@@ -138,7 +140,8 @@
                         ]),
                         h('div', { class: 'bs-field' }, [
                             h('label', { class: 'bs-label', text: 'Phone' }),
-                            phone
+                            phone,
+                            h('p', { class: 'bs-note', text: 'Any format KU Leuven can dial. No country code needed.' })
                         ]),
                         h('p', { class: 'bs-note', text: 'Email and phone never appear on the board — only the name does. They are filled into the KU Leuven form and nothing else.' })
                     ]),
