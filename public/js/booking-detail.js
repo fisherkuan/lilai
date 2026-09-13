@@ -61,7 +61,6 @@
         }
     };
 
-    const GUIDE_ORDER = ['sent', 'unconfirmed', 'failed', 'missed'];
 
     const fmt = (opts) => new Intl.DateTimeFormat('en-GB', { timeZone: BRUSSELS, ...opts });
     const timeOf = (iso) => fmt({ hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date(iso));
@@ -90,25 +89,6 @@
 
     function endTime(startIso, hours) {
         return timeOf(new Date(new Date(startIso).getTime() + Number(hours) * 3600000).toISOString());
-    }
-
-    /** Four outcomes, measured against getting the request in — not against the answer. */
-    function guideCard() {
-        return h('div', { class: 'card bd-guide' }, [
-            h('h2', { text: 'Four outcomes' }),
-            h('p', { class: 'bd-guide-intro', text: 'A queued slot has no status — it is waiting, and the board’s shape says so. Once the form has gone, one of four things is true. They describe whether the request got in, which is the part this app controls.' }),
-            h('dl', {}, GUIDE_ORDER.flatMap((key) => {
-                const outcome = OUTCOMES[key];
-                return [
-                    h('dt', {}, [
-                        h('span', { class: `bq-dot bq-dot-${outcome.dot}` }),
-                        h('span', { class: 'bd-guide-label', text: outcome.label })
-                    ]),
-                    h('dd', { text: outcome.blurb })
-                ];
-            })),
-            h('p', { class: 'bd-guide-foot', text: 'Green means the request was delivered, not that a court is yours. Whether KU Leuven grants it is between them and the player.' })
-        ]);
     }
 
     function timeline(booking) {
@@ -175,25 +155,21 @@
             sentTable(booking)
         );
 
-        document.getElementById('bd-rail').append(guideCard());
         document.title = `${booking.sport} ${timeOf(booking.startPreferred)} — Booking queue`;
     }
 
-    function renderGuideOnly() {
-        document.getElementById('bd-ref').textContent = 'Status guide';
+    function notFound() {
         const main = document.getElementById('bd-main');
         main.textContent = '';
         main.append(
-            h('div', { class: 'eyebrow', text: 'Booking queue' }),
-            h('h1', { class: 'bd-title', text: 'What the statuses mean' }),
-            guideCard()
+            h('h1', { class: 'bd-title', text: 'Entry not found' }),
+            h('p', { class: 'bd-note', text: 'It may have been removed. Go back to the board to see what is queued.' })
         );
-        document.title = 'Status guide — Booking queue';
     }
 
     async function init() {
         const match = window.location.pathname.match(/\/admin\/bookings\/([^/]+)$/);
-        if (!match || match[1] === 'guide') return renderGuideOnly();
+        if (!match) return notFound();
 
         try {
             const response = await fetch(`/api/bookings/${encodeURIComponent(match[1])}`);
@@ -201,11 +177,7 @@
             if (!data.success) throw new Error(data.message);
             render(data.booking);
         } catch (error) {
-            document.getElementById('bd-main').textContent = '';
-            document.getElementById('bd-main').append(
-                h('h1', { class: 'bd-title', text: 'Entry not found' }),
-                h('p', { class: 'bd-note', text: 'It may have been removed. Go back to the board to see what is queued.' })
-            );
+            notFound();
         }
     }
 

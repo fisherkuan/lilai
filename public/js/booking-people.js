@@ -54,10 +54,30 @@
 
     // --- Data --------------------------------------------------------------------------
 
+    /*
+     * A response that is not JSON is not a network failure, and reporting it as one sends
+     * people to check their wifi over a server that is simply out of date. The case that
+     * actually produces it: a server started before these routes existed, whose SPA
+     * fallback answers every unknown path with the page itself.
+     */
+    async function readJson(response) {
+        const text = await response.text();
+        try {
+            return JSON.parse(text);
+        } catch (error) {
+            const stale = new Error('This server does not know about people yet — it is running older code. Restart it.');
+            stale.staleServer = true;
+            throw stale;
+        }
+    }
+
+    const whyItFailed = (error) => error.staleServer
+        ? error.message
+        : 'Could not reach the server. Try again.';
+
     async function load() {
         try {
-            const response = await fetch('/api/booking-profiles');
-            const data = await response.json();
+            const data = await readJson(await fetch('/api/booking-profiles'));
             if (data.success) {
                 people = data.profiles;
                 loaded = true;
@@ -159,12 +179,12 @@
                         existing ? `/api/booking-profiles/${encodeURIComponent(existing.id)}` : '/api/booking-profiles',
                         { method: existing ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body }
                     );
-                    const data = await response.json();
+                    const data = await readJson(response);
                     if (!data.success) return fail(data.message || 'Could not save that.');
                     await load();
                     done(data.profile);
                 } catch (fetchError) {
-                    fail('Could not reach the server. Try again.');
+                    fail(whyItFailed(fetchError));
                 }
             });
 
@@ -177,7 +197,7 @@
              */
             if (existing) {
                 fetch(`/api/booking-profiles/${encodeURIComponent(existing.id)}`)
-                    .then((r) => r.json())
+                    .then(readJson)
                     .then((data) => {
                         if (!data.success) return;
                         email.value = data.profile.email;
@@ -192,9 +212,13 @@
     // --- Manager -----------------------------------------------------------------------
 
     async function remove(person) {
-        const response = await fetch(`/api/booking-profiles/${encodeURIComponent(person.id)}`, { method: 'DELETE' });
-        const data = await response.json();
-        if (!data.success) return data.message || 'Could not remove that person.';
+        try {
+            const data = await readJson(
+                await fetch(`/api/booking-profiles/${encodeURIComponent(person.id)}`, { method: 'DELETE' }));
+            if (!data.success) return data.message || 'Could not remove that person.';
+        } catch (error) {
+            return whyItFailed(error);
+        }
         await load();
         return null;
     }

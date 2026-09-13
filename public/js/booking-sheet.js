@@ -495,7 +495,12 @@
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({})
         });
-        const data = await response.json();
+        let data;
+        try {
+            data = await readJson(response);
+        } catch (error) {
+            return setError(error.staleServer ? error.message : 'Could not reach the server. Try again.');
+        }
         if (!data.success) return setError(data.message);
         await refreshQuota();
         goTo(1);
@@ -686,7 +691,7 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             });
-            const data = await response.json();
+            const data = await readJson(response);
             if (!data.success) {
                 if (data.reason === 'quota_reached') {
                     quota = data.quota;
@@ -711,7 +716,23 @@
             showOutcome(data.created || [data.booking], data.skipped);
         } catch (error) {
             renderFooter();
-            setError('Could not reach the server. Try again.');
+            setError(error.staleServer ? error.message : 'Could not reach the server. Try again.');
+        }
+    }
+
+    /*
+     * A response that is not JSON is not a network failure. Saying so sends people to check
+     * their wifi over a server that is simply running older code — its SPA fallback answers
+     * an unknown path with the page itself.
+     */
+    async function readJson(response) {
+        const text = await response.text();
+        try {
+            return JSON.parse(text);
+        } catch (error) {
+            const stale = new Error('This server is running older code and does not know this request. Restart it.');
+            stale.staleServer = true;
+            throw stale;
         }
     }
 
@@ -758,7 +779,7 @@
 
     async function loadReference() {
         const [optionsResponse] = await Promise.allSettled([
-            fetch('/api/bookings/form-options').then((r) => r.json()),
+            fetch('/api/bookings/form-options').then(readJson),
             window.bookingPeople.load()
         ]);
         if (optionsResponse.status === 'fulfilled' && optionsResponse.value.success) {

@@ -1658,11 +1658,6 @@ app.get('/admin/bookings', (req, res) => {
     res.sendFile(path.join(__dirname, '../public/admin-bookings.html'));
 });
 
-// The status guide and a single entry share one page; the script reads the path.
-app.get('/admin/bookings/guide', (req, res) => {
-    res.sendFile(path.join(__dirname, '../public/admin-booking-detail.html'));
-});
-
 app.get('/admin/bookings/:id', (req, res) => {
     res.sendFile(path.join(__dirname, '../public/admin-booking-detail.html'));
 });

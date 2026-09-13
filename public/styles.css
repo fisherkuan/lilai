@@ -2051,21 +2051,7 @@ body.menu-open { overflow: hidden; }
 }
 
 /* The NOW rule renders even on an empty board: it explains the layout. */
-/* Everything behind NOW sits on a tinted band, so the two halves of the timeline are
-   told apart before a single word is read. The rows are adjacent, so the tint reads as one
-   region rather than as striping. */
-.bq-row-sent, .bq-fold-past, .bq-empty {
-    background: var(--surface-muted);
-    padding-left: var(--s-3);
-    padding-right: var(--s-3);
-    margin-left: calc(var(--s-3) * -1);
-    margin-right: calc(var(--s-3) * -1);
-}
 .bq-fold-past { border-top: 0; border-bottom: 1px dashed var(--border); }
-.bq-timeline > .bq-row-sent:first-child,
-.bq-fold-past:first-child { border-radius: var(--r-md) var(--r-md) 0 0; }
-.bq-row:has(+ .bq-now).bq-row-sent,
-.bq-empty:has(+ .bq-now) { border-radius: 0 0 var(--r-md) var(--r-md); }
 
 /* The NOW rule is itself a divider, so the last past row must not draw one too —
    otherwise the two sit a few pixels apart and read as a rendering fault. */
@@ -2417,7 +2403,7 @@ textarea.bs-input { min-height: 64px; }
     .bs-modal-card { max-width: 480px; border-radius: var(--r-xl); }
 }
 
-/* ---------- Booking entry detail & status guide ---------- */
+/* ---------- Booking entry detail ---------- */
 .bd-topbar {
     display: flex;
     align-items: center;
@@ -2432,7 +2418,6 @@ textarea.bs-input { min-height: 64px; }
 
 .bd-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-5); margin: var(--s-5) 0 var(--s-7); align-items: start; }
 .bd-main { min-width: 0; display: flex; flex-direction: column; gap: var(--s-4); }
-.bd-rail { min-width: 0; }
 .bd-title { font-family: var(--font-display); font-weight: 500; font-size: 28px; letter-spacing: -0.01em; }
 .bd-main .eyebrow + .bd-title { margin-top: var(--s-1); }
 
@@ -2454,11 +2439,10 @@ textarea.bs-input { min-height: 64px; }
 .bd-tone-danger { border-color: var(--danger); }
 .bd-tone-muted { border-color: var(--border); color: var(--text-secondary); }
 
-.bd-card, .bd-headline, .bd-guide { padding: var(--s-5); }
+.bd-card, .bd-headline { padding: var(--s-5); }
 .bd-headline h2 { font-family: var(--font-display); font-weight: 500; font-size: 19px; margin-bottom: var(--s-2); }
 .bd-headline p, .bd-note { font-size: 14px; color: var(--text-secondary); line-height: 1.6; }
-.bd-card h3, .bd-guide h2 { font-size: 15px; margin-bottom: var(--s-4); }
-.bd-guide h2 { font-family: var(--font-display); font-weight: 500; font-size: 24px; }
+.bd-card h3 { font-size: 15px; margin-bottom: var(--s-4); }
 
 .bd-steps { list-style: none; margin: 0; padding: 0; }
 .bd-steps li {
@@ -2491,14 +2475,7 @@ textarea.bs-input { min-height: 64px; }
 .bd-row-value.muted { color: var(--text-muted); }
 .bd-card .bd-note { margin-top: var(--s-3); font-size: 13px; }
 
-.bd-guide-intro { font-size: 14px; color: var(--text-secondary); margin-bottom: var(--s-4); line-height: 1.6; }
-.bd-guide dl { margin: 0; display: grid; gap: var(--s-4); }
-.bd-guide dt { display: grid; grid-template-columns: 14px minmax(0, 1fr); gap: var(--s-2); align-items: start; font-size: 14px; font-weight: 600; }
-.bd-guide dt .bq-dot { margin-top: 5px; }
-.bd-guide dd { margin: var(--s-1) 0 0 22px; font-size: 13px; color: var(--text-secondary); line-height: 1.6; }
-.bd-guide-foot { margin-top: var(--s-4); padding-top: var(--s-4); border-top: 1px solid var(--border); font-size: 13px; color: var(--text-muted); }
 
 @media (min-width: 960px) {
-    .bd-layout { grid-template-columns: minmax(0, 1fr) 340px; gap: var(--s-6); }
     .bd-title { font-size: 32px; }
 }
