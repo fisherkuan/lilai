@@ -27,7 +27,7 @@ The server runs on `http://localhost:3000` by default (configurable via PORT env
 ### Database
 - PostgreSQL is used for production (connection via `DATABASE_URL` env var)
 - Database schema is auto-initialized on server startup via `initializeDatabase()` in server/app.js
-- Tables: `events`, `rsvps`, `donations`, `booking_queue`
+- Tables: `events`, `rsvps`, `donations`, `booking_queue`, `booking_profiles`, `booking_series`
 - Schema migrations are idempotent and run automatically on startup
 
 ### Testing
@@ -180,6 +180,8 @@ Required in `.env`:
 - `POST /api/booking-series/:id/cancel-remaining` - Cancel every occurrence not yet sent; reports how many had already gone
 - `POST /api/booking-series/:id/restore-remaining` - Undo that, inside the undo window
 - `GET /api/bookings/:id` - One entry, including what was submitted
+- `PUT /api/bookings/:id` - Edit a queued entry. Re-validated whole; the send delay is re-rolled only when the opening moves
+- `POST /api/bookings/:id/restore` - Undo a cancellation inside the undo window, without a quota check
 - `DELETE /api/bookings/:id` - Cancel a queued entry (used by the quota swap)
 
 ### Configuration
