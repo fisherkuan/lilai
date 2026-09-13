@@ -172,7 +172,7 @@ Required in `.env`:
 - `GET /api/bookings/quota?name=` - Live quota tally for a typed name
 - `GET /api/bookings/form-options` - Sports and facilities read from the live KU Leuven form, plus `seasonEndsOn`
 - `GET|POST /api/booking-profiles`, `GET|PUT|DELETE /api/booking-profiles/:id` - The address book. The list masks email and phone; only a single read returns them in full
-- `POST /api/bookings` - Queue a slot
+- `POST /api/bookings` - Queue a slot. `profileId` takes name/email/phone from the address book; `repeat: {every, until}` expands into one row per occurrence and answers with `created[]` and `skipped[]`
 - `GET /api/bookings/:id` - One entry, including what was submitted
 - `DELETE /api/bookings/:id` - Cancel a queued entry (used by the quota swap)
 
@@ -190,7 +190,9 @@ opens — midnight Brussels, 14 days before the play date.
 - `server/booking-form.js` — the Plone EasyForm client (parse, build, encode, classify)
 - `server/booking-scheduler.js` — the 15s tick. Claims a row (`UPDATE … WHERE status='queued'`) *before* the POST, so a request is never sent twice. A POST whose outcome cannot be read becomes `unconfirmed` and is never retried automatically
 - `server/booking-quota.js` — two slots per name per Mon–Sun week, enforced under a Postgres advisory lock
-- `config/app.json` → `booking` — delay bounds and `lateSubmissionGraceSeconds`
+- `server/booking-profiles.js` — the address book, plus the `profile_id` link and its backfill from the existing queue
+- `server/booking-repeat.js` — expands a repeat into play dates; whole weeks only, capped at 26, bounded by the season
+- `config/app.json` → `booking` — delay bounds, `lateSubmissionGraceSeconds`, and `seasonEndsOn` (the last bookable play date; renew it each September)
 
 **Submission is off unless `BOOKING_SUBMIT=live` is set.** Without it the scheduler runs
 the whole path and stops short of the POST. `server/../.plans/` holds the design notes.

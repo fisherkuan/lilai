@@ -15,6 +15,7 @@ const { createBookingSchema } = require('./booking-schema');
 const { BookingFormClient, readFormOptions } = require('./booking-form');
 const { createScheduler } = require('./booking-scheduler');
 const { mergeContact, sendAfterForEdit } = require('./booking-edit');
+const { expandRepeat, RepeatError, INTERVALS, MAX_OCCURRENCES } = require('./booking-repeat');
 const {
     createProfileSchema, publicProfile, fullProfile, validateProfile
 } = require('./booking-profiles');
@@ -1198,7 +1199,12 @@ app.get('/api/bookings/form-options', async (req, res) => {
      * rather than folded into the cached form, so renewing the season in config takes
      * effect at once instead of an hour later.
      */
-    const season = { seasonEndsOn: bookingSettings(appConfig).seasonEndsOn };
+    const season = {
+        seasonEndsOn: bookingSettings(appConfig).seasonEndsOn,
+        // The sheet must not offer a repeat the server would refuse.
+        repeatIntervals: INTERVALS,
+        repeatMax: MAX_OCCURRENCES
+    };
     const fresh = Date.now() - formOptionsCache.fetchedAt < FORM_OPTIONS_TTL;
     if (formOptionsCache.value && fresh) {
         return res.json({ success: true, cached: true, ...formOptionsCache.value, ...season });
@@ -1240,83 +1246,144 @@ async function applyProfile(body) {
 
 // Queue a slot.
 app.post('/api/bookings', async (req, res) => {
-    let entry;
+    const settings = bookingSettings(appConfig);
+    const now = new Date();
+
     let profileId = null;
+    let dates;
+    let body;
     try {
         const resolved = await applyProfile(req.body);
         profileId = resolved.profileId;
-        entry = validateBooking(resolved.body, { seasonEndsOn: bookingSettings(appConfig).seasonEndsOn });
+        body = resolved.body;
+        dates = expandRepeat(String(body.playDate || '').trim(), body.repeat, { seasonEndsOn: settings.seasonEndsOn });
     } catch (error) {
-        if (error instanceof BookingInputError) {
+        if (error instanceof BookingInputError || error instanceof RepeatError) {
             return res.status(400).json({ success: false, message: error.message, field: error.field });
         }
         throw error;
     }
 
-    const settings = bookingSettings(appConfig);
-    const now = new Date();
+    /*
+     * Every occurrence is checked before anything is written, and each one carries its own
+     * reason when it cannot be queued. A repeat that silently dropped three weeks would be
+     * worse than one that refuses: nobody re-reads a queue they believe worked.
+     */
+    const wanted = [];
+    const skipped = [];
+    for (const playDate of dates) {
+        let entry;
+        try {
+            entry = validateBooking({ ...body, playDate }, { seasonEndsOn: settings.seasonEndsOn });
+        } catch (error) {
+            if (!(error instanceof BookingInputError)) throw error;
+            // The first date's problems are the request's problems — a typo in the times is
+            // not something to report as "week 1 skipped".
+            if (playDate === dates[0]) {
+                return res.status(400).json({ success: false, message: error.message, field: error.field });
+            }
+            skipped.push({ playDate, reason: error.message });
+            continue;
+        }
 
-    // Refuse a window that has already closed rather than accepting an entry that can
-    // only ever become `missed`. Inside the grace window is fine: it fires immediately.
-    const deadline = new Date(entry.opensAt.getTime() + settings.lateSubmissionGraceSeconds * 1000);
-    if (now > deadline) {
-        return res.status(400).json({
-            success: false,
-            field: 'playDate',
-            message: 'That booking window has already closed — it opened more than five minutes ago.'
-        });
-    }
-    if (now >= entry.startPreferred && now >= entry.startAlternative) {
-        return res.status(400).json({ success: false, field: 'playDate', message: 'That slot is already in the past.' });
+        // Refuse a window that has already closed rather than accepting an entry that can
+        // only ever become `missed`. Inside the grace window is fine: it fires immediately.
+        const deadline = new Date(entry.opensAt.getTime() + settings.lateSubmissionGraceSeconds * 1000);
+        if (now > deadline || (now >= entry.startPreferred && now >= entry.startAlternative)) {
+            const message = now > deadline
+                ? 'That booking window has already closed.'
+                : 'That slot is already in the past.';
+            if (playDate === dates[0]) {
+                return res.status(400).json({ success: false, field: 'playDate', message });
+            }
+            skipped.push({ playDate, reason: message });
+            continue;
+        }
+        wanted.push(entry);
     }
 
-    const queuedBy = typeof req.body.queuedBy === 'string' && req.body.queuedBy.trim()
-        ? req.body.queuedBy.trim().slice(0, 100)
-        : entry.name;
+    const queuedBy = typeof body.queuedBy === 'string' && body.queuedBy.trim()
+        ? body.queuedBy.trim().slice(0, 100)
+        : wanted[0].name;
 
     const client = await pool.connect();
     try {
         await client.query('BEGIN');
 
-        // Serialize every check-then-insert for one name in one play week, so two people
-        // queueing the same name at the same moment cannot both pass a count of 1.
-        const week = weekBounds(entry.playDate);
-        await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1, 0))', [`${entry.nameKey}|${week.start}`]);
+        /*
+         * Serialize every check-then-insert for one name in one play week, so two people
+         * queueing the same name at the same moment cannot both pass a count of 1. A repeat
+         * touches several weeks at once, so the locks are taken in a fixed order — two
+         * overlapping repeats taking them in opposite orders would deadlock.
+         */
+        const weeks = [...new Set(wanted.map((entry) => `${entry.nameKey}|${weekBounds(entry.playDate).start}`))].sort();
+        for (const key of weeks) {
+            await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1, 0))', [key]);
+        }
 
-        const held = await countHeld(client, entry.nameKey, entry.playDate);
-        if (held >= QUOTA_PER_WEEK) {
+        // Counted once per week up front, then spent down in memory, so two occurrences in
+        // one week cannot both be told there is room for one.
+        const roomLeft = new Map();
+        const created = [];
+        for (const entry of wanted) {
+            const weekKey = `${entry.nameKey}|${weekBounds(entry.playDate).start}`;
+            if (!roomLeft.has(weekKey)) {
+                roomLeft.set(weekKey, QUOTA_PER_WEEK - await countHeld(client, entry.nameKey, entry.playDate));
+            }
+            if (roomLeft.get(weekKey) <= 0) {
+                // A single booking that hits the quota is the sheet's "that week is full"
+                // branch, which offers a swap. A repeat just reports the weeks it lost.
+                if (dates.length === 1) {
+                    await client.query('ROLLBACK');
+                    const quota = await quotaFor(client, entry.name, entry.playDate);
+                    return res.status(409).json({
+                        success: false,
+                        reason: 'quota_reached',
+                        message: `That week is full for ${quota.name} — ${quota.used} of ${QUOTA_PER_WEEK}.`,
+                        quota
+                    });
+                }
+                skipped.push({ playDate: entry.playDate, reason: `That week is already full for ${entry.name}.` });
+                continue;
+            }
+            roomLeft.set(weekKey, roomLeft.get(weekKey) - 1);
+
+            const inserted = await client.query(`
+                INSERT INTO booking_queue (
+                    id, sport, play_date, start_preferred, start_alternative, duration_hours,
+                    players, indoor_outdoor, facility, other_facility, language, valid_sports_card,
+                    name, name_key, email, phone, remarks, queued_by, opens_at, send_after, profile_id, status
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, 'queued')
+                RETURNING *
+            `, [
+                uuidv4(), entry.sport, entry.playDate, entry.startPreferred, entry.startAlternative, entry.durationHours,
+                entry.players, entry.indoorOutdoor, entry.facility, entry.otherFacility, entry.language,
+                entry.validSportsCard, entry.name, entry.nameKey, entry.email, entry.phone, entry.remarks,
+                queuedBy, entry.opensAt, sampleSendAfter(entry.opensAt, settings), profileId
+            ]);
+            created.push(toBoardEntry(inserted.rows[0]));
+        }
+
+        if (created.length === 0) {
             await client.query('ROLLBACK');
-            const quota = await quotaFor(client, entry.name, entry.playDate);
             return res.status(409).json({
                 success: false,
-                reason: 'quota_reached',
-                message: `That week is full for ${quota.name} — ${held} of ${QUOTA_PER_WEEK}.`,
-                quota
+                reason: 'nothing_queued',
+                message: 'None of those dates could be queued.',
+                skipped
             });
         }
 
-        const id = uuidv4();
-        const sendAfter = sampleSendAfter(entry.opensAt, settings);
-
-        const inserted = await client.query(`
-            INSERT INTO booking_queue (
-                id, sport, play_date, start_preferred, start_alternative, duration_hours,
-                players, indoor_outdoor, facility, other_facility, language, valid_sports_card,
-                name, name_key, email, phone, remarks, queued_by, opens_at, send_after, profile_id, status
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, 'queued')
-            RETURNING *
-        `, [
-            id, entry.sport, entry.playDate, entry.startPreferred, entry.startAlternative, entry.durationHours,
-            entry.players, entry.indoorOutdoor, entry.facility, entry.otherFacility, entry.language,
-            entry.validSportsCard, entry.name, entry.nameKey, entry.email, entry.phone, entry.remarks,
-            queuedBy, entry.opensAt, sendAfter, profileId
-        ]);
-
         await client.query('COMMIT');
 
-        const board = toBoardEntry(inserted.rows[0]);
-        broadcast({ type: 'booking_update', booking: board });
-        res.status(201).json({ success: true, booking: board, quotaPerWeek: QUOTA_PER_WEEK });
+        for (const board of created) broadcast({ type: 'booking_update', booking: board });
+        res.status(201).json({
+            success: true,
+            booking: created[0],
+            created,
+            skipped,
+            quotaPerWeek: QUOTA_PER_WEEK
+        });
     } catch (error) {
         await client.query('ROLLBACK').catch(() => {});
         console.error('Error queueing booking:', error);

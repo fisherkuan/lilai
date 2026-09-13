@@ -82,6 +82,39 @@
         }).format(new Date(iso));
     }
 
+    /*
+     * The dates a repeat would cover, counted the same way the server counts them: whole
+     * calendar days, so every occurrence keeps its weekday across the October clock change.
+     * The preview is built from this, which is why the preview cannot promise a date the
+     * server then refuses.
+     */
+    function repeatDates() {
+        if (!draft.repeatEvery || !draft.playDate || !draft.repeatUntil) return [];
+        const dates = [];
+        const last = toUtcDay(draft.repeatUntil);
+        const cap = options.repeatMax || 26;
+        for (let at = toUtcDay(draft.playDate); at <= last && dates.length < cap; at += draft.repeatEvery * 86400000) {
+            dates.push(fromUtcDay(at));
+        }
+        return dates;
+    }
+
+    const toUtcDay = (iso) => { const [y, m, d] = iso.split('-').map(Number); return Date.UTC(y, m - 1, d); };
+
+    function fromUtcDay(ms) {
+        const date = new Date(ms);
+        return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}-${String(date.getUTCDate()).padStart(2, '0')}`;
+    }
+
+    /* The furthest the repeat may run: the season's end, or the cap, whichever comes first. */
+    function repeatCeiling() {
+        if (!draft.playDate || !draft.repeatEvery) return null;
+        const [y, m, d] = draft.playDate.split('-').map(Number);
+        const cap = options.repeatMax || 26;
+        const iso = fromUtcDay(Date.UTC(y, m - 1, d) + (cap - 1) * draft.repeatEvery * 86400000);
+        return options.seasonEndsOn && options.seasonEndsOn < iso ? options.seasonEndsOn : iso;
+    }
+
     function addHours(time, hours) {
         const [h, m] = time.split(':').map(Number);
         const total = h * 60 + m + hours * 60;
@@ -308,6 +341,7 @@
                 alternatives,
                 h('p', { class: 'bs-note bs-example', text: example })
             ]),
+            repeatField(),
             h('div', { class: 'bs-summary' }, [
                 h('div', { class: 'bs-summary-main' }, [
                     h('div', { class: 'bs-summary-title', text: 'Everything else' }),
@@ -317,6 +351,55 @@
             ]),
             h('p', { class: 'bs-note', text: 'Carried over from your last booking. Players must be truthful — KU Leuven asks for at least 10.' })
         ];
+    }
+
+    /*
+     * Repeat: the same slot, every week, typed once.
+     *
+     * Offered only when making a new booking. An edit changes one queued row, and turning
+     * one row into twelve from an edit screen would be a different act wearing the same
+     * button. The preview counts the actual dates rather than promising "weekly": the
+     * season's end and the twenty-six cap both bite, and they should bite visibly.
+     */
+    function repeatField() {
+        if (draft.editingId) return null;
+
+        const choices = [0, ...(options.repeatIntervals || [7, 14]).filter((d) => d === 7 || d === 14)];
+        const label = (days) => days === 0 ? 'Just once' : days === 7 ? 'Every week' : `Every ${days / 7} weeks`;
+
+        const parts = [
+            h('label', { class: 'bs-label', text: 'Repeat' }),
+            pillGroup(choices, draft.repeatEvery || 0, (value) => {
+                draft.repeatEvery = value;
+                // A fresh interval makes the old end date meaningless; ask again.
+                draft.repeatUntil = '';
+                renderStep();
+            }, label)
+        ];
+
+        if (draft.repeatEvery) {
+            const ceiling = repeatCeiling();
+            const until = h('input', {
+                type: 'date',
+                class: 'bs-date',
+                min: draft.playDate,
+                max: ceiling,
+                value: draft.repeatUntil || ''
+            });
+            until.addEventListener('change', () => { draft.repeatUntil = until.value; renderStep(); });
+            parts.push(h('div', { class: 'bs-field' }, [
+                h('label', { class: 'bs-label bs-label-sm', text: 'Until' }),
+                until
+            ]));
+
+            const dates = repeatDates();
+            parts.push(h('p', { class: 'bs-note bs-example', text: dates.length === 0
+                ? `Pick the last day. Nothing past ${prettyDate(ceiling)} — that is as far as the season and the ${options.repeatMax || 26}-booking limit reach.`
+                : `${dates.length} ${dates.length === 1 ? 'booking' : 'bookings'} — ${prettyDate(dates[0])} to ${prettyDate(dates[dates.length - 1])}.` }));
+            parts.push(h('p', { class: 'bs-note', text: 'Each one is queued on its own: editable, cancellable, and counted against its own week. Weeks already full are reported, not silently skipped.' }));
+        }
+
+        return h('div', { class: 'bs-field' }, parts);
     }
 
     function stepThree() {
@@ -329,8 +412,12 @@
             ['Duration', draft.durationHours === 1 ? '1 hr' : `${draft.durationHours} hrs`],
             ['Players', String(draft.players)],
             ['Where', `${draft.indoorOutdoor}${draft.facility ? ` · ${draft.facility === 'Andere / Other' ? draft.otherFacility : draft.facility}` : ''}`],
-            ['Goes out', `${openingLabel(draft.playDate).text}`]
+            [draft.repeatEvery ? 'First goes out' : 'Goes out', `${openingLabel(draft.playDate).text}`]
         ];
+        if (draft.repeatEvery) {
+            const dates = repeatDates();
+            rows.splice(2, 0, ['Repeat', `${dates.length} bookings, ${draft.repeatEvery === 7 ? 'weekly' : `every ${draft.repeatEvery / 7} weeks`} to ${prettyDate(dates[dates.length - 1])}`]);
+        }
 
         /*
          * No contact fields. The email and phone come from the person picked in step 1, so
@@ -493,7 +580,10 @@
     function canAdvance() {
         if (quota && quota.remaining === 0) return false;
         if (draft.step === 1) return Boolean(draft.profileId && draft.sport && draft.playDate);
-        if (draft.step === 2) return Boolean(draft.startPreferred && draft.startAlternative);
+        if (draft.step === 2) {
+            if (draft.repeatEvery && repeatDates().length === 0) return false;
+            return Boolean(draft.startPreferred && draft.startAlternative);
+        }
         // An edit of an entry whose person has since been removed carries no profile. The
         // server keeps the contact details it already has, so there is nothing left to ask.
         return Boolean(draft.profileId || draft.editingId);
@@ -526,7 +616,9 @@
         if (draft.step > 1) {
             footer.append(h('button', { type: 'button', class: 'btn ghost', text: 'Back', onclick: () => goTo(draft.step - 1) }));
         }
-        const last = draft.editingId ? 'Save changes' : 'Put it in the queue';
+        const count = draft.repeatEvery ? repeatDates().length : 1;
+        const last = draft.editingId ? 'Save changes'
+            : count > 1 ? `Queue all ${count}` : 'Put it in the queue';
         const label = draft.step === 1 ? 'Next — times' : draft.step === 2 ? 'Next — who is booking' : last;
         const next = h('button', {
             type: 'button',
@@ -583,6 +675,7 @@
             // would let a sheet opened before an edit overwrite what the address book says.
             profileId: draft.profileId,
             remarks: draft.remarks,
+            repeat: draft.repeatEvery ? { every: draft.repeatEvery, until: draft.repeatUntil } : null,
             queuedBy: draft.name
         };
 
@@ -599,6 +692,9 @@
                     quota = data.quota;
                     return renderStep();
                 }
+                if (data.reason === 'nothing_queued') {
+                    return showOutcome([], data.skipped || []);
+                }
                 renderFooter();
                 return setError(data.message || (draft.editingId ? 'Could not save that change.' : 'Could not queue that slot.'));
             }
@@ -609,12 +705,48 @@
                 otherFacility: draft.otherFacility,
                 sport: draft.sport
             });
-            close();
             if (window.bookingBoard) window.bookingBoard.load();
+            // Everything asked for went in: nothing left to read, so get out of the way.
+            if (!data.skipped || data.skipped.length === 0) return close();
+            showOutcome(data.created || [data.booking], data.skipped);
         } catch (error) {
             renderFooter();
             setError('Could not reach the server. Try again.');
         }
+    }
+
+    /*
+     * What a partly-landed repeat actually did. A repeat that quietly dropped three weeks
+     * would look exactly like one that worked, so the dates it lost are named, with the
+     * reason, and the sheet stays open until someone has read them.
+     */
+    function showOutcome(created, skipped) {
+        const body = root.querySelector('.bs-body');
+        body.textContent = '';
+        root.querySelector('.bs-step').textContent = 'What went in';
+        root.querySelector('.bs-title').textContent = created.length === 0
+            ? 'Nothing could be queued'
+            : `${created.length} of ${created.length + skipped.length} queued`;
+
+        if (created.length > 0) {
+            body.append(h('p', { class: 'bs-note', text: `Queued: ${created.map((entry) => prettyDate(entry.playDate)).join(', ')}.` }));
+        }
+        body.append(h('div', { class: 'bs-full' }, [
+            h('div', { class: 'bs-full-head' }, [
+                h('span', { class: 'bs-full-title', text: `${skipped.length} ${skipped.length === 1 ? 'date was' : 'dates were'} left out` })
+            ]),
+            ...skipped.map((miss) => h('div', { class: 'bs-held' }, [
+                h('div', {}, [
+                    h('div', { class: 'bs-held-title', text: prettyDate(miss.playDate) }),
+                    h('div', { class: 'bs-note', text: miss.reason })
+                ])
+            ]))
+        ]));
+
+        const footer = root.querySelector('.bs-footer');
+        footer.textContent = '';
+        footer.append(h('button', { type: 'button', class: 'btn dark bs-wide', text: 'Done', onclick: close }));
+        setError(null);
     }
 
     function close() {
@@ -689,6 +821,8 @@
             otherFacility: entry.otherFacility || '',
             remarks: entry.remarks || '',
             validSportsCard: true,
+            repeatEvery: 0,
+            repeatUntil: '',
             error: null
         } : {
             step: 1,
@@ -709,6 +843,8 @@
             otherFacility: defaults.otherFacility || '',
             remarks: '',
             validSportsCard: true,
+            repeatEvery: 0,
+            repeatUntil: '',
             error: null
         };
         quota = null;

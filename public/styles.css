@@ -2245,6 +2245,7 @@ body.menu-open { overflow: hidden; }
 /* Fields */
 .bs-field { display: flex; flex-direction: column; gap: var(--s-2); }
 .bs-label { font-size: 14px; font-weight: 600; }
+.bs-label-sm { font-size: 13px; font-weight: 500; color: var(--text-secondary); }
 .bs-note { font-size: 12px; color: var(--text-secondary); line-height: 1.5; }
 .bs-input {
     width: 100%;
