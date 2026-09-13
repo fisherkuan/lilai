@@ -145,12 +145,40 @@ const server = http.createServer(app);
 // Create WebSocket server
 const wss = new WebSocket.Server({ server });
 
+/*
+ * Heroku's router closes any connection that carries no bytes for 55 seconds and logs it
+ * as H15. This socket only speaks when an RSVP lands, which is silent for far longer than
+ * that, so every idle client was being cut and reconnecting five seconds later, all day.
+ *
+ * A ping is bytes. It resets the router's timer, and it doubles as the liveness check we
+ * did not have: a connection that died without a close frame sits in readyState OPEN for
+ * ever, and broadcast() would keep writing to it.
+ */
+const HEARTBEAT_MS = 30000;
+
 wss.on('connection', ws => {
     console.log('Client connected');
+    ws.isAlive = true;
+    ws.on('pong', () => { ws.isAlive = true; });
     ws.on('close', () => {
         console.log('Client disconnected');
     });
 });
+
+const heartbeat = setInterval(() => {
+    wss.clients.forEach((ws) => {
+        // Missed the whole interval without answering the last ping: it is gone.
+        if (ws.isAlive === false) {
+            ws.terminate();
+            return;
+        }
+        ws.isAlive = false;
+        ws.ping();
+    });
+}, HEARTBEAT_MS);
+// Never a reason to hold the process open on the heartbeat's account.
+heartbeat.unref();
+wss.on('close', () => clearInterval(heartbeat));
 
 function broadcast(data) {
     wss.clients.forEach(client => {
