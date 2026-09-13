@@ -16,12 +16,10 @@
 
     const DEFAULTS_STORE = 'lilai.booking.defaults';
 
-    // KU Leuven's own form asks for the sport as free text, so this one does too — the
-    // five below are only a shortcut for the usual ones, never the whole of what may be
-    // typed. Padel, tennis, table tennis, beach volleyball and outdoor basketball go
+    // KU Leuven's own form asks for the sport as free text, so this one does too — typed,
+    // not picked. Padel, tennis, table tennis, beach volleyball and outdoor basketball go
     // through KU Leuven's separate online tool, and the server refuses them whatever the
     // spelling.
-    const SPORT_SUGGESTIONS = ['Badminton', 'Basketball', 'Volleyball', 'Squash', 'Handball'];
     const SPORT_MAX = 100;
     const DURATIONS = [1, 1.5, 2];
 
@@ -320,7 +318,6 @@
         const sport = h('input', {
             type: 'text',
             class: 'bs-input',
-            list: 'bs-sport-options',
             maxlength: String(SPORT_MAX),
             placeholder: 'Badminton, basketball, …',
             value: draft.sport || '',
@@ -335,8 +332,6 @@
             h('div', { class: 'bs-field' }, [
                 h('label', { class: 'bs-label', text: 'Sport' }),
                 sport,
-                h('datalist', { id: 'bs-sport-options' },
-                    SPORT_SUGGESTIONS.map((name) => h('option', { value: name }))),
                 h('p', { class: 'bs-note', text: 'Padel, tennis, table tennis and beach volleyball are booked through KU Leuven’s separate online tool, not this form.' })
             ]),
             h('div', { class: 'bs-field' }, [
