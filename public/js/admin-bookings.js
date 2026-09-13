@@ -23,7 +23,7 @@
      *
      * Bump it when changing anything in public/js or public/styles.css.
      */
-    const BUILD = '2026-09-13a';
+    const BUILD = '2026-09-13b';
 
     const BRUSSELS = 'Europe/Brussels';
     const MINUTE = 60000;
@@ -261,6 +261,45 @@
         return element;
     }
 
+    /*
+     * Yes/no is asked in the row, never with window.confirm.
+     *
+     * A browser can switch page dialogs off — Chrome offers "Prevent this page from creating
+     * additional dialogs" after a couple of them, and the setting sticks across reloads for
+     * that tab. From then on every confirm() returns false without showing anything, so every
+     * action behind one silently does nothing: no dialog, no error, no console line, no clue.
+     * Asking in the row cannot be switched off, and it reads better besides.
+     */
+    function askThen(button, question, yesLabel, run) {
+        const row = button.parentNode;
+        const kept = [...row.childNodes];
+        const put = (nodes) => { row.textContent = ''; for (const item of nodes) row.append(item); };
+
+        const yes = node('button', 'bq-action-link bq-action-danger', yesLabel);
+        yes.type = 'button';
+        yes.addEventListener('click', () => run(yes));
+        const no = node('button', 'bq-action-link', 'Keep it');
+        no.type = 'button';
+        no.addEventListener('click', () => put(kept));
+
+        put([node('span', 'bq-ask', question), yes, no]);
+    }
+
+    /* Trouble is reported in the row too, and for the same reason alert cannot be trusted. */
+    function sayTrouble(button, message) {
+        const existing = button.parentNode.querySelector('.bq-action-trouble');
+        if (existing) existing.remove();
+        button.parentNode.append(node('span', 'bq-action-trouble', message));
+    }
+
+    /* Something worth saying that outlives the redraw the action causes. */
+    function notice(message) {
+        const bar = el('bq-notice');
+        if (!bar) return;
+        bar.textContent = message || '';
+        bar.hidden = !message;
+    }
+
     function waitingRow(entry, now) {
         const row = node('li', 'bq-row bq-row-waiting');
         row.dataset.id = entry.id;
@@ -356,16 +395,16 @@
             const response = await fetch(`/api/bookings/${encodeURIComponent(entry.id)}/restore`, { method: 'POST' });
             const data = await response.json();
             if (!data.success) {
-                window.alert(data.message || 'Could not restore that slot.');
                 button.disabled = false;
                 button.textContent = 'Undo';
+                sayTrouble(button, data.message || 'Could not restore that slot.');
                 return;
             }
             load();
         } catch (error) {
-            window.alert('Could not reach the server. Try again.');
             button.disabled = false;
             button.textContent = 'Undo';
+            sayTrouble(button, 'Could not reach the server. Try again.');
         }
     }
 
@@ -374,10 +413,16 @@
      * anyone who can reach this page — social cost, not authentication, like the rest of
      * the site. The confirm exists because the action cannot be undone, not to gate it.
      */
-    async function cancelEntry(entry, button) {
-        const label = `${entry.sport} on ${dayAndMonth(new Date(entry.startPreferred))} for ${displayName(entry.name)}`;
-        if (!window.confirm(`Cancel ${label}?\n\nThe slot leaves the queue and no request is sent.`)) return;
+    function cancelEntry(entry, button) {
+        askThen(
+            button,
+            `Cancel ${entry.sport} on ${dayAndMonth(new Date(entry.startPreferred))}?`,
+            'Cancel it',
+            (yes) => sendCancel(entry, yes)
+        );
+    }
 
+    async function sendCancel(entry, button) {
         button.disabled = true;
         button.textContent = 'Cancelling…';
         try {
@@ -388,16 +433,16 @@
             });
             const data = await response.json();
             if (!data.success) {
-                window.alert(data.message || 'Could not cancel that slot.');
                 button.disabled = false;
-                button.textContent = 'Cancel';
+                button.textContent = 'Cancel it';
+                sayTrouble(button, data.message || 'Could not cancel that slot.');
                 return;
             }
             load();
         } catch (error) {
-            window.alert('Could not reach the server. Try again.');
             button.disabled = false;
-            button.textContent = 'Cancel';
+            button.textContent = 'Cancel it';
+            sayTrouble(button, 'Could not reach the server. Try again.');
         }
     }
 
@@ -594,7 +639,14 @@
             if (series.queued > 0) {
                 const cancel = node('button', 'bq-action-link bq-action-danger', `Cancel the remaining ${series.queued}`);
                 cancel.type = 'button';
-                cancel.addEventListener('click', () => seriesAction(series, 'cancel-remaining', cancel));
+                // One click used to cancel a whole season. It asks now, like every other
+                // button here: the number in the question is the point of asking.
+                cancel.addEventListener('click', () => askThen(
+                    cancel,
+                    `Cancel ${plural(series.queued, 'booking')} still waiting?`,
+                    'Cancel them',
+                    (yes) => seriesAction(series, 'cancel-remaining', yes)
+                ));
                 actions.append(cancel);
             }
             const forget = node('button', 'bq-action-link', 'Forget this schedule');
@@ -616,9 +668,9 @@
                 `/api/booking-series/${encodeURIComponent(series.id)}/${action}`, { method: 'POST' });
             const data = await response.json();
             if (!data.success) {
-                window.alert(data.message || 'That did not work.');
                 button.disabled = false;
                 button.textContent = label;
+                sayTrouble(button, data.message || 'That did not work.');
                 return;
             }
             /*
@@ -626,29 +678,37 @@
              * a bulk button that quietly leaves some behind is exactly the kind of silence
              * that gets noticed at midnight instead of now.
              */
-            if (data.alreadyGone > 0) {
-                window.alert(`${data.alreadyGone} of them had already gone to KU Leuven and cannot be taken back.`);
-            }
+            notice(data.alreadyGone > 0
+                ? `${data.alreadyGone} of them had already gone to KU Leuven and cannot be taken back.`
+                : '');
             await load();
         } catch (error) {
-            window.alert('Could not reach the server.');
             button.disabled = false;
             button.textContent = label;
+            sayTrouble(button, 'Could not reach the server.');
         }
     }
 
-    async function forgetSeries(series, button) {
-        if (series.queued > 0 && !window.confirm(
-            `${series.queued} bookings from this schedule are still waiting to go out. Forgetting it removes the schedule from this list and leaves every one of them queued. Carry on?`)) {
-            return;
-        }
+    function forgetSeries(series, button) {
+        if (series.queued === 0) return sendForget(series, button);
+        askThen(
+            button,
+            `Forget it? ${plural(series.queued, 'booking')} stay queued.`,
+            'Forget it',
+            (yes) => sendForget(series, yes)
+        );
+    }
+
+    async function sendForget(series, button) {
         button.disabled = true;
+        button.textContent = 'Forgetting…';
         try {
             await fetch(`/api/booking-series/${encodeURIComponent(series.id)}`, { method: 'DELETE' });
             await load();
         } catch (error) {
-            window.alert('Could not reach the server.');
             button.disabled = false;
+            button.textContent = 'Forget it';
+            sayTrouble(button, 'Could not reach the server.');
         }
     }
 
