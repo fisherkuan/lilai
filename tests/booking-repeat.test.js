@@ -123,6 +123,13 @@ test('too many occurrences is refused, not silently shortened', () => {
     assert.equal(fieldOf(() => expandRepeat(TUE, { every: 1, unit: 'week', until: '2026-10-20' }, { cap: 2 })), 'repeatUntil');
 });
 
+test('a rule that lands on no dates is refused, not queued as nothing', () => {
+    // 2026-09-14 is a Monday. Sundays only, ending on the Wednesday: no Sunday in reach.
+    const rule = { every: 1, unit: 'week', weekdays: [0], until: '2026-09-16' };
+    assert.throws(() => expandRepeat('2026-09-14', rule), /lands on no dates/);
+    assert.equal(fieldOf(() => expandRepeat('2026-09-14', rule)), 'repeatUntil');
+});
+
 test('a repeat needs a real first day', () => {
     assert.equal(fieldOf(() => expandRepeat('', { every: 1, unit: 'week', until: '2026-11-03' })), 'playDate');
     assert.equal(fieldOf(() => expandRepeat('next tuesday', { every: 1, unit: 'week', until: '2026-11-03' })), 'playDate');

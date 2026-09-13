@@ -160,6 +160,13 @@ function expandRepeat(playDate, repeat, { seasonEndsOn = null, cap = MAX_OCCURRE
     if (dates.length > cap) {
         throw new RepeatError(`That is ${dates.length} bookings in one go, past the limit of ${cap}. Shorten the repeat.`, 'repeatUntil');
     }
+    /*
+     * Only a weekly rule can come out empty — Sundays only, ending on the Wednesday — but
+     * every caller indexes the first date, so an empty answer is a refusal, not a result.
+     */
+    if (dates.length === 0) {
+        throw new RepeatError(`That repeat lands on no dates between ${playDate} and ${rule.until}. Move the end date or pick another weekday.`, 'repeatUntil');
+    }
     return dates;
 }
 
