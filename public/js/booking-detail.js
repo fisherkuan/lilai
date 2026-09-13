@@ -31,12 +31,19 @@
             headline: 'The request went in.',
             blurb: 'It reached KU Leuven inside the opening minute, which is everything this app can do. What they decide is theirs. This entry will not change again.'
         },
+        /*
+         * Not a state of its own, and not a failure. The request went out; what we could
+         * not read is the form's reply. It says "Request sent" like any other, with a
+         * hollow dot for the part that is missing — the same vocabulary the board uses,
+         * because the two pages describe the same row and disagreeing is worse than either
+         * wording. "Failed" invites a re-queue, and a re-queue can double-book.
+         */
         unconfirmed: {
-            label: 'Sent — unconfirmed',
-            tone: 'warning',
-            dot: 'ring-warning',
-            headline: 'We could not read their answer.',
-            blurb: 'The request may well have gone through — we simply cannot tell. Check before queueing it again: sending the same slot twice can double-book it, and we will not retry on our own.'
+            label: 'Request sent',
+            tone: 'accent',
+            dot: 'ring-success',
+            headline: 'The request went in, but the form never answered.',
+            blurb: 'It may well have gone through — we simply cannot tell from here. Check your email before queueing this slot again: sending the same one twice can double-book it, and we never retry on our own.'
         },
         failed: {
             label: 'Request failed',

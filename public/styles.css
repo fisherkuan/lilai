@@ -1904,36 +1904,41 @@ body.menu-open { overflow: hidden; }
 .bq-steps li { display: grid; grid-template-columns: 20px minmax(0, 1fr); gap: var(--s-3); font-size: 14px; }
 .bq-step-n { font-family: var(--font-display); font-size: 15px; color: var(--accent); }
 
-/* Primary action */
-.bq-action { display: flex; flex-direction: column; gap: var(--s-3); margin-bottom: var(--s-5); }
+/* Primary action. Every control on the page on one line, sitting on the page itself:
+   the card it used to live in framed two buttons and a tally, which is not an object. */
+.bq-action {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    flex-wrap: wrap;
+    padding-bottom: var(--s-5);
+    border-bottom: 1px solid var(--border);
+    margin-bottom: var(--s-5);
+}
 .bq-cta {
     display: flex;
     align-items: center;
-    gap: var(--s-3);
-    width: 100%;
-    min-height: 56px;
-    padding: var(--s-4);
-    background: var(--text);
+    gap: 10px;
+    min-height: 40px;
+    padding: 10px var(--s-4);
+    background: var(--accent);
     color: #fff;
     border: none;
-    border-radius: var(--r-lg);
+    border-radius: var(--r-md);
     cursor: pointer;
     text-align: left;
 }
-.bq-cta:hover { background: #000; }
-.bq-cta-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-.bq-cta-label { font-size: 16px; font-weight: 600; }
-.bq-cta-sub { font-size: 13px; color: var(--border-strong); }
-.bq-cta-arrow { font-size: 18px; }
+.bq-cta:hover { background: var(--accent-hover); }
+.bq-cta-text { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.bq-cta-label { font-size: 14px; font-weight: 600; }
+.bq-cta-sub { font-size: 13px; color: var(--accent-soft); }
+.bq-cta-arrow { font-size: 16px; line-height: 1; }
 
-.bq-quota { display: flex; align-items: center; gap: var(--s-2); padding: 0 var(--s-1); font-size: 13px; }
-.bq-pips { display: inline-flex; gap: 4px; }
+/* The pips survive the board-level tally: the sheet still draws them under the name. */
 .bq-pip { width: 7px; height: 7px; border-radius: 50%; background: var(--surface); border: 1px solid var(--border-strong); }
 .bq-pip.used { background: var(--accent); border-color: var(--accent); }
-.bq-quota-text { color: var(--text); }
-.bq-quota-week { margin-left: auto; color: var(--text-muted); }
 
-.bq-offline { display: inline-flex; align-items: center; gap: 6px; align-self: flex-start; background: #fdf4e3; color: #8a5a00; border-color: transparent; }
+.bq-offline { display: inline-flex; align-items: center; gap: 6px; margin-left: auto; background: #fdf4e3; color: #8a5a00; border-color: transparent; }
 .bq-offline-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--warning); }
 @keyframes bq-pulse {
     0%, 100% { opacity: 1; transform: scale(1); }
@@ -1965,15 +1970,23 @@ body.menu-open { overflow: hidden; }
 .bq-midnight.done .bq-midnight-dot { background: var(--text-muted); animation: none; }
 .bq-midnight.done .bq-midnight-sub { color: var(--text-secondary); }
 
+/* A section says its name and its state on one baseline, not in two stacked blocks. */
+.bq-head { display: flex; align-items: baseline; flex-wrap: wrap; gap: 10px; margin-bottom: var(--s-3); }
+.bq-head .section-title { font-size: 20px; }
+
 /* Timeline */
 .bq-timeline { list-style: none; margin: 0; padding: 0; }
+/* The separator is drawn on top of each row, not under it. The NOW rule is itself a
+   divider, so the row that follows it simply does not draw one — which is a rule about
+   what a row is, rather than the :has() hack that used to reach backwards from it. */
 .bq-row {
     display: grid;
     grid-template-columns: 82px minmax(0, 1fr);
     gap: var(--s-3);
     padding: var(--s-3) 0;
-    border-bottom: 1px solid var(--border);
+    border-top: 1px solid var(--border);
 }
+.bq-timeline > :first-child, .bq-now + .bq-row { border-top: 0; }
 .bq-gutter { text-align: right; min-width: 0; }
 .bq-gutter-main { font-size: 14px; font-weight: 600; letter-spacing: -0.01em; color: var(--text); }
 .bq-gutter-age { font-size: 13px; font-weight: 500; color: var(--text-secondary); }
@@ -1989,19 +2002,24 @@ body.menu-open { overflow: hidden; }
 .bq-body { min-width: 0; }
 .bq-title { font-size: 15px; font-weight: 600; letter-spacing: -0.01em; }
 .bq-details { font-size: 13px; color: var(--text-secondary); }
-/* Load-bearing: this sentence is what stops "sent" being read as "booked". Never muted. */
-.bq-outcome { font-size: 14px; color: var(--text); margin-top: 2px; }
-.bq-sent-head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--s-2); }
+/* Load-bearing: this sentence is what stops "sent" being read as "booked". Never muted.
+   The dot sits in it, beside the label it modifies — on the title line it floated at the
+   far right of the row, 200px from anything it could be read against. */
+.bq-outcome { display: flex; align-items: center; gap: var(--s-2); font-size: 14px; color: var(--text); margin-top: 2px; }
+/* The two-line variant: the dot aligns to the first line rather than to the block. */
+.bq-outcome-wrap { align-items: baseline; }
+.bq-outcome-wrap .bq-dot { transform: translateY(1px); }
+.bq-outcome-clause { color: var(--text-secondary); }
 .bq-aside { grid-column: 2; margin-top: var(--s-1); }
-/* On mobile the sent row already names the person in its outcome clause. */
-.bq-row-sent .bq-aside { display: none; }
 .bq-who { font-size: 13px; color: var(--text-muted); }
-.bq-aside-sub { display: none; }
+.bq-aside-link { display: block; font-size: 13px; font-weight: 500; color: var(--accent); margin-top: 2px; }
 
-.bq-dot { flex: none; width: 8px; height: 8px; border-radius: 50%; margin-top: 6px; }
+.bq-dot { flex: none; width: 8px; height: 8px; border-radius: 50%; }
 .bq-dot-solid-success { background: var(--success); }
+/* Sent, but the form never answered. Hollow, because something is missing — and green,
+   because what this app does is get the request in, and the request went in. */
+.bq-dot-ring-success { background: var(--surface); border: 2px solid var(--success); }
 .bq-dot-ring { background: var(--surface); border: 2px solid var(--accent); }
-.bq-dot-ring-warning { background: var(--surface); border: 2px solid var(--warning); }
 .bq-dot-solid-danger { background: var(--danger); }
 .bq-dot-solid-warning { background: var(--warning); }
 .bq-dot-solid-muted { background: var(--text-muted); }
@@ -2051,12 +2069,7 @@ body.menu-open { overflow: hidden; }
 }
 
 /* The NOW rule renders even on an empty board: it explains the layout. */
-.bq-fold-past { border-top: 0; border-bottom: 1px dashed var(--border); }
-
-/* The NOW rule is itself a divider, so the last past row must not draw one too —
-   otherwise the two sit a few pixels apart and read as a rendering fault. */
-.bq-row:has(+ .bq-now) { border-bottom: 0; }
-.bq-now { display: flex; align-items: center; gap: var(--s-3); padding: 18px 0 10px; }
+.bq-now { display: flex; align-items: center; gap: 14px; padding: 20px 0 12px; }
 .bq-now-line { flex: 1; height: 1px; background: var(--border); }
 .bq-now-pill {
     flex: none;
@@ -2065,9 +2078,6 @@ body.menu-open { overflow: hidden; }
     letter-spacing: 0.1em;
     text-transform: uppercase;
     color: var(--accent);
-    background: var(--accent-soft);
-    border-radius: 999px;
-    padding: 4px 10px;
 }
 .bq-none { padding: var(--s-4) 0; font-size: 14px; color: var(--text-muted); }
 .bq-empty {
@@ -2125,32 +2135,34 @@ body.menu-open { overflow: hidden; }
    and acting on it row by row is how an occurrence gets missed. */
 .bq-series { margin-bottom: var(--s-5); }
 .bq-series-list { display: flex; flex-direction: column; gap: var(--s-3); }
+/* Two lines and its buttons, on one row. It used to stack five blocks — who, title, rule,
+   a tally pill, then actions behind a rule of their own — to say what fits in a sentence. */
 .bq-series-card {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 20px;
+    align-items: baseline;
     border: 1px solid var(--border);
     border-radius: var(--r-lg);
     background: var(--surface);
-    padding: var(--s-4);
+    padding: var(--s-4) 20px;
 }
-.bq-series-who { font-size: 12px; color: var(--text-muted); }
-.bq-series-title { font-size: 16px; font-weight: 600; margin-top: 2px; }
+.bq-series-main { min-width: 0; }
+.bq-series-title { font-size: 16px; font-weight: 600; letter-spacing: -0.01em; }
 .bq-series-rule { font-size: 13px; color: var(--text-secondary); margin-top: 2px; }
-.bq-series-tally { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2); margin-top: var(--s-3); }
-.bq-tally { font-size: 12px; padding: 3px 10px; border-radius: 999px; border: 1px solid var(--border); }
-.bq-tally-wait { border-color: var(--border-strong); color: var(--text); }
-.bq-series-next { font-size: 12px; color: var(--text-muted); }
-.bq-series-actions {
-    display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-3);
-    margin-top: var(--s-3); padding-top: var(--s-3); border-top: 1px solid var(--border);
+.bq-series-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-4); }
+/* "Cancel the remaining 11" will not share a 390px line with anything. */
+@media (max-width: 639px) {
+    .bq-series-card { grid-template-columns: minmax(0, 1fr); gap: var(--s-3); }
 }
 /* The time left on an undo, beside its button — it is a fact, not a control. */
 .bq-action-note { font-size: 12px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
 
-.bq-footer { display: flex; flex-direction: column; align-items: center; gap: var(--s-3); margin-top: var(--s-4); }
-.bq-guide-link { font-size: 13px; font-weight: 500; color: var(--accent); }
+.bq-guide-link { font-size: 14px; font-weight: 500; color: var(--accent); }
 
 /* A run of collapsed rows, shown as one line. Reads as part of the timeline, not as a
-   control bolted onto it. */
-.bq-fold { padding: var(--s-3) 0; border-top: 1px dashed var(--border); }
+   control bolted onto it, so it takes the same hairline every row does. */
+.bq-fold { padding: var(--s-3) 0; border-top: 1px solid var(--border); }
 .bq-fold-btn {
     background: none;
     border: 0;
@@ -2187,34 +2199,12 @@ body.menu-open { overflow: hidden; }
    the same vertical space while making the actions hard to find. */
 
 @media (min-width: 960px) {
-
-    /* The action becomes one strip rather than a full-width dark card. */
-    .bq-action {
-        flex-direction: row;
-        align-items: center;
-        gap: var(--s-4);
-        background: var(--surface);
-        border: 1px solid var(--border);
-        border-radius: var(--r-lg);
-        box-shadow: var(--shadow-xs);
-        padding: var(--s-3) 20px;
-    }
-    .bq-cta { width: auto; min-height: 40px; padding: 10px var(--s-4); background: var(--accent); border-radius: var(--r-md); }
-    .bq-cta:hover { background: var(--accent-hover); }
-    .bq-cta-text { flex: none; }
-    .bq-cta-label { font-size: 14px; }
-    .bq-quota { margin: 0; }
-    .bq-quota-week { margin-left: var(--s-2); }
-    .bq-offline { margin-left: auto; align-self: center; }
-
-    .bq-row { grid-template-columns: 130px minmax(0, 1fr) 220px; gap: 20px; padding: var(--s-4) 0; align-items: baseline; }
+    .bq-row { grid-template-columns: 120px minmax(0, 1fr) 200px; gap: 20px; padding: 14px 0; align-items: baseline; }
     .bq-gutter-main { font-size: 15px; }
     .bq-title { font-size: 16px; }
-    .bq-aside, .bq-row-sent .bq-aside { display: block; grid-column: 3; margin-top: 0; text-align: right; }
+    .bq-aside { grid-column: 3; margin-top: 0; text-align: right; }
     .bq-who { font-size: 14px; color: var(--text); }
-    .bq-aside-sub { display: block; font-size: 12px; color: var(--text-muted); }
-    .bq-aside-link { color: var(--accent); }
-    .bq-footer { flex-direction: row; justify-content: space-between; }
+    .bq-actions { justify-content: flex-end; gap: 14px; margin-top: 2px; }
 }
 
 /* ---------- Queue-a-slot sheet ----------
@@ -2254,6 +2244,10 @@ body.menu-open { overflow: hidden; }
 .bs-close:hover { background: var(--surface-muted); color: var(--text); }
 
 .bs-body { flex: 1; overflow-y: auto; padding: var(--s-4); display: flex; flex-direction: column; gap: var(--s-4); }
+/* The body scrolls; its children do not shrink. Without this the confirm table, which
+   clips its own overflow to keep its rounded corners, silently lost its last two rows —
+   Where and Goes out, which are the two a reader is most likely to be checking. */
+.bs-body > * { flex: none; }
 .bs-footer {
     display: flex;
     gap: var(--s-2);
@@ -2277,28 +2271,36 @@ body.menu-open { overflow: hidden; }
 }
 .bs-root [hidden] { display: none !important; }
 
-/* Quota strip */
-.bs-quota {
+/* The tally, under the name it counts. No box: it is a fact about the person who has
+   just been picked, not a rule the sheet is announcing. */
+.bs-tally {
     display: flex;
     align-items: center;
     gap: var(--s-2);
     flex-wrap: wrap;
-    background: var(--surface-muted);
-    border: 1px solid var(--border);
-    border-radius: var(--r-md);
-    padding: 10px var(--s-4);
-    font-size: 13px;
+    font-size: 12px;
+    color: var(--text-secondary);
+    line-height: 1.5;
 }
-.bs-quota.full { border-color: var(--warning); }
+.bs-tally-used { color: var(--text); }
 .bs-pips { display: inline-flex; gap: 4px; }
 .bq-pip.warn { background: var(--warning); border-color: var(--warning); }
-.bs-quota-who { font-weight: 500; }
-.bs-quota-when { margin-left: auto; color: var(--text-muted); }
 
 /* Fields */
 .bs-field { display: flex; flex-direction: column; gap: var(--s-2); }
-.bs-label { font-size: 14px; font-weight: 600; }
+.bs-label { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 0; }
 .bs-label-sm { font-size: 13px; font-weight: 500; color: var(--text-secondary); }
+/* A label with its one escape hatch on the same baseline. */
+.bs-label-row { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s-3); }
+.bs-sublabel { font-size: 13px; color: var(--text-secondary); }
+/* A section separated by a rule rather than boxed in a panel. */
+.bs-block { border-top: 1px solid var(--border); padding-top: var(--s-4); }
+.bs-block-lead { font-size: 14px; margin-top: 6px; }
+.bs-block-title { font-size: 14px; font-weight: 600; }
+.bs-block-note { font-size: 13px; color: var(--text-secondary); line-height: 1.5; margin-top: var(--s-1); }
+/* Emphasis inside a note: the part the reader is meant to check. */
+.bs-ink { color: var(--text); }
+.bs-preview { font-size: 13px; color: var(--text); line-height: 1.5; }
 .bs-note { font-size: 12px; color: var(--text-secondary); line-height: 1.5; }
 .bs-input {
     width: 100%;
@@ -2328,6 +2330,20 @@ textarea.bs-input { min-height: 64px; }
 .bs-day, .bs-time { border-radius: var(--r-md); }
 .bs-day-picker { min-width: 150px; color: var(--text-secondary); }
 
+/* Who the booking is for: one line, and a real select, so the platform's own picker does
+   the work a list of full-width rows was doing badly. */
+.bs-select {
+    width: 100%;
+    min-height: 44px;
+    padding: 10px var(--s-4) 10px var(--s-3);
+    font: inherit;
+    font-size: 14px;
+    color: var(--text);
+    background: var(--surface);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--r-md);
+}
+
 /* The date and time inputs are the only way in now, so they get input weight, not pill
    weight — they are fields to fill, not options to choose between. */
 .bs-date, .bs-time-input {
@@ -2341,8 +2357,14 @@ textarea.bs-input { min-height: 64px; }
     border: 1px solid var(--border-strong);
     border-radius: var(--r-md);
 }
-.bs-date:focus, .bs-time-input:focus { outline: 2px solid var(--accent); outline-offset: -1px; border-color: var(--accent); }
+.bs-date:focus, .bs-time-input:focus, .bs-select:focus { outline: 2px solid var(--accent); outline-offset: -1px; border-color: var(--accent); }
 .bs-hint { margin: calc(var(--s-1) * -1) 0 var(--s-2); color: var(--text-muted); }
+
+/* Two starts, side by side under one label. Reading them as a pair is the whole point:
+   the second was being taken for an end time when it sat in a bordered box of its own. */
+.bs-two { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-2); }
+.bs-col { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.bs-two .bs-time-input { max-width: none; }
 
 /* "every [3] [weeks]" reads as one sentence, so it is laid out as one. */
 .bs-every { display: flex; align-items: center; gap: var(--s-2); flex-wrap: wrap; }
@@ -2361,9 +2383,12 @@ input.bs-number {
     border-radius: var(--r-md);
 }
 input.bs-number:focus { outline: 2px solid var(--accent); outline-offset: -1px; border-color: var(--accent); }
-select.bs-unit { width: auto; min-width: 120px; max-width: 160px; flex: none; }
+/* Fixed, not flexible: stretched to the sheet edge, the word "week" stopped reading as
+   part of the phrase "every 1 week" and started reading as a field of its own. */
+select.bs-unit { width: 132px; min-width: 0; max-width: none; flex: none; }
 /* Seven weekday pills must fit a phone, so they lose the roomy pill padding. */
 .bs-day-pill { min-width: 48px; padding: 8px var(--s-2); text-align: center; }
+.bs-pills-days { gap: 6px; }
 
 /* Mode banner. Sits above the header and never changes as the steps advance, because the
    title becomes the booking's own name from step 2 and can no longer say what is going on. */
@@ -2384,66 +2409,43 @@ select.bs-unit { width: auto; min-width: 120px; max-width: 160px; flex: none; }
    other two. */
 .bs-mode-edit { background: #fdf4e3; color: #8a5a00; border-bottom-color: #f0dcb4; }
 
-.bs-segment { display: inline-flex; gap: 4px; background: var(--surface-muted); border-radius: 12px; padding: 4px; }
-.bs-seg { border: 1px solid transparent; background: transparent; border-radius: 9px; padding: 8px var(--s-4); }
-.bs-seg.selected { background: var(--surface); box-shadow: var(--shadow-xs); font-weight: 600; }
+/* Tiles sharing their borders, so two exclusive answers read as one control. */
+.bs-segment { display: flex; flex-wrap: wrap; }
+.bs-seg { border-radius: 0; padding: 10px 18px; margin-left: -1px; position: relative; z-index: 0; }
+.bs-seg:first-child { margin-left: 0; border-radius: var(--r-md) 0 0 var(--r-md); }
+.bs-seg:last-child { border-radius: 0 var(--r-md) var(--r-md) 0; }
+.bs-seg.selected { background: var(--text); color: #fff; border-color: var(--text); z-index: 1; }
 
 .bs-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--s-2); }
 .bs-grid .bs-time { padding: 10px var(--s-2); }
 
-/* The one bordered field: people read the second choice as an end time. */
-.bs-boxed {
-    display: flex;
-    flex-direction: column;
-    gap: var(--s-2);
-    border: 1px solid var(--border-strong);
-    border-radius: var(--r-lg);
-    background: var(--bg);
-    padding: var(--s-4);
-}
-.bs-boxed-head { display: flex; align-items: baseline; gap: var(--s-2); }
-.bs-boxed-title { font-size: 14px; font-weight: 600; }
-.bs-required { font-size: 12px; color: var(--text-muted); }
-.bs-alt.selected { background: var(--accent-soft); color: var(--accent-hover); border-color: var(--accent); }
 .bs-time.disabled, .bs-time:disabled { background: var(--surface-muted); color: var(--text-muted); cursor: not-allowed; }
-.bs-example { color: var(--text); }
 
+/* The last row of step 2: a rule above it, not a box around it. */
 .bs-summary {
     display: flex;
     align-items: center;
+    justify-content: space-between;
     gap: var(--s-3);
-    border: 1px solid var(--border);
-    border-radius: var(--r-lg);
-    padding: var(--s-3) var(--s-4);
 }
+.bs-summary .btn { min-height: 36px; }
 .bs-summary-main { flex: 1; min-width: 0; }
 .bs-summary-title { font-size: 14px; font-weight: 600; }
 .bs-summary-text { font-size: 13px; color: var(--text-secondary); }
 
-.bs-panel { background: var(--bg); border: 1px solid var(--border); border-radius: var(--r-md); padding: var(--s-4); }
-.bs-panel-lead { font-size: 14px; margin-bottom: var(--s-1); }
+/* Who it is for, on the confirm screen: a line with one way back, not a grey card with
+   two. Editing an address is what Manage people is for. */
+.bs-person { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); min-height: 44px; }
+.bs-person-who { min-width: 0; }
+.bs-person-name { font-size: 14px; font-weight: 500; }
+.bs-person-contact { font-size: 12px; color: var(--text-muted); margin-top: 1px; overflow-wrap: anywhere; }
 
-.bs-person { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); background: var(--surface-muted); border-radius: var(--r-md); padding: var(--s-3) var(--s-4); }
-.bs-person-name { font-size: 15px; font-weight: 600; }
-.bs-person-contact { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
-
-/* The address book, as a picker */
-.bs-person-list { display: flex; flex-direction: column; gap: var(--s-2); }
-.bs-person-row {
-    display: flex; flex-direction: column; align-items: flex-start; gap: 0;
-    width: 100%; min-height: 52px; padding: var(--s-3) var(--s-4); text-align: left;
-    background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-md);
-    cursor: pointer; font: inherit; color: inherit;
-}
-.bs-person-row:hover { border-color: var(--border-strong); }
-.bs-person-row.selected { border-color: var(--text); background: var(--surface-muted); box-shadow: inset 0 0 0 1px var(--text); }
 .bs-person-add {
     min-height: 48px; padding: var(--s-3) var(--s-4); font: inherit; font-size: 14px; font-weight: 500;
     color: var(--accent); background: transparent; border: 1px dashed var(--border-strong);
     border-radius: var(--r-md); cursor: pointer;
 }
 .bs-person-add:hover { background: var(--surface-muted); }
-.bs-person-edit { align-self: flex-start; font-size: 13px; }
 
 /* People manager */
 .bp-layer { z-index: 130; }
@@ -2458,13 +2460,28 @@ select.bs-unit { width: auto; min-width: 120px; max-width: 160px; flex: none; }
 }
 .bp-remove:hover { border-color: var(--danger); }
 .bp-error { color: var(--danger); }
-.bq-people-link { background: none; border: 0; padding: 0; font: inherit; cursor: pointer; }
+.bq-people-link {
+    background: none; border: 0; padding: 0; cursor: pointer;
+    /* `font: inherit` resets size and weight, and this rule sits below .bq-guide-link at
+       the same specificity — so both are re-declared here rather than left to lose. */
+    font: inherit; font-size: 14px; font-weight: 500;
+}
 
 .bs-table { border: 1px solid var(--border); border-radius: var(--r-lg); overflow: hidden; }
-.bs-table-head { padding: 11px var(--s-4); font-size: 13px; font-weight: 600; background: var(--surface-muted); }
-.bs-table-row { display: flex; justify-content: space-between; gap: var(--s-3); padding: 11px var(--s-4); border-top: 1px solid var(--border); }
-.bs-table-label { font-size: 13px; color: var(--text-secondary); }
-.bs-table-value { font-size: 14px; text-align: right; }
+.bs-table-head {
+    padding: 10px 14px;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    background: var(--surface-muted);
+    border-bottom: 1px solid var(--border);
+}
+.bs-table-row { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s-4); padding: 10px 14px; border-top: 1px solid var(--border); font-size: 14px; }
+.bs-table-row:first-of-type { border-top: 0; }
+.bs-table-label { color: var(--text-secondary); }
+.bs-table-value { font-weight: 500; text-align: right; }
 
 /* Quota reached */
 .bs-full { border: 1px solid var(--warning); border-radius: var(--r-lg); padding: var(--s-4); display: flex; flex-direction: column; gap: var(--s-3); }
@@ -2521,7 +2538,6 @@ select.bs-unit { width: auto; min-width: 120px; max-width: 160px; flex: none; }
     border: 1px solid var(--border-strong);
     background: var(--surface);
 }
-.bd-pill .bq-dot { margin-top: 0; }
 .bd-tone-accent { border-color: var(--border-strong); }
 .bd-tone-warning { border-color: var(--warning); }
 .bd-tone-danger { border-color: var(--danger); }
