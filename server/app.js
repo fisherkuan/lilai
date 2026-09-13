@@ -922,6 +922,18 @@ const QUEUED_STATUSES = ['queued', 'sending'];
 const HISTORY_STATUSES = ['sent', 'unconfirmed', 'failed', 'missed', 'cancelled'];
 
 /*
+ * Which half of the timeline a row belongs to.
+ *
+ * The board is ordered by the moment we act on a request — when it went out, or when its
+ * window opens — not by the play date and not by the status. A cancelled slot whose window
+ * has not opened yet is therefore still ahead of NOW, and has to stay where it sits.
+ * Sweeping it into history put a December booking above tomorrow's, which is simply the
+ * wrong order.
+ */
+const STILL_AHEAD = `(status = ANY($1) OR (status = 'cancelled' AND opens_at > NOW()))`;
+const ALREADY_BEHIND = `(status = ANY($1) AND NOT (status = 'cancelled' AND opens_at > NOW()))`;
+
+/*
  * The privacy boundary, in one place: the board shows names, never contact details.
  * Email and phone exist only to fill in the KU Leuven form. Every response that reaches
  * a browser goes through here.
@@ -956,12 +968,12 @@ app.get('/api/bookings', async (req, res) => {
         const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 20, 1), 100);
 
         const queued = await client.query(
-            `SELECT * FROM booking_queue WHERE status = ANY($1) ORDER BY send_after ASC`,
+            `SELECT * FROM booking_queue WHERE ${STILL_AHEAD} ORDER BY send_after ASC`,
             [QUEUED_STATUSES]
         );
 
         const params = [HISTORY_STATUSES];
-        let historySql = `SELECT * FROM booking_queue WHERE status = ANY($1)`;
+        let historySql = `SELECT * FROM booking_queue WHERE ${ALREADY_BEHIND}`;
         if (req.query.before) {
             const before = new Date(req.query.before);
             if (Number.isNaN(before.getTime())) {
@@ -981,7 +993,10 @@ app.get('/api/bookings', async (req, res) => {
             queued: queued.rows.map(toBoardEntry),
             history: history.rows.slice(0, limit).map(toBoardEntry),
             historyHasMore: hasMore,
-            quotaPerWeek: QUOTA_PER_WEEK
+            quotaPerWeek: QUOTA_PER_WEEK,
+            // The board offers "Undo" only where a restore could actually succeed, which is
+            // bounded by the grace window. It has to be the server's number.
+            graceSeconds: bookingSettings(appConfig).lateSubmissionGraceSeconds
         });
     } catch (error) {
         console.error('Error listing booking queue:', error);
@@ -1279,6 +1294,79 @@ app.get('/api/bookings/:id', async (req, res) => {
 
 // Take a slot out of the queue. Only while it is still waiting: once a request has gone
 // to KU Leuven we cannot take it back, whatever they answer.
+/*
+ * Undo a cancellation, while the window is still ahead.
+ *
+ * The slot was given back when it was cancelled, so this is a fresh claim on it: the quota
+ * is checked again under the same lock as the create path, because someone else may have
+ * taken the week in between. The original send delay is kept, so undoing does not quietly
+ * move the request to a different place in the night's order.
+ */
+app.post('/api/bookings/:id/restore', async (req, res) => {
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+
+        const current = await client.query(
+            'SELECT * FROM booking_queue WHERE id = $1 FOR UPDATE', [req.params.id]);
+        if (current.rows.length === 0) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({ success: false, message: 'No such entry' });
+        }
+        const entry = current.rows[0];
+        if (entry.status !== 'cancelled') {
+            await client.query('ROLLBACK');
+            return res.status(409).json({
+                success: false,
+                message: `That entry is ${entry.status}, not cancelled.`
+            });
+        }
+
+        const settings = bookingSettings(appConfig);
+        const deadline = new Date(new Date(entry.opens_at).getTime() + settings.lateSubmissionGraceSeconds * 1000);
+        if (new Date() > deadline) {
+            await client.query('ROLLBACK');
+            return res.status(409).json({
+                success: false,
+                message: 'That window has closed — the slot can no longer go out.'
+            });
+        }
+
+        const week = weekBounds(entry.play_date);
+        await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1, 0))', [`${entry.name_key}|${week.start}`]);
+
+        const held = await countHeld(client, entry.name_key, entry.play_date, { excludeId: entry.id });
+        if (held >= QUOTA_PER_WEEK) {
+            await client.query('ROLLBACK');
+            const quota = await quotaFor(client, entry.name, entry.play_date);
+            return res.status(409).json({
+                success: false,
+                reason: 'quota_reached',
+                message: `That week is full for ${quota.name} again — ${held} of ${QUOTA_PER_WEEK}.`,
+                quota
+            });
+        }
+
+        const restored = await client.query(`
+            UPDATE booking_queue SET status = 'queued'
+            WHERE id = $1 AND status = 'cancelled'
+            RETURNING *
+        `, [entry.id]);
+
+        await client.query('COMMIT');
+
+        const board = toBoardEntry(restored.rows[0]);
+        broadcast({ type: 'booking_update', booking: board });
+        res.json({ success: true, booking: board });
+    } catch (error) {
+        await client.query('ROLLBACK').catch(() => {});
+        console.error('Error restoring booking:', error);
+        res.status(500).json({ success: false, message: 'Internal server error' });
+    } finally {
+        client.release();
+    }
+});
+
 app.delete('/api/bookings/:id', async (req, res) => {
     const client = await pool.connect();
     try {

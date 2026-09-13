@@ -1978,12 +1978,18 @@ body.menu-open { overflow: hidden; }
 .bq-gutter-main { font-size: 14px; font-weight: 600; letter-spacing: -0.01em; color: var(--text); }
 .bq-gutter-age { font-size: 13px; font-weight: 500; color: var(--text-secondary); }
 .bq-gutter-sub { font-size: 11px; color: var(--text-muted); }
+
+/* A cancelled slot holds its place in the timeline, greyed rather than gone, so the
+   order never changes under a cancellation and the row can be put back. */
+.bq-row-cancelled .bq-title,
+.bq-row-cancelled .bq-gutter-main { color: var(--text-muted); }
+.bq-row-cancelled .bq-title { text-decoration: line-through; }
+.bq-row-cancelled .bq-details, .bq-row-cancelled .bq-who { color: var(--text-muted); }
 .bq-sending { color: var(--accent-hover); }
 .bq-body { min-width: 0; }
 .bq-title { font-size: 15px; font-weight: 600; letter-spacing: -0.01em; }
 .bq-details { font-size: 13px; color: var(--text-secondary); }
 /* Load-bearing: this sentence is what stops "sent" being read as "booked". Never muted. */
-.bq-clause { font-size: 13px; color: var(--text-secondary); }
 .bq-outcome { font-size: 14px; color: var(--text); margin-top: 2px; }
 .bq-sent-head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--s-2); }
 .bq-aside { grid-column: 2; margin-top: var(--s-1); }
@@ -2044,6 +2050,22 @@ body.menu-open { overflow: hidden; }
 }
 
 /* The NOW rule renders even on an empty board: it explains the layout. */
+/* Everything behind NOW sits on a tinted band, so the two halves of the timeline are
+   told apart before a single word is read. The rows are adjacent, so the tint reads as one
+   region rather than as striping. */
+.bq-row-sent, .bq-fold-past, .bq-empty {
+    background: var(--surface-muted);
+    padding-left: var(--s-3);
+    padding-right: var(--s-3);
+    margin-left: calc(var(--s-3) * -1);
+    margin-right: calc(var(--s-3) * -1);
+}
+.bq-fold-past { border-top: 0; border-bottom: 1px dashed var(--border); }
+.bq-timeline > .bq-row-sent:first-child,
+.bq-fold-past:first-child { border-radius: var(--r-md) var(--r-md) 0 0; }
+.bq-row:has(+ .bq-now).bq-row-sent,
+.bq-empty:has(+ .bq-now) { border-radius: 0 0 var(--r-md) var(--r-md); }
+
 /* The NOW rule is itself a divider, so the last past row must not draw one too —
    otherwise the two sit a few pixels apart and read as a rendering fault. */
 .bq-row:has(+ .bq-now) { border-bottom: 0; }
@@ -2108,7 +2130,7 @@ body.menu-open { overflow: hidden; }
 }
 .bq-fold-btn:hover { color: var(--text); }
 .bq-fold-btn::before { content: "+ "; }
-.bq-fold:first-child { border-top: 0; border-bottom: 1px dashed var(--border); }
+
 
 /* Row actions. Quiet until the row is hovered on a pointer device, always present on
    touch, where there is no hover to reveal them. */

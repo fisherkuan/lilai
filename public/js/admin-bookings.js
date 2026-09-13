@@ -28,35 +28,30 @@
             label: 'Request sent',
             tone: 'accent',
             dot: 'ring',
-            clause: 'not a booking yet',
             blurb: 'The request reached KU Leuven. They decide separately, and it can be a no.'
         },
         unconfirmed: {
             label: 'Sent — unconfirmed',
             tone: 'warning',
             dot: 'ring-warning',
-            clause: 'we could not read their answer — check before queueing it again',
             blurb: 'It may well have gone through. Check before re-queueing: sending twice can double-book.'
         },
         failed: {
             label: 'Request failed',
             tone: 'danger',
             dot: 'solid-danger',
-            clause: 'nothing was booked',
             blurb: 'It did not go through, and nothing was booked.'
         },
         missed: {
             label: 'Missed',
             tone: 'warning',
             dot: 'solid-warning',
-            clause: 'queued too late',
             blurb: 'The window passed before we could send it. Nothing broke — the clock ran out.'
         },
         cancelled: {
             label: 'Cancelled',
             tone: 'muted',
             dot: 'solid-muted',
-            clause: 'taken out of the queue',
             blurb: 'Removed before it went out.'
         }
     };
@@ -85,6 +80,7 @@
         clockHandle: null,
         midnight: null,
         quota: null,
+        graceSeconds: 43200,
         seen: new Set()
     };
 
@@ -249,7 +245,11 @@
 
         const gutter = node('div', 'bq-gutter');
         const sinceOpen = now - new Date(entry.opensAt);
-        if (entry.status === 'sending') {
+        if (entry.status === 'cancelled') {
+            row.classList.add('bq-row-cancelled');
+            gutter.append(node('div', 'bq-gutter-main', 'cancelled'));
+            gutter.append(node('div', 'bq-gutter-sub', absoluteOpening(new Date(entry.opensAt), now)));
+        } else if (entry.status === 'sending') {
             gutter.append(node('div', 'bq-gutter-main bq-sending', 'sending'));
             gutter.append(node('div', 'bq-gutter-sub', 'in flight'));
         } else if (sinceOpen >= 0 && sinceOpen < LIVE_WINDOW_MS) {
@@ -289,6 +289,23 @@
      */
     function rowActions(entry) {
         const actions = node('div', 'bq-actions');
+
+        /*
+         * A cancelled slot keeps a way back for as long as putting it back would mean
+         * anything — that is, while the scheduler could still send it. Past that it is a
+         * record like any other row behind the rule, and offering Undo would promise
+         * something the server would refuse.
+         */
+        if (entry.status === 'cancelled') {
+            const restorable = Date.now() <= new Date(entry.opensAt).getTime() + state.graceSeconds * 1000;
+            if (!restorable) return actions;
+            const undo = node('button', 'bq-action-link', 'Undo');
+            undo.type = 'button';
+            undo.addEventListener('click', () => restoreEntry(entry, undo));
+            actions.append(undo);
+            return actions;
+        }
+
         // Only a slot still waiting can be acted on. Past rows are a record; the way to
         // repeat one is to queue it fresh, where the dates are chosen deliberately.
         if (entry.status !== 'queued') return actions;
@@ -304,6 +321,26 @@
             actions.append(button);
         }
         return actions;
+    }
+
+    async function restoreEntry(entry, button) {
+        button.disabled = true;
+        button.textContent = 'Restoring…';
+        try {
+            const response = await fetch(`/api/bookings/${encodeURIComponent(entry.id)}/restore`, { method: 'POST' });
+            const data = await response.json();
+            if (!data.success) {
+                window.alert(data.message || 'Could not restore that slot.');
+                button.disabled = false;
+                button.textContent = 'Undo';
+                return;
+            }
+            load();
+        } catch (error) {
+            window.alert('Could not reach the server. Try again.');
+            button.disabled = false;
+            button.textContent = 'Undo';
+        }
     }
 
     /*
@@ -355,8 +392,6 @@
         head.append(node('span', `bq-dot bq-dot-${outcome.dot}`));
         body.append(head);
         body.append(node('div', 'bq-outcome', outcome.label));
-        // --text-secondary, never muted: this line is what stops "sent" reading as "booked".
-        body.append(node('div', 'bq-clause', `${displayName(entry.name)} · ${outcome.clause}`));
 
         const aside = node('div', 'bq-aside');
         aside.append(node('div', 'bq-who', displayName(entry.name)));
@@ -373,8 +408,8 @@
     }
 
     /* A collapsed run of rows, shown as one line that opens it. */
-    function foldRow(label, onclick) {
-        const row = node('li', 'bq-fold');
+    function foldRow(label, onclick, extra) {
+        const row = node('li', `bq-fold${extra ? ' ' + extra : ''}`);
         const button = node('button', 'bq-fold-btn', label);
         button.type = 'button';
         button.addEventListener('click', onclick);
@@ -401,10 +436,34 @@
 
     // --- Rendering ----------------------------------------------------------------------
 
+    /** The moment the timeline orders a row by: when we acted, or when we will. */
+    function axisMoment(entry) {
+        return new Date(entry.submittedAt || entry.opensAt).getTime();
+    }
+
+    /*
+     * A cancelled slot sits ahead of NOW until its window opens, then belongs behind it.
+     * The server draws that line on every fetch; this redraws it on every render, so a page
+     * left open overnight does not keep a cancelled row below a rule it has already crossed.
+     */
+    function reconcile(now) {
+        const crossed = state.queued.filter((entry) =>
+            entry.status === 'cancelled' && new Date(entry.opensAt) <= now);
+        if (crossed.length === 0) return;
+        const ids = new Set(crossed.map((entry) => entry.id));
+        state.queued = state.queued.filter((entry) => !ids.has(entry.id));
+        state.history = state.history.concat(crossed);
+        state.historyShown += crossed.length;
+    }
+
     function render() {
         const now = new Date();
         const list = el('bq-timeline');
         list.textContent = '';
+
+        reconcile(now);
+        // Newest first, matching the order the server pages history in.
+        state.history.sort((a, b) => axisMoment(b) - axisMoment(a));
 
         const waiting = state.queued.slice().sort((a, b) => new Date(a.opensAt) - new Date(b.opensAt));
 
@@ -419,7 +478,8 @@
         if (heldBack > 0 || state.historyHasMore) {
             list.append(foldRow(
                 heldBack > 0 ? `${heldBack} earlier` : 'earlier',
-                loadMore
+                loadMore,
+                'bq-fold-past'
             ));
         }
 
@@ -653,6 +713,7 @@
             state.history = data.history;
             state.historyHasMore = data.historyHasMore;
             state.quotaPerWeek = data.quotaPerWeek;
+            if (data.graceSeconds) state.graceSeconds = data.graceSeconds;
             await loadQuota();
             render();
         } catch (error) {
@@ -685,7 +746,11 @@
         const drop = (list) => list.filter((entry) => entry.id !== booking.id);
         state.queued = drop(state.queued);
         state.history = drop(state.history);
-        if (['queued', 'sending'].includes(booking.status)) {
+        // Same rule as the server: a cancelled slot whose window has not opened is still
+        // ahead of NOW and must not jump into history.
+        const stillAhead = ['queued', 'sending'].includes(booking.status)
+            || (booking.status === 'cancelled' && new Date(booking.opensAt) > new Date());
+        if (stillAhead) {
             state.queued.push(booking);
         } else {
             state.history.unshift(booking);
