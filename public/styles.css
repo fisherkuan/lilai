@@ -2137,8 +2137,6 @@ body.menu-open { overflow: hidden; }
 .bq-series-tally { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2); margin-top: var(--s-3); }
 .bq-tally { font-size: 12px; padding: 3px 10px; border-radius: 999px; border: 1px solid var(--border); }
 .bq-tally-wait { border-color: var(--border-strong); color: var(--text); }
-.bq-tally-sent { border-color: var(--success); color: var(--success); }
-.bq-tally-off { color: var(--text-muted); }
 .bq-series-next { font-size: 12px; color: var(--text-muted); }
 .bq-series-actions {
     display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-3);

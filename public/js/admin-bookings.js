@@ -23,7 +23,7 @@
      *
      * Bump it when changing anything in public/js or public/styles.css.
      */
-    const BUILD = '2026-09-13e';
+    const BUILD = '2026-09-13f';
 
     const BRUSSELS = 'Europe/Brussels';
     const MINUTE = 60000;
@@ -582,9 +582,9 @@
     }
 
     /*
-     * One card per habit: what it books, how often, and what became of it. The counts are
-     * the point — a schedule with eight still to go and two already sent is a different
-     * thing from one that has run its course, and the buttons follow that.
+     * One card per habit: what it books, how often, and how many are still to go. That one
+     * count is what the buttons follow — a schedule with eight waiting can be cancelled, one
+     * with none has run its course.
      */
     function renderSeries(now) {
         const section = el('bq-series');
@@ -602,14 +602,15 @@
             const rule = node('div', 'bq-series-rule',
                 `${series.summary} · until ${dayAndMonth(new Date(`${series.until}T12:00:00Z`))}`);
 
+            /*
+             * One number: how many are still waiting. What has gone out is in the timeline
+             * above the line, and what an edit replaced is nowhere a reader can see — an
+             * "8 cancelled" nobody remembers cancelling only asks a question the board
+             * cannot answer.
+             */
             const tally = node('div', 'bq-series-tally');
-            for (const [count, label, tone] of [
-                [series.queued, 'waiting', 'wait'],
-                [series.sent, 'sent', 'sent'],
-                [series.cancelled, 'cancelled', 'off']
-            ]) {
-                if (count > 0) tally.append(node('span', `bq-tally bq-tally-${tone}`, `${count} ${label}`));
-            }
+            tally.append(node('span', 'bq-tally bq-tally-wait',
+                series.queued > 0 ? `${series.queued} waiting` : 'nothing waiting'));
             if (series.nextPlayDate && series.queued > 0) {
                 tally.append(node('span', 'bq-series-next',
                     `next ${dayAndMonth(new Date(`${series.nextPlayDate}T12:00:00Z`))}`));
