@@ -84,9 +84,8 @@ Yes! Click the "Add to Google Calendar" button in the Calendar section to export
 
 ### I'm having issues with the app. Where can I get help?
 
-- Check the [step-by-step instructions](https://scribehow.com/viewer/How-Tos_Leuven_TW_Events_App__YwcZtJtHSDy8NbjlWa_KgQ)
-- Contact [Fisher](mailto:kuanfisher@gmail.com) for technical support
-- Use the "Report Issue" button at the bottom of the page to notify us of bugs
+- Read through this FAQ first. Most questions are answered here
+- Email [Fisher](mailto:kuanfisher@gmail.com) with what you did and what you saw instead. A screenshot helps a lot
 
 ### How is this app maintained?
 
