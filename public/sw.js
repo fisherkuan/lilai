@@ -1,4 +1,4 @@
-const CACHE_NAME = 'lilai-cache-v10'; // Bumped version
+const CACHE_NAME = 'lilai-cache-v11'; // Bumped version
 const urlsToCache = [
   '/',
   '/index.html',
@@ -46,12 +46,15 @@ self.addEventListener('activate', event => {
  * we author are cheap to re-fetch and expensive to get wrong, so they go to the network
  * and fall back to the cache only when it is unreachable.
  *
+ * The FAQ markdown counts as our code for this purpose. It is authored text that changes
+ * when we change it, and a stale copy reads as a wrong answer, not as an old icon.
+ *
  * Everything else — icons, fonts, images, the manifest — keeps stale-while-revalidate.
  * Those are content-stable: a month-old copy is the same file.
  */
 function isOurCode(url) {
     return url.origin === self.location.origin
-        && (/\.(?:js|css|html)$/.test(url.pathname) || url.pathname === '/');
+        && (/\.(?:js|css|html|md)$/.test(url.pathname) || url.pathname === '/');
 }
 
 self.addEventListener('fetch', (event) => {

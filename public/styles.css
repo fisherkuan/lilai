@@ -1408,6 +1408,26 @@ body.menu-open { overflow: hidden; }
     margin-bottom: var(--s-4);
 }
 .faq-back:hover { color: var(--text); text-decoration: none; }
+.faq-topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--s-3);
+    flex-wrap: wrap;
+    margin-bottom: var(--s-4);
+}
+.faq-topbar .faq-back { margin-bottom: 0; }
+.faq-lang-toggle {
+    display: inline-flex;
+    gap: 6px;
+    flex-shrink: 0;
+}
+.faq-lang-toggle .filter-pill {
+    padding: 5px 12px;
+    font-size: 12px;
+    line-height: 1.5;
+    white-space: nowrap;
+}
 .faq-list {
     display: flex;
     flex-direction: column;
@@ -1461,6 +1481,32 @@ body.menu-open { overflow: hidden; }
 .faq-answer p { margin-bottom: var(--s-2); }
 .faq-answer p:last-child { margin-bottom: 0; }
 .faq-answer a { color: var(--accent); }
+.faq-table-wrap {
+    overflow-x: auto;
+    margin: var(--s-3) 0;
+    -webkit-overflow-scrolling: touch;
+}
+.faq-table {
+    border-collapse: collapse;
+    width: 100%;
+    min-width: 440px;
+    font-size: 13px;
+}
+.faq-table th,
+.faq-table td {
+    text-align: left;
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+    overflow-wrap: normal;
+}
+.faq-table th {
+    color: var(--text);
+    font-weight: 600;
+    white-space: nowrap;
+    border-bottom-color: var(--border-strong);
+}
+.faq-table tr:last-child td { border-bottom: 0; }
 .faq-section-header { font-family: var(--font-sans); }
 
 /* ========================================================
