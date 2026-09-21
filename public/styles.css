@@ -1481,10 +1481,26 @@ body.menu-open { overflow: hidden; }
 .faq-answer p { margin-bottom: var(--s-2); }
 .faq-answer p:last-child { margin-bottom: 0; }
 .faq-answer a { color: var(--accent); }
+/*
+ * The rights table is wider than a phone, and a cut-off column reads as a broken table
+ * rather than a scrollable one. These four background layers are the hint, with no JS and
+ * no scroll listener: two shadows pinned to the edges of the box (attachment: scroll) and
+ * two opaque covers that travel with the content (attachment: local). At rest the covers
+ * sit over both shadows and hide them, so a shadow appears only on a side that still has
+ * table left to reach, and a table that fits shows nothing at all.
+ */
 .faq-table-wrap {
     overflow-x: auto;
     margin: var(--s-3) 0;
     -webkit-overflow-scrolling: touch;
+    background:
+        linear-gradient(to right, var(--surface) 30%, rgba(255, 255, 255, 0)) left center,
+        linear-gradient(to left, var(--surface) 30%, rgba(255, 255, 255, 0)) right center,
+        radial-gradient(farthest-side at 0 50%, rgba(28, 25, 23, 0.14), rgba(28, 25, 23, 0)) left center,
+        radial-gradient(farthest-side at 100% 50%, rgba(28, 25, 23, 0.14), rgba(28, 25, 23, 0)) right center;
+    background-repeat: no-repeat;
+    background-size: 36px 100%, 36px 100%, 14px 100%, 14px 100%;
+    background-attachment: local, local, scroll, scroll;
 }
 .faq-table {
     border-collapse: collapse;
