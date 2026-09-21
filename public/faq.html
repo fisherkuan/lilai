@@ -11,16 +11,22 @@
 </head>
 <body>
 <div class="container container-narrow">
-    <a class="faq-back" href="index.html">← Back to events</a>
+    <div class="faq-topbar">
+        <a class="faq-back" href="index.html" id="faq-back">← Back to events</a>
+        <div class="faq-lang-toggle" role="group" aria-label="Language / 語言">
+            <button type="button" class="filter-pill" data-lang="en" aria-pressed="false" lang="en">EN</button>
+            <button type="button" class="filter-pill" data-lang="zh-TW" aria-pressed="false" lang="zh-Hant">繁中</button>
+        </div>
+    </div>
 
     <section class="faq-hero">
-        <div class="eyebrow">Frequently asked</div>
-        <h1 class="display">Questions, answered.</h1>
-        <p>Everything you might wonder about RSVPs, calendars, donations, and how this little app is run.</p>
+        <div class="eyebrow" id="faq-eyebrow">Frequently asked</div>
+        <h1 class="display" id="faq-title">Questions, answered.</h1>
+        <p id="faq-intro">Everything you might wonder about RSVPs, calendars, donations, and how this little app is run.</p>
     </section>
 
     <section class="faq-list" id="faq-content" aria-live="polite" aria-busy="true">
-        <p class="loading">Loading FAQ...</p>
+        <p class="loading" id="faq-loading">Loading FAQ...</p>
     </section>
 
     <footer class="bottom-banner">

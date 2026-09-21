@@ -140,6 +140,8 @@ if ('serviceWorker' in navigator) {
 document.addEventListener('DOMContentLoaded', initializeApp);
 
 function initializeApp() {
+    setupAdminLink();
+
     loadConfig().then(() => {
         setupCalendar();
         populateCalendarFilter();
@@ -421,6 +423,63 @@ function setupFilterPills() {
             if (hidden) hidden.value = range;
             loadEvents();
         });
+    });
+}
+
+// ---------- Organizer entry point ----------
+/*
+ * The admin pages stay ungated on purpose: the handful of people who run events should not
+ * have to log in to fix a typo. What is protected is discovery, not access. The string
+ * "/admin" never appears in any served HTML, so view-source shows nothing and a crawler has
+ * no link to follow. The menu grows an Admin item only on a device that has been told once.
+ *
+ * Telling a device: open the site as /?admin=1. /?admin=0 makes it forget again, which is
+ * what you use on a borrowed phone. The flag lives in localStorage, so it is per device and
+ * per browser, and it survives nothing you did not do yourself.
+ *
+ * Anyone who reads this file learns the path. That is the accepted cost, and it is the same
+ * audience that would have typed /admin anyway.
+ */
+const ADMIN_HOME = '/admin/events';
+const ADMIN_FLAG_KEY = 'lilaiOrganizer';
+
+function isRememberedOrganizer() {
+    try {
+        return localStorage.getItem(ADMIN_FLAG_KEY) === '1';
+    } catch (error) {
+        return false;
+    }
+}
+
+function rememberOrganizer(on) {
+    try {
+        if (on) localStorage.setItem(ADMIN_FLAG_KEY, '1');
+        else localStorage.removeItem(ADMIN_FLAG_KEY);
+    } catch (error) {
+        /* private browsing: this visit still works, the device just will not remember */
+    }
+}
+
+function setupAdminLink() {
+    const params = new URLSearchParams(window.location.search);
+
+    if (params.has('admin')) {
+        rememberOrganizer(params.get('admin') !== '0');
+        // Drop the switch from the address bar so a shared or bookmarked URL does not carry it.
+        params.delete('admin');
+        const query = params.toString();
+        history.replaceState(null, '', window.location.pathname + (query ? `?${query}` : ''));
+    }
+
+    if (!isRememberedOrganizer()) return;
+
+    document.querySelectorAll('.app-header-links, .menu-links').forEach(nav => {
+        if (nav.querySelector('[data-admin-link]')) return;
+        const link = document.createElement('a');
+        link.href = ADMIN_HOME;
+        link.textContent = 'Admin';
+        link.dataset.adminLink = 'true';
+        nav.appendChild(link);
     });
 }
 
