@@ -1,6 +1,6 @@
 # Frequently Asked Questions
 
-## Getting Started
+## Getting started
 
 ### Do I need to login?
 
@@ -14,7 +14,7 @@ Only if you want to create or edit events on the 揪團啦 calendar. For viewing
 
 Yes! This is a Progressive Web App (PWA). You can install it on your phone's home screen for easy access. Look for the "Add to Home Screen" prompt when visiting on mobile, or use your browser's install option.
 
-## RSVP & Attendance
+## RSVP & attendance
 
 ### How do I RSVP to an event?
 
@@ -47,7 +47,7 @@ Hover over or focus on the attendance count (e.g., "5 Attending") to see a list 
 
 Your name and RSVP status are visible to anyone viewing the event. This helps community members see who's attending. Only your name is collected—no email, phone, or other personal information is required.
 
-## Calendar Access & Permissions
+## Calendar access & permissions
 
 ### What rights do I have for each calendar?
 
@@ -72,7 +72,7 @@ You need to sign in to your Google account first. Once signed in, the join butto
 - Try refreshing the page
 - Events are loaded from public Google Calendars, so they should appear automatically
 
-## Technical Questions
+## Technical questions
 
 ### What time zone are events shown in?
 

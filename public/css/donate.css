@@ -1,0 +1,186 @@
+/* Donate page: Shape Calendar world. See DESIGN.md.
+   Loads after /css/lilai.css and reuses its tokens; adds nothing new. */
+
+.donate-page {
+    max-width: 640px;
+    margin: 0 auto;
+    padding: 0 var(--gutter) var(--s8);
+}
+
+.back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--s2);
+    min-height: 44px;
+    margin: var(--s3) 0;
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--ink);
+    text-decoration: none;
+}
+
+.back-link:hover { text-decoration: underline; }
+
+.back-link svg {
+    width: 18px;
+    height: 18px;
+    fill: none;
+    stroke: var(--ink);
+    stroke-width: 1.5px;
+    stroke-linecap: square;
+    stroke-linejoin: miter;
+}
+
+/* ---------- Hero: balance + zero-centred bar ----------
+   Left-aligned on the same axis as the transaction list below it — no centred
+   composition on this page. */
+
+.donate-hero {
+    padding: var(--s4) 0 var(--s7);
+}
+
+.donate-hero h1 {
+    font-size: 26px;
+    font-weight: 600;
+    line-height: 1.25;
+    letter-spacing: -0.01em;
+}
+
+.donate-lede {
+    max-width: 46ch;
+    margin-top: var(--s3);
+    font-size: 15px;
+    color: var(--ink-2);
+}
+
+.balance-label {
+    margin: var(--s6) 0 0;
+    font-size: var(--meta);
+    color: var(--ink-2);
+}
+
+/* DESIGN.md's Numeral role: 500, 0.9 line-height, -0.03em, tabular. */
+.balance-amount {
+    display: block;
+    margin-top: var(--s1);
+    font-size: 44px;
+    font-weight: 500;
+    line-height: 0.9;
+    letter-spacing: -0.03em;
+    font-variant-numeric: tabular-nums;
+}
+
+@media (min-width: 640px) {
+    .balance-amount { font-size: 52px; }
+}
+
+/*
+ * A flat ink meter: 1.5px outline, square corners, ink fill, no pill, no colour.
+ * The bar is zero-centred (the balance can run negative); a 2px ink tick marks zero.
+ * The fill is a half-track box, fixed at left or right of the tick, that scales from
+ * that edge with transform: scaleX() — never an animated width — so growth reads as
+ * the fill reaching out from zero rather than the box itself resizing.
+ */
+.balance-bar-wrap {
+    max-width: 400px;
+    margin-top: var(--s5);
+}
+
+.balance-bar-track {
+    position: relative;
+    height: 14px;
+    border: var(--rule) solid var(--ink);
+}
+
+.balance-bar-zero {
+    position: absolute;
+    top: -3px;
+    bottom: -3px;
+    left: 50%;
+    width: 2px;
+    transform: translateX(-50%);
+    background: var(--ink);
+}
+
+.balance-bar-fill {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 50%;
+    width: 50%;
+    background: var(--ink);
+    transform: scaleX(0);
+    transform-origin: left center;
+    transition: transform 400ms var(--ease);
+}
+
+.balance-bar-meta {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    margin-top: var(--s2);
+    font-size: var(--meta);
+    color: var(--ink-2);
+    font-variant-numeric: tabular-nums;
+}
+
+.balance-bar-meta > :nth-child(1) { text-align: left; }
+.balance-bar-meta > :nth-child(2) { text-align: center; }
+.balance-bar-meta > :nth-child(3) { text-align: right; }
+
+.donate-cta-row {
+    display: flex;
+    margin-top: var(--s6);
+}
+
+.donate-cta-row .btn { min-width: 240px; }
+
+/* ---------- Transactions ---------- */
+
+.donate-transactions { padding-top: var(--s5); }
+
+.donate-transactions .section-meta { margin-bottom: var(--s2); }
+
+.donations-list { min-height: 80px; }
+
+.donation-entry {
+    display: grid;
+    grid-template-columns: 88px minmax(0, 1fr) auto;
+    align-items: baseline;
+    gap: 0 var(--s4);
+    padding: var(--s4) 0;
+    border-top: var(--rule) solid var(--ink);
+    font-variant-numeric: tabular-nums;
+}
+
+.donation-date {
+    font-size: var(--meta);
+    color: var(--ink-2);
+    white-space: nowrap;
+}
+
+.donation-donator {
+    font-size: 15px;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+
+.donation-description {
+    margin-top: 2px;
+    font-size: var(--meta);
+    color: var(--ink-2);
+    overflow-wrap: anywhere;
+}
+
+.donation-amount {
+    font-size: 15px;
+    font-weight: 600;
+    text-align: right;
+}
+
+/* ---------- Current-page nav marker ---------- */
+
+.app-header-links a[aria-current="page"] {
+    text-decoration: underline;
+    text-decoration-thickness: 2px;
+    text-underline-offset: 3px;
+}

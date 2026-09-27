@@ -48,7 +48,7 @@ The booking queue has a separate job: KU Leuven opens sports-court booking at mi
 - Name: **Lilai**. It began serving the Leuven Taiwanese community and is growing into a welcoming app for anyone, so the interface carries no community label (removed 2026-09-27).
 - Language: English is the primary UI. Traditional Chinese (zh-TW) is added where it helps, starting with the FAQ (`public/faq.zh-TW.md`). Chinese names such as 揪團啦 stay as written.
 - Lilai is a personal project. It never uses the MbarQ work design system.
-- No visual system is in force. The old one (`design-mockup.html`, `public/styles.css`) and the ligne claire comic attempt were both retired on 2026-09-27; treat them as anti-references. The owner's stated taste for the replacement: clean and minimal. A light touch of gamified, pixel or retro character is welcome if it is not overdone. Abstract minimal patterns built from geometric shapes are the other acceptable lane.
+- The visual system is Shape Calendar, recorded in `DESIGN.md` (adopted 2026-09-27). It replaced the old design system (`design-mockup.html`, `public/styles.css`) and a ligne claire comic attempt; treat both as anti-references. The owner's taste behind it: clean and minimal, with a light touch of play that is never overdone.
 
 ## Evidence on Hand
 

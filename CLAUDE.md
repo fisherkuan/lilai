@@ -11,7 +11,7 @@ When creating implementation plans, improvement analyses, or deployment guides:
 
 ## Visual design: Shape Calendar
 
-The old design system (`design-mockup.html`, `public/styles.css`) and a ligne claire comic attempt were both retired on 2026-09-27. The current world is Bauhaus form-colour grammar: each enabled calendar owns one primary shape in config order (blue circle, red square, yellow triangle), primaries appear only inside shapes, and text, rules and buttons stay black on white. `DESIGN.md` (repo root) is the visual authority; `PRODUCT.md` holds product truth. Home (`index.html`) runs on `public/css/lilai.css` with Jost self-hosted in `public/fonts/`. FAQ, Donate and admin pages still load `styles.css` until they migrate. The 14-day band replaced both the Google Calendar iframe and the later month grid (removed 2026-09-27 as redundant); do not bring either back. The events-list filter must not affect the band — it reads its own `allCalendarEvents` source (`/api/events?timeRange=all`).
+The old design system (`design-mockup.html`, `public/styles.css`) and a ligne claire comic attempt were both retired on 2026-09-27. The current world is Bauhaus form-colour grammar: each enabled calendar owns one primary shape in config order (blue circle, red square, yellow triangle), primaries appear only inside shapes, and text, rules and buttons stay black on white. `DESIGN.md` (repo root) is the visual authority; `PRODUCT.md` holds product truth. Every page loads `public/css/lilai.css` (tokens and shared components) plus its own page stylesheet in `public/css/` (`faq.css`, `donate.css`, `admin.css` for all admin pages, `booking.css`); Jost is self-hosted in `public/fonts/`. The legacy `styles.css` is deleted. The 14-day band replaced both the Google Calendar iframe and the later month grid (removed 2026-09-27 as redundant); do not bring either back. The events-list filter must not affect the band — it reads its own `allCalendarEvents` source (`/api/events?timeRange=all`).
 
 ## Development Commands
 
@@ -76,8 +76,8 @@ Vanilla JavaScript with no build step.
 - `admin-donations.html` + `js/admin-donations.js` - Donation management
 - `donations.html` + `js/donation.js` - Public donation submission page
 - `faq.html` + `js/faq.js` - FAQ page
-- `css/lilai.css` - Home styles (Shape Calendar world, see `DESIGN.md`)
-- `styles.css` - Legacy styles, still used by FAQ, Donate and admin pages
+- `css/lilai.css` - Tokens, shared components and Home (Shape Calendar world, see `DESIGN.md`)
+- `css/faq.css`, `css/donate.css`, `css/admin.css`, `css/booking.css` - Page stylesheets, loaded after `lilai.css`
 - `sw.js` - Service worker for PWA support
 
 **Client-side features:**

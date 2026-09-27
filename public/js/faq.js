@@ -3,8 +3,7 @@ const FAQ_LANGS = {
         file: 'faq.md',
         htmlLang: 'en',
         title: 'FAQ — Lilai',
-        back: '← Back to events',
-        eyebrow: 'Frequently asked',
+        back: 'Back to events',
         heading: 'Questions, answered.',
         intro: 'Everything you might wonder about RSVPs, calendars, donations, and how this little app is run.',
         loading: 'Loading FAQ...',
@@ -14,8 +13,7 @@ const FAQ_LANGS = {
         file: 'faq.zh-TW.md',
         htmlLang: 'zh-Hant-TW',
         title: '常見問題 — Lilai',
-        back: '← 回到活動',
-        eyebrow: '常見問題',
+        back: '回到活動',
         heading: '你想問的，都在這裡。',
         intro: '關於報名、行事曆、捐款，還有這個小網站是怎麼運作的。',
         loading: '載入中...',
@@ -55,7 +53,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const faqContainer = document.getElementById('faq-content');
     if (!faqContainer) return;
 
-    const buttons = Array.from(document.querySelectorAll('.faq-lang-toggle [data-lang]'));
+    const buttons = Array.from(document.querySelectorAll('.lang-switch [data-lang]'));
     buttons.forEach(button => {
         button.addEventListener('click', () => {
             const lang = button.dataset.lang;
@@ -73,8 +71,7 @@ async function applyLang(lang, faqContainer, buttons) {
 
     document.documentElement.lang = strings.htmlLang;
     document.title = strings.title;
-    setText('faq-back', strings.back);
-    setText('faq-eyebrow', strings.eyebrow);
+    setText('back-link-label', strings.back);
     setText('faq-title', strings.heading);
     setText('faq-intro', strings.intro);
 
@@ -85,13 +82,13 @@ async function applyLang(lang, faqContainer, buttons) {
     });
 
     faqContainer.setAttribute('aria-busy', 'true');
-    faqContainer.innerHTML = `<p class="loading">${escapeHtml(strings.loading)}</p>`;
+    faqContainer.innerHTML = `<p class="state-line">${escapeHtml(strings.loading)}</p>`;
 
     try {
         faqContainer.innerHTML = renderFaqMarkdown(await loadFaqMarkdown(lang));
     } catch (error) {
         console.error('Error loading FAQ content:', error);
-        faqContainer.innerHTML = `<p class="error-message">${escapeHtml(strings.error)}</p>`;
+        faqContainer.innerHTML = `<p class="state-line is-error">${escapeHtml(strings.error)}</p>`;
     } finally {
         faqContainer.setAttribute('aria-busy', 'false');
     }
@@ -214,7 +211,10 @@ function renderFaqMarkdown(markdown) {
 
         const html = `
             <details class="faq-item">
-                <summary>${inline(currentQuestion)}</summary>
+                <summary>
+                    <span class="faq-q">${inline(currentQuestion)}</span>
+                    <svg class="faq-toggle" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+                </summary>
                 <div class="faq-answer">${ansHtml}</div>
             </details>
         `;
@@ -234,7 +234,7 @@ function renderFaqMarkdown(markdown) {
             currentAnswer = [];
         } else if (h2) {
             out += flushAnswer();
-            out += `<h2 class="faq-section-header" style="margin-top:1.5rem;margin-bottom:0.5rem;font-size:14px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.08em;">${inline(h2[1].trim())}</h2>`;
+            out += `<h2 class="faq-section-header">${inline(h2[1].trim())}</h2>`;
         } else if (h1) {
             // skip — handled in page hero
         } else if (currentQuestion !== null) {

@@ -21,9 +21,9 @@
      * server reads this same constant out of the file and reports it; when the two disagree,
      * the page says so instead of misbehaving silently.
      *
-     * Bump it when changing anything in public/js or public/styles.css.
+     * Bump it when changing anything in public/js or public/css/booking.css.
      */
-    const BUILD = '2026-09-13l';
+    const BUILD = '2026-09-27a';
 
     const { BRUSSELS, MONTHS } = window.bookingShared;
     const MINUTE = 60000;
@@ -32,28 +32,33 @@
 
     /*
      * Three outcomes, measured against what this app is for: getting the request in at
-     * midnight. "Request sent" is that job done, and it gets a green dot. What KU Leuven
-     * decides afterwards is theirs, and this app has no way to observe it.
+     * midnight. "Request sent" is that job done, and it takes the one filled ink square on
+     * the board. What KU Leuven decides afterwards is theirs, and this app has no way to
+     * observe it.
+     *
+     * Status is read from the word, the weight and the mark, never from a colour: a filled
+     * square is a request that went out, an open one is a request whose reply is missing, a
+     * struck-through one is a slot that never left this server.
      *
      * `unconfirmed` is a server status but not a fourth word. It reads as "Request sent"
-     * with a clause and a hollow dot, because "failed" invites a re-queue and a re-queue
+     * with a clause and an open square, because "failed" invites a re-queue and a re-queue
      * can double-book — while a state of its own made people ask what it meant.
      *
      * `cancelled` is not here at all: nothing was sent, so nothing came back. A cancelled
      * slot stays above the NOW rule, struck through, until its undo runs out.
      */
     const OUTCOMES = {
-        sent: { label: 'Request sent', dot: 'solid-success', tone: 'accent' },
-        failed: { label: 'Request failed', dot: 'solid-danger', tone: 'danger' },
-        missed: { label: 'Missed', dot: 'solid-warning', tone: 'warning' },
+        sent: { label: 'Request sent', mark: 'solid', tone: 'sent' },
+        failed: { label: 'Request failed', mark: 'cross', tone: 'failed' },
+        missed: { label: 'Missed', mark: 'half', tone: 'missed' },
         /*
          * The fourth word, and the only one that is about this app rather than about the
          * booking. It appears when submission is switched off: the slot reached its
          * midnight and we deliberately sent nothing. It is not an outcome of a request, so
-         * it takes the muted dot — but it has to be visible, because the alternative is a
-         * board that says "Request sent" when nothing left the building.
+         * it takes the struck mark and the lighter ink — but it has to be visible, because
+         * the alternative is a board that says "Request sent" when nothing left the building.
          */
-        not_sent: { label: 'Not sent', dot: 'solid-muted', tone: 'muted' }
+        not_sent: { label: 'Not sent', mark: 'slash', tone: 'muted' }
     };
 
     const NO_REPLY = '· no reply from the form — check your email before re-queueing';
@@ -413,7 +418,7 @@
 
     function sentRow(entry, now) {
         // A POST whose answer we could not read reports as sent, with the clause that says
-        // so and a hollow dot. It is not a failure: "failed" invites a re-queue, and a
+        // so and an open square. It is not a failure: "failed" invites a re-queue, and a
         // re-queue can double-book.
         const noReply = entry.status === 'unconfirmed';
         const outcome = noReply ? OUTCOMES.sent : (OUTCOMES[entry.status] || OUTCOMES.failed);
@@ -430,10 +435,10 @@
         const body = node('div', 'bq-body');
         body.append(node('div', 'bq-title', rowTitle(entry)));
 
-        // The dot belongs beside the words it modifies. Appended to the title line it
+        // The mark belongs beside the words it modifies. Appended to the title line it
         // floated 200px away at the far right, modifying nothing anyone could see.
         const line = node('div', 'bq-outcome');
-        line.append(node('span', `bq-dot bq-dot-${noReply ? 'ring-success' : outcome.dot}`));
+        line.append(node('span', `bq-mark bq-mark-${noReply ? 'open' : outcome.mark}`));
         const words = node('span', '', outcome.label);
         if (clause) {
             words.append(document.createTextNode(' '));
@@ -451,7 +456,7 @@
         aside.append(rowActions(entry));
 
         row.append(gutter, body, aside);
-        row.classList.add(`bq-tone-${outcome.tone}`);
+        row.classList.add(`bq-tone-${noReply ? 'unconfirmed' : outcome.tone}`);
         return row;
     }
 
