@@ -197,7 +197,10 @@ function startOfDay(d) {
 
 function scrollToEvent(id) {
     const card = document.querySelector(`.event[data-event-id="${CSS.escape(id)}"]`);
-    if (!card) return false;
+    if (!card) {
+        revealEvent(id);
+        return false;
+    }
     card.scrollIntoView({ behavior: 'smooth', block: 'start' });
     card.classList.add('is-pointed');
     setTimeout(() => card.classList.remove('is-pointed'), 1600);
@@ -480,6 +483,43 @@ function populateCalendarFilter() {
     });
 }
 
+/*
+ * The band shows every event of the next 14 days, but the list can be hiding one: an event
+ * earlier today has ended, so "Upcoming" drops it, or its calendar is switched off in the
+ * legend. Undo whichever is hiding it, then scroll. Tries once, so a missing event cannot loop.
+ */
+async function revealEvent(id) {
+    const event = allCalendarEvents.find(e => e.id === id);
+    if (!event) return;
+    const boxes = [...document.querySelectorAll('.calendar-checkbox')];
+    const box = boxes.find(cb => cb.value === event.source);
+    if (box ? !box.checked : boxes.some(cb => !cb.checked)) {
+        // No box of its own (an unsourced event) shows only while every box is ticked.
+        (box ? [box] : boxes).forEach(cb => { cb.checked = true; });
+        displayEvents();
+    }
+    if (!currentEvents.some(e => e.id === id) && currentRange !== 'all') {
+        const allPill = document.querySelector('.filter-pill[data-range="all"]');
+        if (allPill) setRangePill(allPill);
+        await loadEvents();
+        // "All" jumps to the Today marker on the next frame; scroll after it, not before.
+        await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+    }
+    const card = document.querySelector(`.event[data-event-id="${CSS.escape(id)}"]`);
+    if (card) scrollToEvent(id);
+}
+
+function setRangePill(pill) {
+    document.querySelectorAll('.filter-pill').forEach(p => {
+        p.classList.toggle('active', p === pill);
+        p.setAttribute('aria-selected', p === pill ? 'true' : 'false');
+    });
+    currentRange = pill.dataset.range;
+    // sync hidden select for any legacy consumer
+    const hidden = document.getElementById('time-range');
+    if (hidden) hidden.value = currentRange;
+}
+
 // ---------- Filter pills (Upcoming / All) ----------
 function setupFilterPills() {
     const pills = document.querySelectorAll('.filter-pill');
@@ -487,14 +527,7 @@ function setupFilterPills() {
         pill.addEventListener('click', () => {
             const range = pill.dataset.range;
             if (!range || range === currentRange) return;
-            pills.forEach(p => {
-                p.classList.toggle('active', p === pill);
-                p.setAttribute('aria-selected', p === pill ? 'true' : 'false');
-            });
-            currentRange = range;
-            // sync hidden select for any legacy consumer
-            const hidden = document.getElementById('time-range');
-            if (hidden) hidden.value = range;
+            setRangePill(pill);
             loadEvents();
         });
     });
@@ -567,7 +600,7 @@ function loadEvents() {
     const url = `${API_BASE_URL}/api/events?timeRange=future`;
     eventsList.innerHTML = '<p class="state-line">Loading events…</p>';
 
-    fetch(url, { cache: 'no-store', headers: { 'Cache-Control': 'no-cache' } })
+    return fetch(url, { cache: 'no-store', headers: { 'Cache-Control': 'no-cache' } })
         .then(res => res.json())
         .then(events => {
             events.sort((a, b) => new Date(a.date) - new Date(b.date));
@@ -583,7 +616,7 @@ function loadEvents() {
             // In 'all' mode, eagerly fetch the first batch of past events so the user
             // doesn't need to click "Load earlier events" to see anything in the past.
             if (currentRange === 'all' && hasMoreOlder) {
-                loadOlderEvents({ preserveScroll: false });
+                return loadOlderEvents({ preserveScroll: false });
             }
         })
         .catch(err => {
