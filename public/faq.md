@@ -14,18 +14,26 @@ Only if you want to create or edit events on the 揪團啦 calendar. For viewing
 
 Yes! This is a Progressive Web App (PWA). You can install it on your phone's home screen for easy access. Look for the "Add to Home Screen" prompt when visiting on mobile, or use your browser's install option.
 
+### What do the shapes and colours mean?
+
+Each calendar has its own shape: a blue circle for SportsCenter, a red square for TSA and a yellow triangle for 揪團啦. The shape sits in front of every event title, so you can tell at a glance which calendar an event comes from.
+
+The "Next 14 days" strip at the top shows one shape for every event in the next two weeks. A shape grows as more people join. Tap a shape to jump to that event.
+
 ## RSVP & attendance
 
 ### How do I RSVP to an event?
 
-1. Browse events in the Events section
-2. Click the green "+" button on any future event card
-3. Enter your name in the popup
-4. Click "Confirm" to submit your RSVP
+1. Find the event in the list, or tap its shape in the "Next 14 days" strip
+2. Tap "Join"
+3. Type your name
+4. Tap "Confirm"
+
+Your name then appears in the event's list of names. This device remembers your name for the next time. On a shared phone, tap "Not you?" to clear it.
 
 ### Can I change or cancel my RSVP?
 
-Yes, you can remove your RSVP by clicking the red "-" button on the event card, then selecting your name from the dropdown and confirming the removal.
+Yes. Tap "Remove a name" under the event, pick your name from the list, then tap "Remove".
 
 ### Can multiple people use the same name to RSVP?
 
@@ -33,15 +41,15 @@ Technically yes, but please use unique names to help event organizers track atte
 
 ### What if an event is full?
 
-Some events have attendance limits. If you see "X / Y Attending" and it shows the event is full, you won't be able to RSVP. Contact the event organizer if you'd like to be added to a waitlist.
+Some events have a limit on how many people can come. The event shows one shape per spot, filled in once it is taken, and says how many are taken, for example "6 of 8 spots taken". When every spot is taken, it says "Full" and the Join button is switched off. Contact the event organizer if you'd like to be added to a waitlist.
 
 ### Can I RSVP to past events?
 
-No, RSVP is only available for future events. Past events are marked as "Past Event - RSVP Closed."
+No, you can only join events that have not started yet. Past events have no Join button and show how many people went. To see them, choose "All" above the events list.
 
 ### How do I see who's attending an event?
 
-Hover over or focus on the attendance count (e.g., "5 Attending") to see a list of all attendees.
+The names are listed under each event. A name that was just added appears there right away, on every open screen.
 
 ### Is my RSVP data private?
 
@@ -67,9 +75,9 @@ You need to sign in to your Google account first. Once signed in, the join butto
 
 ### I can't see any events. What's wrong?
 
-- Check that you're viewing the correct time range (Future Events, Past Events, or All Events)
-- Ensure your calendar filter settings show the calendar you're looking for
-- Try refreshing the page
+- Check that you picked the right tab above the list: "Upcoming" or "All"
+- Check the calendar shapes below the tabs: a calendar you switched off is hidden from the list
+- Tap "Refresh", or reload the page
 - Events are loaded from public Google Calendars, so they should appear automatically
 
 ## Technical questions
@@ -80,7 +88,7 @@ Events are displayed in Europe/Brussels timezone (CET/CEST) to match Leuven's lo
 
 ### Can I add events to my personal Google Calendar?
 
-Yes! Click the "Add to Google Calendar" button in the Calendar section to export events to your personal calendar.
+Yes. Under "Add to the calendar", tap the name of a calendar to subscribe to it in Google Calendar. Its events then appear in your own calendar and stay up to date.
 
 ### I'm having issues with the app. Where can I get help?
 
