@@ -810,7 +810,14 @@ app.post('/api/rsvp', async (req, res) => {
             }
         });
 
-        res.json({ success: true, message: `RSVP ${action === 'add' ? 'added' : 'removed'} successfully` });
+        // The list goes back in the response too. The broadcast above usually reaches the
+        // caller first, so a client that patched its own copy would apply the change twice.
+        res.json({
+            success: true,
+            message: `RSVP ${action === 'add' ? 'added' : 'removed'} successfully`,
+            attendingCount,
+            attendees
+        });
     } catch (error) {
         console.error('Error submitting RSVP:', error);
         res.status(500).json({ success: false, message: 'Internal server error' });
