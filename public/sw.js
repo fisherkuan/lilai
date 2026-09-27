@@ -1,4 +1,4 @@
-const CACHE_NAME = 'lilai-cache-v13'; // Bumped version
+const CACHE_NAME = 'lilai-cache-v14'; // Bumped version
 const urlsToCache = [
   '/',
   '/index.html',
@@ -12,8 +12,9 @@ const urlsToCache = [
   '/manifest.json',
   '/icons/icon-192x192.png',
   '/icons/icon-512x512.png',
-  '/icons/one-time-donation.png',
-  '/icons/recurring-donation.png'
+  '/icons/icon-maskable-192x192.png',
+  '/icons/icon-maskable-512x512.png',
+  '/icons/favicon.svg'
 ];
 
 self.addEventListener('install', event => {
