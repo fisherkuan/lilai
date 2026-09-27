@@ -57,6 +57,26 @@
             headline: 'Nothing was submitted.',
             blurb: 'Submitting is switched off on this server, so the slot reached its opening and we deliberately sent no request. KU Leuven never heard about it. Set BOOKING_SUBMIT=live to send for real.'
         },
+        /*
+         * Still queued, but its window has already opened. Not a status of its own: the
+         * row is `queued` until the scheduler claims it. The board calls these "next"
+         * for the first five minutes and "catching up" after that; this page must agree,
+         * or the same row reads as early on one page and late on the other.
+         */
+        queued_opening: {
+            label: 'Waiting',
+            tone: 'muted',
+            mark: 'open',
+            headline: 'Nothing has been sent yet.',
+            blurb: 'Its window has just opened. The form goes out within the minute.'
+        },
+        queued_late: {
+            label: 'Catching up',
+            tone: 'muted',
+            mark: 'open',
+            headline: 'Nothing has been sent yet.',
+            blurb: 'Its window opened a while ago and the request has not gone out. It is sent when the server next checks, usually within seconds. A late request often gets a worse court than a punctual one.'
+        },
         failed: {
             label: 'Request failed',
             tone: 'failed',
@@ -150,8 +170,18 @@
         ]);
     }
 
+    // The board's LIVE_WINDOW_MS (admin-bookings.js): how long "next" lasts before "catching up".
+    const LIVE_WINDOW_MS = 5 * 60 * 1000;
+
+    function outcomeKey(booking) {
+        if (booking.status !== 'queued') return booking.status;
+        const sinceOpen = Date.now() - new Date(booking.opensAt).getTime();
+        if (sinceOpen < 0) return 'queued';
+        return sinceOpen < LIVE_WINDOW_MS ? 'queued_opening' : 'queued_late';
+    }
+
     function render(booking) {
-        const outcome = OUTCOMES[booking.status] || OUTCOMES.failed;
+        const outcome = OUTCOMES[outcomeKey(booking)] || OUTCOMES.failed;
         document.getElementById('bd-ref').textContent = `Entry ${booking.id.slice(0, 8)}`;
 
         const main = document.getElementById('bd-main');
