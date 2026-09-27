@@ -1,0 +1,483 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-27T13:35:44+00:00",
+  "title": "Design System: Lilai",
+  "extensions": {
+    "colorMeta": {
+      "blue": {
+        "role": "primary",
+        "displayName": "Bauhaus Blue",
+        "canonical": "#1f4fa3",
+        "tonalRamp": [
+          "#0c1f40",
+          "#15366f",
+          "#1e4d9f",
+          "#2764ce",
+          "#5486de",
+          "#87aae8",
+          "#bacff2",
+          "#eaf0fb"
+        ]
+      },
+      "red": {
+        "role": "primary",
+        "displayName": "Signal Red",
+        "canonical": "#d9352b",
+        "tonalRamp": [
+          "#410f0c",
+          "#701914",
+          "#a0241d",
+          "#d02f25",
+          "#e05a52",
+          "#e98c86",
+          "#f3bdba",
+          "#fbeae9"
+        ]
+      },
+      "yellow": {
+        "role": "primary",
+        "displayName": "Chrome Yellow",
+        "canonical": "#f2c230",
+        "tonalRamp": [
+          "#483705",
+          "#7d6008",
+          "#b2880b",
+          "#e6b10e",
+          "#f3c63f",
+          "#f7d779",
+          "#fae8b2",
+          "#fdf8e7"
+        ]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Ink",
+        "canonical": "#111111",
+        "tonalRamp": [
+          "#111111",
+          "#262626",
+          "#444444",
+          "#676767",
+          "#999999",
+          "#b4b4b4",
+          "#e2e2e2",
+          "#f3f3f3"
+        ]
+      },
+      "paper": {
+        "role": "neutral",
+        "displayName": "Paper",
+        "canonical": "#ffffff",
+        "tonalRamp": [
+          "#111111",
+          "#262626",
+          "#444444",
+          "#676767",
+          "#999999",
+          "#b4b4b4",
+          "#e2e2e2",
+          "#f3f3f3"
+        ]
+      },
+      "ink-2": {
+        "role": "neutral",
+        "displayName": "Ink Soft",
+        "canonical": "#444444",
+        "tonalRamp": [
+          "#111111",
+          "#262626",
+          "#444444",
+          "#676767",
+          "#999999",
+          "#b4b4b4",
+          "#e2e2e2",
+          "#f3f3f3"
+        ]
+      },
+      "ink-3": {
+        "role": "neutral",
+        "displayName": "Ink Faint",
+        "canonical": "#676767",
+        "tonalRamp": [
+          "#111111",
+          "#262626",
+          "#444444",
+          "#676767",
+          "#999999",
+          "#b4b4b4",
+          "#e2e2e2",
+          "#f3f3f3"
+        ]
+      },
+      "hair": {
+        "role": "neutral",
+        "displayName": "Hairline",
+        "canonical": "#e2e2e2",
+        "tonalRamp": [
+          "#111111",
+          "#262626",
+          "#444444",
+          "#676767",
+          "#999999",
+          "#b4b4b4",
+          "#e2e2e2",
+          "#f3f3f3"
+        ]
+      },
+      "wash": {
+        "role": "neutral",
+        "displayName": "Wash",
+        "canonical": "#f3f3f3",
+        "tonalRamp": [
+          "#111111",
+          "#262626",
+          "#444444",
+          "#676767",
+          "#999999",
+          "#b4b4b4",
+          "#e2e2e2",
+          "#f3f3f3"
+        ]
+      },
+      "past": {
+        "role": "neutral",
+        "displayName": "Past Grey",
+        "canonical": "#b4b4b4",
+        "tonalRamp": [
+          "#111111",
+          "#262626",
+          "#444444",
+          "#676767",
+          "#999999",
+          "#b4b4b4",
+          "#e2e2e2",
+          "#f3f3f3"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "numeral-lead": {
+        "displayName": "Numeral Lead",
+        "purpose": "Day number of the next event; the only type that breaks scale."
+      },
+      "numeral": {
+        "displayName": "Numeral",
+        "purpose": "Day number of every other event; 44px phones, 52px from 640px."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "The next event's title; 26px phones, 30px from 1000px."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Event titles; sheet title at 22px."
+      },
+      "section": {
+        "displayName": "Section",
+        "purpose": "Section heads, sidebar titles, button labels."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Running text; descriptions and names at 15px, 65ch cap."
+      },
+      "meta": {
+        "displayName": "Meta",
+        "purpose": "All metadata at a constant 14px: dates, times, places, seat labels, counts, field labels."
+      },
+      "small": {
+        "displayName": "Small",
+        "purpose": "Weekday ticks in the band; captions and colophon at 13px."
+      }
+    },
+    "shadows": [],
+    "overlays": [
+      {
+        "name": "scrim",
+        "value": "rgba(17, 17, 17, 0.4)",
+        "purpose": "Behind an open RSVP sheet; the only translucent value."
+      }
+    ],
+    "strokes": [
+      {
+        "name": "rule",
+        "value": "1.5px solid #111111",
+        "purpose": "Content dividers, shape contours, control borders."
+      },
+      {
+        "name": "today",
+        "value": "3px solid #111111",
+        "purpose": "Today marker in band and list."
+      },
+      {
+        "name": "tab-active",
+        "value": "2px solid #111111 (bottom)",
+        "purpose": "Active range tab."
+      },
+      {
+        "name": "focus",
+        "value": "outline: 2px solid #111111; outline-offset: 2px",
+        "purpose": "Every focusable control."
+      }
+    ],
+    "motion": [
+      {
+        "name": "ease",
+        "value": "cubic-bezier(0.16, 1, 0.3, 1)",
+        "purpose": "The single exponential ease-out for every movement."
+      },
+      {
+        "name": "shape-grow",
+        "value": "scale(0) to scale(1), 480ms",
+        "purpose": "A newly taken seat slot."
+      },
+      {
+        "name": "shape-step",
+        "value": "scale(0.6) to scale(1), 640ms band / 520ms pointed event",
+        "purpose": "A band shape whose headcount changed; an event pointed at from the band."
+      },
+      {
+        "name": "name-print",
+        "value": "opacity 0 to 1, 700ms, weight 600",
+        "purpose": "A name added since the last render."
+      },
+      {
+        "name": "sheet-in",
+        "value": "translateY(16px) + fade, 260ms",
+        "purpose": "RSVP sheet opening."
+      },
+      {
+        "name": "button-invert",
+        "value": "background-color and color, 140ms",
+        "purpose": "Button hover swap."
+      },
+      {
+        "name": "band-hover",
+        "value": "scale(1.12), 180ms",
+        "purpose": "Band shape under the pointer."
+      },
+      {
+        "name": "reduced-motion",
+        "value": "all animations and transitions 1ms",
+        "purpose": "prefers-reduced-motion: reduce."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "xs",
+        "value": "max-width: 379px",
+        "purpose": "Wordmark subline hidden."
+      },
+      {
+        "name": "phone",
+        "value": "max-width: 639px",
+        "purpose": "Tighter header, band and lead event so Join lands in the first screen; band shapes 8px + 1.4px/head, max 24px."
+      },
+      {
+        "name": "tablet",
+        "value": "min-width: 640px",
+        "purpose": "32px gutter, centred bordered sheet, band shapes 12px + 3.5px/head, max 40px."
+      },
+      {
+        "name": "desktop",
+        "value": "min-width: 1000px",
+        "purpose": "List plus 400px sticky sidebar; band shapes 14px + 4.5px/head, max 64px."
+      }
+    ],
+    "layout": {
+      "page": "1180px",
+      "gutter": "16px (32px from 640px)",
+      "sidebar": "400px",
+      "columnGap": "64px"
+    },
+    "shapeSet": {
+      "grid": "24-unit viewBox, non-scaling 1.5px ink stroke, mitred joins",
+      "assignment": [
+        {
+          "order": 1,
+          "shape": "circle",
+          "color": "blue"
+        },
+        {
+          "order": 2,
+          "shape": "square",
+          "color": "red"
+        },
+        {
+          "order": 3,
+          "shape": "triangle",
+          "color": "yellow"
+        },
+        {
+          "order": "4+ or unsourced",
+          "shape": "diamond",
+          "color": "ink"
+        }
+      ],
+      "states": {
+        "open": "paper fill",
+        "taken": "calendar colour",
+        "full": "ink fill on every slot",
+        "past": "no fill, past-grey contour"
+      }
+    },
+    "scope": {
+      "covered": [
+        "public/index.html"
+      ],
+      "legacy": [
+        "public/admin-booking-detail.html",
+        "public/admin-bookings.html",
+        "public/admin-donations.html",
+        "public/admin.html",
+        "public/donations.html",
+        "public/faq.html"
+      ],
+      "note": "Legacy pages still load public/styles.css; known migration gap, not part of the system."
+    }
+  },
+  "components": [
+    {
+      "name": "Solid Button",
+      "kind": "button",
+      "refersTo": "button-solid",
+      "description": "Join, Confirm and Remove. Ink block that inverts on hover.",
+      "html": "<button class=\"ds-btn ds-btn-solid\">Join</button>",
+      "css": ".ds-btn{display:inline-flex;align-items:center;justify-content:center;min-height:48px;padding:0 24px;border:1.5px solid #111;border-radius:0;font:600 16px/1 'Jost','PingFang TC','Noto Sans TC',system-ui,sans-serif;cursor:pointer;transition:background-color 140ms cubic-bezier(0.16,1,0.3,1),color 140ms cubic-bezier(0.16,1,0.3,1);} .ds-btn:focus-visible{outline:2px solid #111;outline-offset:2px;} .ds-btn-solid{background:#111;color:#fff;} .ds-btn-solid:hover{background:#fff;color:#111;}"
+    },
+    {
+      "name": "Line Button",
+      "kind": "button",
+      "refersTo": "button-line",
+      "description": "Secondary calls such as Create an event.",
+      "html": "<button class=\"ds-btn ds-btn-line\">Create an event</button>",
+      "css": ".ds-btn{display:inline-flex;align-items:center;justify-content:center;min-height:48px;padding:0 24px;border:1.5px solid #111;border-radius:0;font:600 16px/1 'Jost','PingFang TC','Noto Sans TC',system-ui,sans-serif;cursor:pointer;transition:background-color 140ms cubic-bezier(0.16,1,0.3,1),color 140ms cubic-bezier(0.16,1,0.3,1);} .ds-btn:focus-visible{outline:2px solid #111;outline-offset:2px;} .ds-btn-line{background:#fff;color:#111;} .ds-btn-line:hover{background:#111;color:#fff;}"
+    },
+    {
+      "name": "Disabled Button",
+      "kind": "button",
+      "refersTo": "button-disabled",
+      "description": "Shown as Full in place of Join when an event is at capacity.",
+      "html": "<button class=\"ds-btn ds-btn-off\" disabled>Full</button>",
+      "css": ".ds-btn{display:inline-flex;align-items:center;justify-content:center;min-height:48px;padding:0 24px;border:1.5px solid #111;border-radius:0;font:600 16px/1 'Jost','PingFang TC','Noto Sans TC',system-ui,sans-serif;cursor:pointer;transition:background-color 140ms cubic-bezier(0.16,1,0.3,1),color 140ms cubic-bezier(0.16,1,0.3,1);} .ds-btn:focus-visible{outline:2px solid #111;outline-offset:2px;} .ds-btn-off{background:#f3f3f3;border-color:#e2e2e2;color:#676767;cursor:not-allowed;}"
+    },
+    {
+      "name": "Text Button",
+      "kind": "button",
+      "refersTo": "text-button",
+      "description": "Refresh, Remove a name, Show more, Cancel. Underlined ink text, 44px tall.",
+      "html": "<button class=\"ds-text-btn\">Remove a name</button>",
+      "css": ".ds-text-btn{display:inline-flex;align-items:center;min-height:44px;padding:0;border:0;background:none;font:500 14px 'Jost','PingFang TC',system-ui,sans-serif;color:#111;text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:3px;cursor:pointer;} .ds-text-btn:hover{text-decoration-thickness:2px;} .ds-text-btn:focus-visible{outline:2px solid #111;outline-offset:2px;}"
+    },
+    {
+      "name": "Name Input",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "The RSVP name field: square, 1.5px ink border, 17px text.",
+      "html": "<label class=\"ds-field\"><span class=\"ds-label\">Your name</span><input class=\"ds-input\" placeholder=\"The name people know you by\"></label>",
+      "css": ".ds-field{display:block;} .ds-label{display:block;margin-bottom:6px;font:600 14px 'Jost',system-ui,sans-serif;color:#111;} .ds-input{display:block;width:100%;min-height:50px;padding:0 12px;border:1.5px solid #111;border-radius:0;background:#fff;color:#111;font:400 17px 'Jost','PingFang TC',system-ui,sans-serif;-webkit-appearance:none;appearance:none;} .ds-input::placeholder{color:#676767;} .ds-input:focus{outline:2px solid #111;outline-offset:2px;}"
+    },
+    {
+      "name": "Range Tabs",
+      "kind": "nav",
+      "refersTo": "range-tabs",
+      "description": "Upcoming / All switch: ink-faint text tabs, active one ink with a 2px underline.",
+      "html": "<div class=\"ds-tabs\"><button class=\"ds-tab is-on\">Upcoming</button><button class=\"ds-tab\">All</button></div>",
+      "css": ".ds-tabs{display:flex;gap:24px;} .ds-tab{min-height:44px;padding:0;border:0;border-bottom:2px solid transparent;background:none;font:500 17px 'Jost',system-ui,sans-serif;color:#676767;cursor:pointer;} .ds-tab:hover{color:#111;} .ds-tab.is-on{color:#111;border-bottom-color:#111;} .ds-tab:focus-visible{outline:2px solid #111;outline-offset:2px;}"
+    },
+    {
+      "name": "Calendar Legend",
+      "kind": "chip",
+      "refersTo": "legend",
+      "description": "Each calendar as its shape and name; doubles as the filter. Off turns to a faint outline.",
+      "html": "<div class=\"ds-legend\"><span class=\"ds-leg\"><svg class=\"ds-shape ds-blue\" viewBox=\"0 0 24 24\"><circle cx=\"12\" cy=\"12\" r=\"10.5\" vector-effect=\"non-scaling-stroke\"/></svg>SportsCenter</span><span class=\"ds-leg\"><svg class=\"ds-shape ds-red\" viewBox=\"0 0 24 24\"><rect x=\"2\" y=\"2\" width=\"20\" height=\"20\" vector-effect=\"non-scaling-stroke\"/></svg>TSA</span><span class=\"ds-leg is-off\"><svg class=\"ds-shape ds-yellow\" viewBox=\"0 0 24 24\"><path d=\"M12 1.8 22.6 21.6H1.4Z\" vector-effect=\"non-scaling-stroke\"/></svg>Off calendar</span></div>",
+      "css": ".ds-legend{display:flex;flex-wrap:wrap;gap:0 24px;font:400 15px 'Jost','PingFang TC',system-ui,sans-serif;color:#111;} .ds-leg{display:inline-flex;align-items:center;gap:8px;min-height:44px;cursor:pointer;} .ds-shape{width:14px;height:14px;overflow:visible;stroke:#111;stroke-width:1.5px;stroke-linejoin:miter;} .ds-blue{fill:#1f4fa3;} .ds-red{fill:#d9352b;} .ds-yellow{fill:#f2c230;} .ds-leg.is-off{color:#676767;} .ds-leg.is-off .ds-shape{fill:none;stroke:#676767;}"
+    },
+    {
+      "name": "Seat Slots",
+      "kind": "custom",
+      "refersTo": "seat-slots",
+      "description": "Capacity as a row of the calendar's shape: outline open, colour taken, all ink when full.",
+      "html": "<div class=\"ds-seats\"><span class=\"ds-slots\"><svg class=\"ds-shape ds-slot is-taken\" viewBox=\"0 0 24 24\"><path d=\"M12 1.8 22.6 21.6H1.4Z\" vector-effect=\"non-scaling-stroke\"/></svg><svg class=\"ds-shape ds-slot is-taken\" viewBox=\"0 0 24 24\"><path d=\"M12 1.8 22.6 21.6H1.4Z\" vector-effect=\"non-scaling-stroke\"/></svg><svg class=\"ds-shape ds-slot is-taken\" viewBox=\"0 0 24 24\"><path d=\"M12 1.8 22.6 21.6H1.4Z\" vector-effect=\"non-scaling-stroke\"/></svg><svg class=\"ds-shape ds-slot is-taken\" viewBox=\"0 0 24 24\"><path d=\"M12 1.8 22.6 21.6H1.4Z\" vector-effect=\"non-scaling-stroke\"/></svg><svg class=\"ds-shape ds-slot is-taken\" viewBox=\"0 0 24 24\"><path d=\"M12 1.8 22.6 21.6H1.4Z\" vector-effect=\"non-scaling-stroke\"/></svg><svg class=\"ds-shape ds-slot\" viewBox=\"0 0 24 24\"><path d=\"M12 1.8 22.6 21.6H1.4Z\" vector-effect=\"non-scaling-stroke\"/></svg><svg class=\"ds-shape ds-slot\" viewBox=\"0 0 24 24\"><path d=\"M12 1.8 22.6 21.6H1.4Z\" vector-effect=\"non-scaling-stroke\"/></svg><svg class=\"ds-shape ds-slot\" viewBox=\"0 0 24 24\"><path d=\"M12 1.8 22.6 21.6H1.4Z\" vector-effect=\"non-scaling-stroke\"/></svg></span><span class=\"ds-seats-label\">5 of 8 spots taken</span></div><div class=\"ds-seats is-full\"><span class=\"ds-slots\"><svg class=\"ds-shape ds-slot is-taken\" viewBox=\"0 0 24 24\"><circle cx=\"12\" cy=\"12\" r=\"10.5\" vector-effect=\"non-scaling-stroke\"/></svg><svg class=\"ds-shape ds-slot is-taken\" viewBox=\"0 0 24 24\"><circle cx=\"12\" cy=\"12\" r=\"10.5\" vector-effect=\"non-scaling-stroke\"/></svg><svg class=\"ds-shape ds-slot is-taken\" viewBox=\"0 0 24 24\"><circle cx=\"12\" cy=\"12\" r=\"10.5\" vector-effect=\"non-scaling-stroke\"/></svg><svg class=\"ds-shape ds-slot is-taken\" viewBox=\"0 0 24 24\"><circle cx=\"12\" cy=\"12\" r=\"10.5\" vector-effect=\"non-scaling-stroke\"/></svg></span><span class=\"ds-seats-label\">Full · 4 of 4</span></div>",
+      "css": ".ds-seats{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin-bottom:12px;font:400 14px 'Jost',system-ui,sans-serif;font-variant-numeric:tabular-nums;} .ds-slots{display:flex;gap:5px;} .ds-slot{width:16px;height:16px;overflow:visible;fill:#fff;stroke:#111;stroke-width:1.5px;stroke-linejoin:miter;transform-origin:center;} .ds-seats:first-child .ds-slot.is-taken{fill:#f2c230;} .ds-seats.is-full .ds-slot{fill:#111;} .ds-seats-label{color:#444;} .ds-seats.is-full .ds-seats-label{color:#111;font-weight:600;} .ds-seats:hover .ds-slot.is-taken{animation:ds-grow 480ms cubic-bezier(0.16,1,0.3,1);} @keyframes ds-grow{from{transform:scale(0)}to{transform:scale(1)}}"
+    },
+    {
+      "name": "14-Day Band",
+      "kind": "custom",
+      "refersTo": "band",
+      "description": "Fourteen day columns between ink rules; each event its calendar's shape sized by headcount, Today as a 3px ink bar.",
+      "html": "<ol class=\"ds-band\"><li class=\"ds-day is-today\"><span class=\"ds-dow\">S</span><span class=\"ds-date\">27</span></li><li class=\"ds-day\"><span class=\"ds-dow\">M</span><span class=\"ds-date\">28</span><svg class=\"ds-shape ds-yellow\" viewBox=\"0 0 24 24\"style=\"width:18px;height:18px\"><path d=\"M12 1.8 22.6 21.6H1.4Z\" vector-effect=\"non-scaling-stroke\"/></svg></li><li class=\"ds-day\"><span class=\"ds-dow\">T</span><span class=\"ds-date\">29</span></li><li class=\"ds-day\"><span class=\"ds-dow\">W</span><span class=\"ds-date\">30</span><svg class=\"ds-shape ds-blue\" viewBox=\"0 0 24 24\"style=\"width:24px;height:24px\"><circle cx=\"12\" cy=\"12\" r=\"10.5\" vector-effect=\"non-scaling-stroke\"/></svg></li><li class=\"ds-day\"><span class=\"ds-dow\">T</span><span class=\"ds-date\">1</span></li><li class=\"ds-day\"><span class=\"ds-dow\">F</span><span class=\"ds-date\">2</span><svg class=\"ds-shape ds-red\" viewBox=\"0 0 24 24\"style=\"width:30px;height:30px\"><rect x=\"2\" y=\"2\" width=\"20\" height=\"20\" vector-effect=\"non-scaling-stroke\"/></svg></li><li class=\"ds-day\"><span class=\"ds-dow\">S</span><span class=\"ds-date\">3</span></li></ol>",
+      "css": ".ds-band{list-style:none;display:grid;grid-template-columns:repeat(7,minmax(0,1fr));margin:0;padding:0;border-top:1.5px solid #111;border-bottom:1.5px solid #111;font:400 14px 'Jost',system-ui,sans-serif;font-variant-numeric:tabular-nums;} .ds-day{position:relative;display:flex;flex-direction:column;align-items:center;gap:8px;min-height:112px;padding:8px 0 12px;} .ds-day.is-today::before{content:'';position:absolute;top:0;bottom:0;left:0;width:3px;background:#111;} .ds-dow{font-size:12px;color:#676767;} .ds-date{display:grid;place-items:center;min-width:22px;height:22px;font-weight:500;} .ds-day.is-today .ds-date{background:#111;color:#fff;} .ds-shape{overflow:visible;stroke:#111;stroke-width:1.5px;stroke-linejoin:miter;transform-origin:center;transition:transform 180ms cubic-bezier(0.16,1,0.3,1);} .ds-shape:hover{transform:scale(1.12);} .ds-blue{fill:#1f4fa3;} .ds-red{fill:#d9352b;} .ds-yellow{fill:#f2c230;}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Shape Calendar",
+    "overview": "Lilai follows a Bauhaus form-colour grammar on white paper. Each enabled calendar owns one primary shape, assigned in config order: a blue circle, a red square, a yellow triangle. A fourth calendar, or an event with no known source, gets an ink diamond. The shape is the calendar's identity everywhere it appears: the wordmark, the 14-day band, the legend, the event title mark and the seat slots. The band reads as an abstract composition drawn from the real events.\n\nEverything else is black ink on white. Text, rules and buttons carry no colour, so the primaries stay loud and always mean \"this calendar\". Content is divided by 1.5px ink rules, never boxed into cards. Metadata sits at one constant size. The only thing that breaks scale is the date numeral of the next event, so the page has one entry point.\n\nMotion is scarce and tied to state. When attendance changes, a shape scales from its centre with an exponential ease-out. A new RSVP prints bold into the names list. Nothing moves on load, and reduced motion is instant.",
+    "keyCharacteristics": [
+      "One primary shape per calendar, flat fill, 1.5px ink contour.",
+      "Primaries appear only inside shapes (plus the yellow text selection).",
+      "Ink rules divide content; there are no cards, shadows, gradients or rounded corners.",
+      "Constant 14px metadata; only the date numeral breaks scale (96px on the lead event).",
+      "Shapes carry state: outline open, calendar colour taken, all ink full, grey outline past.",
+      "Motion happens on state change only, scaling shapes from their centre."
+    ],
+    "rules": [
+      {
+        "name": "The Shapes-Only Primaries Rule",
+        "body": "Blue, red and yellow appear only as the fill of a calendar shape. Text, rules, buttons, links and grounds are ink or paper. The one exception is the yellow text selection.",
+        "section": "colors"
+      },
+      {
+        "name": "The One Shape Per Calendar Rule",
+        "body": "Calendars take circle/blue, square/red, triangle/yellow in config order. The fourth and later calendars, and unsourced events, take the ink diamond. Never give a calendar a second shape or colour, and never use a primary shape for something that is not a calendar.",
+        "section": "colors"
+      },
+      {
+        "name": "The Constant Meta Rule",
+        "body": "Every piece of metadata, in every component, is 14px. Hierarchy comes from weight and ink tone. Only the date numeral grows.",
+        "section": "typography"
+      },
+      {
+        "name": "The Tabular Numerals Rule",
+        "body": "Dates, counts and seat labels use tabular figures so columns of numbers stay aligned.",
+        "section": "typography"
+      },
+      {
+        "name": "The Flat Paper Rule",
+        "body": "Nothing casts a shadow. When a layer must sit above the page, it gets the 40% ink scrim and an ink rule on its edge.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Rules Not Boxes Rule",
+        "body": "Content is divided by full-width 1.5px ink rules above each event, section and sidebar block. Only controls (buttons, inputs) and the desktop sheet carry a full border.",
+        "section": "shapes"
+      },
+      {
+        "name": "The State-Only Motion Rule",
+        "body": "Motion marks a change in attendance or a pointer landing, and nothing else. Nothing moves on load.",
+        "section": "components"
+      },
+      {
+        "name": "The Print-Not-Toast Rule",
+        "body": "Feedback for an RSVP is the change itself: a filled slot and a bold name. Do not announce it in a floating message.",
+        "section": "components"
+      }
+    ],
+    "dos": [
+      "Do give each calendar its shape in config order (circle/blue, square/red, triangle/yellow) and the ink diamond to the fourth and later calendars and unsourced events.",
+      "Do draw every shape with a flat fill and a 1.5px ink contour.",
+      "Do divide content with full-width 1.5px ink rules.",
+      "Do keep metadata at 14px and let only the date numeral break scale (96px on the lead event).",
+      "Do show capacity with the four slot states: outline open, calendar colour taken, all ink full, grey outline past.",
+      "Do print a new RSVP bold into the names list and grow its slot from the centre.",
+      "Do keep touch targets at least 44px tall and focus as a 2px ink outline offset 2px."
+    ],
+    "donts": [
+      "Don't put blue, red or yellow on text, rules, buttons, links or grounds.",
+      "Don't use shadows, gradients, rounded corners on containers or controls, or card boxes.",
+      "Don't confirm an RSVP with a toast or banner.",
+      "Don't animate on page load, or use bouncy or spring motion.",
+      "Don't introduce a second typeface for Latin text; Jost carries display and body.",
+      "Don't reuse a primary shape as decoration or for anything that is not a calendar."
+    ]
+  }
+}

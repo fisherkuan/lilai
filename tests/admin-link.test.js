@@ -48,7 +48,7 @@ function makeHarness({ search = '', stored = null } = {}) {
 
 function runSetup(context) {
     const start = APP_JS.indexOf('const ADMIN_HOME');
-    const end = APP_JS.indexOf('// ---------- Mobile actions ----------');
+    const end = APP_JS.indexOf('// ---------- Load events ----------');
     assert.ok(start > -1 && end > start, 'organizer block not found in app.js');
     vm.createContext(context);
     vm.runInContext(APP_JS.slice(start, end) + '\nsetupAdminLink();', context);

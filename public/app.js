@@ -1,4 +1,4 @@
-// Event Attendance App - Main JavaScript (redesigned)
+// Lilai Home: the 14-day band, the events list and RSVP.
 
 // ---------- Utilities ----------
 function debounce(func, wait, immediate) {
@@ -87,30 +87,6 @@ function extractEventLink(value) {
     return null;
 }
 
-// ---------- Toast ----------
-let toastTimeout = null;
-function showToast(message, type = 'info', duration = 3500) {
-    const existing = document.querySelector('.toast');
-    if (existing) {
-        existing.remove();
-        if (toastTimeout) clearTimeout(toastTimeout);
-    }
-    const toast = document.createElement('div');
-    toast.className = `toast ${type}`;
-    toast.textContent = message;
-    toast.setAttribute('role', 'alert');
-    toast.setAttribute('aria-live', 'polite');
-    document.body.appendChild(toast);
-    toastTimeout = setTimeout(() => {
-        toast.remove();
-        toastTimeout = null;
-    }, duration);
-    toast.addEventListener('click', () => {
-        toast.remove();
-        if (toastTimeout) { clearTimeout(toastTimeout); toastTimeout = null; }
-    });
-}
-
 // ---------- State ----------
 const API_BASE_URL = window.location.origin;
 const PAST_BATCH = 10;
@@ -123,7 +99,6 @@ let hasMoreOlder = true;        // whether more past events may exist
 let currentEventForRsvp = null;
 
 // DOM
-const calendarContainer = document.getElementById('calendar-container');
 const eventsList = document.getElementById('events-list');
 const rsvpModal = document.getElementById('rsvp-modal');
 
@@ -143,10 +118,10 @@ function initializeApp() {
     setupAdminLink();
 
     loadConfig().then(() => {
+        buildCalendarStyles();
         setupCalendar();
         populateCalendarFilter();
         setupFilterPills();
-        setupMobileActions();
         setupEventListeners();
         setupWebSocket();
         loadEvents();
@@ -174,34 +149,76 @@ async function loadConfig() {
     }
 }
 
-// ---------- Calendar (custom month grid) ----------
-let currentCalendarMonth = null; // { year, month } — month is 0-indexed
-let allCalendarEvents = [];      // independent of the events list filter — always all events
+// ---------- Calendar shapes ----------
+// Each enabled calendar owns one primary shape, in config order. The shape is the
+// calendar's identity everywhere: the 14-day band, the event titles, the seat slots.
+const CAL_STYLES = [
+    { shape: 'circle', tone: 'blue' },
+    { shape: 'square', tone: 'red' },
+    { shape: 'triangle', tone: 'yellow' },
+    { shape: 'diamond', tone: 'ink' }
+];
+const UNSOURCED_STYLE = { shape: 'diamond', tone: 'ink', name: '' };
+let calendarStyleBySource = {};
+
+function calendarIdFromUrl(url) {
+    try {
+        return new URL(url).searchParams.get('src');
+    } catch (_) {
+        return null;
+    }
+}
+
+function buildCalendarStyles() {
+    calendarStyleBySource = {};
+    let i = 0;
+    (appConfig.calendars || []).forEach(cal => {
+        if (!cal.enabled) return;
+        const id = calendarIdFromUrl(cal.url);
+        if (!id) return;
+        const base = CAL_STYLES[Math.min(i, CAL_STYLES.length - 1)];
+        calendarStyleBySource[id] = { ...base, name: cal.name };
+        i += 1;
+    });
+}
+
+function styleFor(event) {
+    return calendarStyleBySource[event.source] || UNSOURCED_STYLE;
+}
+
+function shapeSvg(shape, extraClass = '') {
+    return `<svg class="shape s-${shape}${extraClass ? ' ' + extraClass : ''}" aria-hidden="true" focusable="false"><use href="#shape-${shape}"/></svg>`;
+}
+
+function startOfDay(d) {
+    return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+}
+
+function scrollToEvent(id) {
+    const card = document.querySelector(`.event[data-event-id="${CSS.escape(id)}"]`);
+    if (!card) return false;
+    card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    card.classList.add('is-pointed');
+    setTimeout(() => card.classList.remove('is-pointed'), 1600);
+    return true;
+}
+
+// ---------- Calendar sources ----------
+let allCalendarEvents = []; // independent of the events list filter — always all events
 
 function setupCalendar() {
-    if (!calendarContainer) return;
-
     if (!appConfig.calendars || appConfig.calendars.length === 0) {
-        calendarContainer.innerHTML = '<p class="calendar-loading">Calendar not configured.</p>';
         const dd = document.getElementById('add-to-calendar-dropdown');
-        if (dd && dd.parentElement) dd.parentElement.style.display = 'none';
+        if (dd) dd.hidden = true;
         return;
     }
 
-    const now = new Date();
-    currentCalendarMonth = { year: now.getFullYear(), month: now.getMonth() };
-    renderCalendarGrid();
     loadAllCalendarEvents();
 
-    // Join group links (desktop + mobile)
     const joinLink = document.getElementById('join-group-link');
     if (joinLink && appConfig.joinGroupUrl) joinLink.href = appConfig.joinGroupUrl;
-    const mobileJoinLink = document.getElementById('mobile-join-group-link');
-    if (mobileJoinLink && appConfig.joinGroupUrl) mobileJoinLink.href = appConfig.joinGroupUrl;
 
-    // Add-to-calendar dropdowns (desktop + mobile)
     populateAddToCalendarDropdown('add-to-calendar-dropdown');
-    populateAddToCalendarDropdown('mobile-add-to-calendar-dropdown');
 
     // Point the "Create event" buttons at the configured default calendar (if any)
     wireCreateEventButtons();
@@ -214,19 +231,12 @@ function wireCreateEventButtons() {
     if (defaultName && Array.isArray(appConfig.calendars)) {
         const match = appConfig.calendars.find(c => c.enabled && c.name === defaultName);
         if (match) {
-            try {
-                const u = new URL(match.url);
-                const src = u.searchParams.get('src');
-                if (src) {
-                    href += `&src=${encodeURIComponent(src)}`;
-                }
-            } catch (_) { /* ignore */ }
+            const src = calendarIdFromUrl(match.url);
+            if (src) href += `&src=${encodeURIComponent(src)}`;
         }
     }
-    const desktopBtn = document.getElementById('create-event-btn');
-    if (desktopBtn) desktopBtn.href = href;
-    const mobileBtn = document.getElementById('mobile-create-event');
-    if (mobileBtn) mobileBtn.href = href;
+    const createBtn = document.getElementById('create-event-btn');
+    if (createBtn) createBtn.href = href;
 }
 
 async function loadAllCalendarEvents() {
@@ -236,7 +246,7 @@ async function loadAllCalendarEvents() {
         const events = await res.json();
         if (!Array.isArray(events)) return;
         allCalendarEvents = events;
-        renderCalendarGrid();
+        renderBand();
     } catch (err) {
         console.error('Error loading all events for calendar:', err);
     }
@@ -246,112 +256,70 @@ function dayKey(d) {
     return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
 }
 
-function renderCalendarGrid() {
-    if (!calendarContainer || !currentCalendarMonth) return;
-    const { year, month } = currentCalendarMonth;
+// The band always shows ALL events, independent of the events-list filter.
+// It falls back to currentEvents before allCalendarEvents has loaded.
+function calendarSource() {
+    return allCalendarEvents.length > 0 ? allCalendarEvents : currentEvents;
+}
 
-    const first = new Date(year, month, 1);
-    const monthLabel = first.toLocaleString(undefined, { month: 'long', year: 'numeric' });
-
-    // Sync the header chip (e.g. "April 2026")
-    const chipLabel = document.getElementById('calendar-month-label');
-    if (chipLabel) chipLabel.textContent = monthLabel;
-
-    // Monday-first grid: JS getDay() is 0=Sun..6=Sat; shift to 0=Mon..6=Sun
-    const leading = (first.getDay() + 6) % 7;
-    const daysInMonth = new Date(year, month + 1, 0).getDate();
-    const totalCells = Math.ceil((leading + daysInMonth) / 7) * 7;
-
-    // Calendar always shows ALL events, independent of the events-list filter.
-    // Falls back to currentEvents before allCalendarEvents has loaded.
-    const calendarSource = allCalendarEvents.length > 0 ? allCalendarEvents : currentEvents;
-    const eventsByDay = {};
-    (calendarSource || []).forEach(ev => {
-        const d = new Date(ev.date);
-        const k = dayKey(d);
-        if (!eventsByDay[k]) eventsByDay[k] = [];
-        eventsByDay[k].push(ev);
+function eventsByDayKey() {
+    const byDay = {};
+    (calendarSource() || []).forEach(ev => {
+        const k = dayKey(new Date(ev.date));
+        if (!byDay[k]) byDay[k] = [];
+        byDay[k].push(ev);
     });
+    Object.values(byDay).forEach(list => list.sort((a, b) => new Date(a.date) - new Date(b.date)));
+    return byDay;
+}
 
-    const todayKey = dayKey(new Date());
+// ---------- The 14-day band ----------
+// Every event in the next two weeks drawn as its calendar's shape, sized by headcount.
+const BAND_DAYS = 14;
+let bandCounts = null; // eventId -> attendingCount at the last render, to grow shapes on change
 
-    let cells = '';
-    for (let i = 0; i < totalCells; i++) {
-        const cellDate = new Date(year, month, 1 + i - leading);
-        const isOut = cellDate.getMonth() !== month;
-        const k = dayKey(cellDate);
-        const isToday = k === todayKey;
-        const dayEvents = (eventsByDay[k] || []).slice().sort((a, b) => new Date(a.date) - new Date(b.date));
+function renderBand() {
+    const band = document.getElementById('band-container');
+    if (!band) return;
 
-        const classes = ['cal-cell'];
-        if (isOut) classes.push('out');
-        if (isToday) classes.push('today');
-        if (dayEvents.length > 0) classes.push('has-ev');
+    const today = startOfDay(new Date());
+    const byDay = eventsByDayKey();
+    const nextCounts = {};
+    let total = 0;
 
-        let evMarkup = '';
-        if (isToday && dayEvents.length === 0) {
-            evMarkup = '<span class="ev">Today</span>';
-        } else if (dayEvents.length > 0) {
-            const first = dayEvents[0];
-            const extra = dayEvents.length > 1 ? ` +${dayEvents.length - 1}` : '';
-            const titleAttr = escapeAttribute(dayEvents.map(e => e.title).join(', '));
-            evMarkup = `<span class="ev" title="${titleAttr}">${escapeHtml(first.title)}${extra}</span>`;
-        }
+    const days = [];
+    for (let i = 0; i < BAND_DAYS; i++) {
+        const d = new Date(today.getFullYear(), today.getMonth(), today.getDate() + i);
+        const dayEvents = byDay[dayKey(d)] || [];
+        total += dayEvents.length;
 
-        const firstId = dayEvents[0] ? dayEvents[0].id : '';
-        const clickAttrs = firstId ? ` data-event-id="${escapeAttribute(firstId)}" role="button" tabindex="0"` : '';
-        cells += `<div class="${classes.join(' ')}"${clickAttrs}>${cellDate.getDate()}${evMarkup}</div>`;
+        const shapes = dayEvents.map(ev => {
+            const st = styleFor(ev);
+            const count = ev.attendingCount || 0;
+            nextCounts[ev.id] = count;
+            const grew = bandCounts && bandCounts[ev.id] !== undefined && count > bandCounts[ev.id];
+            const when = new Date(ev.date).toLocaleString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+            const label = `${ev.title}, ${when}, ${count} going`;
+            return `<button type="button" class="band-ev tone-${st.tone}${grew ? ' is-grown' : ''}" data-event-id="${escapeAttribute(ev.id)}" style="--n:${Math.min(count, 12)}" aria-label="${escapeAttribute(label)}" title="${escapeAttribute(ev.title)}">${shapeSvg(st.shape)}</button>`;
+        }).join('');
+
+        const classes = ['band-day'];
+        if (i === 0) classes.push('is-today');
+        if (d.getDay() === 1) classes.push('is-monday');
+        const dow = d.toLocaleDateString('en-GB', { weekday: 'narrow' });
+        days.push(`<li class="${classes.join(' ')}"><span class="band-dow" aria-hidden="true">${escapeHtml(dow)}</span><span class="band-date" aria-hidden="true">${d.getDate()}</span><div class="band-shapes">${shapes}</div></li>`);
     }
 
-    calendarContainer.innerHTML = `
-        <div class="calendar-preview">
-            <div class="cal-month-head">
-                <span class="mlabel">${escapeHtml(monthLabel)}</span>
-                <div class="arrows">
-                    <button type="button" class="cal-nav" data-dir="-1" aria-label="Previous month">&#x2039;</button>
-                    <button type="button" class="cal-nav" data-dir="0" aria-label="Jump to today">•</button>
-                    <button type="button" class="cal-nav" data-dir="1" aria-label="Next month">&#x203A;</button>
-                </div>
-            </div>
-            <div class="cal-dow">
-                <span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span><span>Su</span>
-            </div>
-            <div class="cal-grid">${cells}</div>
-            <p class="cal-caption">Events synced from Google Calendar</p>
-        </div>
-    `;
+    bandCounts = nextCounts;
+    const metaEl = document.getElementById('events-section-meta');
+    if (metaEl) metaEl.textContent = total === 0 ? 'Nothing planned' : `${total} event${total === 1 ? '' : 's'}`;
+    const empty = total === 0
+        ? '<p class="band-empty">Nothing on the calendar in the next two weeks.</p>'
+        : '';
+    band.innerHTML = `<ol class="band-days" aria-label="Events in the next 14 days">${days.join('')}</ol>${empty}`;
 
-    calendarContainer.querySelectorAll('.cal-nav').forEach(btn => {
-        btn.addEventListener('click', () => {
-            const dir = parseInt(btn.dataset.dir, 10);
-            if (dir === 0) {
-                const n = new Date();
-                currentCalendarMonth = { year: n.getFullYear(), month: n.getMonth() };
-            } else {
-                let m = currentCalendarMonth.month + dir;
-                let y = currentCalendarMonth.year;
-                if (m < 0) { m = 11; y -= 1; }
-                else if (m > 11) { m = 0; y += 1; }
-                currentCalendarMonth = { year: y, month: m };
-            }
-            renderCalendarGrid();
-        });
-    });
-
-    calendarContainer.querySelectorAll('.cal-cell[data-event-id]').forEach(cell => {
-        const activate = () => {
-            const id = cell.dataset.eventId;
-            const card = document.querySelector(`.event-card[data-event-id="${CSS.escape(id)}"]`);
-            if (card) {
-                card.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                card.classList.add('cal-highlight');
-                setTimeout(() => card.classList.remove('cal-highlight'), 1500);
-            }
-        };
-        cell.addEventListener('click', activate);
-        cell.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); activate(); }
-        });
+    band.querySelectorAll('.band-ev').forEach(btn => {
+        btn.addEventListener('click', () => scrollToEvent(btn.dataset.eventId));
     });
 }
 
@@ -361,21 +329,21 @@ function populateAddToCalendarDropdown(id) {
     dd.innerHTML = '';
     appConfig.calendars.forEach(cal => {
         if (!cal.enabled) return;
-        try {
-            const u = new URL(cal.url);
-            const calendarId = u.searchParams.get('src');
-            if (!calendarId) return;
-            const link = document.createElement('a');
-            link.href = `https://www.google.com/calendar/render?cid=${calendarId}`;
-            link.textContent = cal.name;
-            link.target = '_blank';
-            link.rel = 'noopener noreferrer';
-            dd.appendChild(link);
-        } catch (_) { /* ignore */ }
+        const calendarId = calendarIdFromUrl(cal.url);
+        if (!calendarId) return;
+        const st = calendarStyleBySource[calendarId] || UNSOURCED_STYLE;
+        const link = document.createElement('a');
+        link.href = `https://www.google.com/calendar/render?cid=${calendarId}`;
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        link.className = `subscribe-link tone-${st.tone}`;
+        link.innerHTML = `${shapeSvg(st.shape)}<span>${escapeHtml(cal.name)}</span>`;
+        dd.appendChild(link);
     });
 }
 
-// ---------- Calendar filter (chips) ----------
+// ---------- Calendar filter (the shape legend) ----------
+// Filters the events list only. The band never reads it.
 function populateCalendarFilter() {
     const container = document.querySelector('.calendar-filter-container');
     if (!container) return;
@@ -384,25 +352,20 @@ function populateCalendarFilter() {
 
     appConfig.calendars.forEach(cal => {
         if (!cal.enabled) return;
-        try {
-            const u = new URL(cal.url);
-            const calendarId = u.searchParams.get('src');
-            if (!calendarId) return;
-            const label = document.createElement('label');
-            label.className = 'calendar-filter-item active';
-            const checkbox = document.createElement('input');
-            checkbox.type = 'checkbox';
-            checkbox.className = 'calendar-checkbox';
-            checkbox.value = calendarId;
-            checkbox.checked = true;
-            checkbox.addEventListener('change', () => {
-                label.classList.toggle('active', checkbox.checked);
-                displayEvents();
-            });
-            label.appendChild(checkbox);
-            label.appendChild(document.createTextNode(` ${cal.name}`));
-            container.appendChild(label);
-        } catch (_) { /* ignore */ }
+        const calendarId = calendarIdFromUrl(cal.url);
+        if (!calendarId) return;
+        const st = calendarStyleBySource[calendarId] || UNSOURCED_STYLE;
+        const label = document.createElement('label');
+        label.className = `legend-item tone-${st.tone}`;
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.className = 'calendar-checkbox';
+        checkbox.value = calendarId;
+        checkbox.checked = true;
+        checkbox.addEventListener('change', () => displayEvents());
+        label.appendChild(checkbox);
+        label.insertAdjacentHTML('beforeend', `${shapeSvg(st.shape)}<span>${escapeHtml(cal.name)}</span>`);
+        container.appendChild(label);
     });
 }
 
@@ -431,7 +394,7 @@ function setupFilterPills() {
  * The admin pages stay ungated on purpose: the handful of people who run events should not
  * have to log in to fix a typo. What is protected is discovery, not access. The string
  * "/admin" never appears in any served HTML, so view-source shows nothing and a crawler has
- * no link to follow. The menu grows an Admin item only on a device that has been told once.
+ * no link to follow. The header grows an Admin link only on a device that has been told once.
  *
  * Telling a device: open the site as /?admin=1. /?admin=0 makes it forget again, which is
  * what you use on a borrowed phone. The flag lives in localStorage, so it is per device and
@@ -473,57 +436,13 @@ function setupAdminLink() {
 
     if (!isRememberedOrganizer()) return;
 
-    document.querySelectorAll('.app-header-links, .menu-links').forEach(nav => {
+    document.querySelectorAll('.app-header-links').forEach(nav => {
         if (nav.querySelector('[data-admin-link]')) return;
         const link = document.createElement('a');
         link.href = ADMIN_HOME;
         link.textContent = 'Admin';
         link.dataset.adminLink = 'true';
         nav.appendChild(link);
-    });
-}
-
-// ---------- Mobile actions ----------
-function setupMobileActions() {
-    const toggle = document.getElementById('menu-toggle');
-    const panel = document.getElementById('menu-panel');
-    const backdrop = document.getElementById('menu-backdrop');
-    const closeBtn = document.getElementById('menu-close');
-    if (!toggle || !panel || !backdrop) return;
-
-    const subscribeDetails = panel.querySelector('.menu-subscribe');
-
-    const openMenu = () => {
-        panel.classList.add('open');
-        backdrop.hidden = false;
-        requestAnimationFrame(() => backdrop.classList.add('visible'));
-        toggle.setAttribute('aria-expanded', 'true');
-        panel.setAttribute('aria-hidden', 'false');
-        document.body.classList.add('menu-open');
-    };
-
-    const closeMenu = () => {
-        panel.classList.remove('open');
-        backdrop.classList.remove('visible');
-        toggle.setAttribute('aria-expanded', 'false');
-        panel.setAttribute('aria-hidden', 'true');
-        document.body.classList.remove('menu-open');
-        if (subscribeDetails) subscribeDetails.open = false;
-        setTimeout(() => { backdrop.hidden = true; }, 200);
-    };
-
-    toggle.addEventListener('click', (e) => {
-        e.stopPropagation();
-        if (panel.classList.contains('open')) closeMenu(); else openMenu();
-    });
-    if (closeBtn) closeBtn.addEventListener('click', closeMenu);
-    backdrop.addEventListener('click', closeMenu);
-    document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape' && panel.classList.contains('open')) closeMenu();
-    });
-
-    panel.querySelectorAll('a[href]').forEach(a => {
-        a.addEventListener('click', () => closeMenu());
     });
 }
 
@@ -535,7 +454,7 @@ function loadEvents() {
     // Both modes initially load future events only.
     // 'all' mode additionally exposes "Load earlier events" to lazy-fetch past batches.
     const url = `${API_BASE_URL}/api/events?timeRange=future`;
-    eventsList.innerHTML = '<div class="loading">Loading events...</div>';
+    eventsList.innerHTML = '<p class="state-line">Loading events…</p>';
 
     fetch(url, { cache: 'no-store', headers: { 'Cache-Control': 'no-cache' } })
         .then(res => res.json())
@@ -549,7 +468,7 @@ function loadEvents() {
                 oldestLoadedDate = new Date().toISOString();
             }
             displayEvents({ scrollToToday: currentRange === 'all' });
-            renderCalendarGrid();
+            renderBand();
             // In 'all' mode, eagerly fetch the first batch of past events so the user
             // doesn't need to click "Load earlier events" to see anything in the past.
             if (currentRange === 'all' && hasMoreOlder) {
@@ -558,7 +477,7 @@ function loadEvents() {
         })
         .catch(err => {
             console.error('Error loading events:', err);
-            eventsList.innerHTML = '<p class="error-message">Error loading events. Please try again later.</p>';
+            eventsList.innerHTML = '<p class="state-line is-error">Events did not load. Check your connection, then press Refresh.</p>';
         });
 }
 
@@ -603,6 +522,9 @@ async function loadOlderEvents(options = {}) {
 }
 
 // ---------- Render events ----------
+const MAX_SLOTS = 24;
+let knownAttendees = null; // eventId -> Set of names at the last render, to mark new arrivals
+
 function displayEvents(options = {}) {
     const checkboxes = Array.from(document.querySelectorAll('.calendar-checkbox'));
     const selectedIds = checkboxes.filter(c => c.checked).map(c => c.value);
@@ -613,50 +535,52 @@ function displayEvents(options = {}) {
     if (checkboxes.length > 0 && selectedIds.length < checkboxes.length) {
         filtered = currentEvents.filter(e => selectedIds.includes(e.source));
     }
+    checkboxes.forEach(c => c.closest('.legend-item').classList.toggle('is-off', !c.checked));
 
-    // Update events section meta (count of upcoming)
-    const metaEl = document.getElementById('events-section-meta');
-    if (metaEl) {
-        const futureCount = filtered.filter(e => new Date(e.date) >= new Date()).length;
-        metaEl.textContent = futureCount === 0
-            ? 'No upcoming events'
-            : `${futureCount} upcoming event${futureCount === 1 ? '' : 's'}`;
-    }
+    const previous = knownAttendees;
+    knownAttendees = {};
+    currentEvents.forEach(e => { knownAttendees[e.id] = new Set(e.attendees || []); });
 
     if (filtered.length === 0) {
         eventsList.innerHTML = noneSelected
-            ? '<p class="no-events">No calendars selected.</p>'
-            : '<p class="no-events">No events to show.</p>';
+            ? '<p class="state-line">No calendars selected. Tick one above to see its events.</p>'
+            : '<p class="state-line">No events to show. New ones appear here as soon as they are on the calendar.</p>';
         return;
     }
 
     const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const today = startOfDay(now);
+    const todayLabel = `Today · ${now.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}`;
+    const todayRule = `<div class="today-rule" id="today-marker"><span>${escapeHtml(todayLabel)}</span></div>`;
     let insertedTodayDivider = false;
+    let markedNext = false;
     const pieces = [];
 
     if (currentRange === 'all' && hasMoreOlder) {
-        pieces.push(`<div class="load-earlier-wrap"><button class="load-earlier-btn"><span aria-hidden="true">↑</span> Load earlier events</button></div>`);
+        pieces.push('<div class="load-earlier-wrap"><button type="button" class="text-btn load-earlier-btn">Load earlier events</button></div>');
     }
 
-    filtered.forEach((event, idx) => {
+    filtered.forEach(event => {
         const eventDate = new Date(event.date);
         const isPast = eventDate < now;
         const isToday = eventDate >= today && eventDate < new Date(today.getTime() + 86400000);
 
         // Insert today divider between last past and first future event (all range)
         if (currentRange === 'all' && !insertedTodayDivider && !isPast) {
-            pieces.push(`<div class="today-divider" id="today-marker"><span class="today-divider-label">Today · ${new Date().toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}</span></div>`);
+            pieces.push(todayRule);
             insertedTodayDivider = true;
         }
 
-        pieces.push(renderEventCard(event, { isPast, isToday }));
+        const isNext = !isPast && !markedNext;
+        if (isNext) markedNext = true;
+        const prevNames = previous ? previous[event.id] : undefined;
+        pieces.push(renderEventCard(event, { isPast, isToday, isNext, prevNames }));
     });
 
     // If range=all and the divider wasn't inserted (all events are in past),
     // append it at the end to anchor "now"
     if (currentRange === 'all' && !insertedTodayDivider) {
-        pieces.push(`<div class="today-divider" id="today-marker"><span class="today-divider-label">Today · ${new Date().toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}</span></div>`);
+        pieces.push(todayRule);
     }
 
     eventsList.innerHTML = pieces.join('');
@@ -665,7 +589,6 @@ function displayEvents(options = {}) {
     // "Show more" is needed — character counts guess wrong at narrow widths.
     requestAnimationFrame(syncDescriptionToggles);
 
-    // Wire up load-earlier
     const loadBtn = eventsList.querySelector('.load-earlier-btn');
     if (loadBtn) loadBtn.addEventListener('click', loadOlderEvents);
 
@@ -683,7 +606,7 @@ function displayEvents(options = {}) {
 // Show "Show more" only on descriptions the CSS line-clamp actually truncates.
 // Expanded cards keep their toggle: unclamped text always measures as non-overflowing.
 function syncDescriptionToggles() {
-    eventsList.querySelectorAll('.event-card').forEach(card => {
+    eventsList.querySelectorAll('.event').forEach(card => {
         const desc = card.querySelector('.event-desc');
         const toggle = card.querySelector('.event-desc-toggle');
         if (!desc || !toggle) return;
@@ -708,123 +631,157 @@ function formatDuration(start, end) {
     return parts.join(' ');
 }
 
-function renderEventCard(event, { isPast, isToday }) {
+// Seats: one slot per place when the event has a limit, one per person when it does not.
+// Open slots are outlines, taken slots carry the calendar's colour, a full row turns black.
+function renderSeats(event, st, { isPast, hasLimit, isFull, newFrom }) {
+    const count = event.attendingCount || 0;
+    const limit = hasLimit ? event.attendance_limit : null;
+    const shown = hasLimit ? Math.min(limit, MAX_SLOTS) : Math.min(count, MAX_SLOTS);
+    const hidden = (hasLimit ? limit : count) - shown;
+
+    let slots = '';
+    for (let i = 0; i < shown; i++) {
+        const taken = i < count;
+        const cls = ['slot'];
+        if (taken) cls.push('is-taken');
+        if (taken && i >= newFrom) cls.push('is-new');
+        slots += `<span class="${cls.join(' ')}">${shapeSvg(st.shape)}</span>`;
+    }
+    if (hidden > 0) slots += `<span class="slot-more">+${hidden}</span>`;
+
+    let label;
+    if (isPast) label = `${count} went`;
+    else if (isFull) label = `Full · ${count} of ${limit}`;
+    else if (hasLimit) label = `${count} of ${limit} spots taken`;
+    else label = `${count} going`;
+
+    // No limit and nobody yet: there is nothing to draw, and the names line already says so.
+    if (!hasLimit && count === 0) return '';
+
+    return `<div class="seats${isFull ? ' is-full' : ''}"><span class="slots" aria-hidden="true">${slots}</span><span class="seats-label">${escapeHtml(label)}</span></div>`;
+}
+
+function renderEventCard(event, { isPast, isToday, isNext, prevNames }) {
     const eventDate = new Date(event.date);
-    const dayNum = String(eventDate.getDate()).padStart(2, '0');
-    const monthAbbr = eventDate.toLocaleDateString('en-US', { month: 'short' });
-    const weekdayAbbr = eventDate.toLocaleDateString('en-US', { weekday: 'short' });
-    const timeStr = eventDate.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: false });
+    const dayNum = String(eventDate.getDate());
+    const monthAbbr = eventDate.toLocaleDateString('en-GB', { month: 'short' });
+    const weekdayAbbr = eventDate.toLocaleDateString('en-GB', { weekday: 'short' });
+    const timeStr = eventDate.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false });
     // Postgres folds the unquoted endDate column to lowercase, so accept either casing.
     const endRaw = event.endDate || event.enddate || null;
     const durationStr = endRaw ? formatDuration(eventDate, new Date(endRaw)) : '';
+    const st = styleFor(event);
 
     const sanitizedEventId = escapeAttribute(event.id);
     const sanitizedTitle = escapeHtml(event.title);
     const descriptionText = typeof event.description === 'string' ? event.description : '';
     const sanitizedDescription = escapeHtml(descriptionText).replace(/\n/g, '<br>');
     const locationText = typeof event.location === 'string' ? event.location : '';
-    const sanitizedLocation = escapeHtml(locationText);
     const eventLink = extractEventLink(descriptionText);
 
-    const attendeesList = Array.isArray(event.attendees) ? event.attendees.map(escapeHtml) : [];
-    const attendeesAttr = escapeAttribute(attendeesList.join('\n'));
+    const attendees = Array.isArray(event.attendees) ? event.attendees : [];
     const attendingCount = event.attendingCount || 0;
     const hasLimit = event.attendance_limit !== null && event.attendance_limit !== undefined;
     const isFull = hasLimit && attendingCount >= event.attendance_limit;
-    const fillPct = hasLimit ? Math.min(100, Math.round((attendingCount / event.attendance_limit) * 100)) : 0;
-
-    // Chip: status based on fill / past
-    let chipHtml = '';
-    if (isPast) {
-        chipHtml = `<span class="chip"><span class="dot" style="background: var(--text-muted);"></span>Ended</span>`;
-    } else if (isFull) {
-        chipHtml = `<span class="chip danger"><span class="dot"></span>Full</span>`;
-    } else if (hasLimit && fillPct >= 66) {
-        chipHtml = `<span class="chip accent"><span class="dot"></span>Filling up</span>`;
-    } else if (hasLimit) {
-        chipHtml = `<span class="chip"><span class="dot"></span>Open</span>`;
-    }
-
-    const attendanceLabel = hasLimit
-        ? `${attendingCount} / ${event.attendance_limit} going`
-        : `${attendingCount} going`;
-
-    // Side: attend-meter (bar + count) + rsvp-controls. Past events show "N attended" only.
-    let sideContent;
-    if (isPast) {
-        sideContent = `
-            <div class="attend-meter">
-                <span class="attendance-count" title="${attendeesAttr}" tabindex="0" role="button" aria-label="${escapeHtml(attendingCount + ' attended')}. View attendees."><span class="num">${attendingCount}</span> attended</span>
-            </div>
-        `;
-    } else {
-        const barHtml = hasLimit
-            ? `<div class="attend-bar"><span style="width: ${fillPct}%;"></span></div>`
-            : '';
-        const countHtml = hasLimit
-            ? `<span><span class="num">${attendingCount}</span> / ${event.attendance_limit}</span>`
-            : `<span><span class="num">${attendingCount}</span> going</span>`;
-        sideContent = `
-            <div class="attend-meter ${isFull ? 'full' : ''}">
-                ${barHtml}
-                <span class="attendance-count" title="${attendeesAttr}" tabindex="0" role="button" aria-label="${escapeHtml(attendanceLabel)}. View attendees.">
-                    ${countHtml}
-                </span>
-            </div>
-            <div class="rsvp-controls">
-                <button type="button" class="rsvp-trigger-remove" data-event-id="${sanitizedEventId}" ${attendingCount === 0 ? 'disabled' : ''} aria-label="Remove RSVP" title="Cancel RSVP">−</button>
-                <button type="button" class="primary rsvp-trigger-add" data-event-id="${sanitizedEventId}" ${isFull ? 'disabled' : ''} aria-label="RSVP" title="RSVP">＋</button>
-            </div>
-        `;
-    }
+    const newFrom = prevNames ? prevNames.size : Infinity;
 
     const metaParts = [];
-    if (locationText) metaParts.push(`<span>📍 ${sanitizedLocation}</span>`);
-    if (durationStr) metaParts.push(`<span>⏱ ${escapeHtml(durationStr)}</span>`);
-    if (eventLink) metaParts.push(`<span>🔗 <a href="${escapeAttribute(eventLink)}" target="_blank" rel="noopener noreferrer">Link</a></span>`);
-    if (chipHtml) metaParts.push(chipHtml);
-    const metaHtml = metaParts.join('');
+    if (durationStr) metaParts.push(escapeHtml(durationStr));
+    if (locationText) metaParts.push(escapeHtml(locationText));
+    if (eventLink) metaParts.push(`<a href="${escapeAttribute(eventLink)}" target="_blank" rel="noopener noreferrer">Event link</a>`);
+    if (st.name) metaParts.push(escapeHtml(st.name));
 
-    const classes = ['event-card'];
-    if (isPast) classes.push('past');
-    if (isToday) classes.push('today');
+    let names;
+    if (attendees.length > 0) {
+        names = `<ul class="names" aria-label="${escapeAttribute(isPast ? 'Who went' : 'Who is coming')}">${attendees.map(n => {
+            const fresh = prevNames && !prevNames.has(n) ? ' class="is-new"' : '';
+            return `<li${fresh}>${escapeHtml(n)}</li>`;
+        }).join('')}</ul>`;
+    } else {
+        names = `<p class="names-empty">${isPast ? 'No one signed up.' : 'No one yet. Be the first.'}</p>`;
+    }
+
+    let actions = '';
+    if (!isPast) {
+        const join = isFull
+            ? '<button type="button" class="btn btn-solid" disabled>Full</button>'
+            : `<button type="button" class="btn btn-solid rsvp-trigger-add" data-event-id="${sanitizedEventId}">Join</button>`;
+        const remove = attendingCount > 0
+            ? `<button type="button" class="text-btn rsvp-trigger-remove" data-event-id="${sanitizedEventId}">Remove a name</button>`
+            : '';
+        actions = `<div class="event-actions">${join}${remove}</div>`;
+    }
+
+    const classes = ['event', `tone-${st.tone}`];
+    if (isPast) classes.push('is-past');
+    if (isToday) classes.push('is-today');
+    if (isNext) classes.push('is-next');
+    if (isFull) classes.push('is-full');
 
     return `
-        <article class="${classes.join(' ')}" data-event-id="${sanitizedEventId}">
-            <div class="event-date-block">
-                <div class="month">${escapeHtml(monthAbbr)}</div>
-                <div class="day">${dayNum}</div>
-                <div class="weekday">${escapeHtml(weekdayAbbr)}</div>
-                <div class="time">${escapeHtml(timeStr)}</div>
+        <article class="${classes.join(' ')}" data-event-id="${sanitizedEventId}" aria-labelledby="ev-${sanitizedEventId}">
+            <div class="event-date">
+                <span class="event-day">${dayNum}</span>
+                <span class="event-daymeta"><span>${escapeHtml(isToday ? 'Today' : weekdayAbbr)}</span><span>${escapeHtml(monthAbbr)}</span><span class="event-time">${escapeHtml(timeStr)}</span></span>
             </div>
             <div class="event-body">
-                <h3>${sanitizedTitle}</h3>
-                <div class="event-meta meta">${metaHtml}</div>
+                <h3 class="event-title" id="ev-${sanitizedEventId}"><span class="event-mark">${shapeSvg(st.shape)}</span>${sanitizedTitle}</h3>
+                <p class="event-meta">${metaParts.join('<span class="sep" aria-hidden="true"> · </span>')}</p>
                 ${descriptionText ? `
-                    <p class="event-description event-desc">${sanitizedDescription}</p>
-                    <button type="button" class="event-desc-toggle" aria-expanded="false" hidden>Show more</button>
+                    <p class="event-desc">${sanitizedDescription}</p>
+                    <button type="button" class="text-btn event-desc-toggle" aria-expanded="false" hidden>Show more</button>
                 ` : ''}
-            </div>
-            <div class="event-side">
-                ${sideContent}
+                ${renderSeats(event, st, { isPast, hasLimit, isFull, newFrom })}
+                ${names}
+                ${actions}
             </div>
         </article>
     `;
 }
 
-// ---------- RSVP modals ----------
+// One place to apply a new attendee list, whether it came from our own RSVP or a broadcast.
+function applyAttendance(eventId, attendees) {
+    const count = attendees.length;
+    [currentEvents, allCalendarEvents].forEach(list => {
+        const ev = list.find(e => e.id === eventId);
+        if (ev) {
+            ev.attendees = attendees.slice();
+            ev.attendingCount = count;
+        }
+    });
+    displayEvents();
+    renderBand();
+}
+
+// ---------- RSVP sheets ----------
+let lastSheetTrigger = null;
+
+function showFieldError(id, message) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.textContent = message || '';
+    el.hidden = !message;
+}
+
+function formatSheetDate(date) {
+    return new Date(date).toLocaleString('en-GB', {
+        weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit'
+    });
+}
+
 function openRsvpModal(eventId) {
     const event = currentEvents.find(e => e.id === eventId);
     if (!event) return;
     currentEventForRsvp = event;
+    lastSheetTrigger = document.activeElement;
+    showFieldError('rsvp-error', '');
     rsvpModal.classList.remove('hidden');
     document.getElementById('modal-event-title').textContent = event.title;
-    document.getElementById('modal-event-date').textContent = new Date(event.date).toLocaleDateString('en-US', {
-        weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
-        hour: '2-digit', minute: '2-digit'
-    });
+    document.getElementById('modal-event-date').textContent = formatSheetDate(event.date);
     const desc = typeof event.description === 'string' ? event.description : '';
-    document.getElementById('modal-event-description').innerHTML = escapeHtml(desc).replace(/\n/g, '<br>');
+    const descEl = document.getElementById('modal-event-description');
+    descEl.innerHTML = escapeHtml(desc).replace(/\n/g, '<br>');
+    descEl.hidden = !desc;
 
     // Pre-fill the remembered name and select it, so overtyping is a single action.
     const nameInput = document.getElementById('attendee-name');
@@ -839,23 +796,28 @@ function openRsvpModal(eventId) {
     }, 50);
 }
 
+function restoreSheetFocus() {
+    if (lastSheetTrigger && document.contains(lastSheetTrigger)) lastSheetTrigger.focus();
+    lastSheetTrigger = null;
+}
+
 function closeRsvpModal() {
     rsvpModal.classList.add('hidden');
     document.getElementById('attendee-name').value = '';
     currentEventForRsvp = null;
+    restoreSheetFocus();
 }
 
 function openRemoveRsvpModal(eventId) {
     const event = currentEvents.find(e => e.id === eventId);
     if (!event) return;
     currentEventForRsvp = event;
+    lastSheetTrigger = document.activeElement;
+    showFieldError('remove-error', '');
     const modal = document.getElementById('remove-rsvp-modal');
     modal.classList.remove('hidden');
     document.getElementById('remove-modal-event-title').textContent = event.title;
-    document.getElementById('remove-modal-event-date').textContent = new Date(event.date).toLocaleDateString('en-US', {
-        weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
-        hour: '2-digit', minute: '2-digit'
-    });
+    document.getElementById('remove-modal-event-date').textContent = formatSheetDate(event.date);
     const selector = document.getElementById('attendee-to-remove');
     selector.innerHTML = '';
     (event.attendees || []).forEach(name => {
@@ -871,33 +833,35 @@ function openRemoveRsvpModal(eventId) {
     if (remembered && (event.attendees || []).includes(remembered)) {
         selector.value = remembered;
     }
+    setTimeout(() => selector.focus(), 50);
 }
 
 function closeRemoveRsvpModal() {
     document.getElementById('remove-rsvp-modal').classList.add('hidden');
     currentEventForRsvp = null;
+    restoreSheetFocus();
 }
 
 function submitRsvp(action) {
-    if (!currentEventForRsvp) {
-        showToast('No event selected', 'error');
-        return;
-    }
+    if (!currentEventForRsvp) return;
     const attendeeName = document.getElementById('attendee-name').value.trim();
     if (!attendeeName) {
-        showToast('Please enter your name', 'error');
+        showFieldError('rsvp-error', 'Type your name first.');
+        document.getElementById('attendee-name').focus();
         return;
     }
+    showFieldError('rsvp-error', '');
+    const event = currentEventForRsvp;
     const submitBtn = document.querySelector('.rsvp-add-btn');
     const textEl = submitBtn.querySelector('.text');
     const originalText = textEl.textContent;
     submitBtn.disabled = true;
-    textEl.textContent = 'Submitting...';
+    textEl.textContent = 'Joining…';
 
     fetch(`${API_BASE_URL}/api/rsvp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ eventId: currentEventForRsvp.id, action, attendeeName })
+        body: JSON.stringify({ eventId: event.id, action, attendeeName })
     })
     .then(res => res.json())
     .then(result => {
@@ -907,32 +871,35 @@ function submitRsvp(action) {
             if (navigator.vibrate) navigator.vibrate(30);
             rememberName(attendeeName);
             closeRsvpModal();
-            showToast('RSVP confirmed', 'success');
+            // No toast: the name printing into the list is the confirmation.
+            // The broadcast that follows replaces this with the server's list.
+            applyAttendance(event.id, (event.attendees || []).concat(attendeeName));
         } else {
-            showToast(result.message || 'Error submitting RSVP', 'error');
+            showFieldError('rsvp-error', result.message || 'That did not go through. Try again.');
         }
     })
     .catch(err => {
         console.error('RSVP error:', err);
         submitBtn.disabled = false;
         textEl.textContent = originalText;
-        showToast('Connection error — please try again', 'error');
+        showFieldError('rsvp-error', 'No connection. Check your network and try again.');
     });
 }
 
 function submitRemoveRsvp() {
     if (!currentEventForRsvp) return;
+    const event = currentEventForRsvp;
     const attendeeName = document.getElementById('attendee-to-remove').value;
     const submitBtn = document.querySelector('.rsvp-remove-btn');
     const textEl = submitBtn.querySelector('.text');
     const originalText = textEl.textContent;
     submitBtn.disabled = true;
-    textEl.textContent = 'Removing...';
+    textEl.textContent = 'Removing…';
 
     fetch(`${API_BASE_URL}/api/rsvp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ eventId: currentEventForRsvp.id, action: 'remove', attendeeName })
+        body: JSON.stringify({ eventId: event.id, action: 'remove', attendeeName })
     })
     .then(res => res.json())
     .then(result => {
@@ -940,65 +907,29 @@ function submitRemoveRsvp() {
         textEl.textContent = originalText;
         if (result.success) {
             closeRemoveRsvpModal();
-            showToast('RSVP removed', 'success');
+            const remaining = (event.attendees || []).slice();
+            const at = remaining.indexOf(attendeeName);
+            if (at !== -1) remaining.splice(at, 1);
+            applyAttendance(event.id, remaining);
         } else {
-            showToast(result.message || 'Error removing RSVP', 'error');
+            showFieldError('remove-error', result.message || 'That did not go through. Try again.');
         }
     })
     .catch(err => {
         console.error('Remove RSVP error:', err);
         submitBtn.disabled = false;
         textEl.textContent = originalText;
-        showToast('Connection error — please try again', 'error');
+        showFieldError('remove-error', 'No connection. Check your network and try again.');
     });
-}
-
-// ---------- Attendee tooltip (mobile) ----------
-let activeTooltip = null;
-function showAttendeeTooltip(target) {
-    removeAttendeeTooltip();
-    const names = target.getAttribute('title');
-    if (!names || !names.trim()) return;
-    const tooltip = document.createElement('div');
-    tooltip.className = 'attendee-tooltip';
-    tooltip.setAttribute('role', 'tooltip');
-    const list = document.createElement('ul');
-    names.split('\n').forEach(name => {
-        const li = document.createElement('li');
-        li.textContent = name;
-        list.appendChild(li);
-    });
-    tooltip.appendChild(list);
-    document.body.appendChild(tooltip);
-    const rect = target.getBoundingClientRect();
-    const tipRect = tooltip.getBoundingClientRect();
-    let top = rect.top - tipRect.height - 8 + window.scrollY;
-    if (top < window.scrollY + 8) top = rect.bottom + 8 + window.scrollY;
-    let left = rect.left;
-    if (left + tipRect.width > window.innerWidth - 8) {
-        left = window.innerWidth - tipRect.width - 8;
-    }
-    if (left < 8) left = 8;
-    tooltip.style.top = `${top}px`;
-    tooltip.style.left = `${left}px`;
-    tooltip._owner = target;
-    activeTooltip = tooltip;
-}
-function removeAttendeeTooltip() {
-    if (activeTooltip) {
-        activeTooltip.remove();
-        activeTooltip = null;
-    }
 }
 
 // ---------- Event delegation ----------
 function setupEventListeners() {
-    // Event card interactions
     eventsList.addEventListener('click', (e) => {
         // Expand/collapse long descriptions
         const toggle = e.target.closest('.event-desc-toggle');
         if (toggle) {
-            const card = toggle.closest('.event-card');
+            const card = toggle.closest('.event');
             if (card) {
                 const expanded = card.classList.toggle('expanded');
                 toggle.textContent = expanded ? 'Show less' : 'Show more';
@@ -1009,38 +940,19 @@ function setupEventListeners() {
             return;
         }
 
-        // Attendee list tooltip — toggle on click (works on desktop + mobile)
-        const attendanceCount = e.target.closest('.attendance-count');
-        if (attendanceCount) {
-            e.stopPropagation();
-            if (activeTooltip && activeTooltip._owner === attendanceCount) {
-                removeAttendeeTooltip();
-            } else {
-                showAttendeeTooltip(attendanceCount);
-            }
-            return;
-        }
-
         const addBtn = e.target.closest('.rsvp-trigger-add');
         if (addBtn) {
-            const eventId = addBtn.dataset.eventId;
-            const ev = currentEvents.find(x => x.id === eventId);
-            if (!ev) return;
-            if (new Date(ev.date) < new Date()) {
-                showToast('Past event — RSVP closed', 'error');
-                return;
-            }
-            openRsvpModal(eventId);
+            const ev = currentEvents.find(x => x.id === addBtn.dataset.eventId);
+            if (!ev || new Date(ev.date) < new Date()) return;
+            openRsvpModal(ev.id);
             return;
         }
 
         const removeBtn = e.target.closest('.rsvp-trigger-remove');
         if (removeBtn) {
-            const eventId = removeBtn.dataset.eventId;
-            const ev = currentEvents.find(x => x.id === eventId);
+            const ev = currentEvents.find(x => x.id === removeBtn.dataset.eventId);
             if (!ev) return;
-            openRemoveRsvpModal(eventId);
-            return;
+            openRemoveRsvpModal(ev.id);
         }
     });
 
@@ -1056,40 +968,20 @@ function setupEventListeners() {
         });
     }
 
-    document.addEventListener('click', (e) => {
-        if (activeTooltip && !e.target.closest('.attendance-count') && !e.target.closest('.attendee-tooltip')) {
-            removeAttendeeTooltip();
-        }
+    // Enter in the name field confirms.
+    document.getElementById('attendee-name').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); submitRsvp('add'); }
     });
 
-    // Desktop hover tooltip for attendee names (skip on coarse pointers / touch)
-    const isHoverCapable = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
-    if (isHoverCapable) {
-        eventsList.addEventListener('mouseover', (e) => {
-            const target = e.target.closest('.attendance-count');
-            if (!target) return;
-            if (activeTooltip && activeTooltip._owner === target) return;
-            showAttendeeTooltip(target);
-        });
-        eventsList.addEventListener('mouseout', (e) => {
-            const target = e.target.closest('.attendance-count');
-            if (!target) return;
-            const to = e.relatedTarget;
-            // Don't close if moving into the tooltip itself
-            if (to && (to.closest && to.closest('.attendee-tooltip'))) return;
-            removeAttendeeTooltip();
-        });
-    }
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
-            removeAttendeeTooltip();
             if (!rsvpModal.classList.contains('hidden')) closeRsvpModal();
             const rm = document.getElementById('remove-rsvp-modal');
             if (rm && !rm.classList.contains('hidden')) closeRemoveRsvpModal();
         }
     });
 
-    // Modal backdrop click
+    // Backdrop click closes a sheet
     rsvpModal.addEventListener('click', (e) => {
         if (e.target === rsvpModal) closeRsvpModal();
     });
@@ -1100,14 +992,13 @@ function setupEventListeners() {
         });
     }
 
-    // Refresh button
     const refreshBtn = document.getElementById('refresh-events-btn');
-    if (refreshBtn) refreshBtn.addEventListener('click', debounce(loadEvents, 250));
-
-    // Donate
-    const donateBtn = document.getElementById('donate-btn');
-    if (donateBtn) donateBtn.addEventListener('click', donate);
-
+    if (refreshBtn) {
+        refreshBtn.addEventListener('click', debounce(() => {
+            loadEvents();
+            loadAllCalendarEvents();
+        }, 250));
+    }
 }
 
 // ---------- WebSocket ----------
@@ -1120,13 +1011,8 @@ function setupWebSocket() {
         try {
             const data = JSON.parse(message.data);
             if (data.type === 'attendance_update') {
-                const { eventId, attendingCount, attendees } = data.payload;
-                const idx = currentEvents.findIndex(e => e.id === eventId);
-                if (idx !== -1) {
-                    currentEvents[idx].attendingCount = attendingCount;
-                    currentEvents[idx].attendees = attendees;
-                    displayEvents();
-                }
+                const { eventId, attendees } = data.payload;
+                applyAttendance(eventId, Array.isArray(attendees) ? attendees : []);
             }
         } catch (err) {
             console.error('WebSocket message error:', err);
@@ -1134,20 +1020,4 @@ function setupWebSocket() {
     };
     ws.onclose = () => setTimeout(setupWebSocket, 5000);
     ws.onerror = (err) => console.error('WebSocket error:', err);
-}
-
-// ---------- Donate ----------
-async function donate() {
-    try {
-        const keyResponse = await fetch(`${API_BASE_URL}/api/stripe-key`);
-        const { publicKey } = await keyResponse.json();
-        const stripe = window.Stripe(publicKey);
-        const response = await fetch(`${API_BASE_URL}/api/create-donation-checkout-session`, { method: 'POST' });
-        const session = await response.json();
-        const result = await stripe.redirectToCheckout({ sessionId: session.id });
-        if (result.error) alert(result.error.message);
-    } catch (err) {
-        console.error('Donate error:', err);
-        alert('Error creating checkout session. Please try again.');
-    }
 }
