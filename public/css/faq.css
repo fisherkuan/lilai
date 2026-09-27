@@ -18,29 +18,6 @@
     padding: var(--s3) 0;
 }
 
-.back-link {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--s2);
-    min-height: 44px;
-    font-size: 15px;
-    font-weight: 500;
-    color: var(--ink);
-    text-decoration: none;
-}
-
-.back-link:hover { text-decoration: underline; }
-
-.back-link svg {
-    width: 18px;
-    height: 18px;
-    fill: none;
-    stroke: var(--ink);
-    stroke-width: 1.5px;
-    stroke-linecap: square;
-    stroke-linejoin: miter;
-}
-
 .lang-switch {
     display: flex;
     gap: var(--s4);
