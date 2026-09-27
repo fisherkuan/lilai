@@ -1,0 +1,221 @@
+/* FAQ page: a Read surface on the Shape Calendar world. See DESIGN.md.
+   Loads after /css/lilai.css and reuses its tokens; adds nothing new. */
+
+.faq-page {
+    max-width: 640px;
+    margin: 0 auto;
+    padding: 0 var(--gutter) var(--s8);
+}
+
+/* ---------- Topbar: back link + language switch ---------- */
+
+.faq-topbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--s3) var(--s5);
+    padding: var(--s3) 0;
+}
+
+.back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--s2);
+    min-height: 44px;
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--ink);
+    text-decoration: none;
+}
+
+.back-link:hover { text-decoration: underline; }
+
+.back-link svg {
+    width: 18px;
+    height: 18px;
+    fill: none;
+    stroke: var(--ink);
+    stroke-width: 1.5px;
+    stroke-linecap: square;
+    stroke-linejoin: miter;
+}
+
+.lang-switch {
+    display: flex;
+    gap: var(--s4);
+}
+
+.lang-btn {
+    min-height: 44px;
+    padding: 0;
+    border: 0;
+    border-bottom: 2px solid transparent;
+    background: none;
+    font: inherit;
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--ink-3);
+    cursor: pointer;
+}
+
+.lang-btn:hover { color: var(--ink); }
+
+.lang-btn.active {
+    color: var(--ink);
+    border-bottom-color: var(--ink);
+}
+
+/* ---------- Hero ---------- */
+
+.faq-hero {
+    padding: var(--s6) 0 var(--s7);
+}
+
+.faq-hero h1 {
+    font-size: 26px;
+    font-weight: 600;
+    line-height: 1.25;
+    letter-spacing: -0.01em;
+    text-wrap: balance;
+}
+
+.faq-hero p {
+    margin-top: var(--s3);
+    font-size: 16px;
+    color: var(--ink-2);
+}
+
+/* ---------- FAQ list ---------- */
+
+.faq-list { min-height: 200px; }
+
+.faq-section-header {
+    margin: var(--s7) 0 var(--s2);
+    padding-top: var(--s4);
+    border-top: var(--rule) solid var(--ink);
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.faq-list > .faq-section-header:first-child { margin-top: 0; }
+
+.faq-item {
+    border-top: var(--rule) solid var(--ink);
+}
+
+.faq-section-header + .faq-item { border-top: 0; }
+
+.faq-item summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--s4);
+    min-height: 44px;
+    padding: var(--s4) 0;
+    list-style: none;
+    font-size: 16px;
+    font-weight: 600;
+    line-height: 1.4;
+    cursor: pointer;
+}
+
+.faq-item summary::-webkit-details-marker { display: none; }
+.faq-item summary::marker { content: ""; }
+
+.faq-q { overflow-wrap: anywhere; }
+
+.faq-toggle {
+    flex: none;
+    width: 20px;
+    height: 20px;
+    fill: none;
+    stroke: var(--ink);
+    stroke-width: 1.5px;
+    stroke-linecap: square;
+    stroke-linejoin: miter;
+    transition: transform 200ms var(--ease);
+}
+
+.faq-item[open] .faq-toggle { transform: rotate(45deg); }
+
+.faq-answer {
+    padding: 0 0 var(--s5);
+    font-size: 15px;
+    line-height: 1.65;
+    color: var(--ink-2);
+    overflow-wrap: anywhere;
+}
+
+.faq-answer p { margin: 0 0 var(--s3); }
+.faq-answer p:last-child { margin-bottom: 0; }
+.faq-answer a { color: var(--ink); }
+.faq-answer strong { color: var(--ink); font-weight: 600; }
+
+.faq-answer ul,
+.faq-answer ol {
+    margin: 0 0 var(--s3);
+    padding-left: 1.25em;
+}
+
+.faq-answer li { margin-bottom: var(--s1); }
+.faq-answer li:last-child { margin-bottom: 0; }
+
+/*
+ * The rights table is wider than a phone, and a cut-off column reads as a broken table
+ * rather than a scrollable one. Four flat, hard-stop background layers give the hint with
+ * no JS and no gradient: two solid ink rules pinned to the wrapper's edges (attachment:
+ * scroll) and two opaque paper covers that travel with the content (attachment: local).
+ * At rest the covers sit over both rules and hide them, so a rule shows only on the side
+ * that still has table left to reach, and a table that already fits shows nothing at all.
+ */
+.faq-table-wrap {
+    overflow-x: auto;
+    margin: var(--s3) 0 var(--s4);
+    -webkit-overflow-scrolling: touch;
+    background:
+        linear-gradient(var(--paper), var(--paper)) left center,
+        linear-gradient(var(--paper), var(--paper)) right center,
+        linear-gradient(var(--ink), var(--ink)) left center,
+        linear-gradient(var(--ink), var(--ink)) right center;
+    background-repeat: no-repeat;
+    background-size: 16px 100%, 16px 100%, var(--rule) 100%, var(--rule) 100%;
+    background-attachment: local, local, scroll, scroll;
+}
+
+.faq-table {
+    border-collapse: collapse;
+    width: 100%;
+    min-width: 560px;
+    font-size: 14px;
+    font-variant-numeric: tabular-nums;
+}
+
+.faq-table th,
+.faq-table td {
+    text-align: left;
+    padding: var(--s2) var(--s3);
+    border-bottom: 1px solid var(--hair);
+    vertical-align: top;
+    overflow-wrap: normal;
+}
+
+.faq-table th {
+    font-weight: 600;
+    border-bottom: var(--rule) solid var(--ink);
+    white-space: nowrap;
+}
+
+.faq-table tr:last-child td { border-bottom: 0; }
+
+/* ---------- Current-page nav marker ---------- */
+
+.app-header-links a[aria-current="page"] {
+    text-decoration: underline;
+    text-decoration-thickness: 2px;
+    text-underline-offset: 3px;
+}
+
+@media (min-width: 640px) {
+    .faq-hero h1 { font-size: 30px; }
+}

@@ -82,7 +82,7 @@
             });
 
             const error = h('div', { class: 'bs-error', hidden: true });
-            const save = h('button', { type: 'button', class: 'btn primary bs-next', text: existing ? 'Save' : 'Add' });
+            const save = h('button', { type: 'button', class: 'btn btn-solid bs-next', text: existing ? 'Save' : 'Add' });
 
             const layer = h('div', { class: 'bs-root bp-layer' }, [
                 h('div', { class: 'bs-backdrop', onclick: () => done(null) }),
@@ -93,7 +93,7 @@
                             h('div', { class: 'bs-title', text: existing ? 'Edit this person' : 'Add a person' }),
                             h('div', { class: 'bs-step', text: 'Name, email and phone — asked once' })
                         ]),
-                        h('button', { type: 'button', class: 'bs-close', 'aria-label': 'Close', text: '×', onclick: () => done(null) })
+                        h('button', { type: 'button', class: 'bs-close icon-btn', 'aria-label': 'Close', html: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>', onclick: () => done(null) })
                     ]),
                     h('div', { class: 'bs-body' }, [
                         h('div', { class: 'bs-field' }, [
@@ -115,7 +115,7 @@
                     ]),
                     error,
                     h('div', { class: 'bs-footer' }, [
-                        h('button', { type: 'button', class: 'btn ghost', text: 'Cancel', onclick: () => done(null) }),
+                        h('button', { type: 'button', class: 'text-btn', text: 'Cancel', onclick: () => done(null) }),
                         save
                     ])
                 ])
@@ -222,7 +222,7 @@
         }
 
         body.append(h('button', {
-            type: 'button', class: 'btn ghost bs-wide', text: '+ Add a person',
+            type: 'button', class: 'btn btn-line bs-wide', text: 'Add a person',
             onclick: async () => { if (await openEditor(null)) renderManager(); }
         }));
     }
@@ -282,11 +282,11 @@
                         h('div', { class: 'bs-title', text: 'People' }),
                         h('div', { class: 'bs-step', text: 'Who this board books for' })
                     ]),
-                    h('button', { type: 'button', class: 'bs-close', 'aria-label': 'Close', text: '×', onclick: closeManager })
+                    h('button', { type: 'button', class: 'bs-close icon-btn', 'aria-label': 'Close', html: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>', onclick: closeManager })
                 ]),
                 h('div', { class: 'bs-body' }),
                 h('div', { class: 'bs-footer' }, [
-                    h('button', { type: 'button', class: 'btn ghost bs-wide', text: 'Done', onclick: closeManager })
+                    h('button', { type: 'button', class: 'btn btn-solid bs-wide', text: 'Done', onclick: closeManager })
                 ])
             ])
         ]);

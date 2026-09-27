@@ -265,7 +265,7 @@
 
         const head = h('div', { class: 'bs-label-row' }, [
             h('label', { class: 'bs-label', text: 'Booking for' }),
-            h('button', { type: 'button', class: 'text-link-btn bs-manage', text: 'Manage people', onclick: openPeopleManager })
+            h('button', { type: 'button', class: 'text-btn bs-manage', text: 'Manage people', onclick: openPeopleManager })
         ]);
 
         if (people.length === 0) {
@@ -346,7 +346,7 @@
         if (draft.playDate) {
             const opening = openingLabel(draft.playDate);
             body.push(h('div', { class: 'bs-block' }, [
-                h('div', { class: 'eyebrow', text: 'What happens next' }),
+                h('div', { class: 'bs-block-title', text: 'What happens next' }),
                 h('p', { class: 'bs-block-lead' }, [
                     'The form for ',
                     h('strong', { text: prettyDate(draft.playDate) }),
@@ -450,7 +450,7 @@
                     h('div', { class: 'bs-summary-title', text: 'Everything else' }),
                     h('div', { class: 'bs-summary-text', text: summary })
                 ]),
-                h('button', { type: 'button', class: 'btn ghost sm', text: 'Change', onclick: openDetails })
+                h('button', { type: 'button', class: 'text-btn', text: 'Change', onclick: openDetails })
             ])
         ];
     }
@@ -603,7 +603,7 @@
                             ? `${person.emailMasked} · ${person.phoneMasked}`
                             : 'Contact details kept with this entry' })
                     ]),
-                    h('button', { type: 'button', class: 'text-link-btn', text: 'Change', onclick: () => goTo(1) })
+                    h('button', { type: 'button', class: 'text-btn', text: 'Change', onclick: () => goTo(1) })
                 ]),
                 // The privacy sentence sits under the contact details it is about.
                 h('p', { class: 'bs-note', text: 'The email and phone go on KU Leuven\u2019s form and nowhere else — the board shows only the name.' })
@@ -707,10 +707,10 @@
             otherField,
             h('div', { class: 'bs-field' }, [h('label', { class: 'bs-label', text: 'Remarks' }), remarks]),
             h('div', { class: 'bs-modal-actions' }, [
-                h('button', { type: 'button', class: 'btn ghost', text: 'Cancel', onclick: () => root.querySelector('.bs-modal').remove() }),
+                h('button', { type: 'button', class: 'text-btn', text: 'Cancel', onclick: () => root.querySelector('.bs-modal').remove() }),
                 h('button', {
                     type: 'button',
-                    class: 'btn accent',
+                    class: 'btn btn-solid',
                     text: 'Save',
                     onclick: () => {
                         draft.players = Math.max(10, parseInt(players.value, 10) || 10);
@@ -783,11 +783,11 @@
 
         const full = quota && quota.remaining === 0;
         if (full) {
-            footer.append(h('button', { type: 'button', class: 'btn ghost bs-wide', text: 'Leave it for now', onclick: close }));
+            footer.append(h('button', { type: 'button', class: 'btn btn-line bs-wide', text: 'Leave it for now', onclick: close }));
             return;
         }
         if (draft.step > 1) {
-            footer.append(h('button', { type: 'button', class: 'btn ghost', text: 'Back', onclick: () => goTo(draft.step - 1) }));
+            footer.append(h('button', { type: 'button', class: 'btn btn-line', text: 'Back', onclick: () => goTo(draft.step - 1) }));
         }
         const count = draft.repeatOn && preview ? preview.dates.length : 1;
         const last = draft.editingId ? 'Save changes'
@@ -796,7 +796,7 @@
         const label = draft.step === 1 ? 'Next — times' : draft.step === 2 ? 'Next — confirm' : last;
         const next = h('button', {
             type: 'button',
-            class: `btn ${draft.step === 3 ? 'dark' : 'accent'} bs-next`,
+            class: 'btn btn-solid bs-next',
             text: label,
             onclick: () => (draft.step === 3 ? submit() : goTo(draft.step + 1))
         });
@@ -933,7 +933,7 @@
 
         const footer = root.querySelector('.bs-footer');
         footer.textContent = '';
-        footer.append(h('button', { type: 'button', class: 'btn dark bs-wide', text: 'Done', onclick: close }));
+        footer.append(h('button', { type: 'button', class: 'btn btn-solid bs-wide', text: 'Done', onclick: close }));
         setError(null);
     }
 
@@ -1059,7 +1059,9 @@
             h('div', { class: 'bs-backdrop', onclick: close }),
             h('section', { class: 'bs-sheet', role: 'dialog', 'aria-modal': 'true', 'aria-label': sheetTitle() }, [
                 h('div', { class: 'bs-handle' }),
-                h('div', { class: `bs-mode bs-mode-${draft.mode}` }, [
+                // A new slot needs no strip: its title already says "Queue a slot". Only an
+                // edit or a copy, whose title becomes the booking's name, keeps one.
+                draft.mode === 'create' ? null : h('div', { class: `bs-mode bs-mode-${draft.mode}` }, [
                     h('span', { class: 'bs-mode-tag', text: MODE_TAG[draft.mode] }),
                     draft.source ? h('span', { class: 'bs-mode-src', text: draft.source }) : null
                 ].filter(Boolean)),
@@ -1069,7 +1071,7 @@
                         h('div', { class: 'bs-step', text: `Step 1 of 3 · ${STEP_TITLES[0]}` })
                     ]),
                     h('div', { class: 'bs-bars' }, [1, 2, 3].map(() => h('span', { class: 'bs-bar' }))),
-                    h('button', { type: 'button', class: 'bs-close', 'aria-label': 'Close', text: '×', onclick: close })
+                    h('button', { type: 'button', class: 'bs-close icon-btn', 'aria-label': 'Close', html: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>', onclick: close })
                 ]),
                 h('div', { class: 'bs-body' }),
                 h('div', { class: 'bs-error', hidden: true }),

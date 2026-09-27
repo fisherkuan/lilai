@@ -1,14 +1,79 @@
 const API_BASE_URL = window.location.origin;
 
 let allAdminEvents = []; // Global variable to store event data
+let appConfig = {};
+
+// ---------- Calendar shapes ----------
+// Copied from public/app.js's styleFor/shapeSvg mapping (not imported: admin
+// pages stay off app.js). Each enabled calendar owns one primary shape, in
+// config order — see DESIGN.md, The One Shape Per Calendar Rule.
+const CAL_STYLES = [
+    { shape: 'circle', tone: 'blue' },
+    { shape: 'square', tone: 'red' },
+    { shape: 'triangle', tone: 'yellow' },
+    { shape: 'diamond', tone: 'ink' }
+];
+const UNSOURCED_STYLE = { shape: 'diamond', tone: 'ink', name: '' };
+let calendarStyleBySource = {};
+
+function calendarIdFromUrl(url) {
+    try {
+        return new URL(url).searchParams.get('src');
+    } catch (_) {
+        return null;
+    }
+}
+
+function buildCalendarStyles() {
+    calendarStyleBySource = {};
+    let i = 0;
+    (appConfig.calendars || []).forEach(cal => {
+        if (!cal.enabled) return;
+        const id = calendarIdFromUrl(cal.url);
+        if (!id) return;
+        const base = CAL_STYLES[Math.min(i, CAL_STYLES.length - 1)];
+        calendarStyleBySource[id] = { ...base, name: cal.name };
+        i += 1;
+    });
+}
+
+function styleFor(event) {
+    return calendarStyleBySource[event.source] || UNSOURCED_STYLE;
+}
+
+function shapeSvg(shape, extraClass = '') {
+    return `<svg class="shape s-${shape}${extraClass ? ' ' + extraClass : ''}" aria-hidden="true" focusable="false"><use href="#shape-${shape}"/></svg>`;
+}
+
+function escapeHtml(str) {
+    return String(str ?? '').replace(/[&<>"']/g, ch => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[ch]));
+}
+
+function escapeAttribute(str) {
+    return escapeHtml(str);
+}
 
 document.addEventListener('DOMContentLoaded', () => {
-    loadEvents();
+    init();
     setupWebSocket();
 });
 
+async function init() {
+    try {
+        const res = await fetch(`${API_BASE_URL}/api/config`, { cache: 'no-cache' });
+        appConfig = await res.json();
+    } catch (error) {
+        console.error('Error loading config:', error);
+        appConfig = {};
+    }
+    buildCalendarStyles();
+    loadEvents();
+}
+
 function setupWebSocket() {
-    const wsProtocol = window.location.protocol === 'https' ? 'wss' : 'ws';
+    const wsProtocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
     const wsUrl = `${wsProtocol}://${window.location.host}`;
     const ws = new WebSocket(wsUrl);
 
@@ -38,82 +103,99 @@ function setupWebSocket() {
 }
 
 function updateEventInUI(event) {
-    const eventElement = document.querySelector(`.event-card-admin[data-event-id='${event.id}']`);
-    if (eventElement) {
-        const input = document.getElementById(`limit-${event.id}`);
-        const button = eventElement.querySelector('button');
+    const row = document.querySelector(`tr[data-event-id="${CSS.escape(event.id)}"]`);
+    if (!row) return;
 
-        if (document.activeElement !== input) {
-            input.value = event.attendance_limit || '';
-        }
+    const idx = allAdminEvents.findIndex(ev => ev.id === event.id);
+    if (idx > -1) allAdminEvents[idx] = { ...allAdminEvents[idx], ...event };
 
-        button.textContent = event.attendance_limit ? 'Update Limit' : 'Set Limit';
+    const input = document.getElementById(`limit-${event.id}`);
+    if (input && document.activeElement !== input) {
+        input.value = event.attendance_limit || '';
     }
+
+    const updateBtn = row.querySelector('[data-action="update"]');
+    if (updateBtn) updateBtn.textContent = event.attendance_limit ? 'Update' : 'Set';
 }
 
 async function loadEvents() {
     try {
         const response = await fetch(`${API_BASE_URL}/api/events?timeRange=future`, { cache: 'no-cache' });
         const events = await response.json();
-        allAdminEvents = events; // Populate the global variable
+        allAdminEvents = events;
         displayEvents(events);
     } catch (error) {
         console.error('Error loading events:', error);
+        const eventsList = document.getElementById('admin-events-list');
+        eventsList.innerHTML = '<tr role="row"><td role="cell" colspan="3"><p class="state-line is-error">Could not load events.</p></td></tr>';
     }
+}
+
+function formatEventWhen(dateStr) {
+    return new Date(dateStr).toLocaleString('en-US', {
+        weekday: 'short',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+    });
 }
 
 function displayEvents(events) {
     const eventsList = document.getElementById('admin-events-list');
-    eventsList.innerHTML = ''; // Clear the list
 
-    events.forEach(event => {
-        const buttonText = event.attendance_limit ? 'Update Limit' : 'Set Limit';
-        const eventCard = document.createElement('div');
-        eventCard.className = 'event-card-admin';
-        eventCard.dataset.eventId = event.id;
+    if (!events.length) {
+        eventsList.innerHTML = '<tr role="row"><td role="cell" colspan="3"><p class="state-line">No upcoming events.</p></td></tr>';
+        return;
+    }
 
-        const infoContainer = document.createElement('div');
-        const titleEl = document.createElement('h3');
-        titleEl.textContent = event.title;
-        const dateEl = document.createElement('p');
-        dateEl.textContent = new Date(event.date).toLocaleString('en-US', {
-            weekday: 'long',
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit'
-        });
-        infoContainer.appendChild(titleEl);
-        infoContainer.appendChild(dateEl);
+    eventsList.innerHTML = events.map(event => {
+        const st = styleFor(event);
+        const buttonText = event.attendance_limit ? 'Update' : 'Set';
+        const id = escapeAttribute(event.id);
+        return `
+            <tr data-event-id="${id}" role="row">
+                <td role="cell">
+                    <div class="row-title"><span class="shape-mark tone-${st.tone}">${shapeSvg(st.shape)}</span>${escapeHtml(event.title)}</div>
+                    <div class="row-meta">${escapeHtml(formatEventWhen(event.date))}</div>
+                </td>
+                <td class="col-num" role="cell">
+                    <span class="col-label" aria-hidden="true">Limit</span>
+                    <label class="sr-only" for="limit-${id}">Attendance limit for ${escapeAttribute(event.title)}</label>
+                    <input type="number" id="limit-${id}" class="input input-num" min="1" placeholder="No limit" value="${event.attendance_limit || ''}">
+                </td>
+                <td role="cell">
+                    <div class="row-actions">
+                        <button type="button" class="text-btn" data-action="update">${buttonText}</button>
+                        <button type="button" class="text-btn" data-action="remove">Remove</button>
+                    </div>
+                    <p class="row-status" id="status-${id}" hidden></p>
+                </td>
+            </tr>
+        `;
+    }).join('');
 
-        const formContainer = document.createElement('div');
-        formContainer.className = 'attendance-limit-form';
-
-        const limitInput = document.createElement('input');
-        limitInput.type = 'number';
-        limitInput.id = `limit-${event.id}`;
-        limitInput.value = event.attendance_limit || '';
-        limitInput.placeholder = 'No limit';
-        limitInput.min = '1';
-
-        const updateButton = document.createElement('button');
-        updateButton.textContent = buttonText;
-        updateButton.addEventListener('click', () => updateAttendanceLimit(event.id));
-
-        const removeButton = document.createElement('button');
-        removeButton.className = 'btn-secondary';
-        removeButton.textContent = 'Remove Limit';
-        removeButton.addEventListener('click', () => removeAttendanceLimit(event.id));
-
-        formContainer.appendChild(limitInput);
-        formContainer.appendChild(updateButton);
-        formContainer.appendChild(removeButton);
-
-        eventCard.appendChild(infoContainer);
-        eventCard.appendChild(formContainer);
-        eventsList.appendChild(eventCard);
+    eventsList.querySelectorAll('tr[data-event-id]').forEach(row => {
+        const eventId = row.dataset.eventId;
+        row.querySelector('[data-action="update"]').addEventListener('click', () => updateAttendanceLimit(eventId));
+        row.querySelector('[data-action="remove"]').addEventListener('click', () => removeAttendanceLimit(eventId));
     });
+}
+
+function printRowStatus(eventId, message, isError) {
+    const status = document.getElementById(`status-${CSS.escape(eventId)}`);
+    if (!status) return;
+    status.textContent = message;
+    status.classList.toggle('is-error', !!isError);
+    status.hidden = !message;
+}
+
+function descriptionLimitConflict(event, newLimit) {
+    if (!event || !event.description) return undefined;
+    const match = event.description.trim().match(/limit:?\s*(\d+)/i);
+    if (!match) return undefined;
+    const descriptionLimit = parseInt(match[1], 10);
+    return descriptionLimit !== newLimit ? descriptionLimit : undefined;
 }
 
 async function updateAttendanceLimit(eventId) {
@@ -121,98 +203,59 @@ async function updateAttendanceLimit(eventId) {
     const newLimit = input.value ? parseInt(input.value, 10) : null;
 
     if (newLimit !== null && newLimit <= 0) {
-        alert('Attendance limit must be a positive number.');
+        printRowStatus(eventId, 'Limit must be a positive number.', true);
         return;
     }
 
-    let shouldProceedWithUpdate = true;
-
-    // Get the current event object to check its description
     const currentEvent = allAdminEvents.find(event => event.id === eventId);
-    if (currentEvent && currentEvent.description) {
-        const description = currentEvent.description.trim();
-        const limitMatch = description.match(/limit:?\s*(\d+)/i);
-        let descriptionLimit = undefined;
-        if (limitMatch) {
-            descriptionLimit = parseInt(limitMatch[1], 10);
-        }
-
-        // If a limit is specified in the description and it's different from the UI input
-        if (descriptionLimit !== undefined && descriptionLimit !== newLimit) {
-            alert('NOT EFFECTIVE: This event has an attendance limit specified in its description. Please remove it from the description if you want to update the limit here.');
-            shouldProceedWithUpdate = false;
-        }
-    }
-
-    if (!shouldProceedWithUpdate) {
+    if (descriptionLimitConflict(currentEvent, newLimit) !== undefined) {
+        printRowStatus(eventId, 'Not effective — this event’s limit comes from its calendar description. Remove it there first.', true);
         return;
     }
 
     try {
-        const updateResponse = await fetch(`${API_BASE_URL}/api/events/${eventId}`,
-            {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ attendanceLimit: newLimit })
-            }
-        );
+        const updateResponse = await fetch(`${API_BASE_URL}/api/events/${eventId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ attendanceLimit: newLimit })
+        });
 
         if (updateResponse.ok) {
             const updatedEvent = await updateResponse.json();
-            alert(`Attendance limit for "${updatedEvent.event.title}" successfully updated to ${newLimit ? newLimit : 'unlimited'}.`);
+            printRowStatus(eventId, `Updated to ${newLimit ? newLimit : 'unlimited'}.`, false);
         } else {
             const error = await updateResponse.json();
-            alert(`Error: ${error.message}`);
+            printRowStatus(eventId, error.message || 'Error updating limit.', true);
         }
     } catch (error) {
         console.error('Error updating attendance limit:', error);
-        alert('Error updating attendance limit. See console for details.');
+        printRowStatus(eventId, 'Error updating limit. See console for details.', true);
     }
 }
 
 async function removeAttendanceLimit(eventId) {
-    let shouldProceedWithRemoval = true;
-
-    // Get the current event object to check its description
     const currentEvent = allAdminEvents.find(event => event.id === eventId);
-    if (currentEvent && currentEvent.description) {
-        const description = currentEvent.description.trim();
-        const limitMatch = description.match(/limit:?\s*(\d+)/i);
-        let descriptionLimit = undefined;
-        if (limitMatch) {
-            descriptionLimit = parseInt(limitMatch[1], 10);
-        }
-
-        // If a limit is specified in the description, warn the user
-        if (descriptionLimit !== undefined) {
-            alert('NOT EFFECTIVE: This event has an attendance limit specified in its description. Please remove it from the description if you want to remove the limit here.');
-            shouldProceedWithRemoval = false;
-        }
-    }
-
-    if (!shouldProceedWithRemoval) {
+    if (descriptionLimitConflict(currentEvent, null) !== undefined) {
+        printRowStatus(eventId, 'Not effective — this event’s limit comes from its calendar description. Remove it there first.', true);
         return;
     }
 
     try {
-        const updateResponse = await fetch(`${API_BASE_URL}/api/events/${eventId}`,
-            {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ attendanceLimit: null })
-            }
-        );
+        const updateResponse = await fetch(`${API_BASE_URL}/api/events/${eventId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ attendanceLimit: null })
+        });
 
         if (updateResponse.ok) {
-            const updatedEvent = await updateResponse.json();
-            alert(`Attendance limit for "${updatedEvent.event.title}" removed successfully!`);
             document.getElementById(`limit-${eventId}`).value = '';
+            printRowStatus(eventId, 'Limit removed.', false);
         } else {
             const error = await updateResponse.json();
-            alert(`Error: ${error.message}`);
+            printRowStatus(eventId, error.message || 'Error removing limit.', true);
         }
     } catch (error) {
         console.error('Error removing attendance limit:', error);
-        alert('Error removing attendance limit. See console for details.');
+        printRowStatus(eventId, 'Error removing limit. See console for details.', true);
     }
 }

@@ -13,35 +13,35 @@
         queued: {
             label: 'Waiting',
             tone: 'muted',
-            dot: 'solid-muted',
+            mark: 'open',
             headline: 'Nothing has been sent yet.',
             blurb: 'This slot is waiting for its window. We submit the form in the first seconds after it opens.'
         },
         sending: {
             label: 'Sending',
-            tone: 'accent',
-            dot: 'ring',
+            tone: 'sent',
+            mark: 'open',
             headline: 'The request is going out now.',
             blurb: 'The window has opened and the form is being submitted.'
         },
         sent: {
             label: 'Request sent',
-            tone: 'accent',
-            dot: 'solid-success',
+            tone: 'sent',
+            mark: 'solid',
             headline: 'The request went in.',
             blurb: 'It reached KU Leuven inside the opening minute, which is everything this app can do. What they decide is theirs. This entry will not change again.'
         },
         /*
          * Not a state of its own, and not a failure. The request went out; what we could
-         * not read is the form's reply. It says "Request sent" like any other, with a
-         * hollow dot for the part that is missing — the same vocabulary the board uses,
+         * not read is the form's reply. It says "Request sent" like any other, with an
+         * open square for the part that is missing — the same vocabulary the board uses,
          * because the two pages describe the same row and disagreeing is worse than either
          * wording. "Failed" invites a re-queue, and a re-queue can double-book.
          */
         unconfirmed: {
             label: 'Request sent',
-            tone: 'accent',
-            dot: 'ring-success',
+            tone: 'sent',
+            mark: 'open',
             headline: 'The request went in, but the form never answered.',
             blurb: 'It may well have gone through — we simply cannot tell from here. Check your email before queueing this slot again: sending the same one twice can double-book it, and we never retry on our own.'
         },
@@ -53,28 +53,48 @@
         not_sent: {
             label: 'Not sent',
             tone: 'muted',
-            dot: 'solid-muted',
+            mark: 'slash',
             headline: 'Nothing was submitted.',
             blurb: 'Submitting is switched off on this server, so the slot reached its opening and we deliberately sent no request. KU Leuven never heard about it. Set BOOKING_SUBMIT=live to send for real.'
         },
+        /*
+         * Still queued, but its window has already opened. Not a status of its own: the
+         * row is `queued` until the scheduler claims it. The board calls these "next"
+         * for the first five minutes and "catching up" after that; this page must agree,
+         * or the same row reads as early on one page and late on the other.
+         */
+        queued_opening: {
+            label: 'Waiting',
+            tone: 'muted',
+            mark: 'open',
+            headline: 'Nothing has been sent yet.',
+            blurb: 'Its window has just opened. The form goes out within the minute.'
+        },
+        queued_late: {
+            label: 'Catching up',
+            tone: 'muted',
+            mark: 'open',
+            headline: 'Nothing has been sent yet.',
+            blurb: 'Its window opened a while ago and the request has not gone out. It is sent when the server next checks, usually within seconds. A late request often gets a worse court than a punctual one.'
+        },
         failed: {
             label: 'Request failed',
-            tone: 'danger',
-            dot: 'solid-danger',
+            tone: 'failed',
+            mark: 'cross',
             headline: 'It did not go through.',
             blurb: 'Nothing was booked. The slot can be queued again if its window is still open.'
         },
         missed: {
             label: 'Missed',
-            tone: 'warning',
-            dot: 'solid-warning',
+            tone: 'missed',
+            mark: 'half',
             headline: 'The window passed before we could send it.',
             blurb: 'Nothing broke — the clock ran out. Once a window has fully closed the request is never submitted behind your back.'
         },
         cancelled: {
             label: 'Cancelled',
             tone: 'muted',
-            dot: 'solid-muted',
+            mark: 'slash',
             headline: 'This slot was taken out of the queue.',
             blurb: 'It never went to KU Leuven.'
         }
@@ -84,7 +104,6 @@
     const fmt = (opts) => new Intl.DateTimeFormat('en-GB', { timeZone: BRUSSELS, ...opts });
     const timeOf = (iso) => fmt({ hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date(iso));
     const secondsOf = (iso) => fmt({ hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }).format(new Date(iso));
-    const longDate = (iso) => fmt({ weekday: 'long', day: 'numeric', month: 'long' }).format(new Date(iso));
     const shortStamp = (iso) => fmt({ weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date(iso));
 
     function displayName(name) {
@@ -107,16 +126,17 @@
     function timeline(booking) {
         const steps = [['Queued by', `${displayName(booking.queuedBy || booking.name)} · ${shortStamp(booking.queuedAt)}`]];
         const opened = new Date(booking.opensAt) <= new Date();
-        steps.push(['Window opened', opened ? stampWithSeconds(booking.opensAt) : `${shortStamp(booking.opensAt)} — not yet`]);
+        steps.push(['Window opened', opened ? stampWithSeconds(booking.opensAt) : `${shortStamp(booking.opensAt)} — not yet`, !opened]);
         // Submitting the form and the outcome of submitting it happen at the same instant;
         // two steps a second apart implied a wait that never existed.
         if (booking.submittedAt) {
             steps.push([OUTCOMES[booking.status].label, stampWithSeconds(booking.submittedAt)]);
         }
-        return h('div', { class: 'card bd-card' }, [
-            h('h3', { text: 'What happened' }),
-            h('ol', { class: 'bd-steps' }, steps.map(([label, when], index) => h('li', {
-                class: index === steps.length - 1 ? 'last' : ''
+        return h('section', { class: 'bd-card' }, [
+            h('h2', { class: 'bd-card-title', text: 'What happened' }),
+            // A step that has not happened yet keeps an open square: filled means it did.
+            h('ol', { class: 'bd-steps' }, steps.map(([label, when, ahead], index) => h('li', {
+                class: [index === steps.length - 1 ? 'last' : '', ahead ? 'ahead' : ''].join(' ').trim()
             }, [
                 h('span', { class: 'bd-step-dot' }),
                 h('span', {}, [h('span', { class: 'bd-step-label', text: label }), h('span', { class: 'bd-step-when', text: when })])
@@ -137,10 +157,10 @@
         ];
         if (booking.remarks) rows.splice(4, 0, ['Remarks', booking.remarks]);
 
-        return h('div', { class: 'card bd-card' }, [
+        return h('section', { class: 'bd-card' }, [
             // Nothing was sent for a dry run, so neither heading is true of it: what
             // the table holds is the request that would have gone.
-            h('h3', { text: booking.status === 'not_sent'
+            h('h2', { class: 'bd-card-title', text: booking.status === 'not_sent'
                 ? 'What we would have sent'
                 : (booking.submittedAt ? 'What we sent' : 'What we will send') }),
             h('div', { class: 'bd-table' }, rows.map(([label, value]) => h('div', { class: 'bd-row' }, [
@@ -150,20 +170,38 @@
         ]);
     }
 
+    // The board's LIVE_WINDOW_MS (admin-bookings.js): how long "next" lasts before "catching up".
+    const LIVE_WINDOW_MS = 5 * 60 * 1000;
+
+    function outcomeKey(booking) {
+        if (booking.status !== 'queued') return booking.status;
+        const sinceOpen = Date.now() - new Date(booking.opensAt).getTime();
+        if (sinceOpen < 0) return 'queued';
+        return sinceOpen < LIVE_WINDOW_MS ? 'queued_opening' : 'queued_late';
+    }
+
     function render(booking) {
-        const outcome = OUTCOMES[booking.status] || OUTCOMES.failed;
+        const outcome = OUTCOMES[outcomeKey(booking)] || OUTCOMES.failed;
         document.getElementById('bd-ref').textContent = `Entry ${booking.id.slice(0, 8)}`;
 
         const main = document.getElementById('bd-main');
         main.textContent = '';
+        /*
+         * The play date leads, as a numeral, the way every event on Home does: it is the
+         * one fact this page is about, and the only type allowed to break scale here.
+         */
+        const start = new Date(booking.startPreferred);
         main.append(
-            h('div', { class: 'eyebrow', text: longDate(booking.startPreferred) }),
-            h('h1', { class: 'bd-title', text: `${booking.sport}, ${timeOf(booking.startPreferred)}–${endTime(booking.startPreferred, booking.durationHours)}` }),
-            h('span', { class: `bd-pill bd-tone-${outcome.tone}` }, [
-                h('span', { class: `bq-dot bq-dot-${outcome.dot}` }),
+            h('div', { class: 'bd-date' }, [
+                h('span', { class: 'bd-day', text: fmt({ day: 'numeric' }).format(start) }),
+                h('span', { class: 'bd-daymeta', text: `${fmt({ weekday: 'long' }).format(start)} · ${fmt({ month: 'long' }).format(start)}` })
+            ]),
+            h('h1', { class: 'admin-title bd-title', text: `${booking.sport}, ${timeOf(booking.startPreferred)}–${endTime(booking.startPreferred, booking.durationHours)}` }),
+            h('p', { class: `bd-status bd-tone-${outcome.tone}` }, [
+                h('span', { class: `bq-mark bq-mark-${outcome.mark}`, 'aria-hidden': 'true' }),
                 outcome.label
             ]),
-            h('div', { class: 'card bd-headline' }, [
+            h('section', { class: 'bd-headline' }, [
                 h('h2', { text: outcome.headline }),
                 h('p', { text: outcome.blurb })
             ]),
@@ -178,7 +216,7 @@
         const main = document.getElementById('bd-main');
         main.textContent = '';
         main.append(
-            h('h1', { class: 'bd-title', text: 'Entry not found' }),
+            h('h1', { class: 'admin-title bd-title', text: 'Entry not found' }),
             h('p', { class: 'bd-note', text: 'It may have been removed. Go back to the board to see what is queued.' })
         );
     }

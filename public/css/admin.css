@@ -1,0 +1,254 @@
+/* Lilai admin: shared nav, page title, and dense table/list patterns for
+   the three Operate surfaces (Events, Donations, Booking queue). Loaded
+   after /css/lilai.css on every admin page. See DESIGN.md.
+
+   Operate surfaces stay dense and scannable: tabular numerals in counts
+   and amounts, amounts right-aligned. No cards, no shadows — content is
+   divided by 1.5px ink rules, same as Home. */
+
+/* ---------- Admin nav ---------- */
+
+.admin-nav {
+    display: flex;
+    align-items: center;
+    gap: var(--s5);
+    max-width: var(--page);
+    margin: 0 auto;
+    padding: 0 var(--gutter) var(--s3);
+    position: relative;
+}
+
+/* The rule under the tabs ends where the content column ends, like every other rule. */
+.admin-nav::after {
+    content: "";
+    position: absolute;
+    left: var(--gutter);
+    right: var(--gutter);
+    bottom: 0;
+    border-bottom: var(--rule) solid var(--ink);
+}
+
+.admin-nav a {
+    display: flex;
+    align-items: center;
+    min-height: 44px;
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--ink-3);
+    text-decoration: none;
+    border-bottom: 2px solid transparent;
+}
+
+.admin-nav a:hover { color: var(--ink); }
+
+.admin-nav a[aria-current="page"] {
+    color: var(--ink);
+    border-bottom-color: var(--ink);
+}
+
+/* ---------- Page shell ---------- */
+
+.admin {
+    max-width: var(--page);
+    margin: 0 auto;
+    padding: 0 var(--gutter) var(--s8);
+}
+
+.admin-head {
+    padding-bottom: var(--s5);
+}
+
+/* The rule lives on .admin-nav (its ::after, above); .admin-title supplies
+   its own spacing under it, so any admin page gets correct header rhythm
+   right after the nav with no extra wrapper required. */
+.admin-title {
+    margin-top: var(--s4);
+    font-size: 26px;
+    font-weight: 600;
+    line-height: 1.25;
+    letter-spacing: -0.01em;
+}
+
+.admin-sub {
+    margin-top: var(--s2);
+    font-size: var(--meta);
+    color: var(--ink-2);
+}
+
+/* ---------- Data table ---------- */
+
+.table-wrap {
+    overflow-x: auto;
+    border-top: var(--rule) solid var(--ink);
+}
+
+.data-table {
+    width: 100%;
+    min-width: 460px;
+    border-collapse: collapse;
+    font-size: var(--meta);
+}
+
+.data-table th,
+.data-table td {
+    padding: var(--s4) var(--s4) var(--s4) 0;
+    text-align: left;
+    vertical-align: top;
+    border-bottom: 1px solid var(--hair);
+}
+
+.data-table th:first-child,
+.data-table td:first-child { padding-left: 0; }
+
+.data-table th:last-child,
+.data-table td:last-child { padding-right: 0; }
+
+.data-table thead th {
+    padding-top: 0;
+    padding-bottom: var(--s3);
+    font-size: var(--meta);
+    font-weight: 600;
+    border-bottom: var(--rule) solid var(--ink);
+    white-space: nowrap;
+}
+
+.data-table tbody tr:last-child td { border-bottom: 0; }
+
+.data-table .col-num,
+.data-table td.num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+/* Mobile-only field label, standing in for the (hidden) column header.
+   Real text, not generated content, so it reads the same in markup as
+   DESIGN.md's field labels: 14px, 600, sentence case. */
+.col-label {
+    display: none;
+    margin-bottom: var(--s1);
+    font-size: var(--meta);
+    font-weight: 600;
+}
+
+/* ---------- Admin Events ---------- */
+
+/* Home's inline title mark (.event-mark), copied: the calendar shape sits
+   inside the title text itself, sized off the title's own font-size, so it
+   never claims a column or gutter of its own. */
+.shape-mark {
+    display: inline-block;
+    margin-right: 8px;
+    vertical-align: 0.02em;
+}
+.shape-mark .shape { font-size: 0.62em; }
+
+.row-title {
+    font-size: 16px;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+
+.row-meta {
+    margin-top: 2px;
+    font-size: var(--meta);
+    color: var(--ink-2);
+    font-variant-numeric: tabular-nums;
+}
+
+.data-table td.col-num .input-num { margin-left: auto; }
+
+.input-num {
+    width: 112px;
+    min-height: 50px;
+    padding: 0 var(--s3);
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+.row-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--s4);
+    flex-wrap: wrap;
+}
+
+/* Print-in-place result, next to the row it belongs to. No toast, and
+   (per DESIGN.md) no colored marker on the error line — that mark is
+   flagged drift on Home, not a pattern to carry forward. */
+.row-status {
+    margin-top: var(--s2);
+    font-size: var(--meta);
+    color: var(--ink-2);
+}
+
+.row-status.is-error {
+    color: var(--ink);
+    font-weight: 500;
+}
+
+.row-status[hidden] { display: none; }
+
+/* ---------- Admin Donations ---------- */
+
+.admin-form {
+    max-width: 480px;
+    margin-top: var(--s2);
+}
+
+.field-hint {
+    margin-top: var(--s2);
+    font-size: var(--meta);
+    color: var(--ink-2);
+}
+
+.admin-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--s5);
+    margin-top: var(--s6);
+}
+
+.admin-actions .btn { flex: 1 1 auto; }
+
+.admin-foot {
+    margin-top: var(--s6);
+    padding-top: var(--s4);
+    border-top: var(--rule) solid var(--ink);
+}
+
+/* ---------- Breakpoints ---------- */
+
+@media (max-width: 639px) {
+    .admin-nav { gap: var(--s4); }
+
+    /* A real table reads fine from 640px, but at phone width a fixed grid of
+       columns forces either illegible squeezing or a sideways scroll that
+       hides the actions. Stack each row's cells as full-width blocks
+       instead — `role` attributes on the markup keep the table semantics
+       for assistive tech regardless of this visual layout (see admin.html).
+       Every cell now starts at the same left edge: the calendar shape no
+       longer has its own column (see .shape-mark), so there is nothing left
+       to force one cell out of line with the rest. */
+    .data-table, .data-table tbody { display: block; width: 100%; }
+    .data-table thead { display: none; }
+
+    .data-table tr {
+        display: flex;
+        flex-direction: column;
+        padding: var(--s4) 0;
+        border-bottom: 1px solid var(--hair);
+    }
+    .data-table tbody tr:last-child { border-bottom: 0; }
+
+    .data-table td {
+        display: block;
+        padding: 0;
+        border-bottom: 0;
+    }
+
+    .data-table td.col-num { margin-top: var(--s3); text-align: left; }
+    .data-table td.col-num .input-num { text-align: left; margin-left: 0; }
+    .data-table td:last-child { margin-top: var(--s3); }
+
+    .col-label { display: block; }
+}

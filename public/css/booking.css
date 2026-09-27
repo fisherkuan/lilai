@@ -1,0 +1,1269 @@
+/* Lilai: booking queue board, its sheets, and the entry detail page.
+   Loads after lilai.css and admin.css, and restates the old board in the Shape Calendar
+   world: black ink on white, rules instead of boxes, status carried by words, ink weight
+   and a small ink square, never by colour. See DESIGN.md. */
+
+/* ---------- Page ----------
+   The shell, nav rule and title come from admin.css (.admin, .admin-head), so all four
+   admin pages share one header. */
+
+.bq-layout { min-width: 0; }
+.bq-main { min-width: 0; }
+
+/* ---------- Status marks ----------
+   A 10px ink square beside the word it qualifies. Filled: the request went out. Open:
+   something is still missing (a reply, or the moment itself). Struck: nothing left this
+   server. The word is always there; the mark only makes a column of them scannable. */
+
+.bq-mark {
+    position: relative;
+    display: inline-block;
+    flex: none;
+    width: 10px;
+    height: 10px;
+    border: var(--rule) solid var(--ink);
+    background: var(--paper);
+}
+
+.bq-mark-solid { background: var(--ink); }
+
+.bq-mark-slash::after,
+.bq-mark-cross::after,
+.bq-mark-cross::before {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: -3px;
+    bottom: -3px;
+    width: 1.5px;
+    margin-left: -0.75px;
+    background: var(--ink);
+    transform: rotate(45deg);
+}
+
+.bq-mark-cross { background: var(--ink); }
+.bq-mark-cross::before,
+.bq-mark-cross::after { top: 0; bottom: 0; background: var(--paper); }
+.bq-mark-cross::before { transform: rotate(-45deg); }
+
+.bq-mark-half::after {
+    content: "";
+    position: absolute;
+    inset: 50% 0 0 0;
+    background: var(--ink);
+}
+
+/* ---------- First visit ---------- */
+
+.bq-explainer {
+    margin-top: var(--s5);
+    padding: var(--s4) 0 var(--s5);
+    border-top: var(--rule) solid var(--ink);
+}
+
+.bq-explainer h2 {
+    font-size: 20px;
+    font-weight: 600;
+    line-height: 1.25;
+    letter-spacing: -0.01em;
+    text-wrap: balance;
+}
+
+.bq-explainer p {
+    max-width: 65ch;
+    margin-top: var(--s2);
+    font-size: 15px;
+    color: var(--ink-2);
+}
+
+.bq-steps {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: var(--s3);
+    margin: var(--s4) 0 0;
+    padding: 0;
+}
+
+.bq-steps li {
+    display: grid;
+    grid-template-columns: 24px minmax(0, 1fr);
+    gap: var(--s3);
+    font-size: 15px;
+}
+
+.bq-step-n {
+    font-size: 15px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Action line ---------- */
+
+.bq-action {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--s3) var(--s5);
+    padding: 0 0 var(--s5);
+}
+
+.bq-cta {
+    gap: var(--s4);
+    padding: var(--s2) var(--s5);
+    text-align: left;
+}
+
+.bq-cta-text {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.bq-cta-label { font-size: 16px; font-weight: 600; line-height: 1.25; }
+.bq-cta-sub { font-size: var(--meta); font-weight: 400; line-height: 1.3; }
+
+.bq-cta-arrow {
+    flex: none;
+    width: 20px;
+    height: 20px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.5px;
+    stroke-linecap: square;
+}
+
+.bq-offline {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--s2);
+    min-height: 44px;
+    margin-left: auto;
+    font-size: var(--meta);
+    font-weight: 600;
+}
+
+/* ---------- Midnight banner ----------
+   The page's one moment of drama: an ink block with the Brussels clock reversed out of
+   it, the same device as today's date in Home's band. Nothing pulses. */
+
+.bq-midnight {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--s4);
+    margin-bottom: var(--s5);
+    padding: var(--s4);
+    background: var(--ink);
+    color: var(--paper);
+}
+
+.bq-midnight-left { min-width: 0; }
+
+.bq-midnight-title {
+    display: flex;
+    align-items: center;
+    gap: var(--s2);
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.bq-midnight-dot {
+    flex: none;
+    width: 10px;
+    height: 10px;
+    background: var(--paper);
+    border: var(--rule) solid var(--paper);
+}
+
+.bq-midnight-sub {
+    margin-top: 2px;
+    font-size: var(--meta);
+    color: var(--past);
+    font-variant-numeric: tabular-nums;
+}
+
+.bq-midnight-clock { flex: none; text-align: right; }
+
+.bq-clock {
+    font-size: 30px;
+    font-weight: 500;
+    line-height: 1;
+    letter-spacing: -0.02em;
+    font-variant-numeric: tabular-nums;
+}
+
+.bq-clock-zone {
+    margin-top: var(--s1);
+    font-size: var(--meta);
+    color: var(--past);
+}
+
+/* Once the batch is done the banner drops to one line between two rules. */
+.bq-midnight.done {
+    padding: var(--s3) 0;
+    background: var(--paper);
+    color: var(--ink);
+    border-top: var(--rule) solid var(--ink);
+    border-bottom: var(--rule) solid var(--ink);
+}
+
+.bq-midnight.done .bq-midnight-title { font-size: 15px; }
+.bq-midnight.done .bq-midnight-dot { background: var(--paper); border-color: var(--ink); }
+.bq-midnight.done .bq-midnight-sub { color: var(--ink-2); }
+.bq-midnight.done .bq-midnight-clock { display: none; }
+
+/* ---------- Standing messages ---------- */
+
+.bq-stale {
+    margin-bottom: var(--s5);
+    padding: var(--s3) 0;
+    border-top: 3px solid var(--ink);
+    border-bottom: var(--rule) solid var(--ink);
+    font-size: var(--meta);
+}
+
+.bq-stale strong { font-weight: 600; }
+
+.bq-notice {
+    margin-bottom: var(--s5);
+    padding: var(--s3) 0;
+    border-top: var(--rule) solid var(--ink);
+    border-bottom: var(--rule) solid var(--ink);
+    font-size: var(--meta);
+    font-weight: 500;
+}
+
+/* ---------- Section heads ---------- */
+
+.bq-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: var(--s1) var(--s3);
+    padding: var(--s4) 0 var(--s3);
+    border-top: var(--rule) solid var(--ink);
+}
+
+.bq-head .section-title { font-size: 20px; letter-spacing: -0.01em; }
+
+/* ---------- Recurring schedules ---------- */
+
+.bq-series { margin-bottom: var(--s6); }
+
+.bq-series-list { display: flex; flex-direction: column; }
+
+.bq-series-card {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--s1);
+    padding: var(--s3) 0;
+    border-top: 1px solid var(--hair);
+}
+
+.bq-series-card:first-child { border-top: 0; padding-top: 0; }
+
+.bq-series-main { min-width: 0; }
+
+.bq-series-title {
+    font-size: 16px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    overflow-wrap: anywhere;
+}
+
+.bq-series-rule {
+    margin-top: 2px;
+    font-size: var(--meta);
+    color: var(--ink-2);
+    font-variant-numeric: tabular-nums;
+    overflow-wrap: anywhere;
+}
+
+.bq-series-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0 var(--s5);
+}
+
+/* ---------- Timeline ----------
+   One list read top to bottom as time runs: what went out, the NOW rule, what is still
+   coming. Rows sit under hairlines so a long board stays scannable; the NOW rule is the
+   one heavy line inside it. */
+
+.bq-timeline {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    font-variant-numeric: tabular-nums;
+}
+
+.bq-row {
+    display: grid;
+    grid-template-columns: 104px minmax(0, 1fr);
+    gap: 0 var(--s4);
+    padding: var(--s3) 0;
+    border-top: 1px solid var(--hair);
+}
+
+.bq-timeline > :first-child,
+.bq-now + .bq-row,
+.bq-now + .bq-none { border-top: 0; }
+
+.bq-gutter { min-width: 0; }
+
+.bq-gutter-main {
+    font-size: var(--meta);
+    font-weight: 600;
+    line-height: 1.4;
+}
+
+.bq-gutter-age {
+    font-size: var(--meta);
+    font-weight: 500;
+    line-height: 1.4;
+}
+
+.bq-gutter-sub {
+    font-size: var(--meta);
+    line-height: 1.4;
+    color: var(--ink-2);
+}
+
+.bq-body { min-width: 0; }
+
+.bq-title {
+    font-size: 16px;
+    font-weight: 600;
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+}
+
+.bq-details {
+    font-size: var(--meta);
+    color: var(--ink-2);
+    overflow-wrap: anywhere;
+}
+
+/* Load-bearing: this line is what stops "sent" being read as "booked". Never faint. */
+.bq-outcome {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--s2);
+    margin-top: 2px;
+    font-size: var(--meta);
+    font-weight: 600;
+    color: var(--ink);
+}
+
+.bq-outcome .bq-mark { margin-top: 5px; }
+.bq-outcome-clause { font-weight: 400; color: var(--ink-2); }
+
+/* Weight is the second channel after the word: a request that left is set heavy, a slot
+   that never did is set light. */
+.bq-tone-muted .bq-outcome { font-weight: 500; color: var(--ink-2); }
+.bq-tone-muted .bq-title { font-weight: 500; }
+
+.bq-aside { grid-column: 2; min-width: 0; margin-top: var(--s1); }
+
+.bq-who {
+    font-size: var(--meta);
+    color: var(--ink-2);
+    overflow-wrap: anywhere;
+}
+
+.bq-aside-link {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    font-size: var(--meta);
+    font-weight: 500;
+}
+
+/* A cancelled slot holds its place, struck through, until its undo runs out. */
+.bq-row-cancelled .bq-title { color: var(--ink-3); font-weight: 500; text-decoration: line-through; text-decoration-thickness: 1.5px; }
+.bq-row-cancelled .bq-gutter-main { color: var(--ink-2); font-weight: 500; }
+.bq-row-cancelled .bq-details,
+.bq-row-cancelled .bq-who { color: var(--ink-3); }
+
+.bq-sending { font-weight: 700; }
+
+/* The in-flight row: a 3px ink rule above it, the same weight as the Today marker. */
+.bq-inflight { border-top: 3px solid var(--ink); }
+.bq-now + .bq-inflight { border-top: 3px solid var(--ink); margin-top: var(--s2); }
+
+/* A row that just crossed the NOW rule prints in, like a new name on Home. */
+.bq-landed { animation: name-print 700ms var(--ease) both; }
+
+/* The NOW rule: Home's Today rule, verbatim. It renders even on an empty board. */
+.bq-now {
+    padding: var(--s2) 0 var(--s3);
+    border-top: 3px solid var(--ink);
+    font-size: var(--meta);
+    font-weight: 600;
+}
+
+.bq-timeline > .bq-now:first-child { border-top: 3px solid var(--ink); }
+.bq-now-line { display: none; }
+.bq-now-pill { font-variant-numeric: tabular-nums; }
+
+.bq-none {
+    padding: var(--s3) 0 var(--s4);
+    font-size: var(--meta);
+    color: var(--ink-2);
+}
+
+.bq-empty { padding: var(--s3) 0 var(--s4); }
+.bq-empty-title { font-size: 15px; font-weight: 500; }
+.bq-empty-note { max-width: 65ch; margin-top: var(--s1); font-size: var(--meta); color: var(--ink-2); }
+
+/* A run of collapsed rows, shown as one line that opens it. */
+.bq-fold { border-top: 1px solid var(--hair); }
+
+.bq-fold-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--s2);
+    min-height: 44px;
+    padding: 0;
+    border: 0;
+    background: none;
+    font-size: var(--meta);
+    font-weight: 500;
+    color: var(--ink);
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 3px;
+    cursor: pointer;
+}
+
+.bq-fold-btn:hover { text-decoration-thickness: 2px; }
+
+.bq-fold-btn::before {
+    content: "";
+    flex: none;
+    width: 12px;
+    height: 12px;
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' fill='none' stroke='%23111' stroke-width='1.5'%3E%3Cpath d='M6 1v10M1 6h10'/%3E%3C/svg%3E") no-repeat center / 12px;
+}
+
+/* ---------- Row actions ---------- */
+
+.bq-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0 var(--s5);
+}
+
+.bq-action-link {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    padding: 0;
+    border: 0;
+    background: none;
+    font-size: var(--meta);
+    font-weight: 500;
+    color: var(--ink);
+    white-space: nowrap;
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 3px;
+    cursor: pointer;
+}
+
+.bq-action-link:hover { text-decoration-thickness: 2px; }
+.bq-action-link:disabled { color: var(--ink-3); cursor: default; }
+
+/* Asking in the row: the question takes the line, the answer below it is a solid block. */
+.bq-ask {
+    flex: 1 0 100%;
+    padding-top: var(--s2);
+    font-size: var(--meta);
+    font-weight: 600;
+}
+
+.bq-ask ~ .bq-action-danger {
+    min-height: 44px;
+    padding: 0 var(--s4);
+    border: var(--rule) solid var(--ink);
+    background: var(--ink);
+    color: var(--paper);
+    font-weight: 600;
+    text-decoration: none;
+    transition: background-color 140ms var(--ease), color 140ms var(--ease);
+}
+
+.bq-ask ~ .bq-action-danger:hover { background: var(--paper); color: var(--ink); }
+.bq-ask ~ .bq-action-danger:disabled { background: var(--wash); border-color: var(--hair); color: var(--ink-3); }
+
+.bq-action-trouble {
+    display: block;
+    width: 100%;
+    padding-bottom: var(--s2);
+    font-size: var(--meta);
+    font-weight: 600;
+}
+
+/* The time left on an undo, beside its button: a fact, not a control. */
+.bq-action-note {
+    font-size: var(--meta);
+    color: var(--ink-2);
+    font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Wide screens: a three-column board ---------- */
+
+@media (min-width: 640px) {
+    .bq-series-card {
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: var(--s5);
+        align-items: center;
+    }
+    .bq-series-actions { justify-content: flex-end; }
+}
+
+@media (min-width: 1000px) {
+    /* One line per row: when, what, who, then the actions flush right. */
+    .bq-row {
+        grid-template-columns: 148px minmax(0, 1fr) 180px 260px;
+        gap: 0 var(--s5);
+        align-items: baseline;
+        padding: var(--s2) 0;
+    }
+
+    .bq-aside { display: contents; }
+    .bq-who { grid-column: 3; grid-row: 1; color: var(--ink); }
+    .bq-aside-link,
+    .bq-actions { grid-column: 4; grid-row: 1; justify-self: end; }
+    .bq-actions { justify-content: flex-end; }
+    .bq-actions:empty { display: none; }
+    .bq-ask { text-align: right; }
+}
+
+/* ---------- Queue-a-slot sheet, people manager, person editor ----------
+   Home's sheet: rises from the bottom on phones under an ink rule, centred with a full
+   ink border from 640px, over the one scrim the system allows. */
+
+.bs-root {
+    position: fixed;
+    inset: 0;
+    z-index: 120;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+}
+
+.bs-root [hidden] { display: none !important; }
+
+.bs-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(17, 17, 17, 0.4);
+}
+
+.bs-sheet {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    max-width: 560px;
+    max-height: 92vh;
+    background: var(--paper);
+    border-top: var(--rule) solid var(--ink);
+    animation: sheet-in 260ms var(--ease);
+}
+
+.bs-handle { display: none; }
+
+/* Mode line: fixed while the steps advance, because the title becomes the booking's own
+   name from step 2 and can no longer say whether this is a new slot or an edit. */
+.bs-mode {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0 var(--s2);
+    padding: var(--s2) var(--gutter);
+    border-bottom: var(--rule) solid var(--ink);
+    font-size: var(--meta);
+}
+
+.bs-mode-tag { font-weight: 600; }
+.bs-mode-src { color: var(--ink-2); font-variant-numeric: tabular-nums; }
+
+/* Editing changes a slot someone is counting on, so it is reversed out of ink. */
+.bs-mode-edit,
+.bs-mode-series { background: var(--ink); color: var(--paper); }
+.bs-mode-edit .bs-mode-src,
+.bs-mode-series .bs-mode-src { color: var(--past); }
+
+.bs-head {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--s3);
+    padding: var(--s3) var(--gutter);
+    border-bottom: var(--rule) solid var(--ink);
+}
+
+.bs-head > div:first-child { flex: 1; min-width: 0; padding-top: var(--s1); }
+
+.bs-title {
+    font-size: 22px;
+    font-weight: 600;
+    line-height: 1.25;
+    text-wrap: balance;
+    overflow-wrap: anywhere;
+    font-variant-numeric: tabular-nums;
+}
+
+.bs-step {
+    margin-top: 2px;
+    font-size: var(--meta);
+    color: var(--ink-2);
+    font-variant-numeric: tabular-nums;
+}
+
+.bs-bars {
+    display: flex;
+    align-self: center;
+    gap: var(--s1);
+}
+
+.bs-bar {
+    width: 20px;
+    height: 3px;
+    background: var(--hair);
+}
+
+.bs-bar.done { background: var(--ink); }
+
+.bs-close { flex: none; margin: -2px -10px 0 0; }
+
+.bs-body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: var(--s5);
+    overflow-y: auto;
+    padding: var(--s4) var(--gutter) var(--s5);
+}
+
+/* The body scrolls; its children never shrink, or the confirm table loses its last rows. */
+.bs-body > * { flex: none; }
+
+.bs-footer {
+    display: flex;
+    align-items: center;
+    gap: var(--s3) var(--s5);
+    padding: var(--s3) var(--gutter) calc(var(--s3) + env(safe-area-inset-bottom));
+    border-top: var(--rule) solid var(--ink);
+}
+
+.bs-next, .bs-wide { flex: 1 1 auto; }
+
+.bs-error {
+    margin: 0 var(--gutter);
+    padding: var(--s3) 0;
+    border-top: var(--rule) solid var(--ink);
+    font-size: var(--meta);
+    font-weight: 600;
+}
+
+/* Fields */
+
+.bs-field {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s2);
+    min-width: 0;
+}
+
+.bs-field .bs-field { gap: var(--s2); }
+
+.bs-label { font-size: var(--meta); font-weight: 600; }
+.bs-label-sm { font-weight: 500; color: var(--ink-2); }
+
+.bs-label-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--s3);
+    margin: -10px 0 -10px;
+}
+
+.bs-sublabel { font-size: var(--meta); color: var(--ink-2); }
+
+.bs-note {
+    max-width: 65ch;
+    font-size: var(--meta);
+    color: var(--ink-2);
+}
+
+.bs-hint { margin: calc(var(--s1) * -1) 0 0; }
+
+.bs-ink { color: var(--ink); font-weight: 500; font-variant-numeric: tabular-nums; }
+
+.bs-preview {
+    font-size: var(--meta);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
+
+/* A section separated by a rule, never boxed. */
+.bs-block {
+    padding-top: var(--s4);
+    border-top: var(--rule) solid var(--ink);
+}
+
+.bs-block-title { font-size: 16px; font-weight: 600; }
+.bs-block-lead { margin-top: var(--s1); font-size: 15px; font-variant-numeric: tabular-nums; }
+.bs-block-lead strong { font-weight: 600; }
+.bs-block-note { margin-top: var(--s1); font-size: var(--meta); color: var(--ink-2); }
+.bs-block .bs-note { margin-top: var(--s1); }
+
+/* Every text control is Home's .input: 50px, 1.5px ink, square, 17px so phones do not zoom. */
+.bs-input,
+.bs-select,
+.bs-date,
+.bs-time-input,
+input.bs-number {
+    display: block;
+    width: 100%;
+    min-height: 50px;
+    padding: 0 var(--s3);
+    border: var(--rule) solid var(--ink);
+    border-radius: 0;
+    background-color: var(--paper);
+    color: var(--ink);
+    font: inherit;
+    font-size: 17px;
+    font-variant-numeric: tabular-nums;
+    -webkit-appearance: none;
+    appearance: none;
+}
+
+.bs-input::placeholder { color: var(--ink-3); }
+
+textarea.bs-input { min-height: 88px; padding: var(--s3); resize: vertical; }
+
+.bs-select,
+.bs-time-input,
+select.bs-input {
+    padding-right: 44px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23111' stroke-width='1.5'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    background-size: 20px;
+    cursor: pointer;
+}
+
+.bs-date { max-width: 240px; }
+.bs-time-input { max-width: 240px; }
+
+.bs-input:focus,
+.bs-select:focus,
+.bs-date:focus,
+.bs-time-input:focus,
+input.bs-number:focus { outline: 2px solid var(--ink); outline-offset: 2px; }
+
+/* Two starts, side by side under one label: reading them as a pair is the point. */
+.bs-two {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: var(--s3);
+}
+
+.bs-col { display: flex; flex-direction: column; gap: var(--s1); min-width: 0; }
+.bs-two .bs-time-input { max-width: none; }
+
+/* "every [3] [weeks]" is one sentence, laid out as one. */
+.bs-every {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--s2) var(--s3);
+}
+
+.bs-every-word { font-size: 15px; }
+input.bs-number { flex: none; width: 80px; }
+select.bs-unit { flex: none; width: 150px; max-width: none; }
+
+/* Tiles that share their rules, so exclusive answers read as one control. */
+.bs-segment,
+.bs-pills {
+    display: flex;
+    flex-wrap: wrap;
+}
+
+.bs-seg,
+.bs-pill {
+    position: relative;
+    min-height: 48px;
+    margin-left: calc(var(--rule) * -1);
+    padding: 0 var(--s5);
+    border: var(--rule) solid var(--ink);
+    border-radius: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-size: 15px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 140ms var(--ease), color 140ms var(--ease);
+}
+
+.bs-seg:first-child,
+.bs-pill:first-child { margin-left: 0; }
+
+.bs-seg:hover,
+.bs-pill:hover { background: var(--wash); }
+
+.bs-seg.selected,
+.bs-pill.selected {
+    z-index: 1;
+    background: var(--ink);
+    color: var(--paper);
+    font-weight: 600;
+}
+
+.bs-seg:focus-visible,
+.bs-pill:focus-visible { z-index: 2; }
+
+/* Seven weekdays across a phone: equal columns, no padding to spare. */
+.bs-pills-days {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    max-width: 420px;
+}
+
+.bs-day-pill { min-width: 0; padding: 0; text-align: center; }
+
+/* The tally, under the name it counts: one open square per slot, filled once used. */
+.bs-tally {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--s1) var(--s2);
+    font-size: var(--meta);
+    color: var(--ink-2);
+    font-variant-numeric: tabular-nums;
+}
+
+.bs-tally-used { color: var(--ink); font-weight: 600; }
+
+.bs-pips { display: inline-flex; gap: var(--s1); }
+
+.bq-pip {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border: var(--rule) solid var(--ink);
+    background: var(--paper);
+}
+
+.bq-pip.used { background: var(--ink); }
+
+/* The last row of step 2: a rule above it, not a box around it. */
+.bs-summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--s3);
+}
+
+.bs-summary-main { flex: 1; min-width: 0; }
+.bs-summary-title { font-size: 16px; font-weight: 600; }
+.bs-summary-text { font-size: var(--meta); color: var(--ink-2); overflow-wrap: anywhere; }
+
+/* Who it is for, on the confirm screen. */
+.bs-person {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--s3);
+    min-height: 44px;
+}
+
+.bs-person-who { min-width: 0; }
+.bs-person-name { font-size: 16px; font-weight: 600; }
+.bs-person-contact { font-size: var(--meta); color: var(--ink-2); overflow-wrap: anywhere; }
+
+.bs-person-add {
+    min-height: 48px;
+    padding: 0 var(--s5);
+    border: var(--rule) solid var(--ink);
+    border-radius: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 140ms var(--ease), color 140ms var(--ease);
+}
+
+.bs-person-add:hover { background: var(--ink); color: var(--paper); }
+
+/* What we will submit: label and value on one line, between two ink rules. */
+.bs-table {
+    border-top: var(--rule) solid var(--ink);
+    border-bottom: var(--rule) solid var(--ink);
+}
+
+.bs-table-head {
+    padding: var(--s3) 0 var(--s2);
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.bs-table-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--s4);
+    padding: var(--s2) 0;
+    border-top: 1px solid var(--hair);
+    font-size: 15px;
+}
+
+.bs-table-label { flex: none; font-size: var(--meta); color: var(--ink-2); }
+
+.bs-table-value {
+    min-width: 0;
+    font-weight: 500;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    overflow-wrap: anywhere;
+}
+
+/* Quota reached, and what a partly landed repeat left out: a heavy rule, then the rows. */
+.bs-full {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s3);
+    padding-top: var(--s3);
+    border-top: 3px solid var(--ink);
+}
+
+.bs-full-head {
+    display: flex;
+    align-items: center;
+    gap: var(--s2);
+}
+
+.bs-full-title { font-size: 16px; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+.bs-full > .bs-note strong { color: var(--ink); font-weight: 600; font-variant-numeric: tabular-nums; }
+
+.bs-held {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--s3);
+    padding-top: var(--s3);
+    border-top: 1px solid var(--hair);
+}
+
+.bs-held-title { font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+.bs-swap,
+.bp-remove {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--ink);
+    font-size: var(--meta);
+    font-weight: 500;
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 3px;
+    cursor: pointer;
+}
+
+.bs-swap:hover,
+.bp-remove:hover { text-decoration-thickness: 2px; }
+
+/* The two buttons that act rather than navigate get a real block. */
+.bs-held .bs-swap,
+.bs-full .bp-remove {
+    padding: 0 var(--s4);
+    border: var(--rule) solid var(--ink);
+    font-weight: 600;
+    text-decoration: none;
+    transition: background-color 140ms var(--ease), color 140ms var(--ease);
+}
+
+.bs-held .bs-swap { background: var(--paper); }
+.bs-held .bs-swap:hover { background: var(--ink); color: var(--paper); }
+.bs-full .bp-remove { background: var(--ink); color: var(--paper); }
+.bs-full .bp-remove:hover { background: var(--paper); color: var(--ink); }
+
+.bs-locked { flex: none; font-size: var(--meta); color: var(--ink-3); }
+
+/* Details sub-sheet: a second sheet stacked inside the first. */
+.bs-modal {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    background: rgba(17, 17, 17, 0.4);
+}
+
+.bs-modal-card {
+    width: 100%;
+    max-height: 88%;
+    overflow-y: auto;
+    padding: var(--s4) var(--gutter) calc(var(--s5) + env(safe-area-inset-bottom));
+    background: var(--paper);
+    border-top: var(--rule) solid var(--ink);
+    animation: sheet-in 260ms var(--ease);
+}
+
+.bs-modal-card h3 {
+    margin: 0 0 var(--s4);
+    font-size: 22px;
+    font-weight: 600;
+    line-height: 1.25;
+}
+
+.bs-details { display: flex; flex-direction: column; gap: var(--s5); }
+
+.bs-modal-actions {
+    display: flex;
+    flex-direction: row-reverse;
+    align-items: center;
+    gap: var(--s5);
+}
+
+.bs-modal-actions .btn { flex: 1 1 auto; }
+
+/* People manager */
+.bp-layer { z-index: 130; }
+
+.bp-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--s3);
+    padding-top: var(--s3);
+    border-top: 1px solid var(--hair);
+}
+
+.bp-row:first-child { padding-top: 0; border-top: 0; }
+.bp-row + .bp-row { margin-top: calc(var(--s3) - var(--s5)); }
+
+.bp-who { min-width: 0; }
+.bp-name { font-size: 16px; font-weight: 600; overflow-wrap: anywhere; }
+.bp-contact { font-size: var(--meta); color: var(--ink-2); overflow-wrap: anywhere; }
+
+.bp-acts {
+    display: flex;
+    flex: none;
+    align-items: center;
+    gap: var(--s5);
+}
+
+.bp-error { color: var(--ink); font-weight: 600; }
+
+@media (min-width: 640px) {
+    .bs-root { align-items: center; padding: var(--s4); }
+    .bs-sheet { max-height: 86vh; border: var(--rule) solid var(--ink); }
+    .bs-mode, .bs-head, .bs-footer { padding-left: var(--s5); padding-right: var(--s5); }
+    .bs-body { padding-left: var(--s5); padding-right: var(--s5); }
+    .bs-error { margin: 0 var(--s5); }
+    .bs-modal { align-items: center; padding: var(--s4); }
+    .bs-modal-card { max-width: 480px; padding: var(--s4) var(--s5) var(--s5); border: var(--rule) solid var(--ink); }
+}
+
+/* ---------- Entry detail ---------- */
+
+.bd-topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--s3);
+    max-width: 720px;
+}
+
+.admin-head:has(> .bd-topbar) { padding: var(--s1) 0 0; }
+
+.bd-back {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--s2);
+    min-height: 44px;
+    font-size: 15px;
+    font-weight: 500;
+    text-decoration: none;
+}
+
+.bd-back svg {
+    width: 20px;
+    height: 20px;
+    fill: none;
+    stroke: var(--ink);
+    stroke-width: 1.5px;
+    stroke-linecap: square;
+}
+
+.bd-back:hover span { text-decoration: underline; text-underline-offset: 3px; }
+
+.bd-ref {
+    font-size: var(--meta);
+    color: var(--ink-2);
+    font-variant-numeric: tabular-nums;
+}
+
+.bd-layout {
+    max-width: 720px;
+    margin: var(--s4) 0 0;
+}
+
+.bd-main { display: flex; flex-direction: column; min-width: 0; }
+
+/* The play date is the entry point: Home's lead numeral. */
+.bd-date {
+    display: flex;
+    align-items: flex-end;
+    gap: var(--s3);
+    margin-bottom: var(--s4);
+    font-variant-numeric: tabular-nums;
+}
+
+.bd-day {
+    font-size: 96px;
+    font-weight: 500;
+    line-height: 0.78;
+    letter-spacing: -0.04em;
+}
+
+.bd-daymeta { margin-bottom: -2px; font-size: 15px; }
+
+.bd-title,
+.bq-page .bd-title {
+    margin: 0;
+    font-size: 26px;
+    font-weight: 600;
+    line-height: 1.25;
+    letter-spacing: -0.01em;
+    text-wrap: balance;
+    font-variant-numeric: tabular-nums;
+}
+
+.bd-status {
+    display: flex;
+    align-items: center;
+    gap: var(--s2);
+    margin-top: var(--s3);
+    font-size: 15px;
+    font-weight: 600;
+}
+
+.bd-tone-muted { font-weight: 500; color: var(--ink-2); }
+
+.bd-headline {
+    margin-top: var(--s5);
+    padding: var(--s4) 0 var(--s5);
+    border-top: var(--rule) solid var(--ink);
+}
+
+.bd-headline h2 {
+    font-size: 20px;
+    font-weight: 600;
+    line-height: 1.25;
+    letter-spacing: -0.01em;
+    text-wrap: balance;
+}
+
+.bd-headline p,
+.bd-note {
+    max-width: 65ch;
+    margin-top: var(--s2);
+    font-size: 15px;
+    color: var(--ink-2);
+}
+
+.bd-card {
+    padding: var(--s4) 0 var(--s5);
+    border-top: var(--rule) solid var(--ink);
+}
+
+.bd-card-title {
+    margin-bottom: var(--s3);
+    font-size: 16px;
+    font-weight: 600;
+}
+
+/* The steps: an ink rail through one square per moment. Filled happened, open is ahead. */
+.bd-steps {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    font-variant-numeric: tabular-nums;
+}
+
+.bd-steps li {
+    position: relative;
+    display: grid;
+    grid-template-columns: 10px minmax(0, 1fr);
+    gap: var(--s3);
+    padding-bottom: var(--s4);
+}
+
+.bd-steps li:last-child { padding-bottom: 0; }
+
+.bd-steps li:not(:last-child)::before {
+    content: "";
+    position: absolute;
+    left: 4.25px;
+    top: 16px;
+    bottom: -6px;
+    width: 1.5px;
+    background: var(--ink);
+}
+
+.bd-step-dot {
+    width: 10px;
+    height: 10px;
+    margin-top: 6px;
+    border: var(--rule) solid var(--ink);
+    background: var(--ink);
+}
+
+.bd-steps li.ahead .bd-step-dot { background: var(--paper); }
+
+.bd-step-label { display: block; font-size: 15px; font-weight: 500; }
+.bd-steps li.last .bd-step-label { font-weight: 600; }
+.bd-step-when { display: block; font-size: var(--meta); color: var(--ink-2); }
+
+.bd-table { font-variant-numeric: tabular-nums; }
+
+.bd-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--s4);
+    padding: var(--s2) 0;
+    border-top: 1px solid var(--hair);
+}
+
+.bd-row:first-child { border-top: 0; padding-top: 0; }
+.bd-row-label { flex: none; font-size: var(--meta); color: var(--ink-2); }
+.bd-row-value { min-width: 0; font-size: 15px; font-weight: 500; text-align: right; overflow-wrap: anywhere; }
+.bd-row-value.muted { color: var(--ink-3); }
+
+.bd-main > .state-line { border-top: 0; }
+
+@media (min-width: 1000px) {
+    .bd-layout { margin-top: var(--s5); }
+    .bd-title,
+    .bq-page .bd-title { font-size: 30px; }
+}
+
+.bs-table + .bs-block { padding-top: 0; border-top: 0; }

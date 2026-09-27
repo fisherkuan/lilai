@@ -9,9 +9,9 @@ When creating implementation plans, improvement analyses, or deployment guides:
 - Use descriptive filenames: `FEATURE_NAME_plan.md`, `IMPROVEMENT_analysis.md`, etc.
 - Reference this directory when looking for existing plans or creating new ones
 
-## Active work: UI redesign
+## Visual design: Shape Calendar
 
-Ongoing work lives on `feature/redesign` in `.worktrees/redesign/`. The redesign adopts the design system defined in `design-mockup.html` (repo root) — treat that file as the visual source of truth. Status and handoff notes: `.plans/REDESIGN_status.md`. The custom month-grid calendar has replaced the Google Calendar iframe; do not revert. The events-list filter must not affect the calendar — the calendar reads from its own `allCalendarEvents` source (`/api/events?timeRange=all`).
+The old design system (`design-mockup.html`, `public/styles.css`) and a ligne claire comic attempt were both retired on 2026-09-27. The current world is Bauhaus form-colour grammar: each enabled calendar owns one primary shape in config order (blue circle, red square, yellow triangle), primaries appear only inside shapes, and text, rules and buttons stay black on white. `DESIGN.md` (repo root) is the visual authority; `PRODUCT.md` holds product truth. Every page loads `public/css/lilai.css` (tokens and shared components) plus its own page stylesheet in `public/css/` (`faq.css`, `donate.css`, `admin.css` for all admin pages, `booking.css`); Jost is self-hosted in `public/fonts/`. The legacy `styles.css` is deleted. The 14-day band replaced both the Google Calendar iframe and the later month grid (removed 2026-09-27 as redundant); do not bring either back. The events-list filter must not affect the band — it reads its own `allCalendarEvents` source (`/api/events?timeRange=all`).
 
 ## Development Commands
 
@@ -76,19 +76,20 @@ Vanilla JavaScript with no build step.
 - `admin-donations.html` + `js/admin-donations.js` - Donation management
 - `donations.html` + `js/donation.js` - Public donation submission page
 - `faq.html` + `js/faq.js` - FAQ page
-- `styles.css` - Global styles (~1000 lines)
+- `css/lilai.css` - Tokens, shared components and Home (Shape Calendar world, see `DESIGN.md`)
+- `css/faq.css`, `css/donate.css`, `css/admin.css`, `css/booking.css` - Page stylesheets, loaded after `lilai.css`
 - `sw.js` - Service worker for PWA support
 
 **Client-side features:**
 - WebSocket connection for real-time attendance updates
 - Event cards with RSVP buttons (add/remove attendance)
-- **Custom month-grid calendar** rendered client-side from `/api/events?timeRange=all` (replaces the old Google Calendar iframe). Implemented in `app.js` (`renderCalendarGrid`, `loadAllCalendarEvents`, `wireCreateEventButtons`).
+- **14-day band** rendered client-side from `/api/events?timeRange=all`: each event is its calendar's shape, sized by headcount. Implemented in `app.js` (`renderBand`, `loadAllCalendarEvents`, `wireCreateEventButtons`).
 - Admin pages for creating/editing events and managing donations
 
 ### Configuration (config/app.json)
 Central configuration file with:
 - `calendars[]` - Array of Google Calendar embed URLs with enable/disable flags
-- `events.autoFetch` - Whether to sync calendar events automatically. **Must be `true`** for the custom month grid and events list to populate from Google Calendar.
+- `events.autoFetch` - Whether to sync calendar events automatically. **Must be `true`** for the 14-day band and events list to populate from Google Calendar.
 - `events.defaultTimeRange` - Default filter ("future", "past", "all")
 - `events.defaultCreateCalendar` - Name of the calendar pre-selected by the "Create event" button. Must match a `calendars[].name`. The button links to `https://calendar.google.com/calendar/render?action=TEMPLATE&src=<calendar-id>`.
 - `rsvp` - RSVP behavior settings

@@ -5,17 +5,49 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Donations — Lilai</title>
     <meta name="description" content="View donation balance and recent entries for the Lilai app.">
-    <link rel="stylesheet" href="/styles.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,500;9..144,600&display=swap" rel="stylesheet">
+    <meta name="theme-color" content="#ffffff">
+    <link rel="preload" href="/fonts/jost-latin.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="stylesheet" href="/css/lilai.css">
+    <link rel="stylesheet" href="/css/donate.css">
     <link rel="icon" href="/icons/favicon.ico" type="image/x-icon">
     <script src="https://js.stripe.com/v3/"></script>
 </head>
 <body>
-<div class="container container-narrow">
-    <a class="faq-back" href="/">← Back to events</a>
+<svg width="0" height="0" class="shape-defs" aria-hidden="true" focusable="false">
+    <defs>
+        <symbol id="shape-circle" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10.5" vector-effect="non-scaling-stroke"/></symbol>
+        <symbol id="shape-square" viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20" vector-effect="non-scaling-stroke"/></symbol>
+        <symbol id="shape-triangle" viewBox="0 0 24 24"><path d="M12 1.8 22.6 21.6H1.4Z" vector-effect="non-scaling-stroke"/></symbol>
+        <symbol id="shape-diamond" viewBox="0 0 24 24"><path d="M12 1.5 22.5 12 12 22.5 1.5 12Z" vector-effect="non-scaling-stroke"/></symbol>
+    </defs>
+</svg>
 
-    <section class="donations-hero">
-        <div class="eyebrow">Balance</div>
+<header class="masthead">
+    <a class="wordmark" href="/" aria-label="Lilai, home">
+        <span class="wordmark-mark" aria-hidden="true">
+            <svg class="shape s-circle"><use href="#shape-circle"/></svg>
+            <svg class="shape s-square"><use href="#shape-square"/></svg>
+            <svg class="shape s-triangle"><use href="#shape-triangle"/></svg>
+        </span>
+        <span class="wordmark-name">Lilai</span>
+    </a>
+    <nav class="app-header-links" aria-label="Site links">
+        <a href="faq.html">FAQ</a>
+        <a href="/donate" aria-current="page">Donate</a>
+    </nav>
+</header>
+
+<main class="donate-page">
+    <a class="back-link" href="/">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5M11 6l-6 6 6 6"/></svg>
+        <span>Back to events</span>
+    </a>
+
+    <section class="donate-hero">
+        <h1>Keep this running</h1>
+        <p class="donate-lede">Hosting this app costs money. Donations go directly to operating expenses.</p>
+
+        <p class="balance-label">Balance</p>
         <span id="balance-amount" class="balance-amount">€0.00</span>
 
         <div class="balance-bar-wrap" id="donation-progress-wrap">
@@ -30,35 +62,26 @@
             </div>
         </div>
 
-        <div class="donation-cta-row">
-            <button type="button" id="donate-btn" class="btn accent">Donate with Stripe</button>
+        <div class="donate-cta-row">
+            <button type="button" id="donate-btn" class="btn btn-solid">Donate with Stripe</button>
         </div>
-        <p style="color: var(--text-muted); font-size: 13px; max-width: 440px; margin: var(--s-3) auto 0;">
-            Hosting this web app costs money — your support keeps it running. All donations go directly to operating expenses.
-        </p>
     </section>
 
-    <hr class="divider" />
-
-    <section class="donations-section">
-        <div class="section-header">
-            <div>
-                <h2 class="section-title">Transactions</h2>
-                <div class="section-meta">Most recent entries</div>
-            </div>
-            <button type="button" id="refresh-donations-btn" class="btn ghost sm" title="Refresh entries">↻ Refresh</button>
+    <section class="donate-transactions" aria-labelledby="donations-title">
+        <div class="section-head">
+            <h2 class="section-title" id="donations-title">Transactions</h2>
+            <button type="button" id="refresh-donations-btn" class="text-btn">Refresh</button>
         </div>
+        <p class="section-meta">Most recent entries</p>
         <div id="donations-list" class="donations-list">
-            <div class="loading">Loading entries...</div>
+            <p class="state-line">Loading entries…</p>
         </div>
     </section>
+</main>
 
-    <footer class="bottom-banner">
-        <div class="banner-content">
-            <p class="copyright">&copy; Built by Fisher Kuan</p>
-        </div>
-    </footer>
-</div>
+<footer class="colophon">
+    <p>Built by Fisher Kuan</p>
+</footer>
 
 <script src="/js/donation.js"></script>
 </body>

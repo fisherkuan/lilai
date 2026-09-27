@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Lilai</title>
     <meta name="description" content="Discover upcoming meetups and RSVP in seconds.">
+    <meta name="theme-color" content="#ffffff">
     <meta property="og:type" content="website">
     <meta property="og:title" content="Lilai">
     <meta property="og:description" content="Discover upcoming meetups and RSVP in seconds.">
@@ -15,192 +16,133 @@
     <meta name="twitter:title" content="Lilai">
     <meta name="twitter:description" content="Discover upcoming meetups and RSVP in seconds.">
     <meta name="twitter:image" content="/icons/icon-512x512.png">
-    <link rel="stylesheet" href="styles.css">
+    <link rel="preload" href="/fonts/jost-latin.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="stylesheet" href="/css/lilai.css">
     <link rel="manifest" href="manifest.json">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,500;9..144,600&display=swap" rel="stylesheet">
     <link rel="icon" href="/icons/favicon.ico" type="image/x-icon">
     <script src="https://js.stripe.com/v3/"></script>
 </head>
 <body>
-<div class="container container-wide">
-    <header class="home-header">
-        <div class="home-header-row">
-            <div>
-                <div class="eyebrow">Leuven Taiwanese Community</div>
-                <h1 class="display">Lilai</h1>
+<svg width="0" height="0" class="shape-defs" aria-hidden="true" focusable="false">
+    <defs>
+        <symbol id="shape-circle" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10.5" vector-effect="non-scaling-stroke"/></symbol>
+        <symbol id="shape-square" viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20" vector-effect="non-scaling-stroke"/></symbol>
+        <symbol id="shape-triangle" viewBox="0 0 24 24"><path d="M12 1.8 22.6 21.6H1.4Z" vector-effect="non-scaling-stroke"/></symbol>
+        <symbol id="shape-diamond" viewBox="0 0 24 24"><path d="M12 1.5 22.5 12 12 22.5 1.5 12Z" vector-effect="non-scaling-stroke"/></symbol>
+    </defs>
+</svg>
+
+<header class="masthead">
+    <a class="wordmark" href="/" aria-label="Lilai, home">
+        <span class="wordmark-mark" aria-hidden="true">
+            <svg class="shape s-circle"><use href="#shape-circle"/></svg>
+            <svg class="shape s-square"><use href="#shape-square"/></svg>
+            <svg class="shape s-triangle"><use href="#shape-triangle"/></svg>
+        </span>
+        <span class="wordmark-name">Lilai</span>
+    </a>
+    <nav class="app-header-links" aria-label="Site links">
+        <a href="faq.html">FAQ</a>
+        <a href="/donate">Donate</a>
+    </nav>
+</header>
+
+<main class="home">
+    <section class="band-section" aria-labelledby="band-title">
+        <div class="section-head">
+            <h2 class="section-title" id="band-title">Next 14 days</h2>
+            <p class="section-meta" id="events-section-meta">Loading…</p>
+        </div>
+        <div id="band-container" class="band" aria-live="polite"></div>
+    </section>
+
+    <section class="events-section" aria-labelledby="events-title">
+        <div class="list-head">
+            <h2 class="sr-only" id="events-title">Events</h2>
+            <div class="range-switch" role="tablist" aria-label="Which events">
+                <button type="button" class="range-btn filter-pill active" data-range="future" role="tab" aria-selected="true">Upcoming</button>
+                <button type="button" class="range-btn filter-pill" data-range="all" role="tab" aria-selected="false">All</button>
             </div>
-            <nav class="app-header-links" aria-label="Site links">
-                <a href="faq.html">FAQ</a>
-                <a href="/donate">Donate</a>
-            </nav>
-            <button type="button" class="menu-toggle" id="menu-toggle" aria-label="Open menu" aria-expanded="false" aria-controls="menu-panel">
-                <span class="menu-bars" aria-hidden="true"><span></span><span></span><span></span></span>
+            <select id="time-range" class="sr-only" aria-hidden="true" tabindex="-1">
+                <option value="future" selected>Future Events</option>
+                <option value="all">All Events</option>
+            </select>
+            <button type="button" class="text-btn" id="refresh-events-btn">Refresh</button>
+        </div>
+        <div class="calendar-filter-container legend" role="group" aria-label="Show calendars"></div>
+
+        <div id="events-list" class="event-list" aria-live="polite">
+            <p class="state-line">Loading events…</p>
+        </div>
+    </section>
+
+    <aside class="sidebar" aria-label="Calendar links and support">
+        <section class="side-block" aria-labelledby="side-cal-title">
+            <h2 class="side-title" id="side-cal-title">Add to the calendar</h2>
+            <a href="https://calendar.google.com/calendar/u/0/r/eventedit" target="_blank" rel="noopener noreferrer" class="btn btn-line" id="create-event-btn">Create an event</a>
+            <p class="side-note">Only members of the <a href="#" id="join-group-link" target="_blank" rel="noopener noreferrer">Leuven Taiwanese group</a> can add events. Subscribe in your own calendar app:</p>
+            <div class="subscribe-list" id="add-to-calendar-dropdown"></div>
+        </section>
+
+        <section class="side-block" aria-labelledby="side-support-title">
+            <h2 class="side-title" id="side-support-title">Keep this running</h2>
+            <p class="side-note">Hosting this app costs money. Donations go directly to operating expenses.</p>
+            <a href="/donate" class="text-link">Donate</a>
+        </section>
+    </aside>
+</main>
+
+<!-- RSVP sheet -->
+<div id="rsvp-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="modal-event-title">
+    <div class="sheet">
+        <div class="sheet-head">
+            <h3 class="sheet-title" id="modal-event-title">Event title</h3>
+            <button type="button" class="icon-btn" onclick="closeRsvpModal()" aria-label="Close">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
             </button>
         </div>
-    </header>
-
-    <div class="menu-backdrop" id="menu-backdrop" hidden></div>
-    <aside class="menu-panel" id="menu-panel" aria-hidden="true" aria-label="Menu">
-        <div class="menu-panel-header">
-            <span class="menu-panel-title">Menu</span>
-            <button type="button" class="menu-close" id="menu-close" aria-label="Close menu">&times;</button>
-        </div>
-        <nav class="menu-links" aria-label="Site links">
-            <a href="faq.html">FAQ</a>
-            <a href="/donate">Donate</a>
-        </nav>
-        <div class="menu-divider" aria-hidden="true"></div>
-        <div class="menu-section-title">Calendar</div>
-        <details class="menu-subscribe">
-            <summary>Subscribe</summary>
-            <div class="menu-subscribe-list" id="mobile-add-to-calendar-dropdown"></div>
-        </details>
-        <a href="#" id="mobile-join-group-link" class="menu-link-item">Join group</a>
-    </aside>
-
-    <main>
-        <div class="home-layout">
-            <section class="events-section">
-                <!-- Mobile-only quick actions (shown instead of calendar card on mobile) -->
-                <div class="mobile-cal-actions" aria-label="Calendar actions">
-                    <a href="https://calendar.google.com/calendar/u/0/r/eventedit" target="_blank" rel="noopener noreferrer" class="cal-action-pill accent" id="mobile-create-event">+ Create event</a>
-                </div>
-
-                <div class="section-header">
-                    <div>
-                        <h2 class="section-title">Upcoming events</h2>
-                        <div class="section-meta" id="events-section-meta">Loading…</div>
-                    </div>
-                    <div class="actions">
-                        <button type="button" class="btn ghost sm" id="refresh-events-btn" title="Refresh events">↻ Refresh</button>
-                    </div>
-                </div>
-
-                <div class="event-filters">
-                    <div class="time-range-selector" role="tablist" aria-label="Event time range">
-                        <button type="button" class="filter-pill active" data-range="future" role="tab" aria-selected="true">Upcoming</button>
-                        <button type="button" class="filter-pill" data-range="all" role="tab" aria-selected="false">All</button>
-                    </div>
-                    <select id="time-range" class="sr-only" aria-hidden="true" tabindex="-1">
-                        <option value="future" selected>Future Events</option>
-                        <option value="all">All Events</option>
-                    </select>
-                    <span class="filter-divider" aria-hidden="true"></span>
-                    <div class="calendar-filter-container" aria-label="Calendar sources"></div>
-                </div>
-
-                <div id="events-list" class="event-list" aria-live="polite">
-                    <div class="loading">Loading events...</div>
-                </div>
-            </section>
-
-            <aside class="sidebar" aria-label="Sidebar">
-                <div class="calendar-card calendar-section" aria-label="Calendar">
-                    <div class="ch">
-                        <h3>Calendar</h3>
-                        <span class="chip" id="calendar-month-chip"><span class="dot"></span> <span id="calendar-month-label">This month</span></span>
-                    </div>
-                    <div class="cal-action-row">
-                        <a href="https://calendar.google.com/calendar/u/0/r/eventedit" target="_blank" rel="noopener noreferrer" class="btn accent sm cal-create-btn" id="create-event-btn">
-                            <span aria-hidden="true">＋</span> Create event
-                        </a>
-                        <div class="dropdown">
-                            <button type="button" class="btn ghost sm cal-icon-btn" title="Subscribe to calendar" aria-label="Subscribe to calendar">
-                                <span aria-hidden="true">📆</span>
-                            </button>
-                            <div class="dropdown-content" id="add-to-calendar-dropdown"></div>
-                        </div>
-                        <a href="#" id="join-group-link" class="btn ghost sm cal-icon-btn" title="Join group to add events" aria-label="Join group">
-                            <span aria-hidden="true">↗</span>
-                        </a>
-                    </div>
-                    <div id="calendar-container" aria-live="polite">
-                        <p class="calendar-loading">Loading calendar...</p>
-                    </div>
-                </div>
-
-                <div class="card" aria-label="Support">
-                    <div class="eyebrow">Support</div>
-                    <h3 class="h-section" style="font-size: 20px; margin: 8px 0 10px;">Keep this running</h3>
-                    <p style="color: var(--text-secondary); font-size: 14px; margin: 0 0 var(--s-4);">Hosting this app costs money. Donations go directly to operating expenses.</p>
-                    <div class="cta-row">
-                        <a href="/donate" class="btn accent sm">Donate</a>
-                    </div>
-                </div>
-            </aside>
-        </div>
-
-        <!-- RSVP Modal -->
-        <div id="rsvp-modal" class="modal hidden">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h3>RSVP for event</h3>
-                    <button class="close-btn" onclick="closeRsvpModal()" aria-label="Close">&times;</button>
-                </div>
-                <div class="modal-body">
-                    <div id="event-details">
-                        <h4 id="modal-event-title">Event title</h4>
-                        <p id="modal-event-date">Event date</p>
-                        <p id="modal-event-description">Event description</p>
-                    </div>
-                    <div class="rsvp-actions">
-                        <div class="form-group">
-                            <div class="field-label-row">
-                                <label for="attendee-name">Your name</label>
-                                <button type="button" id="forget-name-btn" class="text-link-btn" hidden>Not you?</button>
-                            </div>
-                            <input type="text" id="attendee-name" class="input" placeholder="Enter your name">
-                        </div>
-                        <div class="rsvp-buttons">
-                            <button class="rsvp-add-btn" onclick="submitRsvp('add')">
-                                <span class="text">Confirm</span>
-                            </button>
-                        </div>
-                        <div class="form-actions">
-                            <button type="button" class="btn ghost" onclick="closeRsvpModal()">Cancel</button>
-                        </div>
-                    </div>
-                </div>
+        <p class="sheet-when" id="modal-event-date">Event date</p>
+        <p class="sheet-desc" id="modal-event-description"></p>
+        <div class="field">
+            <div class="field-label-row">
+                <label for="attendee-name">Your name</label>
+                <button type="button" id="forget-name-btn" class="text-btn" hidden>Not you?</button>
             </div>
+            <input type="text" id="attendee-name" class="input" placeholder="The name people know you by" autocomplete="name" enterkeyhint="done">
+            <p class="field-error" id="rsvp-error" role="alert" hidden></p>
         </div>
-
-        <!-- Remove RSVP Modal -->
-        <div id="remove-rsvp-modal" class="modal hidden">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h3>Remove RSVP</h3>
-                    <button class="close-btn" onclick="closeRemoveRsvpModal()" aria-label="Close">&times;</button>
-                </div>
-                <div class="modal-body">
-                    <div id="event-details">
-                        <h4 id="remove-modal-event-title">Event title</h4>
-                        <p id="remove-modal-event-date">Event date</p>
-                    </div>
-                    <div class="rsvp-actions">
-                        <div class="form-group">
-                            <label for="attendee-to-remove">Select attendee to remove</label>
-                            <select id="attendee-to-remove" class="select"></select>
-                        </div>
-                        <div class="rsvp-buttons">
-                            <button class="rsvp-remove-btn" onclick="submitRemoveRsvp()">
-                                <span class="text">Confirm</span>
-                            </button>
-                        </div>
-                        <div class="form-actions">
-                            <button type="button" class="btn ghost" onclick="closeRemoveRsvpModal()">Cancel</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
+        <div class="sheet-actions">
+            <button type="button" class="btn btn-solid rsvp-add-btn" onclick="submitRsvp('add')"><span class="text">Confirm</span></button>
+            <button type="button" class="text-btn" onclick="closeRsvpModal()">Cancel</button>
         </div>
-    </main>
-
-    <footer class="bottom-banner">
-        <div class="banner-content">
-            <p class="copyright">&copy; Built by Fisher Kuan</p>
-        </div>
-    </footer>
+    </div>
 </div>
+
+<!-- Remove RSVP sheet -->
+<div id="remove-rsvp-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="remove-modal-event-title">
+    <div class="sheet">
+        <div class="sheet-head">
+            <h3 class="sheet-title" id="remove-modal-event-title">Event title</h3>
+            <button type="button" class="icon-btn" onclick="closeRemoveRsvpModal()" aria-label="Close">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
+            </button>
+        </div>
+        <p class="sheet-when" id="remove-modal-event-date">Event date</p>
+        <div class="field">
+            <label for="attendee-to-remove">Whose spot to give up</label>
+            <select id="attendee-to-remove" class="input select"></select>
+            <p class="field-error" id="remove-error" role="alert" hidden></p>
+        </div>
+        <div class="sheet-actions">
+            <button type="button" class="btn btn-solid rsvp-remove-btn" onclick="submitRemoveRsvp()"><span class="text">Remove</span></button>
+            <button type="button" class="text-btn" onclick="closeRemoveRsvpModal()">Keep it</button>
+        </div>
+    </div>
+</div>
+
+<footer class="colophon">
+    <p>Built by Fisher Kuan</p>
+</footer>
 
 <script src="app.js"></script>
 </body>

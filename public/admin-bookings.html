@@ -4,31 +4,49 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="robots" content="noindex, nofollow">
-    <title>Admin — Booking queue</title>
-    <link rel="stylesheet" href="/styles.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,500;9..144,600&display=swap" rel="stylesheet">
+    <meta name="theme-color" content="#ffffff">
+    <title>Admin · Booking queue</title>
+    <link rel="preload" href="/fonts/jost-latin.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="stylesheet" href="/css/lilai.css">
+    <link rel="stylesheet" href="/css/admin.css">
+    <link rel="stylesheet" href="/css/booking.css">
     <link rel="icon" href="/icons/favicon.ico" type="image/x-icon">
 </head>
 <body>
-<div class="container container-wide">
-    <header class="admin-header">
-        <div>
-            <div class="eyebrow">Admin</div>
-            <h1>Booking queue</h1>
-            <p>Courts open 14 days ahead at midnight. Queue a slot and we submit KU Leuven's form for you.</p>
-        </div>
-        <nav class="tabs" aria-label="Admin sections">
-            <a href="/admin/events">Events</a>
-            <a href="/admin/donations">Donations</a>
-            <a href="/admin/bookings" class="active">Booking queue</a>
-            <a href="/">Back to site</a>
-        </nav>
+<svg width="0" height="0" class="shape-defs" aria-hidden="true" focusable="false">
+    <defs>
+        <symbol id="shape-circle" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10.5" vector-effect="non-scaling-stroke"/></symbol>
+        <symbol id="shape-square" viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20" vector-effect="non-scaling-stroke"/></symbol>
+        <symbol id="shape-triangle" viewBox="0 0 24 24"><path d="M12 1.8 22.6 21.6H1.4Z" vector-effect="non-scaling-stroke"/></symbol>
+    </defs>
+</svg>
+
+<header class="masthead">
+    <a class="wordmark" href="/" aria-label="Lilai, home">
+        <span class="wordmark-mark" aria-hidden="true">
+            <svg class="shape s-circle"><use href="#shape-circle"/></svg>
+            <svg class="shape s-square"><use href="#shape-square"/></svg>
+            <svg class="shape s-triangle"><use href="#shape-triangle"/></svg>
+        </span>
+        <span class="wordmark-name">Lilai</span>
+    </a>
+    <nav class="app-header-links" aria-label="Site links">
+        <a href="/faq.html">FAQ</a>
+        <a href="/donate">Donate</a>
+    </nav>
+</header>
+<nav class="admin-nav" aria-label="Admin"><a href="/admin/events">Events</a><a href="/admin/donations">Donations</a><a href="/admin/bookings" aria-current="page">Booking queue</a></nav>
+
+<main class="admin bq-page">
+    <header class="admin-head">
+        <h1 class="admin-title">Booking queue</h1>
+        <p class="admin-sub">Courts open 14 days ahead at midnight. Queue a slot and we submit KU Leuven's form for you.</p>
     </header>
 
-    <main class="bq-layout">
+    <div class="bq-layout">
         <section class="bq-main">
             <!-- First visit: the explainer stands in for an intro nobody needs twice. -->
-            <div class="bq-explainer card" id="bq-explainer" hidden>
+            <div class="bq-explainer" id="bq-explainer" hidden>
                 <h2>Courts open 14 days ahead, at midnight. They're gone in a minute.</h2>
                 <p>Tell us the slot you want. It waits here, and we submit KU Leuven's form in the first
                    seconds after it opens — so nobody sits up at midnight.</p>
@@ -46,15 +64,15 @@
                 was claiming an identity it does not have.
             -->
             <div class="bq-action" id="bq-action">
-                <button type="button" class="bq-cta" id="bq-queue-btn">
+                <button type="button" class="btn btn-solid bq-cta" id="bq-queue-btn">
                     <span class="bq-cta-text">
                         <span class="bq-cta-label">Queue a slot</span>
                         <span class="bq-cta-sub" id="bq-cta-sub" hidden>Two slots per person per week</span>
                     </span>
-                    <span class="bq-cta-arrow" aria-hidden="true">→</span>
+                    <svg class="bq-cta-arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12h15M13 6l6 6-6 6"/></svg>
                 </button>
-                <button type="button" class="bq-guide-link bq-people-link" id="bq-people">Manage people</button>
-                <span class="chip bq-offline" id="bq-live" hidden><span class="bq-offline-dot" aria-hidden="true"></span>Not updating — refresh</span>
+                <button type="button" class="text-btn bq-people-link" id="bq-people">Manage people</button>
+                <span class="bq-offline" id="bq-live" role="status" hidden><span class="bq-mark bq-mark-open" aria-hidden="true"></span>Not updating — refresh</span>
             </div>
 
             <!-- The midnight banner takes over the top of the board while a window is open. -->
@@ -74,13 +92,13 @@
                 server — a stale service-worker copy. Nothing on the page can fix that, so it
                 says so plainly instead of letting buttons misbehave.
             -->
-            <div class="bq-stale" id="bq-stale" hidden>
+            <div class="bq-stale" id="bq-stale" role="alert" hidden>
                 <strong>This page is running older code.</strong>
                 Reload to pick up the current version — buttons may not work until you do.
             </div>
 
             <!-- Something the board needs to say that outlives the redraw that caused it. -->
-            <div class="bq-notice" id="bq-notice" hidden></div>
+            <div class="bq-notice" id="bq-notice" role="status" hidden></div>
 
             <!--
                 Recurring schedules, above the timeline: a habit is read as one thing, and
@@ -103,15 +121,12 @@
 
             <ol class="bq-timeline" id="bq-timeline" aria-live="polite"></ol>
         </section>
+    </div>
+</main>
 
-    </main>
-
-    <footer class="bottom-banner">
-        <div class="banner-content">
-            <p class="copyright">&copy; Built by Fisher Kuan</p>
-        </div>
-    </footer>
-</div>
+<footer class="colophon">
+    <p>Built by Fisher Kuan</p>
+</footer>
 
 <script src="/js/booking-shared.js"></script>
 <script src="/js/booking-people.js"></script>

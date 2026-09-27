@@ -14,56 +14,53 @@ function getAdminKey() {
 
 function clearStoredKey() {
     localStorage.removeItem('adminKey');
-    alert('Admin key cleared. You will be prompted again on next submission.');
+    showMessage('Admin key cleared. You will be prompted again on next submission.', 'success');
 }
 
 document.addEventListener('DOMContentLoaded', () => {
     const form = document.getElementById('donation-form');
     form.addEventListener('submit', handleSubmit);
-
-    // Small "clear admin key" action below the form message
-    const msg = document.getElementById('form-message');
-    const clearKeyBtn = document.createElement('button');
-    clearKeyBtn.type = 'button';
-    clearKeyBtn.textContent = 'Clear stored admin key';
-    clearKeyBtn.className = 'btn ghost sm';
-    clearKeyBtn.style.marginTop = 'var(--s-3)';
-    clearKeyBtn.onclick = clearStoredKey;
-    if (msg && msg.parentElement) msg.parentElement.appendChild(clearKeyBtn);
+    document.getElementById('reset-btn').addEventListener('click', resetForm);
+    document.getElementById('clear-key-btn').addEventListener('click', clearStoredKey);
 });
+
+function setAmountError(message) {
+    const el = document.getElementById('amount-error');
+    el.textContent = message || '';
+    el.hidden = !message;
+}
 
 function handleSubmit(e) {
     e.preventDefault();
-    
+    setAmountError('');
+
     const formData = new FormData(e.target);
     const amount = parseFloat(formData.get('amount'));
     const donator = formData.get('donator').trim();
     const description = formData.get('description').trim();
     const entryDate = formData.get('entry_date');
-    
+
     if (!amount || amount === 0) {
-        showMessage('Amount is required and cannot be zero', 'error');
+        setAmountError('Amount is required and cannot be zero.');
         return;
     }
-    
+
     const donationData = {
         amount: amount,
         donator: donator || null,
         description: description || null,
         entry_date: entryDate || null
     };
-    
+
     submitDonation(donationData);
 }
 
 async function submitDonation(data) {
-    const messageDiv = document.getElementById('form-message');
-    messageDiv.textContent = 'Submitting...';
-    messageDiv.className = 'form-message loading';
+    showMessage('Submitting…', 'loading');
 
     const adminKey = getAdminKey();
     if (!adminKey) {
-        showMessage('Admin key is required', 'error');
+        showMessage('Admin key is required.', 'error');
         return;
     }
 
@@ -86,10 +83,10 @@ async function submitDonation(data) {
         }
 
         if (response.ok && result.success) {
-            showMessage('Donation entry added successfully!', 'success');
-            resetForm();
+            resetFields();
+            showMessage(`Added: ${formatEntryPrint(data)}`, 'success');
         } else {
-            showMessage(result.message || 'Error adding donation entry', 'error');
+            showMessage(result.message || 'Error adding donation entry.', 'error');
         }
     } catch (error) {
         console.error('Error submitting donation:', error);
@@ -97,23 +94,28 @@ async function submitDonation(data) {
     }
 }
 
+// Print-in-place confirmation text (Print-Not-Toast): say exactly what was added.
+function formatEntryPrint(data) {
+    const amountLabel = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'EUR' }).format(data.amount);
+    return data.description ? `${amountLabel} — ${data.description}` : amountLabel;
+}
+
 function showMessage(message, type) {
     const messageDiv = document.getElementById('form-message');
     messageDiv.textContent = message;
-    messageDiv.className = `form-message ${type}`;
-    
-    if (type === 'success') {
-        setTimeout(() => {
-            messageDiv.textContent = '';
-            messageDiv.className = 'form-message';
-        }, 3000);
-    }
+    messageDiv.className = `state-line${type === 'error' ? ' is-error' : ''}`;
+    messageDiv.hidden = !message;
 }
 
-function resetForm() {
+function resetFields() {
     document.getElementById('donation-form').reset();
-    const messageDiv = document.getElementById('form-message');
-    messageDiv.textContent = '';
-    messageDiv.className = 'form-message';
+    setAmountError('');
 }
 
+// The Reset button discards the draft and any printed result. A successful
+// submit only clears the fields (resetFields) — the result stays printed in
+// place until the next submit or an explicit reset replaces it.
+function resetForm() {
+    resetFields();
+    showMessage('', '');
+}
