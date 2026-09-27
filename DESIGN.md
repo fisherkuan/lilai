@@ -339,6 +339,10 @@ Attendees are a wrapped list of 15px names with 16px between them. A name added 
 ### RSVP Sheet
 The sheet is a paper panel, 480px wide at most. On phones it rises from the bottom edge under a 1.5px ink top rule. From 640px it is centred with a full 1.5px ink border. It opens with a 16px rise and fade over 260ms. It holds a 22px title, a 14px when-line, an optional scrolling description, one field, and a solid button beside a text button.
 
+### App Icon and Favicon
+
+The icon is a 2x2 calendar of shapes on paper: blue circle, red square, yellow triangle, and an open white square in the fourth cell, which reads as an open seat. Every shape has an ink contour. Sources live in `public/icons/`: `icon.svg` (any purpose), maskable PNGs with the grid inside the 80% safe circle, and `favicon.svg`, drawn on a 32-unit pixel grid so it stays sharp at 32px and 16px. `favicon.ico` (16, 32, 48) and `apple-touch-icon.png` (180) are rendered from those. The white fourth cell keeps the rule that primaries live only inside shapes.
+
 ### Motion
 One easing, `cubic-bezier(0.16, 1, 0.3, 1)`, drives every movement. Shapes scale from their centre when state changes: a new seat slot grows, a band shape steps, and an event pointed at from the band steps its shapes for 520ms while nothing else moves. Band shapes scale by 1.12 on hover. Under `prefers-reduced-motion` every animation and transition runs in 1ms.
 
