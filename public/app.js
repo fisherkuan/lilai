@@ -116,6 +116,7 @@ document.addEventListener('DOMContentLoaded', initializeApp);
 
 function initializeApp() {
     setupAdminLink();
+    wireBandReadout();
 
     loadConfig().then(() => {
         buildCalendarStyles();
@@ -286,6 +287,7 @@ function renderBand() {
     const byDay = eventsByDayKey();
     const nextCounts = {};
     let total = 0;
+    const bandEvents = [];
 
     const days = [];
     for (let i = 0; i < BAND_DAYS; i++) {
@@ -293,6 +295,7 @@ function renderBand() {
         const dayEvents = byDay[dayKey(d)] || [];
         total += dayEvents.length;
 
+        bandEvents.push(...dayEvents);
         const shapes = dayEvents.map(ev => {
             const st = styleFor(ev);
             const count = ev.attendingCount || 0;
@@ -300,7 +303,8 @@ function renderBand() {
             const grew = bandCounts && bandCounts[ev.id] !== undefined && count > bandCounts[ev.id];
             const when = new Date(ev.date).toLocaleString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
             const label = `${ev.title}, ${when}, ${count} going`;
-            return `<button type="button" class="band-ev tone-${st.tone}${grew ? ' is-grown' : ''}" data-event-id="${escapeAttribute(ev.id)}" style="--n:${Math.min(count, 12)}" aria-label="${escapeAttribute(label)}" title="${escapeAttribute(ev.title)}">${shapeSvg(st.shape)}</button>`;
+            const pressed = ev.id === bandSelectedId ? 'true' : 'false';
+            return `<button type="button" class="band-ev tone-${st.tone}${grew ? ' is-grown' : ''}" data-event-id="${escapeAttribute(ev.id)}" style="--n:${Math.min(count, 12)}" aria-label="${escapeAttribute(label)}" aria-pressed="${pressed}">${shapeSvg(st.shape)}</button>`;
         }).join('');
 
         const classes = ['band-day'];
@@ -318,8 +322,115 @@ function renderBand() {
         : '';
     band.innerHTML = `<ol class="band-days" aria-label="Events in the next 14 days">${days.join('')}</ol>${empty}`;
 
+    bandEventsById = {};
+    bandEvents.forEach(ev => { bandEventsById[ev.id] = ev; });
+    // A selection whose event has left the band goes with it.
+    if (bandSelectedId && !bandEventsById[bandSelectedId]) bandSelectedId = null;
+    bandPreviewId = null;
+    const nowMs = Date.now();
+    const upcoming = bandEvents.find(ev => new Date(ev.date).getTime() >= nowMs);
+    bandDefaultId = upcoming ? upcoming.id : null;
+
     band.querySelectorAll('.band-ev').forEach(btn => {
-        btn.addEventListener('click', () => scrollToEvent(btn.dataset.eventId));
+        const id = btn.dataset.eventId;
+        btn.addEventListener('click', () => onBandShapeClick(id));
+        btn.addEventListener('pointerenter', () => { if (canHover.matches) previewBandEvent(id); });
+        btn.addEventListener('pointerleave', () => { if (canHover.matches) previewBandEvent(null); });
+        btn.addEventListener('focus', () => previewBandEvent(id));
+        btn.addEventListener('blur', () => previewBandEvent(null));
+    });
+    renderBandReadout();
+}
+
+// ---------- The band readout ----------
+// One line under the band names one event: the hovered or focused shape, else the
+// selected one, else the next upcoming event. Phones have no hover, so there the
+// first tap selects a shape and a second tap (or Show) jumps to its card.
+const canHover = window.matchMedia('(hover: hover)');
+let bandEventsById = {};
+let bandSelectedId = null;
+let bandPreviewId = null;
+let bandDefaultId = null;
+let bandReadoutShownId = null;
+
+function bandReadoutId() {
+    return bandPreviewId || bandSelectedId || bandDefaultId;
+}
+
+function onBandShapeClick(id) {
+    if (canHover.matches || bandSelectedId === id) {
+        selectBandEvent(id);
+        scrollToEvent(id);
+        return;
+    }
+    selectBandEvent(id);
+}
+
+function selectBandEvent(id) {
+    bandSelectedId = id;
+    document.querySelectorAll('#band-container .band-ev').forEach(btn => {
+        btn.setAttribute('aria-pressed', btn.dataset.eventId === id ? 'true' : 'false');
+    });
+    renderBandReadout();
+}
+
+function previewBandEvent(id) {
+    bandPreviewId = id;
+    renderBandReadout();
+}
+
+function bandReadoutText(ev) {
+    const d = new Date(ev.date);
+    const day = d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }).replace(',', '');
+    const time = d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false });
+    const parts = [day, time, ev.title];
+    const seats = seatsLabel(ev, { isPast: d.getTime() < Date.now() });
+    if (seats) parts.push(seats);
+    return parts.join(' · ');
+}
+
+function renderBandReadout() {
+    const readout = document.getElementById('band-readout');
+    if (!readout) return;
+    const id = bandReadoutId();
+    const ev = id ? bandEventsById[id] : null;
+    const text = readout.querySelector('.band-readout-text');
+    const show = readout.querySelector('.band-readout-show');
+    if (!ev) {
+        readout.classList.add('is-empty');
+        text.textContent = '';
+        text.dataset.key = '';
+        show.hidden = true;
+        bandReadoutShownId = null;
+        return;
+    }
+    const st = styleFor(ev);
+    // The shape mark sits inline at the start, so it stays on the first line when the text wraps.
+    // Rewrite only on a real change, so a WebSocket re-render does not re-announce the line.
+    const line = bandReadoutText(ev);
+    const key = `${st.tone}|${st.shape}|${line}`;
+    readout.classList.remove('is-empty');
+    if (text.dataset.key !== key) {
+        text.innerHTML = `<span class="band-readout-mark tone-${st.tone}" aria-hidden="true">${shapeSvg(st.shape)}</span>${escapeHtml(line)}`;
+        text.dataset.key = key;
+    }
+    show.hidden = false;
+    show.dataset.eventId = ev.id;
+    show.setAttribute('aria-label', `Show ${ev.title}`);
+    // Motion only when the named event changes.
+    if (bandReadoutShownId !== ev.id) {
+        readout.classList.remove('is-changed');
+        void readout.offsetWidth;
+        readout.classList.add('is-changed');
+    }
+    bandReadoutShownId = ev.id;
+}
+
+function wireBandReadout() {
+    const show = document.querySelector('#band-readout .band-readout-show');
+    if (!show) return;
+    show.addEventListener('click', () => {
+        if (show.dataset.eventId) scrollToEvent(show.dataset.eventId);
     });
 }
 
@@ -631,6 +742,19 @@ function formatDuration(start, end) {
     return parts.join(' ');
 }
 
+// The seat count in words, shared by the seat row and the band readout.
+// Empty when there is no limit and nobody yet.
+function seatsLabel(event, { isPast }) {
+    const count = event.attendingCount || 0;
+    const hasLimit = event.attendance_limit !== null && event.attendance_limit !== undefined;
+    const limit = hasLimit ? event.attendance_limit : null;
+    if (!hasLimit && count === 0) return '';
+    if (isPast) return `${count} went`;
+    if (hasLimit && count >= limit) return `Full · ${count} of ${limit}`;
+    if (hasLimit) return `${count} of ${limit} spots taken`;
+    return `${count} going`;
+}
+
 // Seats: one slot per place when the event has a limit, one per person when it does not.
 // Open slots are outlines, taken slots carry the calendar's colour, a full row turns black.
 function renderSeats(event, st, { isPast, hasLimit, isFull, newFrom }) {
@@ -649,14 +773,9 @@ function renderSeats(event, st, { isPast, hasLimit, isFull, newFrom }) {
     }
     if (hidden > 0) slots += `<span class="slot-more">+${hidden}</span>`;
 
-    let label;
-    if (isPast) label = `${count} went`;
-    else if (isFull) label = `Full · ${count} of ${limit}`;
-    else if (hasLimit) label = `${count} of ${limit} spots taken`;
-    else label = `${count} going`;
-
     // No limit and nobody yet: there is nothing to draw, and the names line already says so.
-    if (!hasLimit && count === 0) return '';
+    const label = seatsLabel(event, { isPast });
+    if (!label) return '';
 
     return `<div class="seats${isFull ? ' is-full' : ''}"><span class="slots" aria-hidden="true">${slots}</span><span class="seats-label">${escapeHtml(label)}</span></div>`;
 }
