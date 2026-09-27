@@ -741,6 +741,7 @@ function renderEventCard(event, { isPast, isToday, isNext, prevNames }) {
 
 // One place to apply a new attendee list, whether it came from our own RSVP or a broadcast.
 function applyAttendance(eventId, attendees) {
+    if (!Array.isArray(attendees)) return; // an older server answered without a list; the broadcast still brings it
     const count = attendees.length;
     [currentEvents, allCalendarEvents].forEach(list => {
         const ev = list.find(e => e.id === eventId);
@@ -872,8 +873,9 @@ function submitRsvp(action) {
             rememberName(attendeeName);
             closeRsvpModal();
             // No toast: the name printing into the list is the confirmation.
-            // The broadcast that follows replaces this with the server's list.
-            applyAttendance(event.id, (event.attendees || []).concat(attendeeName));
+            // Apply the server's list, never a patch of ours: the broadcast often lands
+            // first, and adding the name again would show it twice.
+            applyAttendance(event.id, result.attendees);
         } else {
             showFieldError('rsvp-error', result.message || 'That did not go through. Try again.');
         }
@@ -907,10 +909,9 @@ function submitRemoveRsvp() {
         textEl.textContent = originalText;
         if (result.success) {
             closeRemoveRsvpModal();
-            const remaining = (event.attendees || []).slice();
-            const at = remaining.indexOf(attendeeName);
-            if (at !== -1) remaining.splice(at, 1);
-            applyAttendance(event.id, remaining);
+            // The server's list, not ours minus one name: when the broadcast lands first,
+            // subtracting again would hide a second person with the same name.
+            applyAttendance(event.id, result.attendees);
         } else {
             showFieldError('remove-error', result.message || 'That did not go through. Try again.');
         }
