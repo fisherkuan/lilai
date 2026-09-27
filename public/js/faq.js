@@ -4,7 +4,7 @@ const FAQ_LANGS = {
         htmlLang: 'en',
         title: 'FAQ — Lilai',
         back: 'Back to events',
-        heading: 'Questions, answered.',
+        heading: 'FAQ',
         intro: 'Everything you might wonder about RSVPs, calendars, donations, and how this little app is run.',
         loading: 'Loading FAQ...',
         error: 'Unable to load FAQ content right now. Please try again later.'
@@ -14,7 +14,7 @@ const FAQ_LANGS = {
         htmlLang: 'zh-Hant-TW',
         title: '常見問題 — Lilai',
         back: '回到活動',
-        heading: '你想問的，都在這裡。',
+        heading: '常見問題',
         intro: '關於報名、行事曆、捐款，還有這個小網站是怎麼運作的。',
         loading: '載入中...',
         error: '目前無法載入常見問題，請稍後再試。'
