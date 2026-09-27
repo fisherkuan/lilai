@@ -375,8 +375,57 @@ button { font: inherit; color: inherit; }
     transform-origin: center;
 }
 
-.band-ev:hover .shape { transform: scale(1.12); transition: transform 180ms var(--ease); }
+.band-ev:hover .shape { transform: scale(1.12); }
+
+/* The selected shape: an ink ring, the only mark of selection. */
+.band-ev .shape {
+    outline: var(--rule) solid transparent;
+    outline-offset: 2px;
+    transition: transform 180ms var(--ease), outline-color 140ms var(--ease);
+}
+.band-ev[aria-pressed="true"] .shape { outline-color: var(--ink); }
 .band-ev.is-grown .shape { animation: shape-step 640ms var(--ease); }
+
+/* One line under the band naming one event. Fixed height, so the page never jumps. */
+.band-readout {
+    display: flex;
+    align-items: center;
+    gap: var(--s3);
+    height: 56px;
+    margin: 0;
+    padding-top: var(--s2);
+    font-size: var(--meta);
+    line-height: 1.3;
+    color: var(--ink);
+    font-variant-numeric: tabular-nums;
+}
+
+.band-readout.is-empty { visibility: hidden; }
+
+.band-readout-mark { display: inline-block; margin-right: var(--s2); vertical-align: -0.05em; }
+.band-readout-mark .shape { width: 12px; height: 12px; display: block; }
+
+/* Two lines at most inside the fixed 56px row: a phone fits the date, the time and the
+   seats beside a short title, and a long title ends in an ellipsis. */
+.band-readout-text {
+    flex: 0 1 auto;
+    min-width: 0;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    overflow: hidden;
+    overflow-wrap: anywhere;
+}
+
+.band-readout-show { flex: none; }
+
+.band-readout.is-changed .band-readout-text { animation: readout-in 220ms var(--ease); }
+
+@keyframes readout-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
 
 .band-empty {
     padding: var(--s3) 0 0;

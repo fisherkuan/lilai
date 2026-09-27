@@ -83,7 +83,7 @@ Vanilla JavaScript with no build step.
 **Client-side features:**
 - WebSocket connection for real-time attendance updates
 - Event cards with RSVP buttons (add/remove attendance)
-- **14-day band** rendered client-side from `/api/events?timeRange=all`: each event is its calendar's shape, sized by headcount. Implemented in `app.js` (`renderBand`, `loadAllCalendarEvents`, `wireCreateEventButtons`).
+- **14-day band** rendered client-side from `/api/events?timeRange=all`: each event is its calendar's shape, sized by headcount. Implemented in `app.js` (`renderBand`, `loadAllCalendarEvents`, `wireCreateEventButtons`). A readout line under it (`renderBandReadout`) names one event: hovered or focused, else selected, else the next upcoming. On touch the first tap selects and a second tap (or Show) scrolls; the selection is kept by event id across re-renders.
 - Admin pages for creating/editing events and managing donations
 
 ### Configuration (config/app.json)
