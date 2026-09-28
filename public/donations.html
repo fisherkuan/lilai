@@ -2,10 +2,13 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <!-- Apply a saved theme before first paint; the switch itself is js/theme.js. -->
+    <script>try{var t=localStorage.getItem("lilaiTheme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}</script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Donations — Lilai</title>
     <meta name="description" content="View donation balance and recent entries for the Lilai app.">
-    <meta name="theme-color" content="#ffffff">
+    <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#121212" media="(prefers-color-scheme: dark)">
     <link rel="preload" href="/fonts/jost-latin.woff2" as="font" type="font/woff2" crossorigin>
     <link rel="stylesheet" href="/css/lilai.css">
     <link rel="stylesheet" href="/css/donate.css">
@@ -84,6 +87,7 @@
 <footer class="colophon">
     <p>Built by Fisher Kuan</p>
 </footer>
+<script src="/js/theme.js"></script>
 
 <script src="/js/donation.js"></script>
 </body>
