@@ -28,6 +28,7 @@
     --hair: #e2e2e2;
     --wash: #f3f3f3;
     --past: #b4b4b4;
+    --scrim: rgba(17, 17, 17, 0.4);
 
     --blue: #1f4fa3;
     --red: #d9352b;
@@ -53,6 +54,26 @@
     color-scheme: light;
     accent-color: var(--ink);
     scrollbar-color: var(--ink) transparent;
+}
+
+/* Dark: the same world with the ground inverted. Paper and ink swap, so rules, text,
+   buttons and shape contours turn light on an ink ground; the primaries stay as they are
+   and still live only inside shapes. Follows the device setting; there is no toggle. */
+@media (prefers-color-scheme: dark) {
+    :root {
+        --paper: #121212;
+        --ink: #f2f1ee;
+        --ink-2: #c2c1be;
+        --ink-3: #97968f;
+        --hair: #2e2e2e;
+        --wash: #1f1f1f;
+        --past: #5c5c5c;
+        --scrim: rgba(0, 0, 0, 0.6);
+        color-scheme: dark;
+    }
+    .select {
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23f2f1ee' stroke-width='1.5'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+    }
 }
 
 *, *::before, *::after { box-sizing: border-box; }
@@ -811,7 +832,7 @@ button { font: inherit; color: inherit; }
     display: flex;
     align-items: flex-end;
     justify-content: center;
-    background: rgba(17, 17, 17, 0.4);
+    background: var(--scrim);
 }
 
 .modal.hidden { display: none; }

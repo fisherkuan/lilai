@@ -205,6 +205,10 @@ A monochrome ink-on-paper product with three Bauhaus primaries held inside shape
 - **Past Grey** (past): contour of every shape on a past event. Past shapes lose their fill. It is also the secondary text reversed out of the booking queue's ink midnight banner.
 - **Scrim** (`rgba(17, 17, 17, 0.4)`): the only translucent value, behind an open sheet.
 
+### Dark
+
+The pages follow the device's light or dark setting; there is no toggle. Dark inverts the ground and nothing else: `--paper` becomes #121212 and `--ink` #f2f1ee, with the greys, hairline, wash and scrim retuned in the `prefers-color-scheme: dark` block in `lilai.css`. Because every rule, contour, text and solid button reads `--ink`, they all turn light together: Join is a light button with dark text, and shape contours are paper-coloured on ink, as on the iPhone icon. The primaries do not change and still live only inside shapes. An open seat is the ground colour inside a light contour; a full row fills light. Icons drawn as data URIs carry their stroke colour inline, so each has a light copy in the same block. `favicon.svg` switches with the same media query.
+
 ### Named Rules
 **The Shapes-Only Primaries Rule.** Blue, red and yellow appear only as the fill of a calendar shape. Text, rules, buttons, links and grounds are ink or paper. The one exception is the yellow text selection.
 
