@@ -1270,10 +1270,18 @@ select.bs-unit { flex: none; width: 150px; max-width: none; }
 
 /* Dark: the two data-URI icons carry their stroke colour inline, so they need a light copy. */
 @media (prefers-color-scheme: dark) {
-    .bq-fold-btn::before {
+    :root:not([data-theme="light"]) .bq-fold-btn::before {
         background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' fill='none' stroke='%23f2f1ee' stroke-width='1.5'%3E%3Cpath d='M6 1v10M1 6h10'/%3E%3C/svg%3E");
     }
-    select.bs-input {
+    :root:not([data-theme="light"]) select.bs-input {
         background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23f2f1ee' stroke-width='1.5'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
     }
+}
+
+/* The footer toggle's explicit Dark: the same values as the block above. Keep them in sync. */
+:root[data-theme="dark"] .bq-fold-btn::before {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' fill='none' stroke='%23f2f1ee' stroke-width='1.5'%3E%3Cpath d='M6 1v10M1 6h10'/%3E%3C/svg%3E");
+}
+:root[data-theme="dark"] select.bs-input {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23f2f1ee' stroke-width='1.5'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
 }

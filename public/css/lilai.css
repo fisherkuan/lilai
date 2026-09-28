@@ -60,7 +60,7 @@
    buttons and shape contours turn light on an ink ground; the primaries stay as they are
    and still live only inside shapes. Follows the device setting; there is no toggle. */
 @media (prefers-color-scheme: dark) {
-    :root {
+    :root:not([data-theme="light"]) {
         --paper: #121212;
         --ink: #f2f1ee;
         --ink-2: #c2c1be;
@@ -71,9 +71,25 @@
         --scrim: rgba(0, 0, 0, 0.6);
         color-scheme: dark;
     }
-    .select {
+    :root:not([data-theme="light"]) .select {
         background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23f2f1ee' stroke-width='1.5'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
     }
+}
+
+/* The footer toggle's explicit Dark: the same values as the block above. Keep them in sync. */
+:root[data-theme="dark"] {
+    --paper: #121212;
+    --ink: #f2f1ee;
+    --ink-2: #c2c1be;
+    --ink-3: #97968f;
+    --hair: #2e2e2e;
+    --wash: #1f1f1f;
+    --past: #5c5c5c;
+    --scrim: rgba(0, 0, 0, 0.6);
+    color-scheme: dark;
+}
+:root[data-theme="dark"] .select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23f2f1ee' stroke-width='1.5'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
 }
 
 *, *::before, *::after { box-sizing: border-box; }
@@ -963,17 +979,54 @@ button { font: inherit; color: inherit; }
 
 /* ---------- Colophon ---------- */
 
+/* The rule sits on the footer itself, so the footer is sized to the content column
+   (the page width less both gutters) rather than padded out to the page width. */
 .colophon {
-    max-width: var(--page);
+    width: calc(100% - 2 * var(--gutter));
+    max-width: calc(var(--page) - 2 * var(--gutter));
     margin: var(--s8) auto 0;
-    padding: 0 var(--gutter) var(--s6);
+    padding-bottom: var(--s6);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0 var(--s5);
+    border-top: var(--rule) solid var(--ink);
+    padding-top: var(--s2);
 }
 
 .colophon p {
-    padding-top: var(--s4);
-    border-top: var(--rule) solid var(--ink);
     font-size: 13px;
     color: var(--ink-3);
+}
+
+/* Theme: Auto · Light · Dark. Footer-sized, but each choice is a 44px touch target. */
+.theme-switch {
+    display: flex;
+    align-items: center;
+    gap: var(--s3);
+    font-size: 13px;
+    color: var(--ink-3);
+}
+
+.theme-btn {
+    min-height: 44px;
+    padding: 0;
+    border: 0;
+    background: none;
+    font: inherit;
+    color: var(--ink-3);
+    cursor: pointer;
+}
+
+.theme-btn:hover { color: var(--ink); }
+
+.theme-btn[aria-pressed="true"] {
+    color: var(--ink);
+    font-weight: 500;
+    text-decoration: underline;
+    text-decoration-thickness: var(--rule);
+    text-underline-offset: 4px;
 }
 
 /* ---------- Breakpoints ---------- */
