@@ -1,0 +1,56 @@
+name: CI
+
+# Runs the whole suite, DB-backed tests included, on every PR and on main.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: lilai_booking_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # The frontend has no tests and no build step, so a syntax error would ship
+      # as a blank page. This is the only check it gets.
+      - name: Syntax-check frontend scripts
+        run: for f in public/*.js public/js/*.js; do node --check "$f"; done
+
+      # The DB tests skip, rather than fail, when Postgres is unreachable. Here a
+      # skip means the service is broken, so any skipped test fails the job.
+      - name: Test (with Postgres)
+        env:
+          TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lilai_booking_test
+        run: |
+          set -o pipefail
+          npm run test:db | tee test-output.txt
+          grep -Eq '^(# |ℹ )skipped 0$' test-output.txt || { echo "::error::Tests were skipped; is Postgres reachable?"; exit 1; }
