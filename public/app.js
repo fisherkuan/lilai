@@ -187,6 +187,26 @@ function styleFor(event) {
     return calendarStyleBySource[event.source] || UNSOURCED_STYLE;
 }
 
+// An emoji in the event title stands in for the shape on the band and its readout.
+// Only graphemes that render as emoji by default (or carry VS16) count, so a © or a
+// digit in a title keeps the calendar's shape. Without Intl.Segmenter every event keeps its shape.
+const titleSegmenter = typeof Intl !== 'undefined' && Intl.Segmenter ? new Intl.Segmenter(undefined, { granularity: 'grapheme' }) : null;
+const EMOJI_GRAPHEME = /\p{Emoji_Presentation}|\p{Extended_Pictographic}\uFE0F/u;
+
+function titleEmoji(title) {
+    if (!titleSegmenter || !title) return null;
+    for (const { segment } of titleSegmenter.segment(title)) {
+        if (EMOJI_GRAPHEME.test(segment)) return segment;
+    }
+    return null;
+}
+
+// The band's mark for one event: its title emoji, else its calendar's shape.
+function bandMark(ev, st) {
+    const emoji = titleEmoji(ev.title);
+    return emoji ? `<span class="band-emoji" aria-hidden="true">${escapeHtml(emoji)}</span>` : shapeSvg(st.shape);
+}
+
 function shapeSvg(shape, extraClass = '') {
     return `<svg class="shape s-${shape}${extraClass ? ' ' + extraClass : ''}" aria-hidden="true" focusable="false"><use href="#shape-${shape}"/></svg>`;
 }
@@ -307,7 +327,7 @@ function renderBand() {
             const when = new Date(ev.date).toLocaleString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
             const label = `${ev.title}, ${when}, ${count} going`;
             const pressed = ev.id === bandSelectedId ? 'true' : 'false';
-            return `<button type="button" class="band-ev tone-${st.tone}${grew ? ' is-grown' : ''}" data-event-id="${escapeAttribute(ev.id)}" style="--n:${Math.min(count, 12)}" aria-label="${escapeAttribute(label)}" aria-pressed="${pressed}">${shapeSvg(st.shape)}</button>`;
+            return `<button type="button" class="band-ev tone-${st.tone}${grew ? ' is-grown' : ''}" data-event-id="${escapeAttribute(ev.id)}" style="--n:${Math.min(count, 12)}" aria-label="${escapeAttribute(label)}" aria-pressed="${pressed}">${bandMark(ev, st)}</button>`;
         }).join('');
 
         const classes = ['band-day'];
@@ -382,11 +402,11 @@ function previewBandEvent(id) {
     renderBandReadout();
 }
 
-function bandReadoutText(ev) {
+function bandReadoutText(ev, title = ev.title) {
     const d = new Date(ev.date);
     const day = d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }).replace(',', '');
     const time = d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false });
-    const parts = [day, time, ev.title];
+    const parts = [day, time, title];
     const seats = seatsLabel(ev, { isPast: d.getTime() < Date.now() });
     if (seats) parts.push(seats);
     return parts.join(' · ');
@@ -410,11 +430,14 @@ function renderBandReadout() {
     const st = styleFor(ev);
     // The shape mark sits inline at the start, so it stays on the first line when the text wraps.
     // Rewrite only on a real change, so a WebSocket re-render does not re-announce the line.
-    const line = bandReadoutText(ev);
-    const key = `${st.tone}|${st.shape}|${line}`;
+    // An emoji mark is lifted out of the title, so the line does not show it twice.
+    const emoji = titleEmoji(ev.title);
+    const title = emoji ? (ev.title.replace(emoji, '').replace(/\s+/g, ' ').trim() || ev.title) : ev.title;
+    const line = bandReadoutText(ev, title);
+    const key = `${st.tone}|${st.shape}|${emoji || ''}|${line}`;
     readout.classList.remove('is-empty');
     if (text.dataset.key !== key) {
-        text.innerHTML = `<span class="band-readout-mark tone-${st.tone}" aria-hidden="true">${shapeSvg(st.shape)}</span>${escapeHtml(line)}`;
+        text.innerHTML = `<span class="band-readout-mark tone-${st.tone}" aria-hidden="true">${bandMark(ev, st)}</span>${escapeHtml(line)}`;
         text.dataset.key = key;
     }
     show.hidden = false;

@@ -412,16 +412,28 @@ button { font: inherit; color: inherit; }
     transform-origin: center;
 }
 
-.band-ev:hover .shape { transform: scale(1.12); }
+/* A title emoji in place of the shape. It floors at 14px, where an emoji still reads. */
+.band-emoji {
+    display: block;
+    font-size: max(14px, var(--size));
+    line-height: 1;
+    transform-origin: center;
+}
+
+.band-ev:hover .shape,
+.band-ev:hover .band-emoji { transform: scale(1.12); }
 
 /* The selected shape: an ink ring, the only mark of selection. */
-.band-ev .shape {
+.band-ev .shape,
+.band-ev .band-emoji {
     outline: var(--rule) solid transparent;
     outline-offset: 2px;
     transition: transform 180ms var(--ease), outline-color 140ms var(--ease);
 }
-.band-ev[aria-pressed="true"] .shape { outline-color: var(--ink); }
-.band-ev.is-grown .shape { animation: shape-step 640ms var(--ease); }
+.band-ev[aria-pressed="true"] .shape,
+.band-ev[aria-pressed="true"] .band-emoji { outline-color: var(--ink); }
+.band-ev.is-grown .shape,
+.band-ev.is-grown .band-emoji { animation: shape-step 640ms var(--ease); }
 
 /* One line under the band naming one event. Fixed height, so the page never jumps. */
 .band-readout {
@@ -441,6 +453,7 @@ button { font: inherit; color: inherit; }
 
 .band-readout-mark { display: inline-block; margin-right: var(--s2); vertical-align: -0.05em; }
 .band-readout-mark .shape { width: 12px; height: 12px; display: block; }
+.band-readout-mark .band-emoji { font-size: 14px; }
 
 /* Two lines at most inside the fixed 56px row: a phone fits the date, the time and the
    seats beside a short title, and a long title ends in an ellipsis. */
