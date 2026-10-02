@@ -29,13 +29,17 @@
     --wash: #f3f3f3;
     --past: #b4b4b4;
     --scrim: rgba(17, 17, 17, 0.4);
+    --link: #0b57d0;
 
     --blue: #1f4fa3;
     --red: #d9352b;
     --yellow: #f2c230;
 
     --rule: 1.5px;
-    --font: 'Jost', 'PingFang TC', 'Noto Sans TC', 'Microsoft JhengHei', system-ui, sans-serif;
+    /* Jost for numerals and titles only; reading text uses the device's own UI font,
+       which stays legible at 14-16px where Jost's small x-height does not. */
+    --font-display: 'Jost', 'PingFang TC', 'Noto Sans TC', 'Microsoft JhengHei', system-ui, sans-serif;
+    --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'PingFang TC', 'Noto Sans TC', 'Microsoft JhengHei', sans-serif;
     --meta: 14px;
     --ease: cubic-bezier(0.16, 1, 0.3, 1);
 
@@ -69,6 +73,7 @@
         --wash: #1f1f1f;
         --past: #5c5c5c;
         --scrim: rgba(0, 0, 0, 0.6);
+        --link: #8ab4f8;
         color-scheme: dark;
     }
     :root:not([data-theme="light"]) .select {
@@ -86,6 +91,7 @@
     --wash: #1f1f1f;
     --past: #5c5c5c;
     --scrim: rgba(0, 0, 0, 0.6);
+    --link: #8ab4f8;
     color-scheme: dark;
 }
 :root[data-theme="dark"] .select {
@@ -125,6 +131,9 @@ a:hover { text-decoration-thickness: 2px; }
 }
 
 h1, h2, h3, p { margin: 0; }
+
+/* Display type: headings and the numerals DESIGN.md calls Numeral, on every page. */
+h1, h2, h3, .wordmark-name, .event-day, .balance-amount, .bd-day { font-family: var(--font-display); }
 
 button { font: inherit; color: inherit; }
 
@@ -575,8 +584,9 @@ button { font: inherit; color: inherit; }
     display: grid;
     grid-template-columns: 56px minmax(0, 1fr);
     gap: 0 var(--s4);
-    padding: var(--s5) 0 var(--s6);
-    border-top: var(--rule) solid var(--ink);
+    margin-top: var(--s3);
+    padding: var(--s5) var(--s4);
+    border: 1px solid var(--hair);
     scroll-margin-top: var(--s4);
 }
 
@@ -612,6 +622,21 @@ button { font: inherit; color: inherit; }
 
 .event-time { color: var(--ink); font-weight: 500; }
 
+/* Start over end, joined by an en dash (the range mark) turned upright to follow the stack,
+   as vertical CJK type sets it. */
+.event-times {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    align-self: flex-start;
+}
+
+.event-to {
+    display: block;
+    color: var(--ink-3);
+    transform: rotate(90deg);
+}
+
 .event-title {
     margin: 0 0 var(--s1);
     font-size: 20px;
@@ -627,6 +652,44 @@ button { font: inherit; color: inherit; }
     color: var(--ink-2);
     overflow-wrap: anywhere;
 }
+
+/* An outbound link in the meta line: the one coloured, underlined text on Home, with an
+   arrow, so it reads as a way out without becoming another button. */
+.event-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    color: var(--link);
+    font-weight: 500;
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 3px;
+}
+
+.event-link svg {
+    width: 12px;
+    height: 12px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2px;
+    stroke-linecap: square;
+}
+
+.event-link:hover { text-decoration-thickness: 2px; }
+
+/* Event buttons are quieter than the page's other buttons: a soft pill with a thin edge. */
+.event-actions .btn {
+    min-height: 40px;
+    padding: 0 22px;
+    border-width: 1px;
+    border-color: var(--ink-3);
+    border-radius: 999px;
+    font-size: 15px;
+    font-weight: 500;
+}
+
+.event-actions .btn-line:hover { background: var(--wash); color: var(--ink); border-color: var(--ink); }
+.event-actions .btn:disabled { border-color: var(--hair); }
 
 .event-desc {
     display: -webkit-box;
@@ -646,33 +709,6 @@ button { font: inherit; color: inherit; }
 }
 
 .event-desc-toggle { margin-top: -4px; }
-
-/* The next event is the opening: the numeral is the one thing on the page that breaks scale. */
-.event.is-next {
-    grid-template-columns: minmax(0, 1fr);
-    padding-top: var(--s5);
-}
-
-.event.is-next .event-date {
-    flex-direction: row;
-    align-items: flex-end;
-    gap: var(--s3);
-    margin-bottom: var(--s4);
-}
-
-.event.is-next .event-day {
-    font-size: 96px;
-    line-height: 0.78;
-    letter-spacing: -0.04em;
-}
-
-.event.is-next .event-daymeta {
-    margin: 0 0 -2px;
-    font-size: 15px;
-    color: var(--ink);
-}
-
-.event.is-next .event-title { font-size: 26px; }
 
 /* Seats */
 
@@ -696,12 +732,6 @@ button { font: inherit; color: inherit; }
 .slot.is-taken .shape { fill: var(--tone); }
 .slot.is-new .shape { animation: shape-grow 480ms var(--ease) both; }
 .seats.is-full .slot .shape { fill: var(--ink); }
-
-.slot-more {
-    font-size: var(--meta);
-    color: var(--ink-2);
-    font-variant-numeric: tabular-nums;
-}
 
 .seats-label {
     font-size: var(--meta);
@@ -739,14 +769,6 @@ button { font: inherit; color: inherit; }
     margin-top: var(--s5);
 }
 
-.event.is-next .event-actions {
-    flex-direction: column;
-    align-items: stretch;
-    gap: var(--s1);
-}
-
-.event.is-next .event-actions .text-btn { align-self: flex-start; }
-
 /* Past: every shape drains to a grey outline. */
 
 .event.is-past .event-day,
@@ -758,14 +780,15 @@ button { font: inherit; color: inherit; }
 .event.is-pointed .event-mark .shape { animation: shape-step 520ms var(--ease); }
 
 .today-rule {
-    padding: var(--s2) 0 var(--s4);
+    margin-top: var(--s5);
+    padding: var(--s2) 0 var(--s3);
     border-top: 3px solid var(--ink);
     font-size: var(--meta);
     font-weight: 600;
     scroll-margin-top: var(--s4);
 }
 
-.today-rule + .event { border-top: 0; padding-top: var(--s2); }
+.today-rule + .event { margin-top: 0; }
 
 .load-earlier-wrap { padding: var(--s2) 0 var(--s4); }
 
@@ -1044,18 +1067,13 @@ button { font: inherit; color: inherit; }
 
 /* ---------- Breakpoints ---------- */
 
-/* Phones: a tighter header and a shorter lead event, so Join lands in the first screen. */
+/* Phones: a tighter header, so the first event lands in the first screen. */
 @media (max-width: 639px) {
     .masthead { gap: var(--s3); }
     .wordmark { gap: var(--s2); }
     .band-day { min-height: 96px; }
     .list-head { margin-top: var(--s4); }
     .legend { margin-bottom: var(--s1); }
-    .event.is-next { padding-top: var(--s4); }
-    .event.is-next .event-date { margin-bottom: var(--s3); }
-    .event.is-next .event-desc { -webkit-line-clamp: 2; }
-    .event.is-next .seats { margin-top: var(--s3); }
-    .event.is-next .event-actions { margin-top: var(--s4); }
 }
 
 @media (min-width: 640px) {
@@ -1064,7 +1082,7 @@ button { font: inherit; color: inherit; }
     .band-ev { --base: 12px; --step: 3.5px; --max: 40px; }
     .band-day { min-height: 136px; }
 
-    .event { grid-template-columns: 72px minmax(0, 1fr); gap: 0 var(--s5); }
+    .event { grid-template-columns: 72px minmax(0, 1fr); gap: 0 var(--s5); padding: var(--s5); }
     .event-day { font-size: 52px; }
 
     .modal { align-items: center; padding: var(--s4); }
@@ -1096,18 +1114,6 @@ button { font: inherit; color: inherit; }
         top: var(--s4);
         margin-top: var(--s6);
     }
-
-    .event.is-next { grid-template-columns: 180px minmax(0, 1fr); gap: 0 var(--s5); }
-
-    .event.is-next .event-date {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: var(--s3);
-        margin: 0;
-    }
-
-    .event.is-next .event-day { font-size: 96px; }
-    .event.is-next .event-title { font-size: 30px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -689,7 +689,8 @@ async function loadOlderEvents(options = {}) {
 }
 
 // ---------- Render events ----------
-const MAX_SLOTS = 24;
+// Past this many places a row of shapes stops reading as seats, so the label says it alone.
+const MAX_SLOTS = 10;
 let knownAttendees = null; // eventId -> Set of names at the last render, to mark new arrivals
 
 function displayEvents(options = {}) {
@@ -720,7 +721,6 @@ function displayEvents(options = {}) {
     const todayLabel = `Today · ${now.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}`;
     const todayRule = `<div class="today-rule" id="today-marker"><span>${escapeHtml(todayLabel)}</span></div>`;
     let insertedTodayDivider = false;
-    let markedNext = false;
     const pieces = [];
 
     if (currentRange === 'all' && hasMoreOlder) {
@@ -738,10 +738,8 @@ function displayEvents(options = {}) {
             insertedTodayDivider = true;
         }
 
-        const isNext = !isPast && !markedNext;
-        if (isNext) markedNext = true;
         const prevNames = previous ? previous[event.id] : undefined;
-        pieces.push(renderEventCard(event, { isPast, isToday, isNext, prevNames }));
+        pieces.push(renderEventCard(event, { isPast, isToday, prevNames }));
     });
 
     // If range=all and the divider wasn't inserted (all events are in past),
@@ -786,18 +784,6 @@ function syncDescriptionToggles() {
 }
 
 // Human-readable duration between start and end (e.g. "3 hrs", "1 hr 30 min", "45 min").
-function formatDuration(start, end) {
-    const ms = end - start;
-    if (!Number.isFinite(ms) || ms <= 0) return '';
-    const totalMinutes = Math.round(ms / 60000);
-    const hours = Math.floor(totalMinutes / 60);
-    const minutes = totalMinutes % 60;
-    const parts = [];
-    if (hours) parts.push(`${hours} hr${hours > 1 ? 's' : ''}`);
-    if (minutes) parts.push(`${minutes} min`);
-    return parts.join(' ');
-}
-
 // The seat count in words, shared by the seat row and the band readout.
 // Empty when there is no limit and nobody yet.
 function seatsLabel(event, { isPast }) {
@@ -811,13 +797,12 @@ function seatsLabel(event, { isPast }) {
     return `${count} going`;
 }
 
-// Seats: one slot per place when the event has a limit, one per person when it does not.
+// Seats: one slot per place, drawn only for a small limited event. With no limit, or more
+// than MAX_SLOTS places, the label carries the count alone.
 // Open slots are outlines, taken slots carry the calendar's colour, a full row turns black.
 function renderSeats(event, st, { isPast, hasLimit, isFull, newFrom }) {
     const count = event.attendingCount || 0;
-    const limit = hasLimit ? event.attendance_limit : null;
-    const shown = hasLimit ? Math.min(limit, MAX_SLOTS) : Math.min(count, MAX_SLOTS);
-    const hidden = (hasLimit ? limit : count) - shown;
+    const shown = hasLimit && event.attendance_limit <= MAX_SLOTS ? event.attendance_limit : 0;
 
     let slots = '';
     for (let i = 0; i < shown; i++) {
@@ -827,16 +812,16 @@ function renderSeats(event, st, { isPast, hasLimit, isFull, newFrom }) {
         if (taken && i >= newFrom) cls.push('is-new');
         slots += `<span class="${cls.join(' ')}">${shapeSvg(st.shape)}</span>`;
     }
-    if (hidden > 0) slots += `<span class="slot-more">+${hidden}</span>`;
 
     // No limit and nobody yet: there is nothing to draw, and the names line already says so.
     const label = seatsLabel(event, { isPast });
     if (!label) return '';
 
-    return `<div class="seats${isFull ? ' is-full' : ''}"><span class="slots" aria-hidden="true">${slots}</span><span class="seats-label">${escapeHtml(label)}</span></div>`;
+    const row = slots ? `<span class="slots" aria-hidden="true">${slots}</span>` : '';
+    return `<div class="seats${isFull ? ' is-full' : ''}">${row}<span class="seats-label">${escapeHtml(label)}</span></div>`;
 }
 
-function renderEventCard(event, { isPast, isToday, isNext, prevNames }) {
+function renderEventCard(event, { isPast, isToday, prevNames }) {
     const eventDate = new Date(event.date);
     const dayNum = String(eventDate.getDate());
     const monthAbbr = eventDate.toLocaleDateString('en-GB', { month: 'short' });
@@ -844,13 +829,16 @@ function renderEventCard(event, { isPast, isToday, isNext, prevNames }) {
     const timeStr = eventDate.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false });
     // Postgres folds the unquoted endDate column to lowercase, so accept either casing.
     const endRaw = event.endDate || event.enddate || null;
-    const durationStr = endRaw ? formatDuration(eventDate, new Date(endRaw)) : '';
+    const endDate = endRaw ? new Date(endRaw) : null;
+    const hasEnd = endDate && Number.isFinite(endDate.getTime()) && endDate > eventDate;
     const st = styleFor(event);
 
     const sanitizedEventId = escapeAttribute(event.id);
     const sanitizedTitle = escapeHtml(event.title);
     const descriptionText = typeof event.description === 'string' ? event.description : '';
-    const sanitizedDescription = escapeHtml(descriptionText).replace(/\n/g, '<br>');
+    // The "link: URL" line becomes the Event link button, so the description drops it.
+    const shownDescription = descriptionText.replace(/^[ \t]*link:?\s*https?:\/\/\S+[ \t]*$/gim, '').trim();
+    const sanitizedDescription = escapeHtml(shownDescription).replace(/\n/g, '<br>');
     const locationText = typeof event.location === 'string' ? event.location : '';
     const eventLink = extractEventLink(descriptionText);
 
@@ -860,11 +848,22 @@ function renderEventCard(event, { isPast, isToday, isNext, prevNames }) {
     const isFull = hasLimit && attendingCount >= event.attendance_limit;
     const newFrom = prevNames ? prevNames.size : Infinity;
 
-    const metaParts = [];
-    if (durationStr) metaParts.push(escapeHtml(durationStr));
-    if (locationText) metaParts.push(escapeHtml(locationText));
-    if (eventLink) metaParts.push(`<a href="${escapeAttribute(eventLink)}" target="_blank" rel="noopener noreferrer">Event link</a>`);
-    if (st.name) metaParts.push(escapeHtml(st.name));
+    // The title's shape already names the calendar, so the meta line is the place and the link.
+    const link = eventLink
+        ? `<a class="event-link" href="${escapeAttribute(eventLink)}" target="_blank" rel="noopener noreferrer">Event link<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 16 16 8M9 8h7v7"/></svg><span class="sr-only"> (opens in a new tab)</span></a>`
+        : '';
+    const metaParts = [locationText ? escapeHtml(locationText) : '', link].filter(Boolean);
+    const meta = metaParts.length ? `<p class="event-meta">${metaParts.join('<span class="sep" aria-hidden="true"> · </span>')}</p>` : '';
+
+    // Start over end in the date column, joined by an en dash (the range mark), centred under the times.
+    // An end on another day names that day.
+    let endTime = '';
+    if (hasEnd) {
+        const endStr = endDate.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false });
+        const sameDay = endDate.toDateString() === eventDate.toDateString();
+        const endDay = sameDay ? '' : `<span>${escapeHtml(endDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }))}</span>`;
+        endTime = `<span class="event-to" aria-hidden="true">–</span><span class="sr-only">to</span>${endDay}<span class="event-time">${escapeHtml(endStr)}</span>`;
+    }
 
     let names;
     if (attendees.length > 0) {
@@ -878,9 +877,10 @@ function renderEventCard(event, { isPast, isToday, isNext, prevNames }) {
 
     let actions = '';
     if (!isPast) {
+        // Every event carries the same weight: no lead event, no solid Join.
         const join = isFull
-            ? '<button type="button" class="btn btn-solid" disabled>Full</button>'
-            : `<button type="button" class="btn btn-solid rsvp-trigger-add" data-event-id="${sanitizedEventId}">Join</button>`;
+            ? '<button type="button" class="btn btn-line" disabled>Full</button>'
+            : `<button type="button" class="btn btn-line rsvp-trigger-add" data-event-id="${sanitizedEventId}">Join</button>`;
         const remove = attendingCount > 0
             ? `<button type="button" class="text-btn rsvp-trigger-remove" data-event-id="${sanitizedEventId}">Remove a name</button>`
             : '';
@@ -890,19 +890,18 @@ function renderEventCard(event, { isPast, isToday, isNext, prevNames }) {
     const classes = ['event', `tone-${st.tone}`];
     if (isPast) classes.push('is-past');
     if (isToday) classes.push('is-today');
-    if (isNext) classes.push('is-next');
     if (isFull) classes.push('is-full');
 
     return `
         <article class="${classes.join(' ')}" data-event-id="${sanitizedEventId}" aria-labelledby="ev-${sanitizedEventId}">
             <div class="event-date">
                 <span class="event-day">${dayNum}</span>
-                <span class="event-daymeta"><span>${escapeHtml(isToday ? 'Today' : weekdayAbbr)}</span><span>${escapeHtml(monthAbbr)}</span><span class="event-time">${escapeHtml(timeStr)}</span></span>
+                <span class="event-daymeta"><span>${escapeHtml(isToday ? 'Today' : weekdayAbbr)}</span><span>${escapeHtml(monthAbbr)}</span><span class="event-times"><span class="event-time">${escapeHtml(timeStr)}</span>${endTime}</span></span>
             </div>
             <div class="event-body">
                 <h3 class="event-title" id="ev-${sanitizedEventId}"><span class="event-mark">${shapeSvg(st.shape)}</span>${sanitizedTitle}</h3>
-                <p class="event-meta">${metaParts.join('<span class="sep" aria-hidden="true"> · </span>')}</p>
-                ${descriptionText ? `
+                ${meta}
+                ${shownDescription ? `
                     <p class="event-desc">${sanitizedDescription}</p>
                     <button type="button" class="text-btn event-desc-toggle" aria-expanded="false" hidden>Show more</button>
                 ` : ''}

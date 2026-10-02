@@ -41,7 +41,7 @@ Technically yes, but please use unique names to help event organizers track atte
 
 ### What if an event is full?
 
-Some events have a limit on how many people can come. The event shows one shape per spot, filled in once it is taken, and says how many are taken, for example "6 of 8 spots taken". When every spot is taken, it says "Full" and the Join button is switched off. Contact the event organizer if you'd like to be added to a waitlist.
+Some events have a limit on how many people can come. The event says how many spots are taken, for example "6 of 8 spots taken". A small event also shows one shape per spot, filled in once it is taken. When every spot is taken, it says "Full" and the Join button is switched off. Contact the event organizer if you'd like to be added to a waitlist.
 
 ### Can I RSVP to past events?
 
