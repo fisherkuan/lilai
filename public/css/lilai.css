@@ -29,6 +29,7 @@
     --wash: #f3f3f3;
     --past: #b4b4b4;
     --scrim: rgba(17, 17, 17, 0.4);
+    --link: #0b57d0;
 
     --blue: #1f4fa3;
     --red: #d9352b;
@@ -72,6 +73,7 @@
         --wash: #1f1f1f;
         --past: #5c5c5c;
         --scrim: rgba(0, 0, 0, 0.6);
+        --link: #8ab4f8;
         color-scheme: dark;
     }
     :root:not([data-theme="light"]) .select {
@@ -89,6 +91,7 @@
     --wash: #1f1f1f;
     --past: #5c5c5c;
     --scrim: rgba(0, 0, 0, 0.6);
+    --link: #8ab4f8;
     color-scheme: dark;
 }
 :root[data-theme="dark"] .select {
@@ -630,8 +633,6 @@ button { font: inherit; color: inherit; }
 
 .event-to {
     display: block;
-    line-height: 1;
-    margin: 4px 0;
     color: var(--ink-3);
     transform: rotate(90deg);
 }
@@ -652,32 +653,29 @@ button { font: inherit; color: inherit; }
     overflow-wrap: anywhere;
 }
 
-/* An outbound link is a small pill with an arrow, so it reads as a way out. */
+/* An outbound link in the meta line: the one coloured, underlined text on Home, with an
+   arrow, so it reads as a way out without becoming another button. */
 .event-link {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    min-height: 36px;
-    margin-top: var(--s3);
-    padding: 0 14px;
-    border: 1px solid var(--ink-3);
-    border-radius: 999px;
-    font-size: 14px;
+    gap: 3px;
+    color: var(--link);
     font-weight: 500;
-    text-decoration: none;
-    transition: background-color 140ms var(--ease), border-color 140ms var(--ease);
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 3px;
 }
 
 .event-link svg {
-    width: 14px;
-    height: 14px;
+    width: 12px;
+    height: 12px;
     fill: none;
     stroke: currentColor;
-    stroke-width: 1.75px;
+    stroke-width: 2px;
     stroke-linecap: square;
 }
 
-.event-link:hover { background: var(--wash); border-color: var(--ink); }
+.event-link:hover { text-decoration-thickness: 2px; }
 
 /* Event buttons are quieter than the page's other buttons: a soft pill with a thin edge. */
 .event-actions .btn {

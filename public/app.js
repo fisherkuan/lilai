@@ -848,11 +848,12 @@ function renderEventCard(event, { isPast, isToday, prevNames }) {
     const isFull = hasLimit && attendingCount >= event.attendance_limit;
     const newFrom = prevNames ? prevNames.size : Infinity;
 
-    // The title's shape already names the calendar, so the meta line is the place alone.
-    const meta = locationText ? `<p class="event-meta">${escapeHtml(locationText)}</p>` : '';
+    // The title's shape already names the calendar, so the meta line is the place and the link.
     const link = eventLink
         ? `<a class="event-link" href="${escapeAttribute(eventLink)}" target="_blank" rel="noopener noreferrer">Event link<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 16 16 8M9 8h7v7"/></svg><span class="sr-only"> (opens in a new tab)</span></a>`
         : '';
+    const metaParts = [locationText ? escapeHtml(locationText) : '', link].filter(Boolean);
+    const meta = metaParts.length ? `<p class="event-meta">${metaParts.join('<span class="sep" aria-hidden="true"> · </span>')}</p>` : '';
 
     // Start over end in the date column, joined by an en dash (the range mark), centred under the times.
     // An end on another day names that day.
@@ -900,7 +901,6 @@ function renderEventCard(event, { isPast, isToday, prevNames }) {
             <div class="event-body">
                 <h3 class="event-title" id="ev-${sanitizedEventId}"><span class="event-mark">${shapeSvg(st.shape)}</span>${sanitizedTitle}</h3>
                 ${meta}
-                ${link}
                 ${shownDescription ? `
                     <p class="event-desc">${sanitizedDescription}</p>
                     <button type="button" class="text-btn event-desc-toggle" aria-expanded="false" hidden>Show more</button>
