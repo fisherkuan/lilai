@@ -854,13 +854,14 @@ function renderEventCard(event, { isPast, isToday, prevNames }) {
         ? `<a class="event-link" href="${escapeAttribute(eventLink)}" target="_blank" rel="noopener noreferrer">Event link<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 16 16 8M9 8h7v7"/></svg><span class="sr-only"> (opens in a new tab)</span></a>`
         : '';
 
-    // Start over end in the date column, joined by a short bar. An end on another day names that day.
+    // Start over end in the date column, joined by a short bar that reads "to", centred under the times.
+    // An end on another day names that day.
     let endTime = '';
     if (hasEnd) {
         const endStr = endDate.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false });
         const sameDay = endDate.toDateString() === eventDate.toDateString();
         const endDay = sameDay ? '' : `<span>${escapeHtml(endDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }))}</span>`;
-        endTime = `<span class="event-timebar" aria-hidden="true"></span><span class="sr-only">until</span>${endDay}<span class="event-time">${escapeHtml(endStr)}</span>`;
+        endTime = `<span class="event-timebar" aria-hidden="true"></span><span class="sr-only">to</span>${endDay}<span class="event-time">${escapeHtml(endStr)}</span>`;
     }
 
     let names;
@@ -894,7 +895,7 @@ function renderEventCard(event, { isPast, isToday, prevNames }) {
         <article class="${classes.join(' ')}" data-event-id="${sanitizedEventId}" aria-labelledby="ev-${sanitizedEventId}">
             <div class="event-date">
                 <span class="event-day">${dayNum}</span>
-                <span class="event-daymeta"><span>${escapeHtml(isToday ? 'Today' : weekdayAbbr)}</span><span>${escapeHtml(monthAbbr)}</span><span class="event-time">${escapeHtml(timeStr)}</span>${endTime}</span>
+                <span class="event-daymeta"><span>${escapeHtml(isToday ? 'Today' : weekdayAbbr)}</span><span>${escapeHtml(monthAbbr)}</span><span class="event-times"><span class="event-time">${escapeHtml(timeStr)}</span>${endTime}</span></span>
             </div>
             <div class="event-body">
                 <h3 class="event-title" id="ev-${sanitizedEventId}"><span class="event-mark">${shapeSvg(st.shape)}</span>${sanitizedTitle}</h3>

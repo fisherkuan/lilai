@@ -619,12 +619,20 @@ button { font: inherit; color: inherit; }
 
 .event-time { color: var(--ink); font-weight: 500; }
 
-/* Start over end: a short ink bar between the two times. */
+/* Start over end: a short ink bar between the two times reads "to". The times sit in
+   their own column so the bar centres under them. */
+.event-times {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    align-self: flex-start;
+}
+
 .event-timebar {
     display: block;
     width: var(--rule);
     height: 14px;
-    margin: 3px 0 3px 2px;
+    margin: 3px 0;
     background: var(--ink);
 }
 
