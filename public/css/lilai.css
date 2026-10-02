@@ -677,19 +677,12 @@ button { font: inherit; color: inherit; }
 
 .event-link:hover { text-decoration-thickness: 2px; }
 
-/* Event buttons are quieter than the page's other buttons: a soft pill with a thin edge. */
+/* Inside an event the pill steps down a size, since every event carries one. */
 .event-actions .btn {
     min-height: 40px;
     padding: 0 22px;
-    border-width: 1px;
-    border-color: var(--ink-3);
-    border-radius: 999px;
     font-size: 15px;
-    font-weight: 500;
 }
-
-.event-actions .btn-line:hover { background: var(--wash); color: var(--ink); border-color: var(--ink); }
-.event-actions .btn:disabled { border-color: var(--hair); }
 
 .event-desc {
     display: -webkit-box;
@@ -807,22 +800,23 @@ button { font: inherit; color: inherit; }
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    min-height: 48px;
+    min-height: 44px;
     padding: 0 var(--s5);
-    border: var(--rule) solid var(--ink);
-    border-radius: 0;
+    border: 1px solid var(--ink);
+    border-radius: 999px;
     font-size: 16px;
-    font-weight: 600;
+    font-weight: 500;
     text-decoration: none;
     cursor: pointer;
-    transition: background-color 140ms var(--ease), color 140ms var(--ease);
+    transition: background-color 140ms var(--ease), border-color 140ms var(--ease), color 140ms var(--ease);
 }
 
+/* Solid is the one main action in a form or sheet; line is everything else. */
 .btn-solid { background: var(--ink); color: var(--paper); }
-.btn-solid:hover { background: var(--paper); color: var(--ink); }
+.btn-solid:hover { background: var(--ink-2); border-color: var(--ink-2); }
 
-.btn-line { background: var(--paper); color: var(--ink); }
-.btn-line:hover { background: var(--ink); color: var(--paper); }
+.btn-line { background: var(--paper); color: var(--ink); border-color: var(--ink-3); }
+.btn-line:hover { background: var(--wash); border-color: var(--ink); }
 
 .btn:disabled,
 .btn[disabled] {
@@ -963,8 +957,8 @@ button { font: inherit; color: inherit; }
     width: 100%;
     min-height: 50px;
     padding: 0 var(--s3);
-    border: var(--rule) solid var(--ink);
-    border-radius: 0;
+    border: 1px solid var(--ink-3);
+    border-radius: 10px;
     background: var(--paper);
     color: var(--ink);
     font: inherit;
@@ -974,7 +968,7 @@ button { font: inherit; color: inherit; }
 }
 
 .input::placeholder { color: var(--ink-3); }
-.input:focus { outline: 2px solid var(--ink); outline-offset: 2px; }
+.input:focus { border-color: var(--ink); outline: 2px solid var(--ink); outline-offset: 2px; }
 
 .select {
     padding-right: 44px;

@@ -120,7 +120,7 @@
     min-width: 0;
 }
 
-.bq-cta-label { font-size: 16px; font-weight: 600; line-height: 1.25; }
+.bq-cta-label { font-size: 16px; font-weight: 500; line-height: 1.25; }
 .bq-cta-sub { font-size: var(--meta); font-weight: 400; line-height: 1.3; }
 
 .bq-cta-arrow {
@@ -733,8 +733,8 @@ input.bs-number {
     width: 100%;
     min-height: 50px;
     padding: 0 var(--s3);
-    border: var(--rule) solid var(--ink);
-    border-radius: 0;
+    border: 1px solid var(--ink-3);
+    border-radius: 10px;
     background-color: var(--paper);
     color: var(--ink);
     font: inherit;
@@ -790,21 +790,21 @@ input.bs-number:focus { outline: 2px solid var(--ink); outline-offset: 2px; }
 input.bs-number { flex: none; width: 80px; }
 select.bs-unit { flex: none; width: 150px; max-width: none; }
 
-/* Tiles that share their rules, so exclusive answers read as one control. */
+/* Separate pills with a small gap; the filled one is the answer. */
 .bs-segment,
 .bs-pills {
     display: flex;
     flex-wrap: wrap;
+    gap: var(--s2);
 }
 
 .bs-seg,
 .bs-pill {
     position: relative;
-    min-height: 48px;
-    margin-left: calc(var(--rule) * -1);
-    padding: 0 var(--s5);
-    border: var(--rule) solid var(--ink);
-    border-radius: 0;
+    min-height: 44px;
+    padding: 0 var(--s4);
+    border: 1px solid var(--ink-3);
+    border-radius: 999px;
     background: var(--paper);
     color: var(--ink);
     font-size: 15px;
@@ -812,9 +812,6 @@ select.bs-unit { flex: none; width: 150px; max-width: none; }
     cursor: pointer;
     transition: background-color 140ms var(--ease), color 140ms var(--ease);
 }
-
-.bs-seg:first-child,
-.bs-pill:first-child { margin-left: 0; }
 
 .bs-seg:hover,
 .bs-pill:hover { background: var(--wash); }
@@ -834,6 +831,7 @@ select.bs-unit { flex: none; width: 150px; max-width: none; }
 .bs-pills-days {
     display: grid;
     grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: var(--s1);
     max-width: 420px;
 }
 
@@ -892,8 +890,8 @@ select.bs-unit { flex: none; width: 150px; max-width: none; }
 .bs-person-add {
     min-height: 48px;
     padding: 0 var(--s5);
-    border: var(--rule) solid var(--ink);
-    border-radius: 0;
+    border: 1px solid var(--ink-3);
+    border-radius: 10px;
     background: var(--paper);
     color: var(--ink);
     font-size: 16px;

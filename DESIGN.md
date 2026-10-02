@@ -96,6 +96,8 @@ typography:
     lineHeight: 1.2
 rounded:
   none: "0px"
+  field: "10px"
+  pill: "999px"
 spacing:
   s1: "4px"
   s2: "8px"
@@ -110,9 +112,9 @@ components:
     backgroundColor: "{colors.ink}"
     textColor: "{colors.paper}"
     typography: "{typography.section}"
-    rounded: "{rounded.none}"
+    rounded: "{rounded.pill}"
     padding: "0 24px"
-    height: "48px"
+    height: "44px"
   button-solid-hover:
     backgroundColor: "{colors.paper}"
     textColor: "{colors.ink}"
@@ -120,17 +122,17 @@ components:
     backgroundColor: "{colors.paper}"
     textColor: "{colors.ink}"
     typography: "{typography.section}"
-    rounded: "{rounded.none}"
+    rounded: "{rounded.pill}"
     padding: "0 24px"
-    height: "48px"
+    height: "44px"
   button-line-hover:
     backgroundColor: "{colors.ink}"
     textColor: "{colors.paper}"
   button-disabled:
     backgroundColor: "{colors.wash}"
     textColor: "{colors.ink-3}"
-    rounded: "{rounded.none}"
-    height: "48px"
+    rounded: "{rounded.pill}"
+    height: "44px"
   text-button:
     textColor: "{colors.ink}"
     typography: "{typography.meta}"
@@ -139,7 +141,7 @@ components:
     backgroundColor: "{colors.paper}"
     textColor: "{colors.ink}"
     typography: "{typography.control}"
-    rounded: "{rounded.none}"
+    rounded: "{rounded.field}"
     padding: "0 12px"
     height: "50px"
   sheet:
@@ -257,7 +259,7 @@ The page is a single column capped at 1180px, with a 16px gutter on phones and 3
 - **Events.** Each event is a two-column row: a 56px date column (72px from 640px) and the body. Every event uses this layout, the next one included. The date column stacks the day number, weekday, month, the start time, an ink-faint en dash (the range mark, read aloud as "to") turned upright to follow the stack, and the end time, centred in their own column at the same line height as the rows above, so all rows sit evenly; an end on another day adds its date above the end time. There is no duration. The title's shape names the calendar, so the meta line under the title holds the place and, when the description has a link, an Event link. The link is the one coloured text on Home: `--link` (#0b57d0, #8ab4f8 in dark), 500, underlined, with a small arrow. A pill there made too many pills in one event. The `link: URL` line leaves the description. A 3px ink Today rule divides past from future in the list.
 - **Phones.** On phones the header and band tighten so the first event lands in the first screen. The subline hides below 380px.
 - **Other pages.** FAQ and Donate are a single 640px reading column. Admin pages use the same 1180px shell and gutter as Home. Booking detail caps its content at 720px. Donate left-aligns the balance on the same axis as the transaction list; nothing on it is centred.
-- **Admin tables on phones.** From 640px an admin list is a real table. Below 640px each row stacks its cells as full-width blocks, the column heads hide, and a 14px 600 label above each value stands in for them.
+- **Admin tables on phones.** From 640px an admin list is a real table. Below 640px each row stacks its cells as full-width blocks, the column heads hide, and a 14px 600 label above each value stands in for them. The Events row shows its time as on Home, 24-hour start and end: "Fri 2 Oct · 18:00–20:00".
 - **Touch targets.** Links, tabs, legend items and icon buttons are at least 44px tall.
 
 ## Elevation & Depth
@@ -272,7 +274,7 @@ The system is flat. There are no shadows and no gradients. Depth comes from ink 
 The form language has two registers.
 
 - **Calendar shapes.** Circle, square, triangle and diamond are drawn from one SVG symbol set on a 24-unit grid. Each has a flat fill and a 1.5px ink contour with mitred joins that does not scale with size. The circle is the only curve in the system.
-- **Everything else is square.** Buttons (except the pills inside an event), inputs, the sheet and the reversed date block all have 0px corners. Rules are 1.5px ink. The Today marker is 3px ink. Active range tabs get a 2px ink underline.
+- **Controls are soft; structure is square.** Buttons and choice chips are full pills, fields have 10px corners. The sheet, the event boxes, the band and the reversed date block keep 0px corners. Rules are 1.5px ink. The Today marker is 3px ink. Active range tabs get a 2px ink underline.
 
 **The Event Box Rule.** Each event on Home is a square box with a 1px hairline border, 24px padding (16px sides on phones) and 12px between boxes. Sections and sidebar blocks are still divided by full-width 1.5px ink rules. The box replaced a bare ink rule above each event on 2026-10-02, because users could not tell where one event ended. Only events, controls (buttons, inputs), the desktop sheet, the status mark and the balance bar carry a full border.
 
@@ -281,12 +283,12 @@ The form language has two registers.
 ## Components
 
 ### Buttons
-Blunt ink blocks that invert on hover.
-- **Shape:** square corners (0px), 1.5px ink border, 48px tall, 24px side padding, 16px 600 label.
-- **Solid:** ink ground, paper label. Confirm and Remove in sheets use it.
-- **Line:** paper ground, ink label. Join on every event, and secondary calls such as "Create an event".
-- **Event buttons:** inside an event, Join and Full are the only pills. They are softer than the rest: a full pill, 40px tall, a 1px ink-faint edge, 15px 500, a wash ground on hover. Users found square 1.5px boxes on every event too big and sharp (2026-10-02). Buttons elsewhere stay square. A page of solid Joins read as a column of black blocks (removed 2026-10-02).
-- **Hover:** solid and line swap ground and label over 140ms on the system ease.
+Soft pills on every page. Users found square 1.5px ink boxes too big and sharp (2026-10-02).
+- **Shape:** full pill (999px), 1px border, 44px tall, 24px side padding, 16px 500 label.
+- **Solid:** ink ground and edge, paper label. The one main action of a form or sheet: Confirm, Remove, Add entry, Donate with Stripe, Queue a slot, Next.
+- **Line:** paper ground, ink label, ink-faint edge. Join on every event, and secondary calls such as "Create an event". A page of solid Joins read as a column of black blocks (removed 2026-10-02).
+- **Event buttons:** inside an event the pill steps down to 40px with a 15px label, since every event carries one.
+- **Hover:** solid lightens to ink-soft; line takes a wash ground and an ink edge. 140ms on the system ease.
 - **Disabled:** wash ground, hairline border, ink-faint label. A full event shows a disabled "Full" button in place of Join.
 - **Text button:** 14px 500 ink with a 1px underline offset 3px, 2px on hover, 44px tall. Used for Refresh, Remove a name, Show more, Load earlier events, Cancel and Keep it.
 - **Icon button:** a 44px square holding a 22px ink line SVG (1.5px, square caps), with a wash ground on hover.
@@ -300,12 +302,13 @@ Blunt ink blocks that invert on hover.
 An event is a square hairline box. See The Event Box Rule.
 
 ### Inputs / Fields
-- **Style:** 50px tall, 1.5px ink border, 0px corners, paper ground, 17px text, ink-faint placeholder. Labels are 14px 600 above the field. The select adds an ink chevron at the right.
-- **Focus:** 2px ink outline offset 2px.
+- **Style:** 50px tall, 1px ink-faint border, 10px corners, paper ground, 17px text, ink-faint placeholder. Labels are 14px 600 above the field. The select adds an ink chevron at the right.
+- **Focus:** the edge turns ink, plus a 2px ink outline offset 2px.
+- **Choice chips:** the booking sheet's exclusive answers (segments, weekday pills) are separate 44px pills with an 8px gap (4px for the seven weekdays), a 1px ink-faint edge, and an ink fill when chosen.
 - **Error:** a 14px 500 ink line below the field. The current build leads it with a 10px red square. That mark collides with the red-square calendar, so treat it as drift to fix, not a pattern to reuse.
 
 ### Navigation
-The masthead puts the wordmark at left: the three calendar shapes at 15px, then "Lilai" and its subline. FAQ and Donate sit at right as 15px 500 ink links without underline, underlined on hover. Body links are ink with a 1px underline offset 3px, 2px on hover.
+The masthead puts the wordmark at left: the three calendar shapes at 15px, then "Lilai" and its subline. FAQ and Donate sit at right as 15px 500 ink links without underline, underlined on hover. Body links are ink with a 1px underline offset 3px, 2px on hover. Links that leave the app from content (the event link on Home and in the RSVP sheet, links in FAQ answers) take `--link` at 500 instead.
 
 ### Admin Navigation and Header
 Every admin page opens with the same header.
@@ -344,7 +347,7 @@ Seat slots show capacity as a row of the event's calendar shape at 16px with a 5
 Attendees are a wrapped list of 15px names with 16px between them. A name added since the last render prints in 600 weight and fades in over 700ms. There is no toast. The new seat slot grows from scale 0 over 480ms. The event's band shape steps from 0.6 to full size over 640ms.
 
 ### RSVP Sheet
-The sheet is a paper panel, 480px wide at most. On phones it rises from the bottom edge under a 1.5px ink top rule. From 640px it is centred with a full 1.5px ink border. It opens with a 16px rise and fade over 260ms. It holds a 22px title, a 14px when-line, an optional scrolling description, one field, and a solid button beside a text button.
+The sheet is a paper panel, 480px wide at most. On phones it rises from the bottom edge under a 1.5px ink top rule. From 640px it is centred with a full 1.5px ink border. It opens with a 16px rise and fade over 260ms. It holds a 22px title, a 14px when-line ("Saturday 3 October, 19:30–21:30"), an optional scrolling description, one field, and a solid button beside a text button.
 
 ### App Icon and Favicon
 

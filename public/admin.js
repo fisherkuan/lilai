@@ -131,14 +131,20 @@ async function loadEvents() {
     }
 }
 
-function formatEventWhen(dateStr) {
-    return new Date(dateStr).toLocaleString('en-US', {
-        weekday: 'short',
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-    });
+// "Fri 2 Oct · 18:00–20:00", the same 24-hour start and end as Home. An end on another
+// day names that day; no end shows the start alone.
+function formatEventWhen(event) {
+    const start = new Date(event.date);
+    const time = d => d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false });
+    const day = start.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+    // Postgres folds the unquoted endDate column to lowercase, so accept either casing.
+    const endRaw = event.endDate || event.enddate || null;
+    const end = endRaw ? new Date(endRaw) : null;
+    if (!end || !Number.isFinite(end.getTime()) || end <= start) return `${day} · ${time(start)}`;
+    const endDay = end.toDateString() === start.toDateString()
+        ? ''
+        : `${end.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} `;
+    return `${day} · ${time(start)}–${endDay}${time(end)}`;
 }
 
 function displayEvents(events) {
@@ -157,7 +163,7 @@ function displayEvents(events) {
             <tr data-event-id="${id}" role="row">
                 <td role="cell">
                     <div class="row-title"><span class="shape-mark tone-${st.tone}">${shapeSvg(st.shape)}</span>${escapeHtml(event.title)}</div>
-                    <div class="row-meta">${escapeHtml(formatEventWhen(event.date))}</div>
+                    <div class="row-meta">${escapeHtml(formatEventWhen(event))}</div>
                 </td>
                 <td class="col-num" role="cell">
                     <span class="col-label" aria-hidden="true">Limit</span>
