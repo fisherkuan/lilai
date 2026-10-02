@@ -35,7 +35,10 @@
     --yellow: #f2c230;
 
     --rule: 1.5px;
-    --font: 'Jost', 'PingFang TC', 'Noto Sans TC', 'Microsoft JhengHei', system-ui, sans-serif;
+    /* Jost for numerals and titles only; reading text uses the device's own UI font,
+       which stays legible at 14-16px where Jost's small x-height does not. */
+    --font-display: 'Jost', 'PingFang TC', 'Noto Sans TC', 'Microsoft JhengHei', system-ui, sans-serif;
+    --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'PingFang TC', 'Noto Sans TC', 'Microsoft JhengHei', sans-serif;
     --meta: 14px;
     --ease: cubic-bezier(0.16, 1, 0.3, 1);
 
@@ -125,6 +128,9 @@ a:hover { text-decoration-thickness: 2px; }
 }
 
 h1, h2, h3, p { margin: 0; }
+
+/* Display type: headings and the numerals DESIGN.md calls Numeral, on every page. */
+h1, h2, h3, .wordmark-name, .event-day, .balance-amount, .bd-day { font-family: var(--font-display); }
 
 button { font: inherit; color: inherit; }
 
@@ -575,8 +581,9 @@ button { font: inherit; color: inherit; }
     display: grid;
     grid-template-columns: 56px minmax(0, 1fr);
     gap: 0 var(--s4);
-    padding: var(--s5) 0 var(--s6);
-    border-top: var(--rule) solid var(--ink);
+    margin-top: var(--s3);
+    padding: var(--s5) var(--s4);
+    border: 1px solid var(--hair);
     scroll-margin-top: var(--s4);
 }
 
@@ -697,12 +704,6 @@ button { font: inherit; color: inherit; }
 .slot.is-new .shape { animation: shape-grow 480ms var(--ease) both; }
 .seats.is-full .slot .shape { fill: var(--ink); }
 
-.slot-more {
-    font-size: var(--meta);
-    color: var(--ink-2);
-    font-variant-numeric: tabular-nums;
-}
-
 .seats-label {
     font-size: var(--meta);
     color: var(--ink-2);
@@ -758,14 +759,15 @@ button { font: inherit; color: inherit; }
 .event.is-pointed .event-mark .shape { animation: shape-step 520ms var(--ease); }
 
 .today-rule {
-    padding: var(--s2) 0 var(--s4);
+    margin-top: var(--s5);
+    padding: var(--s2) 0 var(--s3);
     border-top: 3px solid var(--ink);
     font-size: var(--meta);
     font-weight: 600;
     scroll-margin-top: var(--s4);
 }
 
-.today-rule + .event { border-top: 0; padding-top: var(--s2); }
+.today-rule + .event { margin-top: 0; }
 
 .load-earlier-wrap { padding: var(--s2) 0 var(--s4); }
 
@@ -1064,7 +1066,7 @@ button { font: inherit; color: inherit; }
     .band-ev { --base: 12px; --step: 3.5px; --max: 40px; }
     .band-day { min-height: 136px; }
 
-    .event { grid-template-columns: 72px minmax(0, 1fr); gap: 0 var(--s5); }
+    .event { grid-template-columns: 72px minmax(0, 1fr); gap: 0 var(--s5); padding: var(--s5); }
     .event-day { font-size: 52px; }
 
     .modal { align-items: center; padding: var(--s4); }

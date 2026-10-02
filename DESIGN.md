@@ -59,7 +59,7 @@ typography:
     lineHeight: 1.25
     letterSpacing: "-0.01em"
   control:
-    fontFamily: "Jost, PingFang TC, Noto Sans TC, Microsoft JhengHei, system-ui, sans-serif"
+    fontFamily: "-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica Neue, Arial, PingFang TC, Noto Sans TC, Microsoft JhengHei, sans-serif"
     fontSize: "17px"
     fontWeight: 500
     lineHeight: 1.5
@@ -69,28 +69,28 @@ typography:
     fontWeight: 600
     lineHeight: 1.5
   body:
-    fontFamily: "Jost, PingFang TC, Noto Sans TC, Microsoft JhengHei, system-ui, sans-serif"
+    fontFamily: "-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica Neue, Arial, PingFang TC, Noto Sans TC, Microsoft JhengHei, sans-serif"
     fontSize: "16px"
     fontWeight: 400
     lineHeight: 1.5
   body-small:
-    fontFamily: "Jost, PingFang TC, Noto Sans TC, Microsoft JhengHei, system-ui, sans-serif"
+    fontFamily: "-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica Neue, Arial, PingFang TC, Noto Sans TC, Microsoft JhengHei, sans-serif"
     fontSize: "15px"
     fontWeight: 400
     lineHeight: 1.5
   meta:
-    fontFamily: "Jost, PingFang TC, Noto Sans TC, Microsoft JhengHei, system-ui, sans-serif"
+    fontFamily: "-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica Neue, Arial, PingFang TC, Noto Sans TC, Microsoft JhengHei, sans-serif"
     fontSize: "14px"
     fontWeight: 400
     lineHeight: 1.5
     fontFeature: "tnum"
   caption:
-    fontFamily: "Jost, PingFang TC, Noto Sans TC, Microsoft JhengHei, system-ui, sans-serif"
+    fontFamily: "-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica Neue, Arial, PingFang TC, Noto Sans TC, Microsoft JhengHei, sans-serif"
     fontSize: "13px"
     fontWeight: 400
     lineHeight: 1.5
   small:
-    fontFamily: "Jost, PingFang TC, Noto Sans TC, Microsoft JhengHei, system-ui, sans-serif"
+    fontFamily: "-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica Neue, Arial, PingFang TC, Noto Sans TC, Microsoft JhengHei, sans-serif"
     fontSize: "12px"
     fontWeight: 400
     lineHeight: 1.2
@@ -172,14 +172,15 @@ components:
 
 Lilai follows a Bauhaus form-colour grammar on white paper. Each enabled calendar owns one primary shape, assigned in config order: a blue circle, a red square, a yellow triangle. A fourth calendar, or an event with no known source, gets an ink diamond. The shape is the calendar's identity everywhere it appears: the wordmark, the 14-day band, the legend, the event title mark, the seat slots and the admin Events rows. The band reads as an abstract composition drawn from the real events.
 
-Everything else is black ink on white. Text, rules and buttons carry no colour, so the primaries stay loud and always mean "this calendar". Content is divided by 1.5px ink rules, never boxed into cards. Metadata sits at one constant size. The only thing that breaks scale is the date numeral of the next event, so the page has one entry point.
+Everything else is black ink on white. Text, rules and buttons carry no colour, so the primaries stay loud and always mean "this calendar". Each event sits in its own hairline box, so where one ends and the next begins is plain; sections are divided by 1.5px ink rules. Metadata sits at one constant size. The only thing that breaks scale is the date numeral of the next event, so the page has one entry point.
 
 Motion is scarce and tied to state. When attendance changes, a shape scales from its centre with an exponential ease-out. A new RSVP prints bold into the names list. Nothing moves on load, and reduced motion is instant.
 
 **Key Characteristics:**
 - One primary shape per calendar, flat fill, 1.5px ink contour.
 - Primaries appear only inside shapes (plus the yellow text selection).
-- Ink rules divide content; 1px hairlines divide dense rows inside a section. There are no cards, shadows, gradients or rounded corners.
+- Ink rules divide sections; each event is a square 1px hairline box; 1px hairlines divide dense rows inside a section. There are no shadows, gradients or rounded corners.
+- One solid black block leads the page: the next event's Join. Every other Join is a line button.
 - Constant 14px metadata; only numerals break scale (96px on the lead event and the booking detail date).
 - Shapes carry state: outline open, calendar colour taken, all ink full, grey outline past.
 - Motion happens on state change only, scaling shapes from their centre.
@@ -216,11 +217,11 @@ The pages follow the device's light or dark setting by default. A footer switch 
 
 ## Typography
 
-**Display Font:** Jost (self-hosted in `public/fonts/`, SIL OFL, variable weight 400 to 700)
-**Body Font:** Jost, falling back to PingFang TC, Noto Sans TC, Microsoft JhengHei, system-ui for Chinese and missing glyphs
+**Display Font:** Jost (self-hosted in `public/fonts/`, SIL OFL, variable weight 400 to 700), token `--font-display`. It sets h1 to h3, the wordmark and the Numeral roles (`.event-day`, `.balance-amount`, `.bd-day`), and nothing else.
+**Body Font:** the device's UI sans (San Francisco, Segoe UI, Roboto), token `--font`, falling back to PingFang TC, Noto Sans TC, Microsoft JhengHei for Chinese. It sets every reading role: control, body, meta, caption, small, buttons.
 **Label/Mono Font:** none; numerals use tabular figures
 
-**Character:** Jost carries the Futura lineage, so its geometric letterforms match the circle, square and triangle. Chinese names and titles fall to the system CJK sans and sit on the same line without a second display face.
+**Character:** Jost carries the Futura lineage, so its geometric letterforms match the circle, square and triangle in headings and numerals. Its small x-height reads poorly at 14 to 16px, so running text uses the system sans, which also matches the CJK fallback that Chinese names and titles use. Users said the all-Jost version (2026-09-27 to 2026-10-02) was harder to read.
 
 ### Hierarchy
 - **Numeral Lead** (500, 96px, 0.78, -0.04em): the day number of the next event, and the play date on booking detail. It is the largest type in the system.
@@ -273,17 +274,17 @@ The form language has two registers.
 - **Calendar shapes.** Circle, square, triangle and diamond are drawn from one SVG symbol set on a 24-unit grid. Each has a flat fill and a 1.5px ink contour with mitred joins that does not scale with size. The circle is the only curve in the system.
 - **Everything else is square.** Buttons, inputs, the sheet and the reversed date block all have 0px corners. Rules are 1.5px ink. The Today marker is 3px ink. Active range tabs get a 2px ink underline.
 
-**The Rules Not Boxes Rule.** Content is divided by full-width 1.5px ink rules above each event, section and sidebar block. Only controls (buttons, inputs), the desktop sheet, the status mark and the balance bar carry a full border.
+**The Event Box Rule.** Each event on Home is a square box with a 1px hairline border, 24px padding (16px sides on phones) and 12px between boxes. Sections and sidebar blocks are still divided by full-width 1.5px ink rules. The box replaced a bare ink rule above each event on 2026-10-02, because users could not tell where one event ended. Only events, controls (buttons, inputs), the desktop sheet, the status mark and the balance bar carry a full border.
 
-**The Hairline Rule.** Inside a section, a dense list divides its rows with a 1px hairline, and keeps the 1.5px ink rule for its edges: above the list and under a table's column heads. Admin tables, the booking timeline, the booking detail table and the FAQ table all work this way. A hairline never starts or ends a section. The heavier 3px ink rule marks a moment: Today on Home, NOW on the booking timeline, the row in flight, and a stale-data notice.
+**The Hairline Rule.** Inside a section, a dense list divides its rows with a 1px hairline, and keeps the 1.5px ink rule for its edges: above the list and under a table's column heads. Admin tables, the booking timeline, the booking detail table and the FAQ table all work this way. A hairline never starts or ends a section. The heavier 3px ink rule marks a moment: Today on Home (between event boxes, 24px above it), NOW on the booking timeline, the row in flight, and a stale-data notice.
 
 ## Components
 
 ### Buttons
 Blunt ink blocks that invert on hover.
 - **Shape:** square corners (0px), 1.5px ink border, 48px tall, 24px side padding, 16px 600 label.
-- **Solid:** ink ground, paper label. Join, Confirm and Remove use it. On the lead event Join stretches full width within thumb reach.
-- **Line:** paper ground, ink label. Used for secondary calls such as "Create an event".
+- **Solid:** ink ground, paper label. The lead event's Join, Confirm and Remove use it. On the lead event Join stretches full width within thumb reach.
+- **Line:** paper ground, ink label. Join on every event after the lead one, and secondary calls such as "Create an event". A page of solid Joins reads as a column of black blocks, so only the first is solid.
 - **Hover:** solid and line swap ground and label over 140ms on the system ease.
 - **Disabled:** wash ground, hairline border, ink-faint label. A full event shows a disabled "Full" button in place of Join.
 - **Text button:** 14px 500 ink with a 1px underline offset 3px, 2px on hover, 44px tall. Used for Refresh, Remove a name, Show more, Load earlier events, Cancel and Keep it.
@@ -295,7 +296,7 @@ Blunt ink blocks that invert on hover.
 - **Legend:** each calendar is its shape at 14px beside its name (15px). The legend is also the filter. A calendar that is switched off turns ink-faint, and its shape drops to an unfilled ink-faint outline.
 
 ### Cards / Containers
-There are no cards. An event is a row under a 1.5px ink rule with 24px top and 32px bottom padding. See Layout and The Rules Not Boxes Rule.
+An event is a square hairline box. See The Event Box Rule.
 
 ### Inputs / Fields
 - **Style:** 50px tall, 1.5px ink border, 0px corners, paper ground, 17px text, ink-faint placeholder. Labels are 14px 600 above the field. The select adds an ink chevron at the right.
@@ -335,7 +336,7 @@ Seat slots show capacity as a row of the event's calendar shape at 16px with a 5
 - **Taken:** the calendar's colour.
 - **Full:** every slot turns ink and the label turns ink 600 ("Full · 12 of 12").
 - **Past:** every shape on the event drains to an unfilled past-grey outline. The title and numeral turn ink-faint.
-- Events with a limit show one slot per place. Events without one show one slot per person. Slots past the row cap collapse into a "+N" count.
+- Only an event with a limit of 10 or fewer (`MAX_SLOTS` in `app.js`) draws slots, one per place. An event with no limit, or more than 10 places, shows the label alone: a long row of shapes stopped reading as seats and crowded the page.
 - A 14px ink-soft label follows the row: "5 of 12 spots taken", "3 going", "4 went".
 
 ### Names List and the RSVP Print
@@ -363,17 +364,17 @@ On phones the band's column is about 25px wide, so the headcount scale caps at 2
 ### Do:
 - **Do** give each calendar its shape in config order (circle/blue, square/red, triangle/yellow) and the ink diamond to the fourth and later calendars and unsourced events.
 - **Do** draw every shape with a flat fill and a 1.5px ink contour.
-- **Do** divide content with full-width 1.5px ink rules, and the rows of a dense list with 1px hairlines.
+- **Do** box each event in a 1px hairline, divide sections with full-width 1.5px ink rules, and the rows of a dense list with 1px hairlines.
 - **Do** keep metadata at 14px and let only numerals break scale (96px on the lead event and the booking detail date).
 - **Do** carry status in a word, with ink weight and a 10px ink status mark as the second channel.
-- **Do** show capacity with the four slot states: outline open, calendar colour taken, all ink full, grey outline past.
+- **Do** show capacity with the four slot states (outline open, calendar colour taken, all ink full, grey outline past) on events of 10 places or fewer, and with the label alone otherwise.
 - **Do** print a new RSVP bold into the names list and grow its slot from the centre.
 - **Do** keep touch targets at least 44px tall and focus as a 2px ink outline offset 2px.
 
 ### Don't:
 - **Don't** put blue, red or yellow on text, rules, buttons, links or grounds.
-- **Don't** use shadows, gradients, rounded corners on containers or controls, or card boxes.
+- **Don't** use shadows, gradients, or rounded corners on containers or controls.
 - **Don't** confirm an RSVP or an admin action with a toast or banner.
 - **Don't** animate on page load, or use bouncy or spring motion.
-- **Don't** introduce a second typeface for Latin text; Jost carries display and body.
+- **Don't** set running text in Jost, or add a third typeface; Jost is for headings and numerals, the system sans for reading.
 - **Don't** reuse a primary shape as decoration or for anything that is not a calendar.

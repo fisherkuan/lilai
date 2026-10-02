@@ -689,7 +689,8 @@ async function loadOlderEvents(options = {}) {
 }
 
 // ---------- Render events ----------
-const MAX_SLOTS = 24;
+// Past this many places a row of shapes stops reading as seats, so the label says it alone.
+const MAX_SLOTS = 10;
 let knownAttendees = null; // eventId -> Set of names at the last render, to mark new arrivals
 
 function displayEvents(options = {}) {
@@ -811,13 +812,12 @@ function seatsLabel(event, { isPast }) {
     return `${count} going`;
 }
 
-// Seats: one slot per place when the event has a limit, one per person when it does not.
+// Seats: one slot per place, drawn only for a small limited event. With no limit, or more
+// than MAX_SLOTS places, the label carries the count alone.
 // Open slots are outlines, taken slots carry the calendar's colour, a full row turns black.
 function renderSeats(event, st, { isPast, hasLimit, isFull, newFrom }) {
     const count = event.attendingCount || 0;
-    const limit = hasLimit ? event.attendance_limit : null;
-    const shown = hasLimit ? Math.min(limit, MAX_SLOTS) : Math.min(count, MAX_SLOTS);
-    const hidden = (hasLimit ? limit : count) - shown;
+    const shown = hasLimit && event.attendance_limit <= MAX_SLOTS ? event.attendance_limit : 0;
 
     let slots = '';
     for (let i = 0; i < shown; i++) {
@@ -827,13 +827,13 @@ function renderSeats(event, st, { isPast, hasLimit, isFull, newFrom }) {
         if (taken && i >= newFrom) cls.push('is-new');
         slots += `<span class="${cls.join(' ')}">${shapeSvg(st.shape)}</span>`;
     }
-    if (hidden > 0) slots += `<span class="slot-more">+${hidden}</span>`;
 
     // No limit and nobody yet: there is nothing to draw, and the names line already says so.
     const label = seatsLabel(event, { isPast });
     if (!label) return '';
 
-    return `<div class="seats${isFull ? ' is-full' : ''}"><span class="slots" aria-hidden="true">${slots}</span><span class="seats-label">${escapeHtml(label)}</span></div>`;
+    const row = slots ? `<span class="slots" aria-hidden="true">${slots}</span>` : '';
+    return `<div class="seats${isFull ? ' is-full' : ''}">${row}<span class="seats-label">${escapeHtml(label)}</span></div>`;
 }
 
 function renderEventCard(event, { isPast, isToday, isNext, prevNames }) {
@@ -878,9 +878,11 @@ function renderEventCard(event, { isPast, isToday, isNext, prevNames }) {
 
     let actions = '';
     if (!isPast) {
+        // Only the next event's Join is solid; the rest are outlined, so one black block leads the page.
+        const btnStyle = isNext ? 'btn-solid' : 'btn-line';
         const join = isFull
-            ? '<button type="button" class="btn btn-solid" disabled>Full</button>'
-            : `<button type="button" class="btn btn-solid rsvp-trigger-add" data-event-id="${sanitizedEventId}">Join</button>`;
+            ? `<button type="button" class="btn ${btnStyle}" disabled>Full</button>`
+            : `<button type="button" class="btn ${btnStyle} rsvp-trigger-add" data-event-id="${sanitizedEventId}">Join</button>`;
         const remove = attendingCount > 0
             ? `<button type="button" class="text-btn rsvp-trigger-remove" data-event-id="${sanitizedEventId}">Remove a name</button>`
             : '';
