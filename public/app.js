@@ -854,14 +854,14 @@ function renderEventCard(event, { isPast, isToday, prevNames }) {
         ? `<a class="event-link" href="${escapeAttribute(eventLink)}" target="_blank" rel="noopener noreferrer">Event link<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 16 16 8M9 8h7v7"/></svg><span class="sr-only"> (opens in a new tab)</span></a>`
         : '';
 
-    // Start over end in the date column, joined by a short bar that reads "to", centred under the times.
+    // Start over end in the date column, joined by an en dash (the range mark), centred under the times.
     // An end on another day names that day.
     let endTime = '';
     if (hasEnd) {
         const endStr = endDate.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false });
         const sameDay = endDate.toDateString() === eventDate.toDateString();
         const endDay = sameDay ? '' : `<span>${escapeHtml(endDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }))}</span>`;
-        endTime = `<span class="event-timebar" aria-hidden="true"></span><span class="sr-only">to</span>${endDay}<span class="event-time">${escapeHtml(endStr)}</span>`;
+        endTime = `<span class="event-to" aria-hidden="true">–</span><span class="sr-only">to</span>${endDay}<span class="event-time">${escapeHtml(endStr)}</span>`;
     }
 
     let names;

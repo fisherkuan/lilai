@@ -254,7 +254,7 @@ The page is a single column capped at 1180px, with a 16px gutter on phones and 3
 - **From 1000px.** The band spans the full width. Below it the list takes the flexible column and the sidebar takes a 400px column with a 64px gap. The sidebar is sticky 16px from the top.
 - **The 14-day band.** Fourteen equal columns between two ink rules. A 3px ink bar marks today's left edge and today's date sits reversed out of an ink block. A hairline marks each Monday. Each event is its calendar's shape, stacked in its day, sized by headcount. An event whose title holds an emoji shows that emoji instead (the first grapheme that renders as emoji by default or carries VS16), at the same size with a 14px floor so it stays legible on phones; the readout uses it as its mark and drops it from the title. Size: `min(max, base + n × step)` with n capped at 12. Phones use 8px + 1.4px per head up to 24px; 640px uses 12px + 3.5px up to 40px; 1000px uses 14px + 4.5px up to 64px. Day columns are 96px, 112px, 136px and 196px tall across the breakpoints.
 - **The band readout.** One 14px ink line under the band names one event: its shape mark, then `Thu 1 Oct · 19:30 · title · seats`, with the seats in the event list's wording. It shows the hovered or focused shape, else the selected one, else the next upcoming event. The row is a fixed 56px, so the page never jumps; the text wraps to two lines at most and a long title ends in an ellipsis. A "Show" text button ends the line and jumps to the card. On phones the first tap on a shape selects it (1.5px ink ring, `aria-pressed`) and a second tap jumps; with a mouse a click jumps at once. No tooltip, no box.
-- **Events.** Each event is a two-column row: a 56px date column (72px from 640px) and the body. Every event uses this layout, the next one included. The date column stacks the day number, weekday, month, the start time, a 14px ink bar that reads "to" and the end time, the bar centred under the times; an end on another day adds its date above the end time. There is no duration. The title's shape names the calendar, so the meta line under the title holds the place alone. A link in the description (`link: URL`) becomes an Event link line button (44px, 15px 600, an arrow, inverts on hover) under the meta line, and that line leaves the description. A 3px ink Today rule divides past from future in the list.
+- **Events.** Each event is a two-column row: a 56px date column (72px from 640px) and the body. Every event uses this layout, the next one included. The date column stacks the day number, weekday, month, the start time, an ink-faint en dash (the range mark, read aloud as "to") and the end time, centred in their own column; an end on another day adds its date above the end time. There is no duration. The title's shape names the calendar, so the meta line under the title holds the place alone. A link in the description (`link: URL`) becomes an Event link pill (36px, 14px 500, a 1px ink-faint edge, an arrow, wash on hover) under the meta line, and that line leaves the description. A 3px ink Today rule divides past from future in the list.
 - **Phones.** On phones the header and band tighten so the first event lands in the first screen. The subline hides below 380px.
 - **Other pages.** FAQ and Donate are a single 640px reading column. Admin pages use the same 1180px shell and gutter as Home. Booking detail caps its content at 720px. Donate left-aligns the balance on the same axis as the transaction list; nothing on it is centred.
 - **Admin tables on phones.** From 640px an admin list is a real table. Below 640px each row stacks its cells as full-width blocks, the column heads hide, and a 14px 600 label above each value stands in for them.
@@ -272,7 +272,7 @@ The system is flat. There are no shadows and no gradients. Depth comes from ink 
 The form language has two registers.
 
 - **Calendar shapes.** Circle, square, triangle and diamond are drawn from one SVG symbol set on a 24-unit grid. Each has a flat fill and a 1.5px ink contour with mitred joins that does not scale with size. The circle is the only curve in the system.
-- **Everything else is square.** Buttons, inputs, the sheet and the reversed date block all have 0px corners. Rules are 1.5px ink. The Today marker is 3px ink. Active range tabs get a 2px ink underline.
+- **Everything else is square.** Buttons (except the pills inside an event), inputs, the sheet and the reversed date block all have 0px corners. Rules are 1.5px ink. The Today marker is 3px ink. Active range tabs get a 2px ink underline.
 
 **The Event Box Rule.** Each event on Home is a square box with a 1px hairline border, 24px padding (16px sides on phones) and 12px between boxes. Sections and sidebar blocks are still divided by full-width 1.5px ink rules. The box replaced a bare ink rule above each event on 2026-10-02, because users could not tell where one event ended. Only events, controls (buttons, inputs), the desktop sheet, the status mark and the balance bar carry a full border.
 
@@ -284,7 +284,8 @@ The form language has two registers.
 Blunt ink blocks that invert on hover.
 - **Shape:** square corners (0px), 1.5px ink border, 48px tall, 24px side padding, 16px 600 label.
 - **Solid:** ink ground, paper label. Confirm and Remove in sheets use it.
-- **Line:** paper ground, ink label. Join on every event, and secondary calls such as "Create an event". A page of solid Joins read as a column of black blocks (removed 2026-10-02).
+- **Line:** paper ground, ink label. Join on every event, and secondary calls such as "Create an event".
+- **Event buttons:** inside an event, Join and Full are softer than the rest: a full pill, 40px tall, a 1px ink-faint edge, 15px 500, a wash ground on hover. Users found square 1.5px boxes on every event too big and sharp (2026-10-02). Buttons elsewhere stay square. A page of solid Joins read as a column of black blocks (removed 2026-10-02).
 - **Hover:** solid and line swap ground and label over 140ms on the system ease.
 - **Disabled:** wash ground, hairline border, ink-faint label. A full event shows a disabled "Full" button in place of Join.
 - **Text button:** 14px 500 ink with a 1px underline offset 3px, 2px on hover, 44px tall. Used for Refresh, Remove a name, Show more, Load earlier events, Cancel and Keep it.
@@ -373,7 +374,7 @@ On phones the band's column is about 25px wide, so the headcount scale caps at 2
 
 ### Don't:
 - **Don't** put blue, red or yellow on text, rules, buttons, links or grounds.
-- **Don't** use shadows, gradients, or rounded corners on containers or controls.
+- **Don't** use shadows, gradients, or rounded corners on containers or controls, except the event pills.
 - **Don't** confirm an RSVP or an admin action with a toast or banner.
 - **Don't** animate on page load, or use bouncy or spring motion.
 - **Don't** set running text in Jost, or add a third typeface; Jost is for headings and numerals, the system sans for reading.

@@ -619,8 +619,7 @@ button { font: inherit; color: inherit; }
 
 .event-time { color: var(--ink); font-weight: 500; }
 
-/* Start over end: a short ink bar between the two times reads "to". The times sit in
-   their own column so the bar centres under them. */
+/* Start over end, joined by an en dash (the range mark) centred under the times. */
 .event-times {
     display: flex;
     flex-direction: column;
@@ -628,12 +627,9 @@ button { font: inherit; color: inherit; }
     align-self: flex-start;
 }
 
-.event-timebar {
-    display: block;
-    width: var(--rule);
-    height: 14px;
-    margin: 3px 0;
-    background: var(--ink);
+.event-to {
+    line-height: 1.1;
+    color: var(--ink-3);
 }
 
 .event-title {
@@ -652,31 +648,46 @@ button { font: inherit; color: inherit; }
     overflow-wrap: anywhere;
 }
 
-/* An outbound link is a small line button with an arrow, so it reads as a way out. */
+/* An outbound link is a small pill with an arrow, so it reads as a way out. */
 .event-link {
     display: inline-flex;
     align-items: center;
-    gap: var(--s2);
-    min-height: 44px;
+    gap: 6px;
+    min-height: 36px;
     margin-top: var(--s3);
-    padding: 0 var(--s3);
-    border: var(--rule) solid var(--ink);
-    font-size: 15px;
-    font-weight: 600;
+    padding: 0 14px;
+    border: 1px solid var(--ink-3);
+    border-radius: 999px;
+    font-size: 14px;
+    font-weight: 500;
     text-decoration: none;
-    transition: background-color 140ms var(--ease), color 140ms var(--ease);
+    transition: background-color 140ms var(--ease), border-color 140ms var(--ease);
 }
 
 .event-link svg {
-    width: 16px;
-    height: 16px;
+    width: 14px;
+    height: 14px;
     fill: none;
     stroke: currentColor;
     stroke-width: 1.75px;
     stroke-linecap: square;
 }
 
-.event-link:hover { background: var(--ink); color: var(--paper); }
+.event-link:hover { background: var(--wash); border-color: var(--ink); }
+
+/* Event buttons are quieter than the page's other buttons: a soft pill with a thin edge. */
+.event-actions .btn {
+    min-height: 40px;
+    padding: 0 22px;
+    border-width: 1px;
+    border-color: var(--ink-3);
+    border-radius: 999px;
+    font-size: 15px;
+    font-weight: 500;
+}
+
+.event-actions .btn-line:hover { background: var(--wash); color: var(--ink); border-color: var(--ink); }
+.event-actions .btn:disabled { border-color: var(--hair); }
 
 .event-desc {
     display: -webkit-box;
