@@ -13,7 +13,7 @@
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    justify-content: space-between;
+    justify-content: flex-end;
     gap: var(--s3) var(--s5);
     padding: var(--s3) 0;
 }
@@ -126,7 +126,8 @@
 
 .faq-answer p { margin: 0 0 var(--s3); }
 .faq-answer p:last-child { margin-bottom: 0; }
-.faq-answer a { color: var(--ink); }
+/* Answer links leave the page, so they take the link colour, as the event link on Home does. */
+.faq-answer a { color: var(--link); font-weight: 500; }
 .faq-answer strong { color: var(--ink); font-weight: 600; }
 
 .faq-answer ul,

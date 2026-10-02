@@ -72,6 +72,15 @@ function sanitizeUrl(rawUrl) {
     return null;
 }
 
+// The "link: URL" line becomes an Event link, so the description shown drops it.
+function withoutLinkLine(value) {
+    return value.replace(/^[ \t]*link:?\s*https?:\/\/\S+[ \t]*$/gim, '').trim();
+}
+
+function eventLinkHtml(href) {
+    return `<a class="event-link" href="${escapeAttribute(href)}" target="_blank" rel="noopener noreferrer">Event link<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 16 16 8M9 8h7v7"/></svg><span class="sr-only"> (opens in a new tab)</span></a>`;
+}
+
 function extractEventLink(value) {
     if (typeof value !== 'string' || value.length === 0) return null;
     const linkMatch = value.match(/link:?\s*(https?:\/\/\S+)/i);
@@ -836,8 +845,7 @@ function renderEventCard(event, { isPast, isToday, prevNames }) {
     const sanitizedEventId = escapeAttribute(event.id);
     const sanitizedTitle = escapeHtml(event.title);
     const descriptionText = typeof event.description === 'string' ? event.description : '';
-    // The "link: URL" line becomes the Event link button, so the description drops it.
-    const shownDescription = descriptionText.replace(/^[ \t]*link:?\s*https?:\/\/\S+[ \t]*$/gim, '').trim();
+    const shownDescription = withoutLinkLine(descriptionText);
     const sanitizedDescription = escapeHtml(shownDescription).replace(/\n/g, '<br>');
     const locationText = typeof event.location === 'string' ? event.location : '';
     const eventLink = extractEventLink(descriptionText);
@@ -849,9 +857,7 @@ function renderEventCard(event, { isPast, isToday, prevNames }) {
     const newFrom = prevNames ? prevNames.size : Infinity;
 
     // The title's shape already names the calendar, so the meta line is the place and the link.
-    const link = eventLink
-        ? `<a class="event-link" href="${escapeAttribute(eventLink)}" target="_blank" rel="noopener noreferrer">Event link<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 16 16 8M9 8h7v7"/></svg><span class="sr-only"> (opens in a new tab)</span></a>`
-        : '';
+    const link = eventLink ? eventLinkHtml(eventLink) : '';
     const metaParts = [locationText ? escapeHtml(locationText) : '', link].filter(Boolean);
     const meta = metaParts.length ? `<p class="event-meta">${metaParts.join('<span class="sep" aria-hidden="true"> · </span>')}</p>` : '';
 
@@ -938,10 +944,18 @@ function showFieldError(id, message) {
     el.hidden = !message;
 }
 
-function formatSheetDate(date) {
-    return new Date(date).toLocaleString('en-GB', {
-        weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit'
-    });
+// "Saturday 3 October, 19:30–21:30": the same start and end as the event's date column.
+function formatSheetDate(event) {
+    const start = new Date(event.date);
+    const time = d => d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false });
+    const day = start.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' });
+    const endRaw = event.endDate || event.enddate || null;
+    const end = endRaw ? new Date(endRaw) : null;
+    if (!end || !Number.isFinite(end.getTime()) || end <= start) return `${day}, ${time(start)}`;
+    const endDay = end.toDateString() === start.toDateString()
+        ? ''
+        : `${end.toLocaleDateString('en-GB', { day: 'numeric', month: 'long' })} `;
+    return `${day}, ${time(start)}–${endDay}${time(end)}`;
 }
 
 function openRsvpModal(eventId) {
@@ -952,11 +966,13 @@ function openRsvpModal(eventId) {
     showFieldError('rsvp-error', '');
     rsvpModal.classList.remove('hidden');
     document.getElementById('modal-event-title').textContent = event.title;
-    document.getElementById('modal-event-date').textContent = formatSheetDate(event.date);
-    const desc = typeof event.description === 'string' ? event.description : '';
+    document.getElementById('modal-event-date').textContent = formatSheetDate(event);
+    const rawDesc = typeof event.description === 'string' ? event.description : '';
+    const desc = withoutLinkLine(rawDesc);
+    const sheetLink = extractEventLink(rawDesc);
     const descEl = document.getElementById('modal-event-description');
-    descEl.innerHTML = escapeHtml(desc).replace(/\n/g, '<br>');
-    descEl.hidden = !desc;
+    descEl.innerHTML = escapeHtml(desc).replace(/\n/g, '<br>') + (sheetLink ? `${desc ? '<br>' : ''}${eventLinkHtml(sheetLink)}` : '');
+    descEl.hidden = !desc && !sheetLink;
 
     // Pre-fill the remembered name and select it, so overtyping is a single action.
     const nameInput = document.getElementById('attendee-name');
@@ -992,7 +1008,7 @@ function openRemoveRsvpModal(eventId) {
     const modal = document.getElementById('remove-rsvp-modal');
     modal.classList.remove('hidden');
     document.getElementById('remove-modal-event-title').textContent = event.title;
-    document.getElementById('remove-modal-event-date').textContent = formatSheetDate(event.date);
+    document.getElementById('remove-modal-event-date').textContent = formatSheetDate(event);
     const selector = document.getElementById('attendee-to-remove');
     selector.innerHTML = '';
     (event.attendees || []).forEach(name => {
