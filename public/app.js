@@ -784,18 +784,6 @@ function syncDescriptionToggles() {
 }
 
 // Human-readable duration between start and end (e.g. "3 hrs", "1 hr 30 min", "45 min").
-function formatDuration(start, end) {
-    const ms = end - start;
-    if (!Number.isFinite(ms) || ms <= 0) return '';
-    const totalMinutes = Math.round(ms / 60000);
-    const hours = Math.floor(totalMinutes / 60);
-    const minutes = totalMinutes % 60;
-    const parts = [];
-    if (hours) parts.push(`${hours} hr${hours > 1 ? 's' : ''}`);
-    if (minutes) parts.push(`${minutes} min`);
-    return parts.join(' ');
-}
-
 // The seat count in words, shared by the seat row and the band readout.
 // Empty when there is no limit and nobody yet.
 function seatsLabel(event, { isPast }) {
@@ -841,13 +829,16 @@ function renderEventCard(event, { isPast, isToday, prevNames }) {
     const timeStr = eventDate.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false });
     // Postgres folds the unquoted endDate column to lowercase, so accept either casing.
     const endRaw = event.endDate || event.enddate || null;
-    const durationStr = endRaw ? formatDuration(eventDate, new Date(endRaw)) : '';
+    const endDate = endRaw ? new Date(endRaw) : null;
+    const hasEnd = endDate && Number.isFinite(endDate.getTime()) && endDate > eventDate;
     const st = styleFor(event);
 
     const sanitizedEventId = escapeAttribute(event.id);
     const sanitizedTitle = escapeHtml(event.title);
     const descriptionText = typeof event.description === 'string' ? event.description : '';
-    const sanitizedDescription = escapeHtml(descriptionText).replace(/\n/g, '<br>');
+    // The "link: URL" line becomes the Event link button, so the description drops it.
+    const shownDescription = descriptionText.replace(/^[ \t]*link:?\s*https?:\/\/\S+[ \t]*$/gim, '').trim();
+    const sanitizedDescription = escapeHtml(shownDescription).replace(/\n/g, '<br>');
     const locationText = typeof event.location === 'string' ? event.location : '';
     const eventLink = extractEventLink(descriptionText);
 
@@ -857,11 +848,20 @@ function renderEventCard(event, { isPast, isToday, prevNames }) {
     const isFull = hasLimit && attendingCount >= event.attendance_limit;
     const newFrom = prevNames ? prevNames.size : Infinity;
 
-    const metaParts = [];
-    if (durationStr) metaParts.push(escapeHtml(durationStr));
-    if (locationText) metaParts.push(escapeHtml(locationText));
-    if (eventLink) metaParts.push(`<a href="${escapeAttribute(eventLink)}" target="_blank" rel="noopener noreferrer">Event link</a>`);
-    if (st.name) metaParts.push(escapeHtml(st.name));
+    // The title's shape already names the calendar, so the meta line is the place alone.
+    const meta = locationText ? `<p class="event-meta">${escapeHtml(locationText)}</p>` : '';
+    const link = eventLink
+        ? `<a class="event-link" href="${escapeAttribute(eventLink)}" target="_blank" rel="noopener noreferrer">Event link<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 16 16 8M9 8h7v7"/></svg><span class="sr-only"> (opens in a new tab)</span></a>`
+        : '';
+
+    // Start over end in the date column, joined by a short bar. An end on another day names that day.
+    let endTime = '';
+    if (hasEnd) {
+        const endStr = endDate.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false });
+        const sameDay = endDate.toDateString() === eventDate.toDateString();
+        const endDay = sameDay ? '' : `<span>${escapeHtml(endDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }))}</span>`;
+        endTime = `<span class="event-timebar" aria-hidden="true"></span><span class="sr-only">until</span>${endDay}<span class="event-time">${escapeHtml(endStr)}</span>`;
+    }
 
     let names;
     if (attendees.length > 0) {
@@ -894,12 +894,13 @@ function renderEventCard(event, { isPast, isToday, prevNames }) {
         <article class="${classes.join(' ')}" data-event-id="${sanitizedEventId}" aria-labelledby="ev-${sanitizedEventId}">
             <div class="event-date">
                 <span class="event-day">${dayNum}</span>
-                <span class="event-daymeta"><span>${escapeHtml(isToday ? 'Today' : weekdayAbbr)}</span><span>${escapeHtml(monthAbbr)}</span><span class="event-time">${escapeHtml(timeStr)}</span></span>
+                <span class="event-daymeta"><span>${escapeHtml(isToday ? 'Today' : weekdayAbbr)}</span><span>${escapeHtml(monthAbbr)}</span><span class="event-time">${escapeHtml(timeStr)}</span>${endTime}</span>
             </div>
             <div class="event-body">
                 <h3 class="event-title" id="ev-${sanitizedEventId}"><span class="event-mark">${shapeSvg(st.shape)}</span>${sanitizedTitle}</h3>
-                <p class="event-meta">${metaParts.join('<span class="sep" aria-hidden="true"> · </span>')}</p>
-                ${descriptionText ? `
+                ${meta}
+                ${link}
+                ${shownDescription ? `
                     <p class="event-desc">${sanitizedDescription}</p>
                     <button type="button" class="text-btn event-desc-toggle" aria-expanded="false" hidden>Show more</button>
                 ` : ''}

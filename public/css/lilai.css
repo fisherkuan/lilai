@@ -619,6 +619,15 @@ button { font: inherit; color: inherit; }
 
 .event-time { color: var(--ink); font-weight: 500; }
 
+/* Start over end: a short ink bar between the two times. */
+.event-timebar {
+    display: block;
+    width: var(--rule);
+    height: 14px;
+    margin: 3px 0 3px 2px;
+    background: var(--ink);
+}
+
 .event-title {
     margin: 0 0 var(--s1);
     font-size: 20px;
@@ -634,6 +643,32 @@ button { font: inherit; color: inherit; }
     color: var(--ink-2);
     overflow-wrap: anywhere;
 }
+
+/* An outbound link is a small line button with an arrow, so it reads as a way out. */
+.event-link {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--s2);
+    min-height: 44px;
+    margin-top: var(--s3);
+    padding: 0 var(--s3);
+    border: var(--rule) solid var(--ink);
+    font-size: 15px;
+    font-weight: 600;
+    text-decoration: none;
+    transition: background-color 140ms var(--ease), color 140ms var(--ease);
+}
+
+.event-link svg {
+    width: 16px;
+    height: 16px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.75px;
+    stroke-linecap: square;
+}
+
+.event-link:hover { background: var(--ink); color: var(--paper); }
 
 .event-desc {
     display: -webkit-box;
