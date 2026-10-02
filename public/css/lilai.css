@@ -619,7 +619,8 @@ button { font: inherit; color: inherit; }
 
 .event-time { color: var(--ink); font-weight: 500; }
 
-/* Start over end, joined by an en dash (the range mark) centred under the times. */
+/* Start over end, joined by an en dash (the range mark) turned upright to follow the stack,
+   as vertical CJK type sets it. */
 .event-times {
     display: flex;
     flex-direction: column;
@@ -628,8 +629,11 @@ button { font: inherit; color: inherit; }
 }
 
 .event-to {
-    line-height: 1.1;
+    display: block;
+    line-height: 1;
+    margin: 4px 0;
     color: var(--ink-3);
+    transform: rotate(90deg);
 }
 
 .event-title {
