@@ -3,7 +3,6 @@ const FAQ_LANGS = {
         file: 'faq.md',
         htmlLang: 'en',
         title: 'FAQ — Lilai',
-        back: 'Back to events',
         heading: 'FAQ',
         intro: 'Everything you might wonder about RSVPs, calendars, donations, and how this little app is run.',
         loading: 'Loading FAQ...',
@@ -13,7 +12,6 @@ const FAQ_LANGS = {
         file: 'faq.zh-TW.md',
         htmlLang: 'zh-Hant-TW',
         title: '常見問題 — Lilai',
-        back: '回到活動',
         heading: '常見問題',
         intro: '關於報名、行事曆、捐款，還有這個小網站是怎麼運作的。',
         loading: '載入中...',
@@ -71,7 +69,6 @@ async function applyLang(lang, faqContainer, buttons) {
 
     document.documentElement.lang = strings.htmlLang;
     document.title = strings.title;
-    setText('back-link-label', strings.back);
     setText('faq-title', strings.heading);
     setText('faq-intro', strings.intro);
 

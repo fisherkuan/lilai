@@ -7,30 +7,6 @@
     padding: 0 var(--gutter) var(--s8);
 }
 
-.back-link {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--s2);
-    min-height: 44px;
-    margin: var(--s3) 0;
-    font-size: 15px;
-    font-weight: 500;
-    color: var(--ink);
-    text-decoration: none;
-}
-
-.back-link:hover { text-decoration: underline; }
-
-.back-link svg {
-    width: 18px;
-    height: 18px;
-    fill: none;
-    stroke: var(--ink);
-    stroke-width: 1.5px;
-    stroke-linecap: square;
-    stroke-linejoin: miter;
-}
-
 /* ---------- Hero: balance + zero-centred bar ----------
    Left-aligned on the same axis as the transaction list below it — no centred
    composition on this page. */

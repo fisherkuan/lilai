@@ -239,30 +239,6 @@ button { font: inherit; color: inherit; }
 }
 .app-header-links a:hover { text-decoration: underline; }
 
-/* Back link: FAQ top bar, and the admin masthead in place of FAQ and Donate. */
-.back-link {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--s2);
-    min-height: 44px;
-    font-size: 15px;
-    font-weight: 500;
-    color: var(--ink);
-    text-decoration: none;
-}
-
-.back-link:hover { text-decoration: underline; }
-
-.back-link svg {
-    width: 18px;
-    height: 18px;
-    fill: none;
-    stroke: var(--ink);
-    stroke-width: 1.5px;
-    stroke-linecap: square;
-    stroke-linejoin: miter;
-}
-
 .icon-btn {
     display: inline-grid;
     place-items: center;

@@ -236,7 +236,7 @@ The pages follow the device's light or dark setting by default. A footer switch 
 - **Control** (500, 17px): inputs, number fields and range tabs, so phones do not zoom into a field.
 - **Section** (600, 16px): section heads, sidebar block titles, button labels, admin row titles, booking row titles and FAQ questions.
 - **Body** (400, 16px, 1.5): running text.
-- **Body Small** (400 to 600, 15px, 1.5): descriptions, the names list, FAQ answers, the Donate lede and donor lines, the booking explainer and notes, booking detail values, and the weekday line beside a 96px numeral. It also sets navigation: header links, admin tabs, back links and the FAQ language switch. Descriptions cap at 65ch and clamp to three lines on Home
+- **Body Small** (400 to 600, 15px, 1.5): descriptions, the names list, FAQ answers, the Donate lede and donor lines, the booking explainer and notes, booking detail values, and the weekday line beside a 96px numeral. It also sets navigation: header links, admin tabs and the FAQ language switch. Descriptions cap at 65ch and clamp to three lines on Home
 - **Meta** (400 to 600, 14px): dates, times, places, seat labels, counts, field labels, table cells and heads, admin subtitles, row status lines and text buttons.
 - **Caption** (400, 13px): captions, the colophon, and band weekday ticks from 640px.
 - **Small** (400, 12px): weekday ticks in the band on phones.
@@ -308,7 +308,7 @@ An event is a square hairline box. See The Event Box Rule.
 - **Error:** a 14px 500 ink line below the field. The current build leads it with a 10px red square. That mark collides with the red-square calendar, so treat it as drift to fix, not a pattern to reuse.
 
 ### Navigation
-The masthead puts the wordmark at left: the three calendar shapes at 15px, then "Lilai" and its subline. FAQ and Donate sit at right as 15px 500 ink links without underline, underlined on hover. Body links are ink with a 1px underline offset 3px, 2px on hover. Links that leave the app from content (the event link on Home and in the RSVP sheet, links in FAQ answers) take `--link` at 500 instead.
+The wordmark is the way home on every page, so no page carries a Back link (removed 2026-10-02). The masthead puts the wordmark at left: the three calendar shapes at 15px, then "Lilai" and its subline. FAQ and Donate sit at right as 15px 500 ink links without underline, underlined on hover. Body links are ink with a 1px underline offset 3px, 2px on hover. Links that leave the app from content (the event link on Home and in the RSVP sheet, links in FAQ answers) take `--link` at 500 instead.
 
 ### Admin Navigation and Header
 Every admin page opens with the same header.
