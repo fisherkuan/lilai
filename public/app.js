@@ -721,7 +721,6 @@ function displayEvents(options = {}) {
     const todayLabel = `Today · ${now.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}`;
     const todayRule = `<div class="today-rule" id="today-marker"><span>${escapeHtml(todayLabel)}</span></div>`;
     let insertedTodayDivider = false;
-    let markedNext = false;
     const pieces = [];
 
     if (currentRange === 'all' && hasMoreOlder) {
@@ -739,10 +738,8 @@ function displayEvents(options = {}) {
             insertedTodayDivider = true;
         }
 
-        const isNext = !isPast && !markedNext;
-        if (isNext) markedNext = true;
         const prevNames = previous ? previous[event.id] : undefined;
-        pieces.push(renderEventCard(event, { isPast, isToday, isNext, prevNames }));
+        pieces.push(renderEventCard(event, { isPast, isToday, prevNames }));
     });
 
     // If range=all and the divider wasn't inserted (all events are in past),
@@ -836,7 +833,7 @@ function renderSeats(event, st, { isPast, hasLimit, isFull, newFrom }) {
     return `<div class="seats${isFull ? ' is-full' : ''}">${row}<span class="seats-label">${escapeHtml(label)}</span></div>`;
 }
 
-function renderEventCard(event, { isPast, isToday, isNext, prevNames }) {
+function renderEventCard(event, { isPast, isToday, prevNames }) {
     const eventDate = new Date(event.date);
     const dayNum = String(eventDate.getDate());
     const monthAbbr = eventDate.toLocaleDateString('en-GB', { month: 'short' });
@@ -878,11 +875,10 @@ function renderEventCard(event, { isPast, isToday, isNext, prevNames }) {
 
     let actions = '';
     if (!isPast) {
-        // Only the next event's Join is solid; the rest are outlined, so one black block leads the page.
-        const btnStyle = isNext ? 'btn-solid' : 'btn-line';
+        // Every event carries the same weight: no lead event, no solid Join.
         const join = isFull
-            ? `<button type="button" class="btn ${btnStyle}" disabled>Full</button>`
-            : `<button type="button" class="btn ${btnStyle} rsvp-trigger-add" data-event-id="${sanitizedEventId}">Join</button>`;
+            ? '<button type="button" class="btn btn-line" disabled>Full</button>'
+            : `<button type="button" class="btn btn-line rsvp-trigger-add" data-event-id="${sanitizedEventId}">Join</button>`;
         const remove = attendingCount > 0
             ? `<button type="button" class="text-btn rsvp-trigger-remove" data-event-id="${sanitizedEventId}">Remove a name</button>`
             : '';
@@ -892,7 +888,6 @@ function renderEventCard(event, { isPast, isToday, isNext, prevNames }) {
     const classes = ['event', `tone-${st.tone}`];
     if (isPast) classes.push('is-past');
     if (isToday) classes.push('is-today');
-    if (isNext) classes.push('is-next');
     if (isFull) classes.push('is-full');
 
     return `

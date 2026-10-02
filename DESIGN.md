@@ -172,7 +172,7 @@ components:
 
 Lilai follows a Bauhaus form-colour grammar on white paper. Each enabled calendar owns one primary shape, assigned in config order: a blue circle, a red square, a yellow triangle. A fourth calendar, or an event with no known source, gets an ink diamond. The shape is the calendar's identity everywhere it appears: the wordmark, the 14-day band, the legend, the event title mark, the seat slots and the admin Events rows. The band reads as an abstract composition drawn from the real events.
 
-Everything else is black ink on white. Text, rules and buttons carry no colour, so the primaries stay loud and always mean "this calendar". Each event sits in its own hairline box, so where one ends and the next begins is plain; sections are divided by 1.5px ink rules. Metadata sits at one constant size. The only thing that breaks scale is the date numeral of the next event, so the page has one entry point.
+Everything else is black ink on white. Text, rules and buttons carry no colour, so the primaries stay loud and always mean "this calendar". Each event sits in its own hairline box, so where one ends and the next begins is plain; sections are divided by 1.5px ink rules. Metadata sits at one constant size. Every event carries the same weight: there is no lead event. The date numerals are the only type that breaks scale, all at one size.
 
 Motion is scarce and tied to state. When attendance changes, a shape scales from its centre with an exponential ease-out. A new RSVP prints bold into the names list. Nothing moves on load, and reduced motion is instant.
 
@@ -180,8 +180,8 @@ Motion is scarce and tied to state. When attendance changes, a shape scales from
 - One primary shape per calendar, flat fill, 1.5px ink contour.
 - Primaries appear only inside shapes (plus the yellow text selection).
 - Ink rules divide sections; each event is a square 1px hairline box; 1px hairlines divide dense rows inside a section. There are no shadows, gradients or rounded corners.
-- One solid black block leads the page: the next event's Join. Every other Join is a line button.
-- Constant 14px metadata; only numerals break scale (96px on the lead event and the booking detail date).
+- Every event has the same size and the same line Join button. The 14-day band and its readout already show what comes next.
+- Constant 14px metadata; only numerals break scale (the event dates, the Donate balance, 96px on the booking detail date).
 - Shapes carry state: outline open, calendar colour taken, all ink full, grey outline past.
 - Motion happens on state change only, scaling shapes from their centre.
 
@@ -224,17 +224,17 @@ The pages follow the device's light or dark setting by default. A footer switch 
 **Character:** Jost carries the Futura lineage, so its geometric letterforms match the circle, square and triangle in headings and numerals. Its small x-height reads poorly at 14 to 16px, so running text uses the system sans, which also matches the CJK fallback that Chinese names and titles use. Users said the all-Jost version (2026-09-27 to 2026-10-02) was harder to read.
 
 ### Hierarchy
-- **Numeral Lead** (500, 96px, 0.78, -0.04em): the day number of the next event, and the play date on booking detail. It is the largest type in the system.
+- **Numeral Lead** (500, 96px, 0.78, -0.04em): the play date on booking detail. It is the largest type in the system.
 - **Numeral Wide** (500, 52px, 0.9, -0.03em): the Numeral from 640px, on list dates and the Donate balance.
-- **Numeral** (500, 44px on phones, 0.9): the day number of every other event in the list, and the Donate balance.
-- **Headline Wide** (600, 30px, 1.25): the Headline step for wide screens. The next event's title and the booking detail title take it from 1000px; the FAQ title takes it from 640px. The booking midnight clock uses 30px at numeral weight (500, -0.02em).
-- **Headline** (600, 26px on phones, 1.25, -0.01em): the next event's title, every page title (admin, Donate, FAQ, booking detail) and the wordmark.
+- **Numeral** (500, 44px on phones, 0.9): the day number of every event in the list, and the Donate balance.
+- **Headline Wide** (600, 30px, 1.25): the Headline step for wide screens. The booking detail title takes it from 1000px; the FAQ title takes it from 640px. The booking midnight clock uses 30px at numeral weight (500, -0.02em).
+- **Headline** (600, 26px on phones, 1.25, -0.01em): every page title (admin, Donate, FAQ, booking detail) and the wordmark.
 - **Sheet Title** (600, 22px, 1.25): the title of every sheet and dialog: the RSVP sheet, the booking sheet and the booking confirm dialog.
 - **Title** (600, 20px, 1.25, balanced wrap): event titles, and the heads of booking sections, the explainer and the detail headline.
 - **Control** (500, 17px): inputs, number fields and range tabs, so phones do not zoom into a field.
 - **Section** (600, 16px): section heads, sidebar block titles, button labels, admin row titles, booking row titles and FAQ questions.
 - **Body** (400, 16px, 1.5): running text.
-- **Body Small** (400 to 600, 15px, 1.5): descriptions, the names list, FAQ answers, the Donate lede and donor lines, the booking explainer and notes, booking detail values, and the weekday line beside a 96px numeral. It also sets navigation: header links, admin tabs, back links and the FAQ language switch. Descriptions cap at 65ch and clamp to three lines on Home (two for the lead event on phones).
+- **Body Small** (400 to 600, 15px, 1.5): descriptions, the names list, FAQ answers, the Donate lede and donor lines, the booking explainer and notes, booking detail values, and the weekday line beside a 96px numeral. It also sets navigation: header links, admin tabs, back links and the FAQ language switch. Descriptions cap at 65ch and clamp to three lines on Home
 - **Meta** (400 to 600, 14px): dates, times, places, seat labels, counts, field labels, table cells and heads, admin subtitles, row status lines and text buttons.
 - **Caption** (400, 13px): captions, the colophon, and band weekday ticks from 640px.
 - **Small** (400, 12px): weekday ticks in the band on phones.
@@ -254,8 +254,8 @@ The page is a single column capped at 1180px, with a 16px gutter on phones and 3
 - **From 1000px.** The band spans the full width. Below it the list takes the flexible column and the sidebar takes a 400px column with a 64px gap. The sidebar is sticky 16px from the top.
 - **The 14-day band.** Fourteen equal columns between two ink rules. A 3px ink bar marks today's left edge and today's date sits reversed out of an ink block. A hairline marks each Monday. Each event is its calendar's shape, stacked in its day, sized by headcount. An event whose title holds an emoji shows that emoji instead (the first grapheme that renders as emoji by default or carries VS16), at the same size with a 14px floor so it stays legible on phones; the readout uses it as its mark and drops it from the title. Size: `min(max, base + n × step)` with n capped at 12. Phones use 8px + 1.4px per head up to 24px; 640px uses 12px + 3.5px up to 40px; 1000px uses 14px + 4.5px up to 64px. Day columns are 96px, 112px, 136px and 196px tall across the breakpoints.
 - **The band readout.** One 14px ink line under the band names one event: its shape mark, then `Thu 1 Oct · 19:30 · title · seats`, with the seats in the event list's wording. It shows the hovered or focused shape, else the selected one, else the next upcoming event. The row is a fixed 56px, so the page never jumps; the text wraps to two lines at most and a long title ends in an ellipsis. A "Show" text button ends the line and jumps to the card. On phones the first tap on a shape selects it (1.5px ink ring, `aria-pressed`) and a second tap jumps; with a mouse a click jumps at once. No tooltip, no box.
-- **Events.** Each event is a two-column row: a 56px date column (72px from 640px) and the body. The next event drops to one column on phones, with the numeral beside its weekday, month and time. From 1000px it uses a 180px date column. A 3px ink Today rule divides past from future in the list.
-- **Phones.** On phones the header, band and lead event tighten so Join lands in the first screen. The subline hides below 380px.
+- **Events.** Each event is a two-column row: a 56px date column (72px from 640px) and the body. Every event uses this layout, the next one included. A 3px ink Today rule divides past from future in the list.
+- **Phones.** On phones the header and band tighten so the first event lands in the first screen. The subline hides below 380px.
 - **Other pages.** FAQ and Donate are a single 640px reading column. Admin pages use the same 1180px shell and gutter as Home. Booking detail caps its content at 720px. Donate left-aligns the balance on the same axis as the transaction list; nothing on it is centred.
 - **Admin tables on phones.** From 640px an admin list is a real table. Below 640px each row stacks its cells as full-width blocks, the column heads hide, and a 14px 600 label above each value stands in for them.
 - **Touch targets.** Links, tabs, legend items and icon buttons are at least 44px tall.
@@ -283,8 +283,8 @@ The form language has two registers.
 ### Buttons
 Blunt ink blocks that invert on hover.
 - **Shape:** square corners (0px), 1.5px ink border, 48px tall, 24px side padding, 16px 600 label.
-- **Solid:** ink ground, paper label. The lead event's Join, Confirm and Remove use it. On the lead event Join stretches full width within thumb reach.
-- **Line:** paper ground, ink label. Join on every event after the lead one, and secondary calls such as "Create an event". A page of solid Joins reads as a column of black blocks, so only the first is solid.
+- **Solid:** ink ground, paper label. Confirm and Remove in sheets use it.
+- **Line:** paper ground, ink label. Join on every event, and secondary calls such as "Create an event". A page of solid Joins read as a column of black blocks (removed 2026-10-02).
 - **Hover:** solid and line swap ground and label over 140ms on the system ease.
 - **Disabled:** wash ground, hairline border, ink-faint label. A full event shows a disabled "Full" button in place of Join.
 - **Text button:** 14px 500 ink with a 1px underline offset 3px, 2px on hover, 44px tall. Used for Refresh, Remove a name, Show more, Load earlier events, Cancel and Keep it.
@@ -365,7 +365,7 @@ On phones the band's column is about 25px wide, so the headcount scale caps at 2
 - **Do** give each calendar its shape in config order (circle/blue, square/red, triangle/yellow) and the ink diamond to the fourth and later calendars and unsourced events.
 - **Do** draw every shape with a flat fill and a 1.5px ink contour.
 - **Do** box each event in a 1px hairline, divide sections with full-width 1.5px ink rules, and the rows of a dense list with 1px hairlines.
-- **Do** keep metadata at 14px and let only numerals break scale (96px on the lead event and the booking detail date).
+- **Do** keep metadata at 14px and let only numerals break scale (event dates, the Donate balance, 96px on the booking detail date).
 - **Do** carry status in a word, with ink weight and a 10px ink status mark as the second channel.
 - **Do** show capacity with the four slot states (outline open, calendar colour taken, all ink full, grey outline past) on events of 10 places or fewer, and with the label alone otherwise.
 - **Do** print a new RSVP bold into the names list and grow its slot from the centre.
