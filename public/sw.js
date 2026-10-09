@@ -1,4 +1,4 @@
-const CACHE_NAME = 'lilai-cache-v27'; // Bumped version
+const CACHE_NAME = 'lilai-cache-v28'; // Bumped version
 const urlsToCache = [
   '/',
   '/index.html',
@@ -56,12 +56,17 @@ self.addEventListener('activate', event => {
  * The FAQ markdown counts as our code for this purpose. It is authored text that changes
  * when we change it, and a stale copy reads as a wrong answer, not as an old icon.
  *
+ * API responses go network-first too. Under stale-while-revalidate every reload showed the
+ * response from the reload before, so the booking board needed two refreshes to show a
+ * change, and every load() after an action drew the board as it was before the action.
+ *
  * Everything else — icons, fonts, images, the manifest — keeps stale-while-revalidate.
  * Those are content-stable: a month-old copy is the same file.
  */
 function isOurCode(url) {
     return url.origin === self.location.origin
-        && (/\.(?:js|css|html|md)$/.test(url.pathname) || url.pathname === '/');
+        && (/\.(?:js|css|html|md)$/.test(url.pathname) || url.pathname === '/'
+            || url.pathname.startsWith('/api/'));
 }
 
 self.addEventListener('fetch', (event) => {
