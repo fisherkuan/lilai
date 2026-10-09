@@ -80,6 +80,7 @@
         history: [],
         historyHasMore: false,
         live: false,
+        everConnected: false,
         showAllUpcoming: false,
         historyShown: HISTORY_AT_REST,
         tickHandle: null,
@@ -1053,6 +1054,10 @@
             return;
         }
         socket.addEventListener('open', () => {
+            // Anything broadcast while the socket was down is gone, so a reconnect
+            // re-reads the board instead of trusting what it last drew.
+            if (state.everConnected) load();
+            state.everConnected = true;
             state.live = true;
             // Silent while it works. "Live" next to the button read as a property of the
             // queue, and a badge that is always on says nothing; the only fact worth a
@@ -1085,8 +1090,10 @@
         el('bq-people').addEventListener('click', () => {
             if (window.bookingPeople) window.bookingPeople.openManager();
         });
+        // A phone that slept can hold a socket that looks open but missed messages, so
+        // coming back to the tab re-reads the board rather than only redrawing it.
         document.addEventListener('visibilitychange', () => {
-            if (!document.hidden) render();
+            if (!document.hidden) load();
         });
         load();
         connect();
