@@ -1,157 +1,237 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-09-27T14:36:36+00:00",
+  "generatedAt": "2026-10-13T09:15:20.475817+00:00",
   "title": "Design System: Lilai",
   "extensions": {
     "colorMeta": {
       "blue": {
         "role": "primary",
-        "displayName": "Bauhaus Blue",
-        "canonical": "#1f4fa3",
+        "displayName": "Ultramarine",
+        "canonical": "#1a22b0",
+        "dark": "#4d5fff",
+        "source": "public/bauhaus/tokens.css (kit)",
         "tonalRamp": [
-          "#0c1f40",
-          "#15366f",
-          "#1e4d9f",
-          "#2764ce",
-          "#5486de",
-          "#87aae8",
-          "#bacff2",
-          "#eaf0fb"
+          "#06082c",
+          "#0d1158",
+          "#141a84",
+          "#1a22b0",
+          "#5359c4",
+          "#8c90d8",
+          "#c6c8eb",
+          "#e8e9f7"
         ]
       },
       "red": {
         "role": "primary",
-        "displayName": "Signal Red",
-        "canonical": "#d9352b",
+        "displayName": "Signal Vermilion",
+        "canonical": "#d63a2a",
+        "dark": "#ff3b28",
+        "source": "public/bauhaus/tokens.css (kit)",
         "tonalRamp": [
-          "#410f0c",
-          "#701914",
-          "#a0241d",
-          "#d02f25",
-          "#e05a52",
-          "#e98c86",
-          "#f3bdba",
-          "#fbeae9"
+          "#360e0a",
+          "#6b1d15",
+          "#a02c20",
+          "#d63a2a",
+          "#e06b5f",
+          "#ea9c94",
+          "#f5ceca",
+          "#fbebea"
         ]
       },
       "yellow": {
         "role": "primary",
-        "displayName": "Chrome Yellow",
-        "canonical": "#f2c230",
+        "displayName": "Warm Yellow",
+        "canonical": "#eeae53",
+        "dark": "#ffb000",
+        "source": "public/bauhaus/tokens.css (kit)",
         "tonalRamp": [
-          "#483705",
-          "#7d6008",
-          "#b2880b",
-          "#e6b10e",
-          "#f3c63f",
-          "#f7d779",
-          "#fae8b2",
-          "#fdf8e7"
+          "#3c2c15",
+          "#77572a",
+          "#b2823e",
+          "#eeae53",
+          "#f2c27e",
+          "#f6d6a9",
+          "#fbebd4",
+          "#fdf7ee"
         ]
       },
       "ink": {
         "role": "neutral",
         "displayName": "Ink",
-        "canonical": "#111111",
+        "canonical": "#161616",
+        "dark": "#f2f2ee",
+        "source": "public/bauhaus/tokens.css (kit)",
         "tonalRamp": [
-          "#111111",
-          "#262626",
-          "#444444",
-          "#676767",
-          "#999999",
-          "#b4b4b4",
-          "#e2e2e2",
-          "#f3f3f3"
+          "#060606",
+          "#0b0b0b",
+          "#101010",
+          "#161616",
+          "#505050",
+          "#8a8a8a",
+          "#c5c5c5",
+          "#e8e8e8"
         ]
       },
       "paper": {
         "role": "neutral",
         "displayName": "Paper",
-        "canonical": "#ffffff",
+        "canonical": "#efefea",
+        "dark": "#111214",
+        "source": "public/bauhaus/tokens.css (kit)",
         "tonalRamp": [
-          "#111111",
-          "#262626",
-          "#444444",
-          "#676767",
-          "#999999",
-          "#b4b4b4",
-          "#e2e2e2",
-          "#f3f3f3"
+          "#3c3c3a",
+          "#787875",
+          "#b3b3b0",
+          "#efefea",
+          "#f3f3ef",
+          "#f7f7f4",
+          "#fbfbfa",
+          "#fdfdfd"
         ]
       },
-      "ink-2": {
+      "paper-raised": {
         "role": "neutral",
-        "displayName": "Ink Soft",
-        "canonical": "#444444",
+        "displayName": "Paper Raised",
+        "canonical": "#fafaf7",
+        "dark": "#1b1c1f",
+        "source": "public/bauhaus/tokens.css (kit)",
         "tonalRamp": [
-          "#111111",
-          "#262626",
-          "#444444",
-          "#676767",
-          "#999999",
-          "#b4b4b4",
-          "#e2e2e2",
-          "#f3f3f3"
+          "#3e3e3e",
+          "#7d7d7c",
+          "#bcbcb9",
+          "#fafaf7",
+          "#fbfbf9",
+          "#fcfcfb",
+          "#fefefd",
+          "#fefefe"
+        ]
+      },
+      "stone": {
+        "role": "neutral",
+        "displayName": "Stone",
+        "canonical": "#dcdbd3",
+        "dark": "#26272b",
+        "source": "public/bauhaus/tokens.css (kit)",
+        "tonalRamp": [
+          "#373735",
+          "#6e6e6a",
+          "#a5a49e",
+          "#dcdbd3",
+          "#e5e4de",
+          "#eeede9",
+          "#f6f6f4",
+          "#fcfbfb"
+        ],
+        "aliases": [
+          "--wash"
+        ]
+      },
+      "line": {
+        "role": "neutral",
+        "displayName": "Line",
+        "canonical": "#85857e",
+        "dark": "#77787d",
+        "source": "public/bauhaus/tokens.css (kit)",
+        "tonalRamp": [
+          "#212120",
+          "#42423f",
+          "#64645e",
+          "#85857e",
+          "#a4a49e",
+          "#c2c2be",
+          "#e0e0df",
+          "#f3f3f2"
+        ],
+        "aliases": [
+          "--hair"
+        ]
+      },
+      "ink-muted": {
+        "role": "neutral",
+        "displayName": "Ink Muted",
+        "canonical": "#55554f",
+        "dark": "#aeafb3",
+        "source": "public/bauhaus/tokens.css (kit)",
+        "tonalRamp": [
+          "#151514",
+          "#2a2a28",
+          "#40403b",
+          "#55554f",
+          "#80807b",
+          "#aaaaa7",
+          "#d4d4d3",
+          "#eeeeed"
+        ],
+        "aliases": [
+          "--ink-2"
         ]
       },
       "ink-3": {
         "role": "neutral",
         "displayName": "Ink Faint",
-        "canonical": "#676767",
+        "canonical": "#62625c",
+        "dark": "#8f9095",
+        "source": "lilai.css",
         "tonalRamp": [
-          "#111111",
-          "#262626",
-          "#444444",
-          "#676767",
-          "#999999",
-          "#b4b4b4",
-          "#e2e2e2",
-          "#f3f3f3"
-        ]
-      },
-      "hair": {
-        "role": "neutral",
-        "displayName": "Hairline",
-        "canonical": "#e2e2e2",
-        "tonalRamp": [
-          "#111111",
-          "#262626",
-          "#444444",
-          "#676767",
-          "#999999",
-          "#b4b4b4",
-          "#e2e2e2",
-          "#f3f3f3"
-        ]
-      },
-      "wash": {
-        "role": "neutral",
-        "displayName": "Wash",
-        "canonical": "#f3f3f3",
-        "tonalRamp": [
-          "#111111",
-          "#262626",
-          "#444444",
-          "#676767",
-          "#999999",
-          "#b4b4b4",
-          "#e2e2e2",
-          "#f3f3f3"
+          "#181817",
+          "#31312e",
+          "#4a4a45",
+          "#62625c",
+          "#898985",
+          "#b0b0ae",
+          "#d8d8d6",
+          "#efefef"
         ]
       },
       "past": {
         "role": "neutral",
         "displayName": "Past Grey",
-        "canonical": "#b4b4b4",
+        "canonical": "#a9a9a2",
+        "dark": "#55565b",
+        "source": "lilai.css",
         "tonalRamp": [
-          "#111111",
-          "#262626",
-          "#444444",
-          "#676767",
-          "#999999",
-          "#b4b4b4",
-          "#e2e2e2",
-          "#f3f3f3"
+          "#2a2a28",
+          "#545451",
+          "#7f7f7a",
+          "#a9a9a2",
+          "#bebeb9",
+          "#d4d4d0",
+          "#eaeae8",
+          "#f6f6f6"
+        ]
+      },
+      "link": {
+        "role": "neutral",
+        "displayName": "Link",
+        "canonical": "#0b57d0",
+        "dark": "#8ab4f8",
+        "source": "public/css/lilai.css (lilai override of the kit)",
+        "tonalRamp": [
+          "#031634",
+          "#062c68",
+          "#08419c",
+          "#0b57d0",
+          "#4881dc",
+          "#85abe8",
+          "#c2d5f3",
+          "#e7eefa"
+        ]
+      },
+      "focus": {
+        "role": "neutral",
+        "displayName": "Focus",
+        "canonical": "#1a22b0",
+        "dark": "#4d5fff",
+        "source": "public/bauhaus/tokens.css (kit)",
+        "tonalRamp": [
+          "#06082c",
+          "#0d1158",
+          "#141a84",
+          "#1a22b0",
+          "#5359c4",
+          "#8c90d8",
+          "#c6c8eb",
+          "#e8e9f7"
         ]
       }
     },
@@ -182,7 +262,7 @@
       },
       "title": {
         "displayName": "Title",
-        "purpose": "Event titles and booking section, explainer and detail headline heads."
+        "purpose": "Event titles, the explainer and the detail headline heads."
       },
       "control": {
         "displayName": "Control",
@@ -190,7 +270,7 @@
       },
       "section": {
         "displayName": "Section",
-        "purpose": "Section heads, sidebar titles, button labels, admin and booking row titles, FAQ questions."
+        "purpose": "Admin row titles, booking row titles, FAQ questions."
       },
       "body": {
         "displayName": "Body",
@@ -202,7 +282,7 @@
       },
       "meta": {
         "displayName": "Meta",
-        "purpose": "All metadata at a constant 14px: dates, times, places, seat labels, counts, field labels, table cells, admin subtitles, row status lines."
+        "purpose": "All metadata at a constant 14px: dates, times, places, seat labels, counts, table cells, admin subtitles, row status lines, text buttons."
       },
       "caption": {
         "displayName": "Caption",
@@ -211,40 +291,54 @@
       "small": {
         "displayName": "Small",
         "purpose": "Band weekday ticks on phones."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "The kit's label style, uppercase: button labels, field labels, section and sidebar titles, booking sheet labels, admin table heads, the phone per-cell label."
       }
     },
     "shadows": [],
     "overlays": [
       {
         "name": "scrim",
-        "value": "rgba(17, 17, 17, 0.4)",
-        "purpose": "Behind an open RSVP sheet; the only translucent value."
+        "value": "rgba(22, 22, 22, 0.4); rgba(0, 0, 0, 0.6) in dark",
+        "purpose": "Behind an open sheet; the only translucent value."
       }
     ],
     "strokes": [
       {
         "name": "rule",
-        "value": "1.5px solid #111111",
-        "purpose": "Content dividers, section and list edges, table head underline, shape contours, control borders."
+        "value": "2px solid var(--ink) (--rule = --stroke-2)",
+        "purpose": "Section and list edges, table head underline, top edge of a headless table, sheet edges, selected band shape ring."
+      },
+      {
+        "name": "control",
+        "value": "2px solid var(--ink) (--stroke-2)",
+        "purpose": "Buttons, fields, choice chips, event boxes, status marks, balance bar."
+      },
+      {
+        "name": "shape-contour",
+        "value": "1.5px var(--ink), non-scaling, mitred",
+        "purpose": "Calendar shapes only."
       },
       {
         "name": "hairline",
-        "value": "1px solid #e2e2e2",
-        "purpose": "Between rows of a dense list inside a section: admin tables, booking timeline, booking detail table, FAQ table. Never a section edge."
+        "value": "1px solid var(--line)",
+        "purpose": "Between rows of a dense list inside a section. Never a section edge."
       },
       {
         "name": "today",
-        "value": "3px solid #111111",
+        "value": "3px solid var(--ink)",
         "purpose": "A moment: Today in band and list, the NOW rule and in-flight row on the booking timeline, the stale-data notice."
       },
       {
         "name": "tab-active",
-        "value": "2px solid #111111 (bottom)",
+        "value": "2px solid var(--ink) (bottom)",
         "purpose": "Active range tab, active admin tab, FAQ language switch."
       },
       {
         "name": "focus",
-        "value": "outline: 2px solid #111111; outline-offset: 2px",
+        "value": "outline: 2px solid var(--focus); outline-offset: 2px",
         "purpose": "Every focusable control."
       },
       {
@@ -335,7 +429,8 @@
       "readingColumn": "640px (FAQ, Donate)",
       "bookingDetail": "720px",
       "adminShell": "1180px, same gutter as Home",
-      "adminTablePhone": "below 640px rows stack as blocks with 14px 600 field labels"
+      "adminTablePhone": "below 640px rows stack as blocks; heads hide and a label-style tag names a value where needed (Limit on Events)",
+      "adminTableHeads": "Events has no thead and takes a 2px ink top rule; Donations and booking tables keep label-style heads"
     },
     "shapeSet": {
       "grid": "24-unit viewBox, non-scaling 1.5px ink stroke, mitred joins",
@@ -379,16 +474,17 @@
         "public/admin-booking-detail.html"
       ],
       "stylesheets": {
+        "kit": "public/bauhaus/tokens.css (verbatim copy of ~/code/bauhaus, commit in public/bauhaus/KIT_COMMIT), loaded first",
         "all": "public/css/lilai.css",
         "faq": "public/css/faq.css",
         "donate": "public/css/donate.css",
         "admin": "public/css/admin.css",
         "booking": "public/css/booking.css (after admin.css)"
       },
-      "note": "Every page loads lilai.css plus its page stylesheet. The legacy public/styles.css is deleted."
+      "note": "Every page loads the kit tokens, then lilai.css, then its page stylesheet. Jost lives in public/bauhaus/fonts/. Kit source of truth: https://claude.ai/artifact/LS4XQ7G4sWamw5Tpt9ooFJ."
     },
     "statusMarks": {
-      "size": "10px square, 1.5px ink contour",
+      "size": "10px square, 2px ink contour",
       "variants": {
         "solid": "Request sent",
         "open": "still ahead (reply or the moment)",
@@ -396,7 +492,7 @@
         "cross": "Request failed",
         "slash": "Not sent"
       },
-      "weight": "sent 600 ink; never sent 500 ink-soft; cancelled struck through ink-faint"
+      "weight": "sent 600 ink; never sent 500 ink-muted; cancelled struck through ink-faint"
     }
   },
   "components": [
@@ -406,7 +502,7 @@
       "refersTo": "button-solid",
       "description": "Join, Confirm and Remove. Ink block that inverts on hover.",
       "html": "<button class=\"ds-btn ds-btn-solid\">Join</button>",
-      "css": ".ds-btn{display:inline-flex;align-items:center;justify-content:center;min-height:48px;padding:0 24px;border:1.5px solid #111;border-radius:0;font:600 16px/1 'Jost','PingFang TC','Noto Sans TC',system-ui,sans-serif;cursor:pointer;transition:background-color 140ms cubic-bezier(0.16,1,0.3,1),color 140ms cubic-bezier(0.16,1,0.3,1);} .ds-btn:focus-visible{outline:2px solid #111;outline-offset:2px;} .ds-btn-solid{background:#111;color:#fff;} .ds-btn-solid:hover{background:#fff;color:#111;}"
+      "css": ".ds-btn{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:0 24px;border:2px solid var(--ink,#161616);border-radius:0;font-family:var(--font-display, Jost, Futura, system-ui, sans-serif);font-size:12px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;transition:background-color 140ms cubic-bezier(0.16,1,0.3,1),color 140ms cubic-bezier(0.16,1,0.3,1);} .ds-btn:focus-visible{outline:2px solid var(--focus,#1a22b0);outline-offset:2px;} .ds-btn-solid{background:var(--ink,#161616);color:var(--paper,#efefea);} .ds-btn-solid:hover{background:var(--paper,#efefea);color:var(--ink,#161616);}"
     },
     {
       "name": "Line Button",
@@ -414,15 +510,15 @@
       "refersTo": "button-line",
       "description": "Secondary calls such as Create an event.",
       "html": "<button class=\"ds-btn ds-btn-line\">Create an event</button>",
-      "css": ".ds-btn{display:inline-flex;align-items:center;justify-content:center;min-height:48px;padding:0 24px;border:1.5px solid #111;border-radius:0;font:600 16px/1 'Jost','PingFang TC','Noto Sans TC',system-ui,sans-serif;cursor:pointer;transition:background-color 140ms cubic-bezier(0.16,1,0.3,1),color 140ms cubic-bezier(0.16,1,0.3,1);} .ds-btn:focus-visible{outline:2px solid #111;outline-offset:2px;} .ds-btn-line{background:#fff;color:#111;} .ds-btn-line:hover{background:#111;color:#fff;}"
+      "css": ".ds-btn{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:0 24px;border:2px solid var(--ink,#161616);border-radius:0;font-family:var(--font-display, Jost, Futura, system-ui, sans-serif);font-size:12px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;transition:background-color 140ms cubic-bezier(0.16,1,0.3,1),color 140ms cubic-bezier(0.16,1,0.3,1);} .ds-btn:focus-visible{outline:2px solid var(--focus,#1a22b0);outline-offset:2px;} .ds-btn-line{background:transparent;color:var(--ink,#161616);} .ds-btn-line:hover{background:var(--ink,#161616);color:var(--paper,#efefea);}"
     },
     {
       "name": "Disabled Button",
       "kind": "button",
       "refersTo": "button-disabled",
-      "description": "Shown as Full in place of Join when an event is at capacity.",
+      "description": "Clear ground, line-grey border, ink-muted label.",
       "html": "<button class=\"ds-btn ds-btn-off\" disabled>Full</button>",
-      "css": ".ds-btn{display:inline-flex;align-items:center;justify-content:center;min-height:48px;padding:0 24px;border:1.5px solid #111;border-radius:0;font:600 16px/1 'Jost','PingFang TC','Noto Sans TC',system-ui,sans-serif;cursor:pointer;transition:background-color 140ms cubic-bezier(0.16,1,0.3,1),color 140ms cubic-bezier(0.16,1,0.3,1);} .ds-btn:focus-visible{outline:2px solid #111;outline-offset:2px;} .ds-btn-off{background:#f3f3f3;border-color:#e2e2e2;color:#676767;cursor:not-allowed;}"
+      "css": ".ds-btn{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:0 24px;border:2px solid var(--ink,#161616);border-radius:0;font-family:var(--font-display, Jost, Futura, system-ui, sans-serif);font-size:12px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;transition:background-color 140ms cubic-bezier(0.16,1,0.3,1),color 140ms cubic-bezier(0.16,1,0.3,1);} .ds-btn:focus-visible{outline:2px solid var(--focus,#1a22b0);outline-offset:2px;} .ds-btn-off{background:transparent;border-color:var(--line,#85857e);color:var(--ink-muted,#55554f);cursor:not-allowed;}"
     },
     {
       "name": "Text Button",
@@ -430,15 +526,15 @@
       "refersTo": "text-button",
       "description": "Refresh, Remove a name, Show more, Cancel. Underlined ink text, 44px tall.",
       "html": "<button class=\"ds-text-btn\">Remove a name</button>",
-      "css": ".ds-text-btn{display:inline-flex;align-items:center;min-height:44px;padding:0;border:0;background:none;font:500 14px 'Jost','PingFang TC',system-ui,sans-serif;color:#111;text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:3px;cursor:pointer;} .ds-text-btn:hover{text-decoration-thickness:2px;} .ds-text-btn:focus-visible{outline:2px solid #111;outline-offset:2px;}"
+      "css": ".ds-text-btn{display:inline-flex;align-items:center;min-height:44px;padding:0;border:0;background:none;font:500 14px var(--font, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif);color:#161616;text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:3px;cursor:pointer;} .ds-text-btn:hover{text-decoration-thickness:2px;} .ds-text-btn:focus-visible{outline:2px solid var(--focus,#1a22b0);outline-offset:2px;}"
     },
     {
       "name": "Name Input",
       "kind": "input",
       "refersTo": "input",
-      "description": "The RSVP name field: square, 1.5px ink border, 17px text.",
+      "description": "The RSVP name field: square, 2px ink border on paper-raised, uppercase Jost label, 17px text, 8px ink error square.",
       "html": "<label class=\"ds-field\"><span class=\"ds-label\">Your name</span><input class=\"ds-input\" placeholder=\"The name people know you by\"></label>",
-      "css": ".ds-field{display:block;} .ds-label{display:block;margin-bottom:6px;font:600 14px 'Jost',system-ui,sans-serif;color:#111;} .ds-input{display:block;width:100%;min-height:50px;padding:0 12px;border:1.5px solid #111;border-radius:0;background:#fff;color:#111;font:400 17px 'Jost','PingFang TC',system-ui,sans-serif;-webkit-appearance:none;appearance:none;} .ds-input::placeholder{color:#676767;} .ds-input:focus{outline:2px solid #111;outline-offset:2px;}"
+      "css": ".ds-field{display:block;} .ds-label{display:block;margin-bottom:8px;font-family:var(--font-display, Jost, Futura, system-ui, sans-serif);font-size:12px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--ink,#161616);} .ds-input{display:block;width:100%;min-height:50px;padding:0 12px;border:2px solid var(--ink,#161616);border-radius:0;background:var(--paper-raised,#fafaf7);color:var(--ink,#161616);font:500 17px var(--font, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif);-webkit-appearance:none;appearance:none;} .ds-input::placeholder{color:var(--ink-3,#62625c);} .ds-input:focus{outline:2px solid var(--focus,#1a22b0);outline-offset:2px;} .ds-error{display:flex;align-items:center;gap:8px;margin-top:8px;font:500 14px var(--font, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif);color:var(--ink,#161616);} .ds-error::before{content:'';width:8px;height:8px;background:var(--ink,#161616);}"
     },
     {
       "name": "Range Tabs",
@@ -446,7 +542,7 @@
       "refersTo": "range-tabs",
       "description": "Upcoming / All switch: ink-faint text tabs, active one ink with a 2px underline.",
       "html": "<div class=\"ds-tabs\"><button class=\"ds-tab is-on\">Upcoming</button><button class=\"ds-tab\">All</button></div>",
-      "css": ".ds-tabs{display:flex;gap:24px;} .ds-tab{min-height:44px;padding:0;border:0;border-bottom:2px solid transparent;background:none;font:500 17px 'Jost',system-ui,sans-serif;color:#676767;cursor:pointer;} .ds-tab:hover{color:#111;} .ds-tab.is-on{color:#111;border-bottom-color:#111;} .ds-tab:focus-visible{outline:2px solid #111;outline-offset:2px;}"
+      "css": ".ds-tabs{display:flex;gap:24px;} .ds-tab{min-height:44px;padding:0;border:0;border-bottom:2px solid transparent;background:none;font:500 17px var(--font, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif);color:#62625c;cursor:pointer;} .ds-tab:hover{color:#161616;} .ds-tab.is-on{color:#161616;border-bottom-color:#161616;} .ds-tab:focus-visible{outline:2px solid var(--focus,#1a22b0);outline-offset:2px;}"
     },
     {
       "name": "Calendar Legend",
@@ -454,7 +550,7 @@
       "refersTo": "legend",
       "description": "Each calendar as its shape and name; doubles as the filter. Off turns to a faint outline.",
       "html": "<div class=\"ds-legend\"><span class=\"ds-leg\"><svg class=\"ds-shape ds-blue\" viewBox=\"0 0 24 24\"><circle cx=\"12\" cy=\"12\" r=\"10.5\" vector-effect=\"non-scaling-stroke\"/></svg>SportsCenter</span><span class=\"ds-leg\"><svg class=\"ds-shape ds-red\" viewBox=\"0 0 24 24\"><rect x=\"2\" y=\"2\" width=\"20\" height=\"20\" vector-effect=\"non-scaling-stroke\"/></svg>TSA</span><span class=\"ds-leg is-off\"><svg class=\"ds-shape ds-yellow\" viewBox=\"0 0 24 24\"><path d=\"M12 1.8 22.6 21.6H1.4Z\" vector-effect=\"non-scaling-stroke\"/></svg>Off calendar</span></div>",
-      "css": ".ds-legend{display:flex;flex-wrap:wrap;gap:0 24px;font:400 15px 'Jost','PingFang TC',system-ui,sans-serif;color:#111;} .ds-leg{display:inline-flex;align-items:center;gap:8px;min-height:44px;cursor:pointer;} .ds-shape{width:14px;height:14px;overflow:visible;stroke:#111;stroke-width:1.5px;stroke-linejoin:miter;} .ds-blue{fill:#1f4fa3;} .ds-red{fill:#d9352b;} .ds-yellow{fill:#f2c230;} .ds-leg.is-off{color:#676767;} .ds-leg.is-off .ds-shape{fill:none;stroke:#676767;}"
+      "css": ".ds-legend{display:flex;flex-wrap:wrap;gap:0 24px;font:400 15px var(--font, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif);color:#161616;} .ds-leg{display:inline-flex;align-items:center;gap:8px;min-height:44px;cursor:pointer;} .ds-shape{width:14px;height:14px;overflow:visible;stroke:#161616;stroke-width:1.5px;stroke-linejoin:miter;} .ds-blue{fill:#1a22b0;} .ds-red{fill:#d63a2a;} .ds-yellow{fill:#eeae53;} .ds-leg.is-off{color:#62625c;} .ds-leg.is-off .ds-shape{fill:none;stroke:#62625c;}"
     },
     {
       "name": "Seat Slots",
@@ -462,7 +558,7 @@
       "refersTo": "seat-slots",
       "description": "Capacity as a row of the calendar's shape: outline open, colour taken, all ink when full.",
       "html": "<div class=\"ds-seats\"><span class=\"ds-slots\"><svg class=\"ds-shape ds-slot is-taken\" viewBox=\"0 0 24 24\"><path d=\"M12 1.8 22.6 21.6H1.4Z\" vector-effect=\"non-scaling-stroke\"/></svg><svg class=\"ds-shape ds-slot is-taken\" viewBox=\"0 0 24 24\"><path d=\"M12 1.8 22.6 21.6H1.4Z\" vector-effect=\"non-scaling-stroke\"/></svg><svg class=\"ds-shape ds-slot is-taken\" viewBox=\"0 0 24 24\"><path d=\"M12 1.8 22.6 21.6H1.4Z\" vector-effect=\"non-scaling-stroke\"/></svg><svg class=\"ds-shape ds-slot is-taken\" viewBox=\"0 0 24 24\"><path d=\"M12 1.8 22.6 21.6H1.4Z\" vector-effect=\"non-scaling-stroke\"/></svg><svg class=\"ds-shape ds-slot is-taken\" viewBox=\"0 0 24 24\"><path d=\"M12 1.8 22.6 21.6H1.4Z\" vector-effect=\"non-scaling-stroke\"/></svg><svg class=\"ds-shape ds-slot\" viewBox=\"0 0 24 24\"><path d=\"M12 1.8 22.6 21.6H1.4Z\" vector-effect=\"non-scaling-stroke\"/></svg><svg class=\"ds-shape ds-slot\" viewBox=\"0 0 24 24\"><path d=\"M12 1.8 22.6 21.6H1.4Z\" vector-effect=\"non-scaling-stroke\"/></svg><svg class=\"ds-shape ds-slot\" viewBox=\"0 0 24 24\"><path d=\"M12 1.8 22.6 21.6H1.4Z\" vector-effect=\"non-scaling-stroke\"/></svg></span><span class=\"ds-seats-label\">5 of 8 spots taken</span></div><div class=\"ds-seats is-full\"><span class=\"ds-slots\"><svg class=\"ds-shape ds-slot is-taken\" viewBox=\"0 0 24 24\"><circle cx=\"12\" cy=\"12\" r=\"10.5\" vector-effect=\"non-scaling-stroke\"/></svg><svg class=\"ds-shape ds-slot is-taken\" viewBox=\"0 0 24 24\"><circle cx=\"12\" cy=\"12\" r=\"10.5\" vector-effect=\"non-scaling-stroke\"/></svg><svg class=\"ds-shape ds-slot is-taken\" viewBox=\"0 0 24 24\"><circle cx=\"12\" cy=\"12\" r=\"10.5\" vector-effect=\"non-scaling-stroke\"/></svg><svg class=\"ds-shape ds-slot is-taken\" viewBox=\"0 0 24 24\"><circle cx=\"12\" cy=\"12\" r=\"10.5\" vector-effect=\"non-scaling-stroke\"/></svg></span><span class=\"ds-seats-label\">Full · 4 of 4</span></div>",
-      "css": ".ds-seats{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin-bottom:12px;font:400 14px 'Jost',system-ui,sans-serif;font-variant-numeric:tabular-nums;} .ds-slots{display:flex;gap:5px;} .ds-slot{width:16px;height:16px;overflow:visible;fill:#fff;stroke:#111;stroke-width:1.5px;stroke-linejoin:miter;transform-origin:center;} .ds-seats:first-child .ds-slot.is-taken{fill:#f2c230;} .ds-seats.is-full .ds-slot{fill:#111;} .ds-seats-label{color:#444;} .ds-seats.is-full .ds-seats-label{color:#111;font-weight:600;} .ds-seats:hover .ds-slot.is-taken{animation:ds-grow 480ms cubic-bezier(0.16,1,0.3,1);} @keyframes ds-grow{from{transform:scale(0)}to{transform:scale(1)}}"
+      "css": ".ds-seats{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin-bottom:12px;font:400 14px var(--font, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif);font-variant-numeric:tabular-nums;} .ds-slots{display:flex;gap:5px;} .ds-slot{width:16px;height:16px;overflow:visible;fill:#efefea;stroke:#161616;stroke-width:1.5px;stroke-linejoin:miter;transform-origin:center;} .ds-seats:first-child .ds-slot.is-taken{fill:#eeae53;} .ds-seats.is-full .ds-slot{fill:#161616;} .ds-seats-label{color:#55554f;} .ds-seats.is-full .ds-seats-label{color:#161616;font-weight:600;} .ds-seats:hover .ds-slot.is-taken{animation:ds-grow 480ms cubic-bezier(0.16,1,0.3,1);} @keyframes ds-grow{from{transform:scale(0)}to{transform:scale(1)}}"
     },
     {
       "name": "14-Day Band",
@@ -470,15 +566,15 @@
       "refersTo": "band",
       "description": "Fourteen day columns between ink rules; each event its calendar's shape sized by headcount, Today as a 3px ink bar.",
       "html": "<ol class=\"ds-band\"><li class=\"ds-day is-today\"><span class=\"ds-dow\">S</span><span class=\"ds-date\">27</span></li><li class=\"ds-day\"><span class=\"ds-dow\">M</span><span class=\"ds-date\">28</span><svg class=\"ds-shape ds-yellow\" viewBox=\"0 0 24 24\"style=\"width:18px;height:18px\"><path d=\"M12 1.8 22.6 21.6H1.4Z\" vector-effect=\"non-scaling-stroke\"/></svg></li><li class=\"ds-day\"><span class=\"ds-dow\">T</span><span class=\"ds-date\">29</span></li><li class=\"ds-day\"><span class=\"ds-dow\">W</span><span class=\"ds-date\">30</span><svg class=\"ds-shape ds-blue\" viewBox=\"0 0 24 24\"style=\"width:24px;height:24px\"><circle cx=\"12\" cy=\"12\" r=\"10.5\" vector-effect=\"non-scaling-stroke\"/></svg></li><li class=\"ds-day\"><span class=\"ds-dow\">T</span><span class=\"ds-date\">1</span></li><li class=\"ds-day\"><span class=\"ds-dow\">F</span><span class=\"ds-date\">2</span><svg class=\"ds-shape ds-red\" viewBox=\"0 0 24 24\"style=\"width:30px;height:30px\"><rect x=\"2\" y=\"2\" width=\"20\" height=\"20\" vector-effect=\"non-scaling-stroke\"/></svg></li><li class=\"ds-day\"><span class=\"ds-dow\">S</span><span class=\"ds-date\">3</span></li></ol>",
-      "css": ".ds-band{list-style:none;display:grid;grid-template-columns:repeat(7,minmax(0,1fr));margin:0;padding:0;border-top:1.5px solid #111;border-bottom:1.5px solid #111;font:400 14px 'Jost',system-ui,sans-serif;font-variant-numeric:tabular-nums;} .ds-day{position:relative;display:flex;flex-direction:column;align-items:center;gap:8px;min-height:112px;padding:8px 0 12px;} .ds-day.is-today::before{content:'';position:absolute;top:0;bottom:0;left:0;width:3px;background:#111;} .ds-dow{font-size:12px;color:#676767;} .ds-date{display:grid;place-items:center;min-width:22px;height:22px;font-weight:500;} .ds-day.is-today .ds-date{background:#111;color:#fff;} .ds-shape{overflow:visible;stroke:#111;stroke-width:1.5px;stroke-linejoin:miter;transform-origin:center;transition:transform 180ms cubic-bezier(0.16,1,0.3,1);} .ds-shape:hover{transform:scale(1.12);} .ds-blue{fill:#1f4fa3;} .ds-red{fill:#d9352b;} .ds-yellow{fill:#f2c230;}"
+      "css": ".ds-band{list-style:none;display:grid;grid-template-columns:repeat(7,minmax(0,1fr));margin:0;padding:0;border-top:2px solid #161616;border-bottom:2px solid #161616;font:400 14px var(--font, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif);font-variant-numeric:tabular-nums;} .ds-day{position:relative;display:flex;flex-direction:column;align-items:center;gap:8px;min-height:112px;padding:8px 0 12px;} .ds-day.is-today::before{content:'';position:absolute;top:0;bottom:0;left:0;width:3px;background:#161616;} .ds-dow{font-size:12px;color:#62625c;} .ds-date{display:grid;place-items:center;min-width:22px;height:22px;font-weight:500;} .ds-day.is-today .ds-date{background:#161616;color:#efefea;} .ds-shape{overflow:visible;stroke:#161616;stroke-width:1.5px;stroke-linejoin:miter;transform-origin:center;transition:transform 180ms cubic-bezier(0.16,1,0.3,1);} .ds-shape:hover{transform:scale(1.12);} .ds-blue{fill:#1a22b0;} .ds-red{fill:#d63a2a;} .ds-yellow{fill:#eeae53;}"
     },
     {
       "name": "Admin Tabs",
       "kind": "nav",
       "refersTo": "admin-tab",
-      "description": "Admin page tabs over a content-width 1.5px ink rule; current page ink with a 2px underline.",
+      "description": "Admin page tabs over a content-width 2px ink rule; current page ink with a 2px underline.",
       "html": "<nav class=\"ds-admin-nav\"><a href=\"#\" aria-current=\"page\">Events</a><a href=\"#\">Donations</a><a href=\"#\">Booking queue</a></nav><h1 class=\"ds-admin-title\">Events</h1><p class=\"ds-admin-sub\">Attendance limits per event.</p>",
-      "css": ".ds-admin-nav { display: flex; gap: 24px; padding: 0 0 12px; border-bottom: 1.5px solid var(--ink, #111111); font-family: var(--font, Jost, system-ui, sans-serif); } .ds-admin-nav a { display: flex; align-items: center; min-height: 44px; font-size: 15px; font-weight: 500; color: var(--ink-3, #676767); text-decoration: none; border-bottom: 2px solid transparent; } .ds-admin-nav a:hover { color: var(--ink, #111111); } .ds-admin-nav a[aria-current=\"page\"] { color: var(--ink, #111111); border-bottom-color: var(--ink, #111111); } .ds-admin-nav a:focus-visible { outline: 2px solid var(--ink, #111111); outline-offset: 2px; } .ds-admin-title { margin: 16px 0 0; font-family: var(--font, Jost, system-ui, sans-serif); font-size: 26px; font-weight: 600; line-height: 1.25; letter-spacing: -0.01em; color: var(--ink, #111111); } .ds-admin-sub { margin: 8px 0 0; font-family: var(--font, Jost, system-ui, sans-serif); font-size: 14px; color: var(--ink-2, #444444); }"
+      "css": ".ds-admin-nav { display: flex; gap: 24px; padding: 0 0 12px; border-bottom: 2px solid var(--ink, #161616); font-family: var(--font, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif); } .ds-admin-nav a { display: flex; align-items: center; min-height: 44px; font-size: 15px; font-weight: 500; color: var(--ink-3, #62625c); text-decoration: none; border-bottom: 2px solid transparent; } .ds-admin-nav a:hover { color: var(--ink, #161616); } .ds-admin-nav a[aria-current=\"page\"] { color: var(--ink, #161616); border-bottom-color: var(--ink, #161616); } .ds-admin-nav a:focus-visible { outline: 2px solid var(--focus, #1a22b0); outline-offset: 2px; } .ds-admin-title { margin: 16px 0 0; font-family: var(--font, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif); font-size: 26px; font-weight: 600; line-height: 1.25; letter-spacing: -0.01em; color: var(--ink, #161616); } .ds-admin-sub { margin: 8px 0 0; font-family: var(--font, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif); font-size: 14px; color: var(--ink-2, #55554f); }"
     },
     {
       "name": "Status Marks",
@@ -486,7 +582,7 @@
       "refersTo": "status-mark",
       "description": "A 10px ink square beside a booking status word; the word always carries the meaning.",
       "html": "<ul class=\"ds-marks\"><li><span class=\"ds-mark ds-mark-solid\"></span>Request sent</li><li><span class=\"ds-mark\"></span>Waiting for reply</li><li><span class=\"ds-mark ds-mark-half\"></span>Missed</li><li><span class=\"ds-mark ds-mark-cross\"></span>Request failed</li><li class=\"ds-muted\"><span class=\"ds-mark ds-mark-slash\"></span>Not sent</li></ul>",
-      "css": ".ds-marks { list-style: none; margin: 0; padding: 0; font-family: var(--font, Jost, system-ui, sans-serif); font-size: 14px; font-weight: 600; color: var(--ink, #111111); } .ds-marks li { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-top: 1px solid var(--hair, #e2e2e2); } .ds-marks li:first-child { border-top: 0; } .ds-muted { font-weight: 500; color: var(--ink-2, #444444) !important; } .ds-mark { position: relative; display: inline-block; flex: none; width: 10px; height: 10px; border: 1.5px solid var(--ink, #111111); background: var(--paper, #ffffff); } .ds-mark-solid { background: var(--ink, #111111); } .ds-mark-half::after { content: \"\"; position: absolute; inset: 50% 0 0 0; background: var(--ink, #111111); } .ds-mark-slash::after, .ds-mark-cross::after, .ds-mark-cross::before { content: \"\"; position: absolute; left: 50%; top: -3px; bottom: -3px; width: 1.5px; margin-left: -0.75px; background: var(--ink, #111111); transform: rotate(45deg); } .ds-mark-cross { background: var(--ink, #111111); } .ds-mark-cross::before, .ds-mark-cross::after { top: 0; bottom: 0; background: var(--paper, #ffffff); } .ds-mark-cross::before { transform: rotate(-45deg); }"
+      "css": ".ds-marks { list-style: none; margin: 0; padding: 0; font-family: var(--font, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif); font-size: 14px; font-weight: 600; color: var(--ink, #161616); } .ds-marks li { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-top: 1px solid var(--line, #85857e); } .ds-marks li:first-child { border-top: 0; } .ds-muted { font-weight: 500; color: var(--ink-2, #55554f) !important; } .ds-mark { position: relative; display: inline-block; flex: none; width: 10px; height: 10px; border: 2px solid var(--ink, #161616); background: var(--paper, #efefea); } .ds-mark-solid { background: var(--ink, #161616); } .ds-mark-half::after { content: \"\"; position: absolute; inset: 50% 0 0 0; background: var(--ink, #161616); } .ds-mark-slash::after, .ds-mark-cross::after, .ds-mark-cross::before { content: \"\"; position: absolute; left: 50%; top: -3px; bottom: -3px; width: 1.5px; margin-left: -0.75px; background: var(--ink, #161616); transform: rotate(45deg); } .ds-mark-cross { background: var(--ink, #161616); } .ds-mark-cross::before, .ds-mark-cross::after { top: 0; bottom: 0; background: var(--paper, #efefea); } .ds-mark-cross::before { transform: rotate(-45deg); }"
     },
     {
       "name": "Balance Bar",
@@ -494,7 +590,7 @@
       "refersTo": "balance-bar",
       "description": "Donate's zero-centred ink meter; the fill scales out from the zero tick.",
       "html": "<div class=\"ds-bal\"><div class=\"ds-bal-track\"><span class=\"ds-bal-fill\"></span><span class=\"ds-bal-zero\"></span></div><div class=\"ds-bal-meta\"><span>-500</span><span>0</span><span>500</span></div></div>",
-      "css": ".ds-bal { max-width: 400px; font-family: var(--font, Jost, system-ui, sans-serif); } .ds-bal-track { position: relative; height: 14px; border: 1.5px solid var(--ink, #111111); } .ds-bal-zero { position: absolute; top: -3px; bottom: -3px; left: 50%; width: 2px; transform: translateX(-50%); background: var(--ink, #111111); } .ds-bal-fill { position: absolute; top: 0; bottom: 0; left: 50%; width: 50%; background: var(--ink, #111111); transform: scaleX(0.6); transform-origin: left center; transition: transform 400ms cubic-bezier(0.16, 1, 0.3, 1); } .ds-bal:hover .ds-bal-fill { transform: scaleX(0.8); } .ds-bal-meta { display: grid; grid-template-columns: 1fr 1fr 1fr; margin-top: 8px; font-size: 14px; color: var(--ink-2, #444444); font-variant-numeric: tabular-nums; } .ds-bal-meta > :nth-child(2) { text-align: center; } .ds-bal-meta > :nth-child(3) { text-align: right; }"
+      "css": ".ds-bal { max-width: 400px; font-family: var(--font, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif); } .ds-bal-track { position: relative; height: 14px; border: 2px solid var(--ink, #161616); } .ds-bal-zero { position: absolute; top: -3px; bottom: -3px; left: 50%; width: 2px; transform: translateX(-50%); background: var(--ink, #161616); } .ds-bal-fill { position: absolute; top: 0; bottom: 0; left: 50%; width: 50%; background: var(--ink, #161616); transform: scaleX(0.6); transform-origin: left center; transition: transform 400ms cubic-bezier(0.16, 1, 0.3, 1); } .ds-bal:hover .ds-bal-fill { transform: scaleX(0.8); } .ds-bal-meta { display: grid; grid-template-columns: 1fr 1fr 1fr; margin-top: 8px; font-size: 14px; color: var(--ink-2, #55554f); font-variant-numeric: tabular-nums; } .ds-bal-meta > :nth-child(2) { text-align: center; } .ds-bal-meta > :nth-child(3) { text-align: right; }"
     },
     {
       "name": "Row Status",
@@ -502,34 +598,45 @@
       "refersTo": "row-status",
       "description": "An admin action's result printed under its row; no toast, no coloured marker.",
       "html": "<div class=\"ds-row\"><div class=\"ds-row-title\">Badminton, Tuesday</div><div class=\"ds-row-meta\">Tue 14 Oct · 19:30</div><p class=\"ds-row-status\">Limit saved.</p><p class=\"ds-row-status is-error\">Could not save the limit.</p></div>",
-      "css": ".ds-row { padding: 16px 0; border-bottom: 1px solid var(--hair, #e2e2e2); font-family: var(--font, Jost, system-ui, sans-serif); color: var(--ink, #111111); } .ds-row-title { font-size: 16px; font-weight: 600; } .ds-row-meta { margin-top: 2px; font-size: 14px; color: var(--ink-2, #444444); font-variant-numeric: tabular-nums; } .ds-row-status { margin: 8px 0 0; font-size: 14px; color: var(--ink-2, #444444); } .ds-row-status.is-error { color: var(--ink, #111111); font-weight: 500; }"
+      "css": ".ds-row { padding: 16px 0; border-bottom: 1px solid var(--line, #85857e); font-family: var(--font, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif); color: var(--ink, #161616); } .ds-row-title { font-size: 16px; font-weight: 600; } .ds-row-meta { margin-top: 2px; font-size: 14px; color: var(--ink-2, #55554f); font-variant-numeric: tabular-nums; } .ds-row-status { margin: 8px 0 0; font-size: 14px; color: var(--ink-2, #55554f); } .ds-row-status.is-error { color: var(--ink, #161616); font-weight: 500; }"
     }
   ],
   "narrative": {
     "northStar": "The Shape Calendar",
-    "overview": "Lilai follows a Bauhaus form-colour grammar on white paper. Each enabled calendar owns one primary shape, assigned in config order: a blue circle, a red square, a yellow triangle. A fourth calendar, or an event with no known source, gets an ink diamond. The shape is the calendar's identity everywhere it appears: the wordmark, the 14-day band, the legend, the event title mark, the seat slots and the admin Events rows. The band reads as an abstract composition drawn from the real events.\n\nEverything else is black ink on white. Text, rules and buttons carry no colour, so the primaries stay loud and always mean \"this calendar\". Content is divided by 1.5px ink rules, never boxed into cards. Metadata sits at one constant size. The only thing that breaks scale is the date numeral of the next event, so the page has one entry point.\n\nMotion is scarce and tied to state. When attendance changes, a shape scales from its centre with an exponential ease-out. A new RSVP prints bold into the names list. Nothing moves on load, and reduced motion is instant.\n\n**Scope.** Every page is in the system. Each loads `public/css/lilai.css` (tokens and shared components) and then its own page stylesheet: Home uses `lilai.css` alone, FAQ adds `faq.css`, Donate adds `donate.css`, and admin Events, admin Donations, the Booking queue and booking detail add `admin.css` (the booking pages then add `booking.css`). The legacy `public/styles.css` is deleted.",
+    "overview": "Lilai follows a Bauhaus form-colour grammar on off-white paper. Each enabled calendar owns one primary shape, assigned in config order: a blue circle, a red square, a yellow triangle. A fourth calendar, or an event with no known source, gets an ink diamond. The shape is the calendar's identity everywhere it appears: the wordmark, the 14-day band, the legend, the event title mark, the seat slots and the admin Events rows. The band reads as an abstract composition drawn from the real events.\n\nEverything else is ink on paper. Text, rules and buttons carry no colour, so the primaries stay loud and always mean \"this calendar\". Each event sits in its own square box with a 2px ink outline on raised paper, so where one ends and the next begins is plain; sections are divided by 2px ink rules. Labels are short uppercase Jost. Metadata sits at one constant size. Every event carries the same weight: there is no lead event. The date numerals are the only type that breaks scale, all at one size.\n\nMotion is scarce and tied to state. When attendance changes, a shape scales from its centre with an exponential ease-out. A new RSVP prints bold into the names list. Nothing moves on load, and reduced motion is instant.\n\n**The kit.** Lilai's base tokens come from the owner's Bauhaus kit at `~/code/bauhaus`. Its source of truth is the claude.ai artifact https://claude.ai/artifact/LS4XQ7G4sWamw5Tpt9ooFJ. The kit owns the palette and both themes, the stroke weights, the radii, the label style and Jost. Lilai holds a verbatim copy at `public/bauhaus/tokens.css`, with Jost in `public/bauhaus/fonts/`, and records the kit commit it copied in `public/bauhaus/KIT_COMMIT`. To update: copy the kit's `tokens.css` and `fonts/` over `public/bauhaus/`, write the new commit hash into `KIT_COMMIT`, then check both themes on Home, a sheet and an admin page. Never edit `public/bauhaus/tokens.css` by hand. Lilai's own names and additions live at the top of `lilai.css`, written in terms of the kit's tokens.\n\n**Deviations from the kit.** Each is deliberate.\n- **The solid button is ink, never red.** The kit's primary button is a red fill. In lilai red is the second calendar's colour, so a red button would read as that calendar.\n- **The field error mark is an 8px ink square.** The kit marks errors with a red square and a red border. A red square is the second calendar's shape.\n- **Running text uses the device's UI sans.** The kit sets everything in Jost. Users found the all-Jost version (2026-09-27 to 2026-10-02) harder to read, so Jost sets only headings, numerals and labels.\n- **Spacing keeps lilai's eight-step scale (4px to 64px).** The kit's four steps (8, 16, 32, 64) are all on it; lilai's band, slots and dense admin rows need the 4px, 12px, 24px and 48px steps.\n- **Lilai keeps its own type ramp, motion, band, seat slots and status marks.** The kit's 72px display and 44px H1 have no place on a list of meetups; lilai titles stop at 30px.\n- **Buttons are 44px tall, not the kit's 40px,** so every touch target holds 44px. Event buttons step down to 40px.\n- **The text button keeps an ink underline on hover.** The kit turns a quiet button's underline red.\n\n**Scope.** Every page is in the system. Each loads `public/bauhaus/tokens.css` first, then `public/css/lilai.css` (lilai's additions and shared components), then its own page stylesheet: Home uses `lilai.css` alone, FAQ adds `faq.css`, Donate adds `donate.css`, and admin Events, admin Donations, the Booking queue and booking detail add `admin.css` (the booking pages then add `booking.css`). The legacy `public/styles.css` is deleted.",
     "keyCharacteristics": [
       "One primary shape per calendar, flat fill, 1.5px ink contour.",
-      "Primaries appear only inside shapes (plus the yellow text selection).",
-      "Ink rules divide content; 1px hairlines divide dense rows inside a section. There are no cards, shadows, gradients or rounded corners.",
-      "Constant 14px metadata; only numerals break scale (96px on the lead event and the booking detail date).",
+      "Primaries appear only inside shapes. The exceptions are the yellow text selection, the blue focus ring and outbound links, which all come from the kit.",
+      "Square corners everywhere. Controls, fields and event boxes carry a 2px ink outline; sections are divided by 2px ink rules; 1px line-grey hairlines divide dense rows inside a section. There are no shadows or gradients.",
+      "Every event has the same size and the same line Join button. The 14-day band and its readout already show what comes next.",
+      "Constant 14px metadata; only numerals break scale (the event dates, the Donate balance, 96px on the booking detail date).",
       "Shapes carry state: outline open, calendar colour taken, all ink full, grey outline past.",
       "Motion happens on state change only, scaling shapes from their centre."
     ],
     "rules": [
       {
         "name": "The Shapes-Only Primaries Rule",
-        "body": "Blue, red and yellow appear only as the fill of a calendar shape. Text, rules, buttons, links and grounds are ink or paper. The one exception is the yellow text selection.",
+        "body": "Blue, red and yellow appear only as the fill of a calendar shape. Text, rules, buttons and grounds are ink or paper. Three exceptions come from the kit and stay narrow: the yellow text selection, the blue focus ring, and the link colour on outbound links from content.",
         "section": "colors"
       },
       {
         "name": "The One Shape Per Calendar Rule",
-        "body": "Calendars take circle/blue, square/red, triangle/yellow in config order. The fourth and later calendars, and unsourced events, take the ink diamond. Never give a calendar a second shape or colour, and never use a primary shape for something that is not a calendar.",
+        "body": "Calendars take circle/blue, square/red, triangle/yellow in config order. The fourth and later calendars, and unsourced events, take the ink diamond. Never give a calendar a second shape or colour, and never use a primary shape for something that is not a calendar. On the band and its readout, a title emoji replaces the shape for that one event; everywhere else the event keeps its calendar's shape.",
+        "section": "colors"
+      },
+      {
+        "name": "The Kit Owns Tokens Rule",
+        "body": "Change a kit colour, stroke or radius in `~/code/bauhaus` and copy it across. Lilai adds tokens in `lilai.css`; it never overrides a kit value.",
         "section": "colors"
       },
       {
         "name": "The Constant Meta Rule",
         "body": "Every piece of metadata, in every component, is 14px. Hierarchy comes from weight and ink tone. Only numerals grow: the date numeral, and the balance on Donate.",
+        "section": "typography"
+      },
+      {
+        "name": "The Label Rule",
+        "body": "A word that names a control or a group (a button, a field, a section, a table column) is set in the label style. Reading text never is.",
         "section": "typography"
       },
       {
@@ -539,17 +646,17 @@
       },
       {
         "name": "The Flat Paper Rule",
-        "body": "Nothing casts a shadow. When a layer must sit above the page, it gets the 40% ink scrim and an ink rule on its edge.",
+        "body": "Nothing casts a shadow. When a layer must sit above the page, it gets paper-raised, the scrim behind it and a 2px ink rule on its edge.",
         "section": "elevation"
       },
       {
-        "name": "The Rules Not Boxes Rule",
-        "body": "Content is divided by full-width 1.5px ink rules above each event, section and sidebar block. Only controls (buttons, inputs), the desktop sheet, the status mark and the balance bar carry a full border.",
+        "name": "The Event Box Rule",
+        "body": "Each event on Home is a square box with a 2px ink outline on paper-raised, 24px padding (16px sides on phones) and 12px between boxes. Sections and sidebar blocks are divided by full-width 2px ink rules. The box replaced a bare rule above each event on 2026-10-02, because users could not tell where one event ended. Only events, controls (buttons, inputs, choice chips), the desktop sheet, the status mark and the balance bar carry a full border.",
         "section": "shapes"
       },
       {
         "name": "The Hairline Rule",
-        "body": "Inside a section, a dense list divides its rows with a 1px hairline, and keeps the 1.5px ink rule for its edges: above the list and under a table's column heads. Admin tables, the booking timeline, the booking detail table and the FAQ table all work this way. A hairline never starts or ends a section. The heavier 3px ink rule marks a moment: Today on Home, NOW on the booking timeline, the row in flight, and a stale-data notice.",
+        "body": "Inside a section, a dense list divides its rows with a 1px line-grey hairline, and keeps the 2px ink rule for its edges: above the list, and under a table's column heads when it has them. Admin tables, the booking timeline, the booking detail table and the FAQ table all work this way. A hairline never starts or ends a section. The heavier 3px ink rule marks a moment: Today on Home (between event boxes, 24px above it), NOW on the booking timeline, the row in flight, and a stale-data notice.",
         "section": "shapes"
       },
       {
@@ -564,22 +671,28 @@
       }
     ],
     "dos": [
+      "Do take colours, strokes, radii and Jost from the kit's `tokens.css`, and change them in `~/code/bauhaus` first.",
       "Do give each calendar its shape in config order (circle/blue, square/red, triangle/yellow) and the ink diamond to the fourth and later calendars and unsourced events.",
       "Do draw every shape with a flat fill and a 1.5px ink contour.",
-      "Do divide content with full-width 1.5px ink rules, and the rows of a dense list with 1px hairlines.",
-      "Do keep metadata at 14px and let only numerals break scale (96px on the lead event and the booking detail date).",
+      "Do box each event in a 2px ink outline on paper-raised, divide sections with full-width 2px ink rules, and the rows of a dense list with 1px line-grey hairlines.",
+      "Do set button labels, field labels, section titles and table heads in the label style (Jost 12px 700, 0.1em, uppercase).",
+      "Do show hover by swapping fills: line to ink, solid to paper.",
+      "Do keep metadata at 14px and let only numerals break scale (event dates, the Donate balance, 96px on the booking detail date).",
       "Do carry status in a word, with ink weight and a 10px ink status mark as the second channel.",
-      "Do show capacity with the four slot states: outline open, calendar colour taken, all ink full, grey outline past.",
+      "Do show capacity with the four slot states (outline open, calendar colour taken, all ink full, grey outline past) on events of 10 places or fewer, and with the label alone otherwise.",
       "Do print a new RSVP bold into the names list and grow its slot from the centre.",
-      "Do keep touch targets at least 44px tall and focus as a 2px ink outline offset 2px."
+      "Do keep touch targets at least 44px tall and focus as a 2px focus-blue outline offset 2px."
     ],
     "donts": [
-      "Don't put blue, red or yellow on text, rules, buttons, links or grounds.",
-      "Don't use shadows, gradients, rounded corners on containers or controls, or card boxes.",
+      "Don't put blue, red or yellow on text, rules, buttons or grounds. The kit's focus ring and outbound link colour are the only blue outside a shape.",
+      "Don't make the solid button or the error mark red; red is a calendar.",
+      "Don't round a rectangle: no pills, no soft fields, no rounded boxes. Only the circle shape curves.",
+      "Don't use shadows or gradients, or show hover by fading.",
       "Don't confirm an RSVP or an admin action with a toast or banner.",
       "Don't animate on page load, or use bouncy or spring motion.",
-      "Don't introduce a second typeface for Latin text; Jost carries display and body.",
-      "Don't reuse a primary shape as decoration or for anything that is not a calendar."
+      "Don't set running text in Jost, or add a third typeface; Jost is for headings, numerals and labels, the system sans for reading.",
+      "Don't reuse a primary shape as decoration or for anything that is not a calendar.",
+      "Don't edit `public/bauhaus/tokens.css` by hand, or redefine a kit token in `lilai.css`."
     ]
   }
 }

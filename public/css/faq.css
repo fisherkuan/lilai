@@ -77,8 +77,10 @@
 
 .faq-list > .faq-section-header:first-child { margin-top: 0; }
 
+/* Questions inside a section are a dense list: 1px hairlines between them. The 2px ink
+   rule belongs to the section header above. */
 .faq-item {
-    border-top: var(--rule) solid var(--ink);
+    border-top: 1px solid var(--hair);
 }
 
 .faq-section-header + .faq-item { border-top: 0; }

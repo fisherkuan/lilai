@@ -1,0 +1,136 @@
+/* Bauhaus (Bauhaus with Fisher's twist). Generated from tokens.json: edit tokens.json, not this file by hand. */
+
+@font-face { font-family: "Jost"; src: url("fonts/jost-latin.woff2") format("woff2"); font-weight: 400 700; font-display: swap;
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+@font-face { font-family: "Jost"; src: url("fonts/jost-latin-ext.woff2") format("woff2"); font-weight: 400 700; font-display: swap;
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+
+/* Light theme (default) */
+:root {
+  --paper: #efefea;
+  --paper-raised: #fafaf7;
+  --stone: #dcdbd3;
+  --line: #85857e;
+  --ink: #161616;
+  --ink-muted: #55554f;
+  --red: #d63a2a;
+  --blue: #1a22b0;
+  --yellow: #eeae53;
+  --on-red: #ffffff;
+  --on-blue: #fafaf7;
+  --on-yellow: #161616;
+  --link: var(--blue);
+  --focus: var(--blue);
+}
+
+/* Dark theme from the OS setting, unless the page forces light */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #111214;
+    --paper-raised: #1b1c1f;
+    --stone: #26272b;
+    --line: #77787d;
+    --ink: #f2f2ee;
+    --ink-muted: #aeafb3;
+    --red: #ff3b28;
+    --blue: #4d5fff;
+    --yellow: #ffb000;
+    --on-red: #111214;
+    --on-blue: #ffffff;
+    --on-yellow: #111214;
+    --link: #7f8aff;
+    --focus: var(--blue);
+  }
+}
+
+/* Dark theme forced by the page */
+:root[data-theme="dark"] {
+  --paper: #111214;
+  --paper-raised: #1b1c1f;
+  --stone: #26272b;
+  --line: #77787d;
+  --ink: #f2f2ee;
+  --ink-muted: #aeafb3;
+  --red: #ff3b28;
+  --blue: #4d5fff;
+  --yellow: #ffb000;
+  --on-red: #111214;
+  --on-blue: #ffffff;
+  --on-yellow: #111214;
+  --link: #7f8aff;
+  --focus: var(--blue);
+}
+
+/* Spacing, radius, stroke and type */
+:root {
+  --space-1: 8px; /* Gaps inside a control: icon to label, tight stacks. */
+  --space-2: 16px; /* Control padding, gaps between related items; the checker pitch inside a tile. */
+  --space-3: 32px; /* Card padding, gaps between groups. */
+  --space-4: 64px; /* The module: the default tile size, section spacing and the layout grid unit. */
+  --radius-0: 0; /* The default for every rectangle: cards, panels, buttons, inputs, tags. Squares stay square. */
+  --radius-sm: 2px; /* Checkboxes and other marks under 16px only, where a hard corner looks broken at size. */
+  --radius-full: 9999px; /* Circles: avatars, status dots, the circle shape. Never on a rectangle (no pills). */
+  --stroke-1: 1px; /* Hairline rules and table dividers, in line. */
+  --stroke-2: 2px; /* Control borders, card outlines and the focus ring, in ink (focus in focus). */
+  --font-sans: Jost, "Futura", "Century Gothic", system-ui, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, monospace;
+  --text-display: 700 72px/68px var(--font-sans); /* One per page, at most: hero headlines and section openers. Tight, heavy, flush left. */
+  --text-h1: 700 44px/48px var(--font-sans); /* Page titles. */
+  --text-h2: 600 28px/32px var(--font-sans); /* Section headings. */
+  --text-h3: 600 20px/28px var(--font-sans); /* Card titles and sub-sections. */
+  --text-body: 400 16px/24px var(--font-sans); /* Running text, form values. */
+  --text-small: 400 13px/20px var(--font-sans); /* Captions and help text, in ink-muted. */
+  --text-label: 700 12px/16px var(--font-sans); /* Eyebrows, button labels, tags and table headers. Set in uppercase. */
+}
+
+/* Text styles */
+.display {
+  font-family: var(--font-sans);
+  font-size: 72px;
+  line-height: 68px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+.h1 {
+  font-family: var(--font-sans);
+  font-size: 44px;
+  line-height: 48px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+.h2 {
+  font-family: var(--font-sans);
+  font-size: 28px;
+  line-height: 32px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.h3 {
+  font-family: var(--font-sans);
+  font-size: 20px;
+  line-height: 28px;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+.body {
+  font-family: var(--font-sans);
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+.small {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  line-height: 20px;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+.label {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}

@@ -4,7 +4,7 @@
 
    Operate surfaces stay dense and scannable: tabular numerals in counts
    and amounts, amounts right-aligned. No cards, no shadows — content is
-   divided by 1.5px ink rules, same as Home. */
+   divided by 2px ink rules, same as Home. */
 
 /* ---------- Admin nav ---------- */
 
@@ -106,13 +106,19 @@
 .data-table thead th {
     padding-top: 0;
     padding-bottom: var(--s3);
-    font-size: var(--meta);
-    font-weight: 600;
+    font-family: var(--font-display);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
     border-bottom: var(--rule) solid var(--ink);
     white-space: nowrap;
 }
 
 .data-table tbody tr:last-child td { border-bottom: 0; }
+
+/* A table without column heads (admin Events) keeps the ink rule on its top edge. */
+.data-table:not(:has(thead)) { border-top: var(--rule) solid var(--ink); }
 
 .data-table .col-num,
 .data-table td.num {
@@ -125,9 +131,12 @@
    DESIGN.md's field labels: 14px, 600, sentence case. */
 .col-label {
     display: none;
-    margin-bottom: var(--s1);
-    font-size: var(--meta);
-    font-weight: 600;
+    margin-bottom: var(--s2);
+    font-family: var(--font-display);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
 }
 
 /* ---------- Admin Events ---------- */

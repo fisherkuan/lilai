@@ -120,7 +120,7 @@
     min-width: 0;
 }
 
-.bq-cta-label { font-size: 16px; font-weight: 500; line-height: 1.25; }
+.bq-cta-label { line-height: 1.25; }
 .bq-cta-sub { font-size: var(--meta); font-weight: 400; line-height: 1.3; }
 
 .bq-cta-arrow {
@@ -445,7 +445,7 @@
     flex: none;
     width: 12px;
     height: 12px;
-    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' fill='none' stroke='%23111' stroke-width='1.5'%3E%3Cpath d='M6 1v10M1 6h10'/%3E%3C/svg%3E") no-repeat center / 12px;
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' fill='none' stroke='%23161616' stroke-width='1.5'%3E%3Cpath d='M6 1v10M1 6h10'/%3E%3C/svg%3E") no-repeat center / 12px;
 }
 
 /* ---------- Row actions ---------- */
@@ -571,7 +571,7 @@
     width: 100%;
     max-width: 560px;
     max-height: 92vh;
-    background: var(--paper);
+    background: var(--paper-raised);
     border-top: var(--rule) solid var(--ink);
     animation: sheet-in 260ms var(--ease);
 }
@@ -682,7 +682,7 @@
 
 .bs-field .bs-field { gap: var(--s2); }
 
-.bs-label { font-size: var(--meta); font-weight: 600; }
+.bs-label { font-family: var(--font-display); font-size: 12px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; }
 .bs-label-sm { font-weight: 500; color: var(--ink-2); }
 
 .bs-label-row {
@@ -723,7 +723,7 @@
 .bs-block-note { margin-top: var(--s1); font-size: var(--meta); color: var(--ink-2); }
 .bs-block .bs-note { margin-top: var(--s1); }
 
-/* Every text control is Home's .input: 50px, 1.5px ink, square, 17px so phones do not zoom. */
+/* Every text control is Home's .input: 50px, 2px ink, square, 17px so phones do not zoom. */
 .bs-input,
 .bs-select,
 .bs-date,
@@ -733,9 +733,9 @@ input.bs-number {
     width: 100%;
     min-height: 50px;
     padding: 0 var(--s3);
-    border: 1px solid var(--ink-3);
-    border-radius: 10px;
-    background-color: var(--paper);
+    border: var(--stroke-2) solid var(--ink);
+    border-radius: var(--radius-0);
+    background-color: var(--paper-raised);
     color: var(--ink);
     font: inherit;
     font-size: 17px;
@@ -752,7 +752,7 @@ textarea.bs-input { min-height: 88px; padding: var(--s3); resize: vertical; }
 .bs-time-input,
 select.bs-input {
     padding-right: 44px;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23111' stroke-width='1.5'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23161616' stroke-width='1.5'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
     background-repeat: no-repeat;
     background-position: right 12px center;
     background-size: 20px;
@@ -766,7 +766,7 @@ select.bs-input {
 .bs-select:focus,
 .bs-date:focus,
 .bs-time-input:focus,
-input.bs-number:focus { outline: 2px solid var(--ink); outline-offset: 2px; }
+input.bs-number:focus { outline: var(--stroke-2) solid var(--focus); outline-offset: 2px; }
 
 /* Two starts, side by side under one label: reading them as a pair is the point. */
 .bs-two {
@@ -803,9 +803,9 @@ select.bs-unit { flex: none; width: 150px; max-width: none; }
     position: relative;
     min-height: 44px;
     padding: 0 var(--s4);
-    border: 1px solid var(--ink-3);
-    border-radius: 999px;
-    background: var(--paper);
+    border: var(--stroke-2) solid var(--ink);
+    border-radius: var(--radius-0);
+    background: var(--paper-raised);
     color: var(--ink);
     font-size: 15px;
     font-weight: 500;
@@ -814,7 +814,7 @@ select.bs-unit { flex: none; width: 150px; max-width: none; }
 }
 
 .bs-seg:hover,
-.bs-pill:hover { background: var(--wash); }
+.bs-pill:hover { background: var(--ink); color: var(--paper); }
 
 .bs-seg.selected,
 .bs-pill.selected {
@@ -890,9 +890,9 @@ select.bs-unit { flex: none; width: 150px; max-width: none; }
 .bs-person-add {
     min-height: 48px;
     padding: 0 var(--s5);
-    border: 1px solid var(--ink-3);
-    border-radius: 10px;
-    background: var(--paper);
+    border: var(--stroke-2) solid var(--ink);
+    border-radius: var(--radius-0);
+    background: var(--paper-raised);
     color: var(--ink);
     font-size: 16px;
     font-weight: 600;
@@ -1018,7 +1018,7 @@ select.bs-unit { flex: none; width: 150px; max-width: none; }
     max-height: 88%;
     overflow-y: auto;
     padding: var(--s4) var(--gutter) calc(var(--s5) + env(safe-area-inset-bottom));
-    background: var(--paper);
+    background: var(--paper-raised);
     border-top: var(--rule) solid var(--ink);
     animation: sheet-in 260ms var(--ease);
 }
@@ -1269,17 +1269,17 @@ select.bs-unit { flex: none; width: 150px; max-width: none; }
 /* Dark: the two data-URI icons carry their stroke colour inline, so they need a light copy. */
 @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) .bq-fold-btn::before {
-        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' fill='none' stroke='%23f2f1ee' stroke-width='1.5'%3E%3Cpath d='M6 1v10M1 6h10'/%3E%3C/svg%3E");
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' fill='none' stroke='%23f2f2ee' stroke-width='1.5'%3E%3Cpath d='M6 1v10M1 6h10'/%3E%3C/svg%3E");
     }
     :root:not([data-theme="light"]) select.bs-input {
-        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23f2f1ee' stroke-width='1.5'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23f2f2ee' stroke-width='1.5'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
     }
 }
 
 /* The footer toggle's explicit Dark: the same values as the block above. Keep them in sync. */
 :root[data-theme="dark"] .bq-fold-btn::before {
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' fill='none' stroke='%23f2f1ee' stroke-width='1.5'%3E%3Cpath d='M6 1v10M1 6h10'/%3E%3C/svg%3E");
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' fill='none' stroke='%23f2f2ee' stroke-width='1.5'%3E%3Cpath d='M6 1v10M1 6h10'/%3E%3C/svg%3E");
 }
 :root[data-theme="dark"] select.bs-input {
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23f2f1ee' stroke-width='1.5'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23f2f2ee' stroke-width='1.5'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
 }

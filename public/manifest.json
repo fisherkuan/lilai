@@ -3,8 +3,8 @@
   "short_name": "Lilai",
   "start_url": "/index.html",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#ffffff",
+  "background_color": "#efefea",
+  "theme_color": "#efefea",
   "icons": [
     {
       "src": "icons/icon-192x192.png",
