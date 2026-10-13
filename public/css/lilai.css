@@ -1,44 +1,24 @@
-/* Lilai: Shape Calendar.
-   Each calendar is one primary shape. Primaries live only inside shapes;
-   text, rules and buttons are black on white. See DESIGN.md. */
-
-@font-face {
-    font-family: 'Jost';
-    font-style: normal;
-    font-weight: 400 700;
-    font-display: swap;
-    src: url('/fonts/jost-latin.woff2') format('woff2');
-    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
-}
-
-@font-face {
-    font-family: 'Jost';
-    font-style: normal;
-    font-weight: 400 700;
-    font-display: swap;
-    src: url('/fonts/jost-latin-ext.woff2') format('woff2');
-    unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
-}
+/* Lilai: Shape Calendar on the Bauhaus kit.
+   /bauhaus/tokens.css (copied from ~/code/bauhaus, commit in /bauhaus/KIT_COMMIT) loads first
+   and owns the palette, both themes, strokes, radii and Jost. This file only names lilai's
+   additions in terms of those tokens. Each calendar is one primary shape; primaries live only
+   inside shapes. See DESIGN.md. */
 
 :root {
-    --paper: #ffffff;
-    --ink: #111111;
-    --ink-2: #444444;
-    --ink-3: #676767;
-    --hair: #e2e2e2;
-    --wash: #f3f3f3;
-    --past: #b4b4b4;
-    --scrim: rgba(17, 17, 17, 0.4);
-    --link: #0b57d0;
+    /* Lilai names for kit tokens. */
+    --ink-2: var(--ink-muted);
+    --hair: var(--line);
+    --wash: var(--stone);
+    --rule: var(--stroke-2);
 
-    --blue: #1f4fa3;
-    --red: #d9352b;
-    --yellow: #f2c230;
+    /* Lilai additions: a fainter ink for ticks and captions, the drained past outline, the scrim. */
+    --ink-3: #62625c;
+    --past: #a9a9a2;
+    --scrim: rgba(22, 22, 22, 0.4);
 
-    --rule: 1.5px;
-    /* Jost for numerals and titles only; reading text uses the device's own UI font,
-       which stays legible at 14-16px where Jost's small x-height does not. */
-    --font-display: 'Jost', 'PingFang TC', 'Noto Sans TC', 'Microsoft JhengHei', system-ui, sans-serif;
+    /* Jost (from the kit) for headings, numerals and labels; reading text keeps the device's
+       own UI font, which stays legible at 14-16px where Jost's small x-height does not. */
+    --font-display: Jost, Futura, 'PingFang TC', 'Noto Sans TC', 'Microsoft JhengHei', system-ui, sans-serif;
     --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'PingFang TC', 'Noto Sans TC', 'Microsoft JhengHei', sans-serif;
     --meta: 14px;
     --ease: cubic-bezier(0.16, 1, 0.3, 1);
@@ -60,42 +40,37 @@
     scrollbar-color: var(--ink) transparent;
 }
 
-/* Dark: the same world with the ground inverted. Paper and ink swap, so rules, text,
-   buttons and shape contours turn light on an ink ground; the primaries stay as they are
-   and still live only inside shapes. Follows the device setting; there is no toggle. */
+/* Dark: the kit swaps the palette in tokens.css. These two blocks hold lilai's additions and
+   must carry the same values (one follows the device, one is the footer's forced Dark). */
 @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
-        --paper: #121212;
-        --ink: #f2f1ee;
-        --ink-2: #c2c1be;
-        --ink-3: #97968f;
-        --hair: #2e2e2e;
-        --wash: #1f1f1f;
-        --past: #5c5c5c;
+        --ink-3: #8f9095;
+        --past: #55565b;
         --scrim: rgba(0, 0, 0, 0.6);
-        --link: #8ab4f8;
         color-scheme: dark;
     }
     :root:not([data-theme="light"]) .select {
-        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23f2f1ee' stroke-width='1.5'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23f2f2ee' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
     }
 }
 
-/* The footer toggle's explicit Dark: the same values as the block above. Keep them in sync. */
 :root[data-theme="dark"] {
-    --paper: #121212;
-    --ink: #f2f1ee;
-    --ink-2: #c2c1be;
-    --ink-3: #97968f;
-    --hair: #2e2e2e;
-    --wash: #1f1f1f;
-    --past: #5c5c5c;
+    --ink-3: #8f9095;
+    --past: #55565b;
     --scrim: rgba(0, 0, 0, 0.6);
-    --link: #8ab4f8;
     color-scheme: dark;
 }
 :root[data-theme="dark"] .select {
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23f2f1ee' stroke-width='1.5'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23f2f2ee' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+}
+
+/* The kit's label style: uppercase Jost, for button labels, field labels and table heads. */
+.btn, .field label, .section-title, .side-title {
+    font-family: var(--font-display);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
 }
 
 *, *::before, *::after { box-sizing: border-box; }
@@ -126,7 +101,7 @@ a {
 a:hover { text-decoration-thickness: 2px; }
 
 :focus-visible {
-    outline: 2px solid var(--ink);
+    outline: var(--stroke-2) solid var(--focus);
     outline-offset: 2px;
 }
 
@@ -295,10 +270,6 @@ button { font: inherit; color: inherit; }
     padding: var(--s4) 0 var(--s3);
 }
 
-.section-title {
-    font-size: 16px;
-    font-weight: 600;
-}
 
 .section-meta {
     font-size: var(--meta);
@@ -548,7 +519,7 @@ button { font: inherit; color: inherit; }
 }
 
 .legend-item .shape { font-size: 14px; }
-.legend-item:has(input:focus-visible) { outline: 2px solid var(--ink); outline-offset: 2px; }
+.legend-item:has(input:focus-visible) { outline: var(--stroke-2) solid var(--focus); outline-offset: 2px; }
 .legend-item.is-off { color: var(--ink-3); }
 .legend-item.is-off .shape { fill: none; stroke: var(--ink-3); }
 
@@ -562,7 +533,8 @@ button { font: inherit; color: inherit; }
     gap: 0 var(--s4);
     margin-top: var(--s3);
     padding: var(--s5) var(--s4);
-    border: 1px solid var(--hair);
+    border: var(--stroke-2) solid var(--ink);
+    background: var(--paper-raised);
     scroll-margin-top: var(--s4);
 }
 
@@ -656,8 +628,7 @@ button { font: inherit; color: inherit; }
 /* Inside an event the pill steps down a size, since every event carries one. */
 .event-actions .btn {
     min-height: 40px;
-    padding: 0 22px;
-    font-size: 15px;
+    padding: 0 var(--s4);
 }
 
 .event-desc {
@@ -778,27 +749,26 @@ button { font: inherit; color: inherit; }
     justify-content: center;
     min-height: 44px;
     padding: 0 var(--s5);
-    border: 1px solid var(--ink);
-    border-radius: 999px;
-    font-size: 16px;
-    font-weight: 500;
+    border: var(--stroke-2) solid var(--ink);
+    border-radius: var(--radius-0);
     text-decoration: none;
     cursor: pointer;
     transition: background-color 140ms var(--ease), border-color 140ms var(--ease), color 140ms var(--ease);
 }
 
-/* Solid is the one main action in a form or sheet; line is everything else. */
+/* Solid is the one main action in a form or sheet; line is everything else. Hover swaps
+   fills, never fades: the kit's rule. Solid stays ink, because red belongs to a calendar. */
 .btn-solid { background: var(--ink); color: var(--paper); }
-.btn-solid:hover { background: var(--ink-2); border-color: var(--ink-2); }
+.btn-solid:hover { background: var(--paper); color: var(--ink); }
 
-.btn-line { background: var(--paper); color: var(--ink); border-color: var(--ink-3); }
-.btn-line:hover { background: var(--wash); border-color: var(--ink); }
+.btn-line { background: transparent; color: var(--ink); }
+.btn-line:hover { background: var(--ink); color: var(--paper); }
 
 .btn:disabled,
 .btn[disabled] {
-    background: var(--wash);
-    border-color: var(--hair);
-    color: var(--ink-3);
+    background: transparent;
+    border-color: var(--line);
+    color: var(--ink-muted);
     cursor: not-allowed;
 }
 
@@ -816,8 +786,6 @@ button { font: inherit; color: inherit; }
 }
 
 .side-title {
-    font-size: 16px;
-    font-weight: 600;
     margin-bottom: var(--s3);
 }
 
@@ -865,7 +833,7 @@ button { font: inherit; color: inherit; }
     max-height: 92vh;
     overflow-y: auto;
     padding: var(--s3) var(--gutter) calc(var(--s5) + env(safe-area-inset-bottom));
-    background: var(--paper);
+    background: var(--paper-raised);
     border-top: var(--rule) solid var(--ink);
     animation: sheet-in 260ms var(--ease);
 }
@@ -914,9 +882,7 @@ button { font: inherit; color: inherit; }
 
 .field label {
     display: block;
-    margin-bottom: 6px;
-    font-size: var(--meta);
-    font-weight: 600;
+    margin-bottom: var(--s2);
 }
 
 .field-label-row {
@@ -933,9 +899,9 @@ button { font: inherit; color: inherit; }
     width: 100%;
     min-height: 50px;
     padding: 0 var(--s3);
-    border: 1px solid var(--ink-3);
-    border-radius: 10px;
-    background: var(--paper);
+    border: var(--stroke-2) solid var(--ink);
+    border-radius: var(--radius-0);
+    background: var(--paper-raised);
     color: var(--ink);
     font: inherit;
     font-size: 17px;
@@ -944,11 +910,11 @@ button { font: inherit; color: inherit; }
 }
 
 .input::placeholder { color: var(--ink-3); }
-.input:focus { border-color: var(--ink); outline: 2px solid var(--ink); outline-offset: 2px; }
+.input:focus { outline: var(--stroke-2) solid var(--focus); outline-offset: 2px; }
 
 .select {
     padding-right: 44px;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23111' stroke-width='1.5'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23161616' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
     background-repeat: no-repeat;
     background-position: right 12px center;
     background-size: 20px;
@@ -966,10 +932,9 @@ button { font: inherit; color: inherit; }
 .field-error::before {
     content: "";
     flex: none;
-    width: 10px;
-    height: 10px;
-    background: var(--red);
-    outline: 1.5px solid var(--ink);
+    width: 8px;
+    height: 8px;
+    background: var(--ink);
 }
 
 .field-error[hidden] { display: none; }

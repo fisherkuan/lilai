@@ -1,13 +1,14 @@
-const CACHE_NAME = 'lilai-cache-v28'; // Bumped version
+const CACHE_NAME = 'lilai-cache-v29'; // Bumped version
 const urlsToCache = [
   '/',
   '/index.html',
+  '/bauhaus/tokens.css',
   '/css/lilai.css',
   '/css/faq.css',
   '/css/donate.css',
   '/css/admin.css',
   '/css/booking.css',
-  '/fonts/jost-latin.woff2',
+  '/bauhaus/fonts/jost-latin.woff2',
   '/app.js',
   '/js/theme.js',
   '/manifest.json',

@@ -11,7 +11,7 @@
 
     const KEY = 'lilaiTheme';
     const CHOICES = [['auto', 'Auto'], ['light', 'Light'], ['dark', 'Dark']];
-    const BAR = { light: '#ffffff', dark: '#121212' };
+    const BAR = { light: '#efefea', dark: '#111214' };
 
     function saved() {
         try {

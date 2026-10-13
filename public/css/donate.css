@@ -51,7 +51,7 @@
 }
 
 /*
- * A flat ink meter: 1.5px outline, square corners, ink fill, no pill, no colour.
+ * A flat ink meter: 2px outline, square corners, ink fill, no pill, no colour.
  * The bar is zero-centred (the balance can run negative); a 2px ink tick marks zero.
  * The fill is a half-track box, fixed at left or right of the tick, that scales from
  * that edge with transform: scaleX() — never an animated width — so growth reads as
