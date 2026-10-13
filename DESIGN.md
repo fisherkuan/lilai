@@ -247,7 +247,7 @@ An ink-on-paper product with three Bauhaus primaries held inside shapes. All val
 - **Paper Raised** (paper-raised): the ground of event boxes, fields, choice chips and sheets.
 - **Ink Muted** (ink-muted, also named `--ink-2` in lilai): metadata, descriptions, section counts, disabled button labels.
 - **Ink Faint** (ink-3, a lilai addition): weekday ticks, placeholders, captions, the colophon, inactive range tabs and admin tabs, past titles and numerals, cancelled booking titles.
-- **Line** (line, also named `--hair`): the 1px rule between rows of a dense list (admin tables, the booking timeline, the booking detail table, the FAQ table), the thin Monday divider in the 14-day band, disabled button borders.
+- **Line** (line, also named `--hair`): the 1px rule between rows of a dense list (admin tables, the booking timeline, the booking detail table, the FAQ questions and the FAQ table), the thin Monday divider in the 14-day band, disabled button borders.
 - **Stone** (stone, also named `--wash`): hover ground for icon buttons.
 - **Past Grey** (past, a lilai addition): contour of every shape on a past event. Past shapes lose their fill. It is also the secondary text reversed out of the booking queue's ink midnight banner.
 - **Link** (link): outbound links from content, at 500 with an underline. Lilai's own azure, #0b57d0 in light and #8ab4f8 in dark, set in `lilai.css` over the kit's value. The kit's link equals blue in light, the first calendar's colour, so a link would read as "this calendar".
@@ -331,7 +331,7 @@ The form language has two registers.
 
 **The Event Box Rule.** Each event on Home is a square box with a 2px ink outline on paper-raised, 24px padding (16px sides on phones) and 12px between boxes. Sections and sidebar blocks are divided by full-width 2px ink rules. The box replaced a bare rule above each event on 2026-10-02, because users could not tell where one event ended. Only events, controls (buttons, inputs, choice chips), the desktop sheet, the status mark and the balance bar carry a full border.
 
-**The Hairline Rule.** Inside a section, a dense list divides its rows with a 1px line-grey hairline, and keeps the 2px ink rule for its edges: above the list, and under a table's column heads when it has them. Admin tables, the booking timeline, the booking detail table and the FAQ table all work this way. A hairline never starts or ends a section. The heavier 3px ink rule marks a moment: Today on Home (between event boxes, 24px above it), NOW on the booking timeline, the row in flight, and a stale-data notice.
+**The Hairline Rule.** Inside a section, a dense list divides its rows with a 1px line-grey hairline, and keeps the 2px ink rule for its edges: above the list, and under a table's column heads when it has them. Admin tables, the booking timeline, the booking detail table, the FAQ questions (under their 2px section header rule) and the FAQ table all work this way. A hairline never starts or ends a section. The heavier 3px ink rule marks a moment: Today on Home (between event boxes, 24px above it), NOW on the booking timeline, the row in flight, and a stale-data notice.
 
 ## Components
 
