@@ -681,7 +681,7 @@
 
 .bs-field .bs-field { gap: var(--s2); }
 
-.bs-label { font-family: var(--font-display); font-size: 12px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; }
+.bs-label { font-family: var(--font-display); font-size: var(--label-size); font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; }
 .bs-label-sm { font-weight: 500; color: var(--ink-2); }
 
 .bs-label-row {

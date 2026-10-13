@@ -107,7 +107,7 @@
     padding-top: 0;
     padding-bottom: var(--s3);
     font-family: var(--font-display);
-    font-size: 12px;
+    font-size: var(--label-size);
     font-weight: 700;
     letter-spacing: 0.1em;
     text-transform: uppercase;
@@ -133,7 +133,7 @@
     display: none;
     margin-bottom: var(--s2);
     font-family: var(--font-display);
-    font-size: 12px;
+    font-size: var(--label-size);
     font-weight: 700;
     letter-spacing: 0.1em;
     text-transform: uppercase;
