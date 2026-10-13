@@ -502,7 +502,7 @@
       "refersTo": "button-solid",
       "description": "Join, Confirm and Remove. Ink block that inverts on hover.",
       "html": "<button class=\"ds-btn ds-btn-solid\">Join</button>",
-      "css": ".ds-btn{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:0 24px;border:2px solid var(--ink,#161616);border-radius:0;font-family:var(--font-display, Jost, Futura, system-ui, sans-serif);font-size:14px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;transition:background-color 140ms cubic-bezier(0.16,1,0.3,1),color 140ms cubic-bezier(0.16,1,0.3,1);} .ds-btn:focus-visible{outline:2px solid var(--focus,#1a22b0);outline-offset:2px;} .ds-btn-solid{background:var(--ink,#161616);color:var(--paper,#efefea);} .ds-btn-solid:hover{background:var(--paper,#efefea);color:var(--ink,#161616);}"
+      "css": ".ds-btn{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:0 24px;border:2px solid var(--ink,#161616);border-radius:0;font-family:var(--font-display, Jost, Futura, system-ui, sans-serif);font-size:12px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;transition:background-color 140ms cubic-bezier(0.16,1,0.3,1),color 140ms cubic-bezier(0.16,1,0.3,1);} .ds-btn:focus-visible{outline:2px solid var(--focus,#1a22b0);outline-offset:2px;} .ds-btn-solid{background:var(--ink,#161616);color:var(--paper,#efefea);} .ds-btn-solid:hover{background:var(--paper,#efefea);color:var(--ink,#161616);}"
     },
     {
       "name": "Line Button",
@@ -510,7 +510,7 @@
       "refersTo": "button-line",
       "description": "Secondary calls such as Create an event.",
       "html": "<button class=\"ds-btn ds-btn-line\">Create an event</button>",
-      "css": ".ds-btn{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:0 24px;border:2px solid var(--ink,#161616);border-radius:0;font-family:var(--font-display, Jost, Futura, system-ui, sans-serif);font-size:14px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;transition:background-color 140ms cubic-bezier(0.16,1,0.3,1),color 140ms cubic-bezier(0.16,1,0.3,1);} .ds-btn:focus-visible{outline:2px solid var(--focus,#1a22b0);outline-offset:2px;} .ds-btn-line{background:transparent;color:var(--ink,#161616);} .ds-btn-line:hover{background:var(--ink,#161616);color:var(--paper,#efefea);}"
+      "css": ".ds-btn{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:0 24px;border:2px solid var(--ink,#161616);border-radius:0;font-family:var(--font-display, Jost, Futura, system-ui, sans-serif);font-size:12px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;transition:background-color 140ms cubic-bezier(0.16,1,0.3,1),color 140ms cubic-bezier(0.16,1,0.3,1);} .ds-btn:focus-visible{outline:2px solid var(--focus,#1a22b0);outline-offset:2px;} .ds-btn-line{background:transparent;color:var(--ink,#161616);} .ds-btn-line:hover{background:var(--ink,#161616);color:var(--paper,#efefea);}"
     },
     {
       "name": "Disabled Button",
@@ -518,7 +518,7 @@
       "refersTo": "button-disabled",
       "description": "Clear ground, line-grey border, ink-muted label.",
       "html": "<button class=\"ds-btn ds-btn-off\" disabled>Full</button>",
-      "css": ".ds-btn{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:0 24px;border:2px solid var(--ink,#161616);border-radius:0;font-family:var(--font-display, Jost, Futura, system-ui, sans-serif);font-size:14px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;transition:background-color 140ms cubic-bezier(0.16,1,0.3,1),color 140ms cubic-bezier(0.16,1,0.3,1);} .ds-btn:focus-visible{outline:2px solid var(--focus,#1a22b0);outline-offset:2px;} .ds-btn-off{background:transparent;border-color:var(--line,#85857e);color:var(--ink-muted,#55554f);cursor:not-allowed;}"
+      "css": ".ds-btn{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:0 24px;border:2px solid var(--ink,#161616);border-radius:0;font-family:var(--font-display, Jost, Futura, system-ui, sans-serif);font-size:12px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;transition:background-color 140ms cubic-bezier(0.16,1,0.3,1),color 140ms cubic-bezier(0.16,1,0.3,1);} .ds-btn:focus-visible{outline:2px solid var(--focus,#1a22b0);outline-offset:2px;} .ds-btn-off{background:transparent;border-color:var(--line,#85857e);color:var(--ink-muted,#55554f);cursor:not-allowed;}"
     },
     {
       "name": "Text Button",
@@ -534,7 +534,7 @@
       "refersTo": "input",
       "description": "The RSVP name field: square, 2px ink border on paper-raised, uppercase Jost label, 17px text, 8px ink error square.",
       "html": "<label class=\"ds-field\"><span class=\"ds-label\">Your name</span><input class=\"ds-input\" placeholder=\"The name people know you by\"></label>",
-      "css": ".ds-field{display:block;} .ds-label{display:block;margin-bottom:8px;font-family:var(--font-display, Jost, Futura, system-ui, sans-serif);font-size:14px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--ink,#161616);} .ds-input{display:block;width:100%;min-height:50px;padding:0 12px;border:2px solid var(--ink,#161616);border-radius:0;background:var(--paper-raised,#fafaf7);color:var(--ink,#161616);font:500 17px var(--font, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif);-webkit-appearance:none;appearance:none;} .ds-input::placeholder{color:var(--ink-3,#62625c);} .ds-input:focus{outline:2px solid var(--focus,#1a22b0);outline-offset:2px;} .ds-error{display:flex;align-items:center;gap:8px;margin-top:8px;font:500 14px var(--font, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif);color:var(--ink,#161616);} .ds-error::before{content:'';width:8px;height:8px;background:var(--ink,#161616);}"
+      "css": ".ds-field{display:block;} .ds-label{display:block;margin-bottom:8px;font-family:var(--font-display, Jost, Futura, system-ui, sans-serif);font-size:12px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--ink,#161616);} .ds-input{display:block;width:100%;min-height:50px;padding:0 12px;border:2px solid var(--ink,#161616);border-radius:0;background:var(--paper-raised,#fafaf7);color:var(--ink,#161616);font:500 17px var(--font, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif);-webkit-appearance:none;appearance:none;} .ds-input::placeholder{color:var(--ink-3,#62625c);} .ds-input:focus{outline:2px solid var(--focus,#1a22b0);outline-offset:2px;} .ds-error{display:flex;align-items:center;gap:8px;margin-top:8px;font:500 14px var(--font, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif);color:var(--ink,#161616);} .ds-error::before{content:'';width:8px;height:8px;background:var(--ink,#161616);}"
     },
     {
       "name": "Range Tabs",

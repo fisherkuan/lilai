@@ -24,8 +24,6 @@
     --font-display: Jost, Futura, 'PingFang TC', 'Noto Sans TC', 'Microsoft JhengHei', system-ui, sans-serif;
     --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'PingFang TC', 'Noto Sans TC', 'Microsoft JhengHei', sans-serif;
     --meta: 14px;
-    /* Labels use the kit's style (uppercase Jost 700, 0.1em) at 14px, not the kit's 12px. */
-    --label-size: 14px;
     --ease: cubic-bezier(0.16, 1, 0.3, 1);
 
     --s1: 4px;
@@ -74,7 +72,7 @@
 /* The kit's label style: uppercase Jost, for button labels, field labels and table heads. */
 .btn, .field label, .section-title, .side-title {
     font-family: var(--font-display);
-    font-size: var(--label-size);
+    font-size: 12px;
     font-weight: 700;
     letter-spacing: 0.1em;
     text-transform: uppercase;

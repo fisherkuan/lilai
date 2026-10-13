@@ -73,7 +73,7 @@ typography:
     lineHeight: 1.5
   label:
     fontFamily: "Jost, Futura, PingFang TC, Noto Sans TC, Microsoft JhengHei, system-ui, sans-serif"
-    fontSize: "14px"
+    fontSize: "12px"
     fontWeight: 700
     letterSpacing: "0.1em"
   body:
@@ -229,7 +229,6 @@ Motion is scarce and tied to state. When attendance changes, a shape scales from
 - **Lilai keeps its own type ramp, motion, band, seat slots and status marks.** The kit's 72px display and 44px H1 have no place on a list of meetups; lilai titles stop at 30px.
 - **Buttons are 44px tall, not the kit's 40px,** so every touch target holds 44px. Event buttons step down to 40px.
 - **The text button keeps an ink underline on hover.** The kit turns a quiet button's underline red.
-- **Labels are 14px, not the kit's 12px** (`--label-size` in `lilai.css`). At 12px, button and field labels read too small beside 16px body text on a phone (owner, 2026-10-13).
 
 **Scope.** Every page is in the system. Each loads `public/bauhaus/tokens.css` first, then `public/css/lilai.css` (lilai's additions and shared components), then its own page stylesheet: Home uses `lilai.css` alone, FAQ adds `faq.css`, Donate adds `donate.css`, and admin Events, admin Donations, the Booking queue and booking detail add `admin.css` (the booking pages then add `booking.css`). The legacy `public/styles.css` is deleted.
 
@@ -289,7 +288,7 @@ In dark the kit sets paper #111214, paper-raised #1b1c1f, stone #26272b, line #7
 - **Body** (400, 16px, 1.5): running text.
 - **Body Small** (400 to 600, 15px, 1.5): descriptions, the names list, FAQ answers, the Donate lede and donor lines, the booking explainer and notes, booking detail values, the booking sheet's choice chips, and the weekday line beside a 96px numeral. It also sets navigation: header links, admin tabs and the FAQ language switch. Descriptions cap at 65ch and clamp to three lines on Home.
 - **Meta** (400 to 600, 14px): dates, times, places, seat labels, counts, table cells, admin subtitles, row status lines and text buttons.
-- **Label** (Jost 700, 14px, 0.1em, uppercase): the kit's label style at lilai's size (`--label-size`). It sets button labels, field labels, section and sidebar titles, booking sheet labels and admin table heads. Write the source in sentence case; CSS sets the capitals.
+- **Label** (Jost 700, 12px, 0.1em, uppercase): the kit's label style. It sets button labels, field labels, section and sidebar titles, booking sheet labels and admin table heads. Write the source in sentence case; CSS sets the capitals.
 - **Caption** (400, 13px): captions, the colophon, and band weekday ticks from 640px.
 - **Small** (400, 12px): weekday ticks in the band on phones.
 
@@ -339,7 +338,7 @@ The form language has two registers.
 Square, uppercase, outlined in ink, as in the kit. Hover swaps fills; nothing fades. Every focusable control shows the 2px blue focus ring.
 
 ### Buttons
-- **Shape:** square (0px), 2px ink outline, 44px tall, 24px side padding, label style (Jost 14px 700, 0.1em, uppercase).
+- **Shape:** square (0px), 2px ink outline, 44px tall, 24px side padding, label style (Jost 12px 700, 0.1em, uppercase).
 - **Solid:** ink ground, paper label. The one main action of a form or sheet: Confirm, Remove, Add entry, Donate with Stripe, Queue a slot, Next. It stays ink, never red (see Deviations).
 - **Line:** clear ground, ink label, ink outline. Join on every event, and secondary calls such as "Create an event". A page of solid Joins read as a column of black blocks (removed 2026-10-02).
 - **Event buttons:** inside an event the button steps down to 40px tall with 16px side padding, since every event carries one.
@@ -426,7 +425,7 @@ On phones the band's column is about 25px wide, so the headcount scale caps at 2
 - **Do** give each calendar its shape in config order (circle/blue, square/red, triangle/yellow) and the ink diamond to the fourth and later calendars and unsourced events.
 - **Do** draw every shape with a flat fill and a 1.5px ink contour.
 - **Do** box each event in a 2px ink outline on paper-raised, divide sections with full-width 2px ink rules, and the rows of a dense list with 1px line-grey hairlines.
-- **Do** set button labels, field labels, section titles and table heads in the label style (Jost 14px 700, 0.1em, uppercase).
+- **Do** set button labels, field labels, section titles and table heads in the label style (Jost 12px 700, 0.1em, uppercase).
 - **Do** show hover by swapping fills: line to ink, solid to paper.
 - **Do** keep metadata at 14px and let only numerals break scale (event dates, the Donate balance, 96px on the booking detail date).
 - **Do** carry status in a word, with ink weight and a 10px ink status mark as the second channel.
