@@ -282,13 +282,13 @@ In dark the kit sets paper #111214, paper-raised #1b1c1f, stone #26272b, line #7
 - **Headline Wide** (600, 30px, 1.25): the Headline step for wide screens. The booking detail title takes it from 1000px; the FAQ title takes it from 640px. The booking midnight clock uses 30px at numeral weight (500, -0.02em).
 - **Headline** (600, 26px on phones, 1.25, -0.01em): every page title (admin, Donate, FAQ, booking detail) and the wordmark.
 - **Sheet Title** (600, 22px, 1.25): the title of every sheet and dialog: the RSVP sheet, the booking sheet and the booking confirm dialog.
-- **Title** (600, 20px, 1.25, balanced wrap): event titles, and the heads of the explainer and the detail headline.
+- **Title** (600, 20px, 1.25, balanced wrap): event titles, the booking section heads (Recurring, Timeline), and the heads of the explainer and the detail headline.
 - **Control** (500, 17px): inputs, number fields and range tabs, so phones do not zoom into a field.
-- **Section** (600, 16px): admin row titles, booking row titles and FAQ questions.
+- **Section** (Jost 600, 16px, sentence case): section and sidebar titles ("Next 14 days", "Add to the calendar", "Keep this running", "Transactions"), and in the system sans admin row titles, booking row titles and FAQ questions. The owner kept these titles out of the label style (2026-10-13).
 - **Body** (400, 16px, 1.5): running text.
 - **Body Small** (400 to 600, 15px, 1.5): descriptions, the names list, FAQ answers, the Donate lede and donor lines, the booking explainer and notes, booking detail values, the booking sheet's choice chips, and the weekday line beside a 96px numeral. It also sets navigation: header links, admin tabs and the FAQ language switch. Descriptions cap at 65ch and clamp to three lines on Home.
 - **Meta** (400 to 600, 14px): dates, times, places, seat labels, counts, table cells, admin subtitles, row status lines and text buttons.
-- **Label** (Jost 700, 12px, 0.1em, uppercase): the kit's label style. It sets button labels, field labels, section and sidebar titles, booking sheet labels and admin table heads. Write the source in sentence case; CSS sets the capitals.
+- **Label** (Jost 700, 12px, 0.1em, uppercase): the kit's label style. It sets button labels, field labels, booking sheet labels and admin table heads. Write the source in sentence case; CSS sets the capitals.
 - **Caption** (400, 13px): captions, the colophon, and band weekday ticks from 640px.
 - **Small** (400, 12px): weekday ticks in the band on phones.
 
@@ -425,7 +425,7 @@ On phones the band's column is about 25px wide, so the headcount scale caps at 2
 - **Do** give each calendar its shape in config order (circle/blue, square/red, triangle/yellow) and the ink diamond to the fourth and later calendars and unsourced events.
 - **Do** draw every shape with a flat fill and a 1.5px ink contour.
 - **Do** box each event in a 2px ink outline on paper-raised, divide sections with full-width 2px ink rules, and the rows of a dense list with 1px line-grey hairlines.
-- **Do** set button labels, field labels, section titles and table heads in the label style (Jost 12px 700, 0.1em, uppercase).
+- **Do** set button labels, field labels and table heads in the label style (Jost 12px 700, 0.1em, uppercase). Section and sidebar titles stay sentence-case Jost headings.
 - **Do** show hover by swapping fills: line to ink, solid to paper.
 - **Do** keep metadata at 14px and let only numerals break scale (event dates, the Donate balance, 96px on the booking detail date).
 - **Do** carry status in a word, with ink weight and a 10px ink status mark as the second channel.

@@ -69,8 +69,9 @@
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23f2f2ee' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
 }
 
-/* The kit's label style: uppercase Jost, for button labels, field labels and table heads. */
-.btn, .field label, .section-title, .side-title {
+/* The kit's label style: uppercase Jost, for button labels, field labels and table heads.
+   Section and sidebar titles keep lilai's own sentence-case Jost heading. */
+.btn, .field label {
     font-family: var(--font-display);
     font-size: 12px;
     font-weight: 700;
@@ -275,6 +276,11 @@ button { font: inherit; color: inherit; }
     padding: var(--s4) 0 var(--s3);
 }
 
+
+.section-title {
+    font-size: 16px;
+    font-weight: 600;
+}
 
 .section-meta {
     font-size: var(--meta);
@@ -791,6 +797,8 @@ button { font: inherit; color: inherit; }
 }
 
 .side-title {
+    font-size: 16px;
+    font-weight: 600;
     margin-bottom: var(--s3);
 }
 

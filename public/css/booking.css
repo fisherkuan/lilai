@@ -245,6 +245,7 @@
     border-top: var(--rule) solid var(--ink);
 }
 
+.bq-head .section-title { font-size: 20px; letter-spacing: -0.01em; }
 
 /* ---------- Recurring schedules ---------- */
 
