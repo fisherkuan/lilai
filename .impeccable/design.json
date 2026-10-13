@@ -203,18 +203,18 @@
       "link": {
         "role": "neutral",
         "displayName": "Link",
-        "canonical": "#1a22b0",
-        "dark": "#7f8aff",
-        "source": "public/bauhaus/tokens.css (kit)",
+        "canonical": "#0b57d0",
+        "dark": "#8ab4f8",
+        "source": "public/css/lilai.css (lilai override of the kit)",
         "tonalRamp": [
-          "#06082c",
-          "#0d1158",
-          "#141a84",
-          "#1a22b0",
-          "#5359c4",
-          "#8c90d8",
-          "#c6c8eb",
-          "#e8e9f7"
+          "#031634",
+          "#062c68",
+          "#08419c",
+          "#0b57d0",
+          "#4881dc",
+          "#85abe8",
+          "#c2d5f3",
+          "#e7eefa"
         ]
       },
       "focus": {

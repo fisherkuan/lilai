@@ -13,7 +13,7 @@ colors:
   blue: "#1a22b0"
   red: "#d63a2a"
   yellow: "#eeae53"
-  link: "#1a22b0"
+  link: "#0b57d0"
   focus: "#1a22b0"
 typography:
   numeral-lead:
@@ -212,7 +212,7 @@ Motion is scarce and tied to state. When attendance changes, a shape scales from
 
 **Key Characteristics:**
 - One primary shape per calendar, flat fill, 1.5px ink contour.
-- Primaries appear only inside shapes. The exceptions are the yellow text selection, the blue focus ring and outbound links, which all come from the kit.
+- Primaries appear only inside shapes. The two exceptions come from the kit: the yellow text selection and the blue focus ring. Outbound links take lilai's own azure, not a primary.
 - Square corners everywhere. Controls, fields and event boxes carry a 2px ink outline; sections are divided by 2px ink rules; 1px line-grey hairlines divide dense rows inside a section. There are no shadows or gradients.
 - Every event has the same size and the same line Join button. The 14-day band and its readout already show what comes next.
 - Constant 14px metadata; only numerals break scale (the event dates, the Donate balance, 96px on the booking detail date).
@@ -237,7 +237,7 @@ Motion is scarce and tied to state. When attendance changes, a shape scales from
 An ink-on-paper product with three Bauhaus primaries held inside shapes. All values except ink-3, past and the scrim come from the kit.
 
 ### Primary
-- **Ultramarine** (blue): fill of the first calendar's circle. The kit also uses it as the focus ring and, in light, as the link colour.
+- **Ultramarine** (blue): fill of the first calendar's circle. The kit also uses it as the focus ring.
 - **Signal Vermilion** (red): fill of the second calendar's square.
 - **Warm Yellow** (yellow): fill of the third calendar's triangle, and the `::selection` background under ink text.
 
@@ -250,7 +250,7 @@ An ink-on-paper product with three Bauhaus primaries held inside shapes. All val
 - **Line** (line, also named `--hair`): the 1px rule between rows of a dense list (admin tables, the booking timeline, the booking detail table, the FAQ table), the thin Monday divider in the 14-day band, disabled button borders.
 - **Stone** (stone, also named `--wash`): hover ground for icon buttons.
 - **Past Grey** (past, a lilai addition): contour of every shape on a past event. Past shapes lose their fill. It is also the secondary text reversed out of the booking queue's ink midnight banner.
-- **Link** (link): outbound links from content, at 500 with an underline. It equals blue in light and is a lighter #7f8aff in dark.
+- **Link** (link): outbound links from content, at 500 with an underline. Lilai's own azure, #0b57d0 in light and #8ab4f8 in dark, set in `lilai.css` over the kit's value. The kit's link equals blue in light, the first calendar's colour, so a link would read as "this calendar".
 - **Focus** (focus): the 2px keyboard focus ring on every control. It is the kit's blue in both themes.
 - **Scrim** (`rgba(22, 22, 22, 0.4)`, `rgba(0, 0, 0, 0.6)` in dark, a lilai addition): the only translucent value, behind an open sheet.
 
@@ -261,7 +261,7 @@ The pages follow the device's light or dark setting by default. A footer switch 
 In dark the kit sets paper #111214, paper-raised #1b1c1f, stone #26272b, line #77787d, ink #f2f2ee and ink-muted #aeafb3. Because every rule, contour, text and solid button reads `--ink`, they all turn light together: Join is a light outline, and shape contours are light on a dark ground, as on the iPhone icon. The primaries brighten to the kit's night values (red #ff3b28, blue #4d5fff, yellow #ffb000) and still live only inside shapes. An open seat is the ground colour inside a light contour; a full row fills light. Icons drawn as data URIs carry their stroke colour inline (#161616 light, #f2f2ee dark), so each has a light copy in both dark blocks. The browser bar colour (theme-color metas, `manifest.json` and `js/theme.js`) is #efefea in light and #111214 in dark. `favicon.svg` switches with the same media query.
 
 ### Named Rules
-**The Shapes-Only Primaries Rule.** Blue, red and yellow appear only as the fill of a calendar shape. Text, rules, buttons and grounds are ink or paper. Three exceptions come from the kit and stay narrow: the yellow text selection, the blue focus ring, and the link colour on outbound links from content.
+**The Shapes-Only Primaries Rule.** Blue, red and yellow appear only as the fill of a calendar shape. Text, rules, buttons and grounds are ink or paper. Two exceptions come from the kit and stay narrow: the yellow text selection and the blue focus ring. Outbound links use lilai's own azure `--link`, which is not a primary.
 
 **The One Shape Per Calendar Rule.** Calendars take circle/blue, square/red, triangle/yellow in config order. The fourth and later calendars, and unsourced events, take the ink diamond. Never give a calendar a second shape or colour, and never use a primary shape for something that is not a calendar. On the band and its readout, a title emoji replaces the shape for that one event; everywhere else the event keeps its calendar's shape.
 
@@ -434,7 +434,7 @@ On phones the band's column is about 25px wide, so the headcount scale caps at 2
 - **Do** keep touch targets at least 44px tall and focus as a 2px focus-blue outline offset 2px.
 
 ### Don't:
-- **Don't** put blue, red or yellow on text, rules, buttons or grounds. The kit's focus ring and outbound link colour are the only blue outside a shape.
+- **Don't** put blue, red or yellow on text, rules, buttons or grounds. The kit's focus ring is the only primary blue outside a shape; the azure `--link` is a separate link colour.
 - **Don't** make the solid button or the error mark red; red is a calendar.
 - **Don't** round a rectangle: no pills, no soft fields, no rounded boxes. Only the circle shape curves.
 - **Don't** use shadows or gradients, or show hover by fading.

@@ -15,6 +15,9 @@
     --ink-3: #62625c;
     --past: #a9a9a2;
     --scrim: rgba(22, 22, 22, 0.4);
+    /* Lilai's own link colour, an azure kept apart from the kit's ultramarine, which in
+       light mode is the first calendar's circle. Outbound links only; focus stays the kit's. */
+    --link: #0b57d0;
 
     /* Jost (from the kit) for headings, numerals and labels; reading text keeps the device's
        own UI font, which stays legible at 14-16px where Jost's small x-height does not. */
@@ -47,6 +50,7 @@
         --ink-3: #8f9095;
         --past: #55565b;
         --scrim: rgba(0, 0, 0, 0.6);
+        --link: #8ab4f8;
         color-scheme: dark;
     }
     :root:not([data-theme="light"]) .select {
@@ -58,6 +62,7 @@
     --ink-3: #8f9095;
     --past: #55565b;
     --scrim: rgba(0, 0, 0, 0.6);
+    --link: #8ab4f8;
     color-scheme: dark;
 }
 :root[data-theme="dark"] .select {
