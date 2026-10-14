@@ -157,6 +157,13 @@
     overflow-wrap: anywhere;
 }
 
+.transfer-iban-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: var(--s1) var(--s3);
+}
+
 .transfer-iban {
     font-weight: 500;
     font-variant-numeric: tabular-nums;

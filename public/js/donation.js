@@ -146,6 +146,28 @@ function displayDonations(donations) {
     donationsList.innerHTML = donationsHtml;
 }
 
+// The page shows a masked IBAN; Copy fetches the full one on demand.
+function setupCopyIban() {
+    const button = document.getElementById('copy-iban-btn');
+    if (!navigator.clipboard) {
+        button.hidden = true;
+        return;
+    }
+    button.addEventListener('click', async () => {
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/donation-iban`);
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            const { iban } = await response.json();
+            await navigator.clipboard.writeText(iban);
+            button.textContent = 'Copied';
+        } catch (error) {
+            console.error('Error copying IBAN:', error);
+            button.textContent = 'Copy failed';
+        }
+        setTimeout(() => { button.textContent = 'Copy'; }, 2000);
+    });
+}
+
 function escapeHtml(value) {
     if (value === null || value === undefined) {
         return '';
@@ -174,6 +196,7 @@ async function loadTransferDetails() {
         document.getElementById('transfer-holder').textContent = details.accountHolder;
         document.getElementById('transfer-iban').textContent = details.ibanMasked;
         document.getElementById('transfer-qr').src = `${API_BASE_URL}/api/donation-qr.svg`;
+        setupCopyIban();
 
         if (details.payLink) {
             document.getElementById('pay-link').href = details.payLink;

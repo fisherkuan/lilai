@@ -484,6 +484,14 @@ app.get('/api/donation-details', (req, res) => {
     });
 });
 
+// The full IBAN, fetched only when a donor presses Copy, so it stays out of page text.
+app.get('/api/donation-iban', (req, res) => {
+    if (!bankDetails) {
+        return res.status(404).json({ error: 'Donations by transfer are not set up' });
+    }
+    res.set('Cache-Control', 'no-store').json({ iban: bankDetails.iban });
+});
+
 // SEPA "scan to pay" QR code for the same details.
 app.get('/api/donation-qr.svg', async (req, res) => {
     if (!bankDetails) {
