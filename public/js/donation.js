@@ -42,7 +42,7 @@ function balanceBarRange(balance) {
 
 document.addEventListener('DOMContentLoaded', () => {
     loadDonations();
-    setupDonateButton();
+    loadTransferDetails();
     setupRefreshButton();
 });
 
@@ -158,32 +158,56 @@ function escapeHtml(value) {
         .replace(/'/g, '&#39;');
 }
 
-function setupDonateButton() {
-    const donateBtn = document.getElementById('donate-btn');
-    if (donateBtn) {
-        donateBtn.addEventListener('click', donate);
+// Bank transfer details come from the server (env vars there), so the public repo
+// never carries the IBAN. A 404 means transfers are not set up yet.
+async function loadTransferDetails() {
+    const state = document.getElementById('transfer-state');
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/donation-details`);
+        if (response.status === 404) {
+            state.textContent = 'Bank details are not available yet.';
+            return;
+        }
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const details = await response.json();
+
+        document.getElementById('transfer-holder').textContent = details.accountHolder;
+        document.getElementById('transfer-iban').textContent = details.ibanDisplay;
+        document.getElementById('transfer-reference').textContent = details.reference;
+        if (details.bic) {
+            document.getElementById('transfer-bic').textContent = details.bic;
+            document.getElementById('transfer-bic-row').hidden = false;
+        }
+        document.getElementById('transfer-qr').src = `${API_BASE_URL}/api/donation-qr.svg`;
+        setupCopyIban(details.iban);
+
+        if (details.payLink) {
+            document.getElementById('pay-link').href = details.payLink;
+            document.getElementById('pay-link-row').hidden = false;
+        }
+
+        document.getElementById('transfer-details').hidden = false;
+        state.hidden = true;
+    } catch (error) {
+        console.error('Error loading bank details:', error);
+        state.textContent = 'Error loading bank details. Please try again later.';
+        state.classList.add('is-error');
     }
 }
 
-async function donate() {
-    try {
-        const keyResponse = await fetch(`${API_BASE_URL}/api/stripe-key`);
-        const { publicKey } = await keyResponse.json();
-        const stripe = window.Stripe(publicKey);
-
-        const response = await fetch(`${API_BASE_URL}/api/create-donation-checkout-session`, {
-            method: 'POST',
-        });
-        const session = await response.json();
-        const result = await stripe.redirectToCheckout({
-            sessionId: session.id,
-        });
-
-        if (result.error) {
-            alert(result.error.message);
-        }
-    } catch (error) {
-        console.error('Error creating checkout session:', error);
-        alert('Error creating checkout session. Please try again.');
+function setupCopyIban(iban) {
+    const button = document.getElementById('copy-iban-btn');
+    if (!navigator.clipboard) {
+        button.hidden = true;
+        return;
     }
+    button.addEventListener('click', async () => {
+        try {
+            await navigator.clipboard.writeText(iban);
+            button.textContent = 'Copied';
+        } catch {
+            button.textContent = 'Copy failed';
+        }
+        setTimeout(() => { button.textContent = 'Copy'; }, 2000);
+    });
 }
