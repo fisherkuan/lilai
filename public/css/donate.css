@@ -157,30 +157,24 @@
     overflow-wrap: anywhere;
 }
 
-.transfer-iban-row {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: baseline;
-    gap: var(--s1) var(--s3);
-}
-
 .transfer-iban {
     font-weight: 500;
     font-variant-numeric: tabular-nums;
 }
 
-/* Card payment is a second, separate way to pay, so it gets its own heading and a
-   line button: a solid one under the bank details read as the step that submits them. */
-.donate-card { padding-bottom: var(--s7); }
+/* Card payment is a separate way to pay. "Or" and a line button keep it from reading
+   as the step that submits the bank details above (a solid button did). */
+.donate-card { margin-top: var(--s5); }
 
 .donate-card[hidden] { display: none; }
 
-.donate-card .section-meta {
-    max-width: 46ch;
-    margin: var(--s2) 0 0;
+.donate-or {
+    margin: 0 0 var(--s3);
+    font-size: var(--meta);
+    color: var(--ink-2);
 }
 
-.donate-card .donate-cta-row { margin-top: var(--s4); }
+.donate-card .btn { min-width: 240px; }
 
 /* ---------- Transactions ---------- */
 

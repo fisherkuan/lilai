@@ -172,10 +172,8 @@ async function loadTransferDetails() {
         const details = await response.json();
 
         document.getElementById('transfer-holder').textContent = details.accountHolder;
-        document.getElementById('transfer-iban').textContent = details.ibanDisplay;
-        // BIC and message stay in the QR payload; the page omits them to stay short.
+        document.getElementById('transfer-iban').textContent = details.ibanMasked;
         document.getElementById('transfer-qr').src = `${API_BASE_URL}/api/donation-qr.svg`;
-        setupCopyIban(details.iban);
 
         if (details.payLink) {
             document.getElementById('pay-link').href = details.payLink;
@@ -189,21 +187,4 @@ async function loadTransferDetails() {
         state.textContent = 'Error loading bank details. Please try again later.';
         state.classList.add('is-error');
     }
-}
-
-function setupCopyIban(iban) {
-    const button = document.getElementById('copy-iban-btn');
-    if (!navigator.clipboard) {
-        button.hidden = true;
-        return;
-    }
-    button.addEventListener('click', async () => {
-        try {
-            await navigator.clipboard.writeText(iban);
-            button.textContent = 'Copied';
-        } catch {
-            button.textContent = 'Copy failed';
-        }
-        setTimeout(() => { button.textContent = 'Copy'; }, 2000);
-    });
 }

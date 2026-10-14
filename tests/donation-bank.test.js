@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const {
-    isValidIban, formatIban, readBankDetails, buildEpcPayload, renderEpcQrSvg
+    isValidIban, formatIban, maskIban, readBankDetails, buildEpcPayload, renderEpcQrSvg
 } = require('../server/donation-bank');
 
 // Published example IBANs with valid check digits.
@@ -17,6 +17,10 @@ test('isValidIban rejects a wrong check digit', () => {
 
 test('formatIban groups in fours', () => {
     assert.equal(formatIban(BE_IBAN), 'BE68 5390 0754 7034');
+});
+
+test('maskIban keeps the first and last four characters', () => {
+    assert.equal(maskIban(BE_IBAN), 'BE68 •••• •••• 7034');
 });
 
 test('readBankDetails is null when holder or IBAN is missing', () => {

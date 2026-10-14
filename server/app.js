@@ -476,12 +476,10 @@ app.get('/api/donation-details', (req, res) => {
     if (!bankDetails) {
         return res.status(404).json({ error: 'Donations by transfer are not set up' });
     }
+    // Masked IBAN only: the full one travels in the QR code, not in page text.
     res.json({
         accountHolder: bankDetails.accountHolder,
-        iban: bankDetails.iban,
-        ibanDisplay: bankDetails.ibanDisplay,
-        bic: bankDetails.bic,
-        reference: bankDetails.reference,
+        ibanMasked: bankDetails.ibanMasked,
         payLink: bankDetails.payLink
     });
 });
