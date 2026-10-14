@@ -173,11 +173,7 @@ async function loadTransferDetails() {
 
         document.getElementById('transfer-holder').textContent = details.accountHolder;
         document.getElementById('transfer-iban').textContent = details.ibanDisplay;
-        document.getElementById('transfer-reference').textContent = details.reference;
-        if (details.bic) {
-            document.getElementById('transfer-bic').textContent = details.bic;
-            document.getElementById('transfer-bic-row').hidden = false;
-        }
+        // BIC and message stay in the QR payload; the page omits them to stay short.
         document.getElementById('transfer-qr').src = `${API_BASE_URL}/api/donation-qr.svg`;
         setupCopyIban(details.iban);
 
