@@ -339,8 +339,8 @@ Square, uppercase, outlined in ink, as in the kit. Hover swaps fills; nothing fa
 
 ### Buttons
 - **Shape:** square (0px), 2px ink outline, 44px tall, 24px side padding, label style (Jost 12px 700, 0.1em, uppercase).
-- **Solid:** ink ground, paper label. The one main action of a form or sheet: Confirm, Remove, Add entry, Pay by card, Queue a slot, Next. It stays ink, never red (see Deviations).
-- **Line:** clear ground, ink label, ink outline. Join on every event, and secondary calls such as "Create an event". A page of solid Joins read as a column of black blocks (removed 2026-10-02).
+- **Solid:** ink ground, paper label. The one main action of a form or sheet: Confirm, Remove, Add entry, Queue a slot, Next. It stays ink, never red (see Deviations).
+- **Line:** clear ground, ink label, ink outline. Join on every event, and secondary calls such as "Create an event" and "Pay by card on Revolut". A page of solid Joins read as a column of black blocks (removed 2026-10-02).
 - **Event buttons:** inside an event the button steps down to 40px tall with 16px side padding, since every event carries one.
 - **Hover:** the fills swap. Solid turns paper with an ink label; line turns ink with a paper label. 140ms on the system ease.
 - **Disabled:** clear ground, line-grey border, ink-muted label. A full event shows a disabled "Full" button in place of Join.

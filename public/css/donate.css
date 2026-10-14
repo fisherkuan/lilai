@@ -114,7 +114,7 @@
    The QR keeps its own white ground in both themes: banking apps scan dark modules
    on light, and an inverted code fails on many of them. */
 
-.donate-transfer { padding-bottom: var(--s7); }
+.donate-transfer { padding-bottom: var(--s6); }
 
 .donate-transfer .section-title { padding-top: var(--s4); }
 
@@ -169,7 +169,18 @@
     font-variant-numeric: tabular-nums;
 }
 
-.donate-transfer .donate-cta-row[hidden] { display: none; }
+/* Card payment is a second, separate way to pay, so it gets its own heading and a
+   line button: a solid one under the bank details read as the step that submits them. */
+.donate-card { padding-bottom: var(--s7); }
+
+.donate-card[hidden] { display: none; }
+
+.donate-card .section-meta {
+    max-width: 46ch;
+    margin: var(--s2) 0 0;
+}
+
+.donate-card .donate-cta-row { margin-top: var(--s4); }
 
 /* ---------- Transactions ---------- */
 

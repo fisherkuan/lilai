@@ -179,7 +179,7 @@ async function loadTransferDetails() {
 
         if (details.payLink) {
             document.getElementById('pay-link').href = details.payLink;
-            document.getElementById('pay-link-row').hidden = false;
+            document.getElementById('pay-link-section').hidden = false;
         }
 
         document.getElementById('transfer-details').hidden = false;
