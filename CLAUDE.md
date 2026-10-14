@@ -164,7 +164,7 @@ Required in `.env`:
 ### Donation Endpoints
 - `GET /api/donations` - Get donations with balance (query param: `limit`)
 - `POST /api/donations` - Create donation entry (body: `{amount, description, donator, entry_date}`)
-- `GET /api/donation-details` - Bank details for the Donate page (404 when not configured)
+- `GET /api/donation-details` - Account holder, masked IBAN and pay link for the Donate page (404 when not configured). The full IBAN travels only in the QR code and `GET /api/donation-iban`, which the Copy button calls on click
 - `GET /api/donation-qr.svg` - SEPA "scan to pay" QR code (EPC069-12) for the same details
 
 ### Booking Queue Endpoints

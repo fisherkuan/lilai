@@ -66,7 +66,7 @@
 
     <section class="donate-transfer" aria-labelledby="transfer-title">
         <h2 class="section-title" id="transfer-title">Donate by bank transfer</h2>
-        <p class="section-meta">Scan the code in your banking app, or type the details in. You choose the amount.</p>
+        <p class="section-meta">Scan the code in your banking app. You choose the amount.</p>
         <div id="transfer-details" class="transfer-details" hidden>
             <img id="transfer-qr" class="transfer-qr" src="" alt="QR code with the bank transfer details" width="168" height="168">
             <dl class="transfer-fields">
@@ -81,18 +81,11 @@
                         <button type="button" id="copy-iban-btn" class="text-btn">Copy</button>
                     </dd>
                 </div>
-                <div id="transfer-bic-row" hidden>
-                    <dt>BIC</dt>
-                    <dd id="transfer-bic"></dd>
-                </div>
-                <div>
-                    <dt>Message</dt>
-                    <dd id="transfer-reference"></dd>
-                </div>
             </dl>
         </div>
-        <div id="pay-link-row" class="donate-cta-row" hidden>
-            <a id="pay-link" class="btn btn-solid" href="#" target="_blank" rel="noopener">Pay by card</a>
+        <div id="pay-link-section" class="donate-card" hidden>
+            <p class="donate-or">Or</p>
+            <a id="pay-link" class="btn btn-line" href="#" target="_blank" rel="noopener">Pay by card</a>
         </div>
         <p id="transfer-state" class="state-line">Loading bank details…</p>
     </section>

@@ -33,6 +33,15 @@ function formatIban(value) {
     return normaliseIban(value).replace(/(.{4})(?=.)/g, '$1 ');
 }
 
+// First and last four characters, for the page. The full IBAN still reaches a
+// donor through the QR code, so this keeps it out of page text, not secret.
+function maskIban(value) {
+    const iban = normaliseIban(value);
+    if (iban.length < 12) return formatIban(iban);
+    const hidden = iban.slice(4, -4).replace(/./g, '•');
+    return formatIban(iban.slice(0, 4) + hidden + iban.slice(-4));
+}
+
 // Only https links, so a bad value cannot become a javascript: URL on the page.
 function readPayLink(value) {
     const raw = String(value || '').trim();
@@ -62,6 +71,7 @@ function readBankDetails(env = process.env) {
         accountHolder,
         iban,
         ibanDisplay: formatIban(iban),
+        ibanMasked: maskIban(iban),
         bic: String(env.DONATION_BIC || '').replace(/\s+/g, '').toUpperCase(),
         reference: String(env.DONATION_REFERENCE || DEFAULT_REFERENCE).trim(),
         payLink: readPayLink(env.DONATION_PAY_LINK)
@@ -98,6 +108,7 @@ function renderEpcQrSvg(details) {
 module.exports = {
     isValidIban,
     formatIban,
+    maskIban,
     readBankDetails,
     buildEpcPayload,
     renderEpcQrSvg
