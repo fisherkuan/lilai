@@ -110,6 +110,67 @@
 
 .donate-cta-row .btn { min-width: 240px; }
 
+/* ---------- Bank transfer ----------
+   The QR keeps its own white ground in both themes: banking apps scan dark modules
+   on light, and an inverted code fails on many of them. */
+
+.donate-transfer { padding-bottom: var(--s7); }
+
+.donate-transfer .section-title { padding-top: var(--s4); }
+
+.donate-transfer .section-meta {
+    max-width: 46ch;
+    margin: var(--s2) 0 var(--s5);
+}
+
+.transfer-details {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: var(--s5);
+}
+
+.transfer-details[hidden] { display: none; }
+
+.transfer-qr {
+    display: block;
+    width: 168px;
+    height: 168px;
+    border: var(--rule) solid var(--ink);
+}
+
+.transfer-fields {
+    display: grid;
+    gap: var(--s3);
+    min-width: 0;
+    flex: 1 1 220px;
+    margin: 0;
+}
+
+.transfer-fields dt {
+    font-size: var(--meta);
+    color: var(--ink-2);
+}
+
+.transfer-fields dd {
+    margin: var(--s1) 0 0;
+    overflow-wrap: anywhere;
+}
+
+.transfer-iban-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: var(--s1) var(--s3);
+}
+
+.transfer-iban {
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+}
+
+.donate-transfer .donate-cta-row[hidden] { display: none; }
+
 /* ---------- Transactions ---------- */
 
 .donate-transactions { padding-top: var(--s5); }

@@ -43,7 +43,7 @@ Files run with `--test-concurrency=1` because several truncate the same tables.
 ## Architecture Overview
 
 ### Application Flow
-This is an event RSVP management system with Google Calendar integration and Stripe donation support.
+This is an event RSVP management system with Google Calendar integration and bank-transfer donations.
 
 **Core data flow:**
 1. Google Calendar events are fetched from configured calendar(s) via iCal feed
@@ -58,14 +58,14 @@ Single-file Express server (~840 lines) that handles:
 - **Calendar Sync**: `fetchCalendarEvents()` fetches and parses iCal format from Google Calendar
 - **Event Management**: CRUD operations for events with attendance tracking
 - **RSVP System**: Add/remove attendance with capacity limits
-- **Donation System**: Tracks donations with Stripe integration
+- **Donation System**: Tracks donations entered by hand; the Donate page shows bank details (`server/donation-bank.js`)
 - **Database**: PostgreSQL via `pg` Pool with auto-schema initialization
 
 **Key patterns:**
 - Calendar events have source field to track which calendar they came from
 - Attendance limits can be set in calendar event description with "limit: N" text
 - WebSocket broadcasts attendance changes to all clients for real-time updates
-- Stripe checkout sessions are created server-side for donations
+- Bank details for donations come from env vars, never `config/app.json` (the repo is public)
 
 ### Frontend Architecture (public/)
 Vanilla JavaScript with no build step.
@@ -94,8 +94,6 @@ Central configuration file with:
 - `events.defaultTimeRange` - Default filter ("future", "past", "all")
 - `events.defaultCreateCalendar` - Name of the calendar pre-selected by the "Create event" button. Must match a `calendars[].name`. The button links to `https://calendar.google.com/calendar/render?action=TEMPLATE&src=<calendar-id>`.
 - `rsvp` - RSVP behavior settings
-- `stripe.donationPriceId` - Stripe price ID for donations
-- `stripe.donationProgress` - Current/goal for donation progress bar
 - `joinGroupUrl` - Link to external group (displayed in UI)
 
 ## Key Implementation Details
@@ -125,8 +123,8 @@ Clients connect via WebSocket and listen for these messages to update UI without
 ### Environment Variables
 Required in `.env`:
 - `DATABASE_URL` - PostgreSQL connection string (format: postgresql://user:password@host:port/database)
-- `STRIPE_SECRET_KEY` - Stripe API secret key
-- `STRIPE_PUBLISHABLE_KEY` - Stripe public key (served to client via /api/stripe-key)
+- `DONATION_IBAN`, `DONATION_ACCOUNT_HOLDER` - Optional. Bank details on the Donate page; set both or neither. An invalid IBAN stops startup
+- `DONATION_BIC`, `DONATION_REFERENCE`, `DONATION_PAY_LINK` - Optional: BIC, transfer message (default "Lilai donation"), an https card-payment link such as revolut.me
 - `PORT` - Server port (default: 3000)
 - `NODE_ENV` - Set to "production" to enable SSL for PostgreSQL
 
@@ -166,8 +164,8 @@ Required in `.env`:
 ### Donation Endpoints
 - `GET /api/donations` - Get donations with balance (query param: `limit`)
 - `POST /api/donations` - Create donation entry (body: `{amount, description, donator, entry_date}`)
-- `GET /api/donation-progress` - Get current/goal for progress bar
-- `POST /api/create-donation-checkout-session` - Create Stripe checkout session
+- `GET /api/donation-details` - Bank details for the Donate page (404 when not configured)
+- `GET /api/donation-qr.svg` - SEPA "scan to pay" QR code (EPC069-12) for the same details
 
 ### Booking Queue Endpoints
 - `GET /api/bookings` - Board data: `queued[]`, `history[]`, `historyHasMore`, `quotaPerWeek`. Params: `limit`, `before=<ISO>`
@@ -188,7 +186,6 @@ Required in `.env`:
 
 ### Configuration
 - `GET /api/config` - Get app configuration (calendars, settings)
-- `GET /api/stripe-key` - Get Stripe publishable key
 - `GET /api/health` - Health check
 
 ## Booking Queue
@@ -233,7 +230,6 @@ a specification, never called at runtime.
 
 - Designed for Heroku-style deployment (Procfile present)
 - PostgreSQL required in production (DATABASE_URL must be set)
-- Stripe keys required for donation functionality
 - Static files served from `public/` directory
 - WebSocket requires HTTP server support (not just Express)
 - SSL automatically enabled for PostgreSQL when NODE_ENV=production

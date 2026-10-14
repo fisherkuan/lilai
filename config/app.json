@@ -26,13 +26,6 @@
     "allowAnonymous": false,
     "requireName": true
   },
-  "stripe": {
-    "donationPriceId": "price_1SBB7vJ3tr3bCJWSejLYC3TQ",
-    "donationProgress": {
-      "current": 600,
-      "goal": 1000
-    }
-  },
   "joinGroupUrl": "https://groups.google.com/g/leuven-taiwanese",
   "booking": {
     "openingDelayMinSeconds": 5,

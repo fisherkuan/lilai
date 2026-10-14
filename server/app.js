@@ -19,6 +19,7 @@ const { mergeContact, sendAfterForEdit } = require('./booking-edit');
 const {
     expandRepeat, validateRule, describeRule, RepeatError, UNITS, MAX_EVERY, MAX_OCCURRENCES
 } = require('./booking-repeat');
+const { readBankDetails, renderEpcQrSvg } = require('./donation-bank');
 const { createSeriesSchema, toSeriesView, LIST_SQL: SERIES_LIST_SQL, ONE_SQL: SERIES_ONE_SQL } = require('./booking-series');
 const {
     createProfileSchema, publicProfile, fullProfile, validateProfile
@@ -28,7 +29,7 @@ const {
 require('dotenv').config();
 
 // Validate required environment variables at startup
-const requiredEnvVars = ['DATABASE_URL', 'STRIPE_SECRET_KEY', 'STRIPE_PUBLISHABLE_KEY', 'ADMIN_API_KEY'];
+const requiredEnvVars = ['DATABASE_URL', 'ADMIN_API_KEY'];
 const missingVars = requiredEnvVars.filter(varName => !process.env[varName]);
 
 if (missingVars.length > 0) {
@@ -79,7 +80,8 @@ const pool = new Pool({
     ssl: isProduction ? { rejectUnauthorized: false } : false
 });
 
-const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+// Read once at startup: an invalid IBAN stops the server rather than reaching a donor.
+const bankDetails = readBankDetails();
 
 // Admin authentication middleware
 function requireAdminKey(req, res, next) {
@@ -122,21 +124,8 @@ try {
     appConfig = {
         calendars: [],
         events: { autoFetch: false, defaultTimeRange: 'future', refreshInterval: 300000 },
-        rsvp: { allowAnonymous: false, requireName: true },
-        stripe: {
-            donationPriceId: '',
-            donationProgress: { current: 0, goal: 0 }
-        }
+        rsvp: { allowAnonymous: false, requireName: true }
     };
-}
-
-if (!appConfig.stripe) {
-    appConfig.stripe = {
-        donationPriceId: '',
-        donationProgress: { current: 0, goal: 0 }
-    };
-} else {
-    appConfig.stripe.donationProgress = appConfig.stripe.donationProgress || { current: 0, goal: 0 };
 }
 
 // Create HTTP server
@@ -482,43 +471,34 @@ app.get('/api/config', (req, res) => {
     }
 });
 
-app.get('/api/stripe-key', (req, res) => {
-    res.json({ publicKey: process.env.STRIPE_PUBLISHABLE_KEY });
-});
-
-// Get donation progress
-app.get('/api/donation-progress', (req, res) => {
-    const donationProgress = appConfig.stripe?.donationProgress || {};
-    res.json({
-        current: donationProgress.current ?? 600,
-        goal: donationProgress.goal ?? 1000
-    });
-});
-
-app.post('/api/create-donation-checkout-session', async (req, res) => {
-    const priceId = appConfig.stripe?.donationPriceId;
-
-    if (!priceId) {
-        return res.status(500).json({ error: 'Donation price ID not configured' });
+// Bank details for the Donate page. 404 when none are configured.
+app.get('/api/donation-details', (req, res) => {
+    if (!bankDetails) {
+        return res.status(404).json({ error: 'Donations by transfer are not set up' });
     }
-
-    const session = await stripe.checkout.sessions.create({
-        line_items: [
-            {
-                price: priceId,
-                quantity: 1,
-            },
-        ],
-        mode: 'payment',
-        submit_type: 'donate',
-        success_url: `${req.headers.origin}?session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${req.headers.origin}`,
+    res.json({
+        accountHolder: bankDetails.accountHolder,
+        iban: bankDetails.iban,
+        ibanDisplay: bankDetails.ibanDisplay,
+        bic: bankDetails.bic,
+        reference: bankDetails.reference,
+        payLink: bankDetails.payLink
     });
-
-    res.json({ id: session.id });
 });
 
-
+// SEPA "scan to pay" QR code for the same details.
+app.get('/api/donation-qr.svg', async (req, res) => {
+    if (!bankDetails) {
+        return res.status(404).end();
+    }
+    try {
+        const svg = await renderEpcQrSvg(bankDetails);
+        res.type('image/svg+xml').set('Cache-Control', 'public, max-age=3600').send(svg);
+    } catch (error) {
+        console.error('Error rendering donation QR code:', error);
+        res.status(500).end();
+    }
+});
 
 // Get all events
 app.get('/api/events', async (req, res) => {
