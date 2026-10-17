@@ -20,7 +20,7 @@ const { createBookingSchema } = require('../server/booking-schema');
 const { createSeriesSchema } = require('../server/booking-series');
 const { validateBooking } = require('../server/booking-validation');
 const { weekBounds } = require('../server/booking-time');
-const { QUOTA_PER_WEEK, countHeld, quotaFor } = require('../server/booking-quota');
+const { QUOTA_PER_WEEK, countHeld, quotaFor, reportFailure } = require('../server/booking-quota');
 const { bookingSettings, sampleSendAfter } = require('../server/booking-settings');
 
 const CONNECTION = process.env.TEST_DATABASE_URL || 'postgresql://localhost/lilai_booking_test';
@@ -453,6 +453,45 @@ test('a cancelled slot gives its allowance back', async (t) => {
 
         await client.query(`UPDATE booking_queue SET status = 'cancelled' WHERE id = $1`, [first]);
         assert.equal((await quotaFor(client, 'Yuki Chen', '2026-09-26')).remaining, 1);
+    } finally {
+        client.release();
+    }
+});
+
+test('reporting a sent request as failed gives its allowance back', async (t) => {
+    if (skipUnlessReachable(t)) return;
+    const client = await fresh();
+    try {
+        const sent = await insert(client, { playDate: '2026-09-22', status: 'sent' });
+        await insert(client, {
+            playDate: '2026-09-24', startPreferred: '19:00', startAlternative: '21:00', status: 'unconfirmed'
+        });
+        assert.equal((await quotaFor(client, 'Yuki Chen', '2026-09-26')).remaining, 0);
+
+        const result = await reportFailure(client, sent);
+        assert.equal(result.row.status, 'failed');
+        assert.ok(result.row.failure_reported_at);
+        assert.equal((await quotaFor(client, 'Yuki Chen', '2026-09-26')).remaining, 1);
+    } finally {
+        client.release();
+    }
+});
+
+test('only a request that went out can be reported as failed', async (t) => {
+    if (skipUnlessReachable(t)) return;
+    const client = await fresh();
+    try {
+        const unconfirmed = await insert(client, { status: 'unconfirmed' });
+        assert.equal((await reportFailure(client, unconfirmed)).row.status, 'failed');
+
+        // Reporting twice changes nothing the second time.
+        assert.deepEqual(await reportFailure(client, unconfirmed), { refused: 'failed' });
+
+        for (const status of ['queued', 'sending', 'not_sent', 'missed', 'cancelled']) {
+            const id = await insert(client, { status });
+            assert.deepEqual(await reportFailure(client, id), { refused: status });
+        }
+        assert.deepEqual(await reportFailure(client, 'no-such-id'), { refused: null });
     } finally {
         client.release();
     }

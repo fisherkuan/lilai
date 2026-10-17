@@ -84,6 +84,17 @@
             headline: 'It did not go through.',
             blurb: 'Nothing was booked. The slot can be queued again if its window is still open.'
         },
+        /*
+         * A person marked it failed, usually after KU Leuven's refusal email. The request
+         * did go out, so this page says so, and says the week's slot came back.
+         */
+        failed_reported: {
+            label: 'Request failed',
+            tone: 'failed',
+            mark: 'cross',
+            headline: 'Reported as failed.',
+            blurb: 'The request went out, and someone reported that it did not get a court. It no longer counts toward the two-a-week limit, so the slot can be queued again if its window is still open.'
+        },
         missed: {
             label: 'Missed',
             tone: 'missed',
@@ -129,9 +140,13 @@
         steps.push(['Window opened', opened ? stampWithSeconds(booking.opensAt) : `${shortStamp(booking.opensAt)} — not yet`, !opened]);
         // Submitting the form and the outcome of submitting it happen at the same instant;
         // two steps a second apart implied a wait that never existed.
+        // A reported failure is the exception: the request did go out, and the report came
+        // later, from a person, so the two are separate steps.
+        const reported = booking.status === 'failed' && booking.failureReportedAt;
         if (booking.submittedAt) {
-            steps.push([OUTCOMES[booking.status].label, stampWithSeconds(booking.submittedAt)]);
+            steps.push([reported ? 'Request sent' : OUTCOMES[booking.status].label, stampWithSeconds(booking.submittedAt)]);
         }
+        if (reported) steps.push(['Reported as failed', shortStamp(booking.failureReportedAt)]);
         return h('section', { class: 'bd-card' }, [
             h('h2', { class: 'bd-card-title', text: 'What happened' }),
             // A step that has not happened yet keeps an open square: filled means it did.
@@ -174,6 +189,7 @@
     const LIVE_WINDOW_MS = 5 * 60 * 1000;
 
     function outcomeKey(booking) {
+        if (booking.status === 'failed' && booking.failureReportedAt) return 'failed_reported';
         if (booking.status !== 'queued') return booking.status;
         const sinceOpen = Date.now() - new Date(booking.opensAt).getTime();
         if (sinceOpen < 0) return 'queued';
