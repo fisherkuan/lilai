@@ -183,6 +183,7 @@ Required in `.env`:
 - `PUT /api/bookings/:id` - Edit a queued entry. Re-validated whole; the send delay is re-rolled only when the opening moves
 - `POST /api/bookings/:id/restore` - Undo a cancellation inside the undo window, without a quota check
 - `DELETE /api/bookings/:id` - Cancel a queued entry (used by the quota swap)
+- `POST /api/bookings/:id/report-failure` - Mark a `sent` or `unconfirmed` request as `failed` by hand (KU Leuven refuses by email, which the app never sees). `failed` holds no quota, so the person's slot that week comes back. No undo
 
 ### Configuration
 - `GET /api/config` - Get app configuration (calendars, settings)
@@ -196,7 +197,7 @@ opens — midnight Brussels, 14 days before the play date.
 - `server/booking-time.js` — Brussels wall-clock arithmetic; rejects ambiguous and nonexistent local times rather than guessing
 - `server/booking-form.js` — the Plone EasyForm client (parse, build, encode, classify)
 - `server/booking-scheduler.js` — the 15s tick. Claims a row (`UPDATE … WHERE status='queued'`) *before* the POST, so a request is never sent twice. A POST whose outcome cannot be read becomes `unconfirmed` and is never retried automatically
-- `server/booking-quota.js` — two slots per name per Mon–Sun week, enforced under a Postgres advisory lock
+- `server/booking-quota.js` — two slots per name per Mon–Sun week, enforced under a Postgres advisory lock. `reportFailure` turns a sent request into `failed` and stamps `failure_reported_at`, which releases its slot
 - `server/booking-profiles.js` — the address book, plus the `profile_id` link and its backfill from the existing queue
 - `server/booking-repeat.js` — expands a repeat rule (every N days / weeks on chosen weekdays / months) into play dates; capped at 52, bounded by the season. A month without the anchor date is skipped, never slid
 - `server/booking-series.js` — the recurring schedule as a record you can act on. A label on rows, never their owner; the only way to stop one is `cancel-remaining`, and it stays listed afterwards as the record of what it booked. Editing one re-expands the rule and reconciles the queue against it — see `PUT /api/booking-series/:id`. A schedule's own still-queued occurrences are excluded from the quota while it is being rebuilt (`countHeld`/`quotaFor` take `excludeSeries`), or it would block its own edit

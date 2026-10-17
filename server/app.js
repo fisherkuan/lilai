@@ -10,7 +10,7 @@ const WebSocket = require('ws');
 
 const { weekBounds } = require('./booking-time');
 const { validateBooking, BookingInputError } = require('./booking-validation');
-const { QUOTA_PER_WEEK, countHeld, quotaFor } = require('./booking-quota');
+const { QUOTA_PER_WEEK, countHeld, quotaFor, reportFailure } = require('./booking-quota');
 const { bookingSettings, sampleSendAfter, graceDeadline } = require('./booking-settings');
 const { createBookingSchema } = require('./booking-schema');
 const { BookingFormClient, readFormOptions } = require('./booking-form');
@@ -1040,6 +1040,8 @@ function toBoardEntry(row) {
         seriesId: row.series_id || null,
         // When it was cancelled, so the board can run the Undo window down to zero.
         cancelledAt: row.cancelled_at || null,
+        // Set when a person, not the scheduler, marked the request failed.
+        failureReportedAt: row.failure_reported_at || null,
         status: row.status,
         opensAt: row.opens_at,
         queuedAt: row.queued_at,
@@ -2179,6 +2181,38 @@ app.post('/api/bookings/:id/restore', async (req, res) => {
     } catch (error) {
         await client.query('ROLLBACK').catch(() => {});
         console.error('Error restoring booking:', error);
+        res.status(500).json({ success: false, message: 'Internal server error' });
+    } finally {
+        client.release();
+    }
+});
+
+/*
+ * Report a sent request as failed, by hand.
+ *
+ * KU Leuven answers by email, never to this app, so a refusal is invisible here until
+ * someone says so. Until then the request keeps holding one of the person's two slots for
+ * that week. Marking it `failed` gives the slot back. No undo: the person who pressed it can
+ * queue the slot again, and that goes through the quota check like any new booking.
+ */
+app.post('/api/bookings/:id/report-failure', async (req, res) => {
+    const client = await pool.connect();
+    try {
+        const result = await reportFailure(client, req.params.id);
+        if (result.refused === null) {
+            return res.status(404).json({ success: false, message: 'No such entry' });
+        }
+        if (result.refused) {
+            return res.status(409).json({
+                success: false,
+                message: `That entry is ${result.refused}. Only a request that went out can be reported as failed.`
+            });
+        }
+        const board = toBoardEntry(result.row);
+        broadcast({ type: 'booking_update', booking: board });
+        res.json({ success: true, booking: board });
+    } catch (error) {
+        console.error('Error reporting booking failure:', error);
         res.status(500).json({ success: false, message: 'Internal server error' });
     } finally {
         client.release();
