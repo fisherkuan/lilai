@@ -109,9 +109,37 @@ async function quotaFor(client, name, playDate, options = {}) {
     };
 }
 
+/*
+ * Statuses a person can report as failed: a request that went out. KU Leuven refuses by
+ * email, which this app never reads, so the board would otherwise go on counting a court
+ * nobody has. `queued` has its own way out (cancel), and the rest already hold no slot.
+ */
+const REPORTABLE_STATUSES = ['sent', 'unconfirmed'];
+
+/**
+ * Mark a sent request as failed, which gives its slot back to that name's week.
+ *
+ * Returns the updated row, or `{ refused }` with the status it is actually in. The guard is
+ * in the WHERE clause, so two people pressing the button at once change the row only once.
+ */
+async function reportFailure(client, id) {
+    const result = await client.query(`
+        UPDATE booking_queue
+        SET status = 'failed', failure_reported_at = NOW()
+        WHERE id = $1 AND status = ANY($2)
+        RETURNING *
+    `, [id, REPORTABLE_STATUSES]);
+    if (result.rows.length > 0) return { row: result.rows[0] };
+
+    const current = await client.query('SELECT status FROM booking_queue WHERE id = $1', [id]);
+    return { refused: current.rows.length > 0 ? current.rows[0].status : null };
+}
+
 module.exports = {
     QUOTA_PER_WEEK,
     HOLDING_STATUSES,
+    REPORTABLE_STATUSES,
     countHeld,
-    quotaFor
+    quotaFor,
+    reportFailure
 };

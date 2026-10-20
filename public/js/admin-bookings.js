@@ -23,7 +23,7 @@
      *
      * Bump it when changing anything in public/js or public/css/booking.css.
      */
-    const BUILD = '2026-09-27a';
+    const BUILD = '2026-10-17a';
 
     const { BRUSSELS, MONTHS } = window.bookingShared;
     const MINUTE = 60000;
@@ -63,6 +63,7 @@
 
     const NO_REPLY = '· no reply from the form — check your email before re-queueing';
     const NOT_LIVE = '· submitting is switched off — nothing went to KU Leuven';
+    const REPORTED = '· reported by hand, the slot is free again';
 
     /*
      * How much of the timeline is worth showing at rest.
@@ -344,6 +345,19 @@
             return actions;
         }
 
+        /*
+         * A request that went out can be reported as failed. KU Leuven refuses by email,
+         * which this app never sees, so without this the refused request keeps holding one
+         * of the person's two slots that week.
+         */
+        if (entry.status === 'sent' || entry.status === 'unconfirmed') {
+            const report = node('button', 'bq-action-link', 'Report failure');
+            report.type = 'button';
+            report.addEventListener('click', () => reportFailure(entry, report));
+            actions.append(report);
+            return actions;
+        }
+
         // Only a slot still waiting can be acted on. Past rows are a record; the way to
         // repeat one is to queue it fresh, where the dates are chosen deliberately.
         if (entry.status !== 'queued') return actions;
@@ -417,13 +431,28 @@
         });
     }
 
+    function reportFailure(entry, button) {
+        askThen(
+            button,
+            `Refused by KU Leuven? This frees ${displayName(entry.name)}'s slot that week.`,
+            'Report failure',
+            (yes) => rowAction(yes, {
+                busy: 'Reporting…', idle: 'Report failure', failed: 'Could not report that request.',
+                request: () => fetch(`/api/bookings/${encodeURIComponent(entry.id)}/report-failure`, { method: 'POST' })
+            })
+        );
+    }
+
     function sentRow(entry, now) {
         // A POST whose answer we could not read reports as sent, with the clause that says
         // so and an open square. It is not a failure: "failed" invites a re-queue, and a
         // re-queue can double-book.
         const noReply = entry.status === 'unconfirmed';
         const outcome = noReply ? OUTCOMES.sent : (OUTCOMES[entry.status] || OUTCOMES.failed);
-        const clause = noReply ? NO_REPLY : (entry.status === 'not_sent' ? NOT_LIVE : null);
+        const clause = noReply ? NO_REPLY
+            : entry.status === 'not_sent' ? NOT_LIVE
+            : (entry.status === 'failed' && entry.failureReportedAt) ? REPORTED
+            : null;
         const when = new Date(entry.submittedAt || entry.opensAt);
 
         const row = node('li', 'bq-row bq-row-sent');
@@ -453,8 +482,11 @@
         aside.append(node('div', 'bq-who', displayName(entry.name)));
         const link = node('a', 'bq-aside-link', 'Details');
         link.href = `/admin/bookings/${entry.id}`;
-        aside.append(link);
-        aside.append(rowActions(entry));
+        // Details shares the actions line, so on desktop both sit in the one right-hand
+        // cell side by side instead of on top of each other.
+        const actions = rowActions(entry);
+        actions.prepend(link);
+        aside.append(actions);
 
         row.append(gutter, body, aside);
         row.classList.add(`bq-tone-${noReply ? 'unconfirmed' : outcome.tone}`);

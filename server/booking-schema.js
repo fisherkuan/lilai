@@ -64,6 +64,16 @@ const CANCELLED_AT_SQL = `
 `;
 
 /*
+ * When someone reported a sent request as failed by hand. KU Leuven answers by email, which
+ * this app never sees, so a refusal reaches the board only when a person says so. The row
+ * becomes `failed` (which holds no quota slot) and this column records that a person, not
+ * the scheduler, made it so.
+ */
+const FAILURE_REPORTED_AT_SQL = `
+    ALTER TABLE booking_queue ADD COLUMN IF NOT EXISTS failure_reported_at TIMESTAMPTZ;
+`;
+
+/*
  * `not_sent` — we reached the moment and deliberately did not submit, because
  * BOOKING_SUBMIT was not set to live. It is its own status rather than a flavour of
  * `unconfirmed` because there is nothing unconfirmed about it: we know exactly what
@@ -90,10 +100,11 @@ const INDEX_SQL = [
 async function createBookingSchema(client) {
     await client.query(TABLE_SQL);
     await client.query(CANCELLED_AT_SQL);
+    await client.query(FAILURE_REPORTED_AT_SQL);
     await client.query(STATUS_CONSTRAINT_SQL);
     for (const sql of INDEX_SQL) {
         await client.query(sql);
     }
 }
 
-module.exports = { TABLE_SQL, CANCELLED_AT_SQL, STATUS_CONSTRAINT_SQL, INDEX_SQL, createBookingSchema };
+module.exports = { TABLE_SQL, CANCELLED_AT_SQL, FAILURE_REPORTED_AT_SQL, STATUS_CONSTRAINT_SQL, INDEX_SQL, createBookingSchema };
