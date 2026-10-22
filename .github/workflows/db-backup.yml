@@ -22,7 +22,10 @@ jobs:
       - name: Dump the database
         env:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        # Without pipefail, gzip's success hid every pg_dump failure: the job
+        # stayed green for weeks while dumping nothing.
         run: |
+          set -o pipefail
           /usr/lib/postgresql/18/bin/pg_dump "$SUPABASE_DB_URL" \
             --no-owner --no-acl -n public \
             | gzip > lilai-db-backup.sql.gz

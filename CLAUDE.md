@@ -231,6 +231,7 @@ a specification, never called at runtime.
 ## Deployment Notes
 
 - Designed for Heroku-style deployment (Procfile present)
+- Production is the Heroku app `lilai-eu` (region eu, Basic dyno) serving `lilai.fisherkuan.com` (DNS on Cloudflare, DNS only). Its database is the Heroku Postgres `essential-0` add-on in eu-west-1, with daily backups at 04:00 Brussels (`heroku pg:backups -a lilai-eu`). The Supabase `lilai` project is a paused leftover, not production. Moved from the US app `lilai` on 2026-10-22
 - PostgreSQL required in production (DATABASE_URL must be set)
 - Static files served from `public/` directory
 - WebSocket requires HTTP server support (not just Express)
