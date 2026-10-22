@@ -1,8 +1,8 @@
 /*
  * Queue a slot — a three-step bottom sheet (artboards 1e-1h).
  *
- * Eleven form fields become three screens because the boring ones (players, indoor,
- * facility, remarks) collapse into one summary row carried over from last time. The
+ * Eleven form fields become three screens. The quiet ones (players, indoor, facility,
+ * remarks) sit at the foot of step 2, filled in from last time. The
  * second start time is the only field with its own bordered box: it is a different
  * START, not an end time, and it is the field people get wrong.
  *
@@ -431,11 +431,6 @@
             ]
             : [`Both are ${hoursWord} starts, not a start and an end. The second is the fallback if the first is taken.`];
 
-        const where = draft.facility === 'Andere / Other'
-            ? (draft.otherFacility || 'other — name it')
-            : (draft.facility || 'no preference');
-        const summary = `${draft.players} players · ${draft.indoorOutdoor.toLowerCase()} · ${where} · ${draft.remarks ? 'with remarks' : 'no remarks'}`;
-
         return [
             h('div', { class: 'bs-field' }, [
                 h('label', { class: 'bs-label', text: 'How long' }),
@@ -456,15 +451,7 @@
                 h('p', { class: 'bs-note' }, example)
             ]),
             repeatField(),
-            // The truthfulness of the player count belongs beside the players field, which
-            // is in the sub-sheet this row opens — not under a summary of six other things.
-            h('div', { class: 'bs-summary bs-block' }, [
-                h('div', { class: 'bs-summary-main' }, [
-                    h('div', { class: 'bs-summary-title', text: 'Everything else' }),
-                    h('div', { class: 'bs-summary-text', text: summary })
-                ]),
-                h('button', { type: 'button', class: 'text-btn', text: 'Change', onclick: openDetails })
-            ])
+            ...detailFields()
         ];
     }
 
@@ -684,25 +671,41 @@
         goTo(1);
     }
 
-    // --- Details sub-sheet ------------------------------------------------------------
+    // --- Everything else ----------------------------------------------------------------
 
-    function openDetails() {
+    /*
+     * Players, indoor or outdoor, facility and remarks, laid out in step 2 itself.
+     *
+     * They used to fold into a one-line summary with a Change button that opened a second
+     * sheet over the first. That hid the player count, the one of the four that has to be
+     * true, behind a tap, and a sheet on top of a sheet was a place people lost their way.
+     * They still carry over from last time, so most bookings never touch them.
+     *
+     * The typed fields write to the draft as you type and never repaint the step, which
+     * would take the caret with it. Only the choices that change what is shown repaint.
+     */
+    function detailFields() {
         const players = h('input', { type: 'number', class: 'bs-input', min: '10', max: '200', value: String(draft.players) });
-        const remarks = h('textarea', { class: 'bs-input', rows: '2', placeholder: 'Anything KU Leuven should know' });
-        remarks.value = draft.remarks || '';
+        players.addEventListener('change', () => {
+            draft.players = Math.max(10, parseInt(players.value, 10) || 10);
+            players.value = String(draft.players);
+        });
 
-        const facility = h('select', { class: 'bs-input' }, [
+        const facility = h('select', { class: 'bs-input', 'aria-label': 'Facility' }, [
             h('option', { value: '', text: 'No preference' }),
             ...options.facilities.map((name) => h('option', { value: name, text: name }))
         ]);
         facility.value = draft.facility || '';
+        facility.addEventListener('change', () => { draft.facility = facility.value; renderStep(); });
 
         const other = h('input', { type: 'text', class: 'bs-input', placeholder: 'Which court or hall?', value: draft.otherFacility || '' });
-        const otherField = h('div', { class: 'bs-field' }, [h('label', { class: 'bs-label', text: 'Name the facility' }), other]);
-        otherField.hidden = facility.value !== 'Andere / Other';
-        facility.addEventListener('change', () => { otherField.hidden = facility.value !== 'Andere / Other'; });
+        other.addEventListener('input', () => { draft.otherFacility = other.value.trim(); });
 
-        const body = h('div', { class: 'bs-details' }, [
+        const remarks = h('textarea', { class: 'bs-input', rows: '2', placeholder: 'Anything KU Leuven should know' });
+        remarks.value = draft.remarks || '';
+        remarks.addEventListener('input', () => { draft.remarks = remarks.value.trim(); });
+
+        return [
             h('div', { class: 'bs-field' }, [
                 h('label', { class: 'bs-label', text: 'Players' }),
                 players,
@@ -712,34 +715,15 @@
                 h('label', { class: 'bs-label', text: 'Indoor or outdoor' }),
                 pillGroup(['Indoor', 'Outdoor'], draft.indoorOutdoor, (value) => {
                     draft.indoorOutdoor = value;
-                    root.querySelector('.bs-modal')?.remove();
-                    openDetails();
+                    renderStep();
                 })
             ]),
             h('div', { class: 'bs-field' }, [h('label', { class: 'bs-label', text: 'Facility' }), facility]),
-            otherField,
-            h('div', { class: 'bs-field' }, [h('label', { class: 'bs-label', text: 'Remarks' }), remarks]),
-            h('div', { class: 'bs-modal-actions' }, [
-                h('button', { type: 'button', class: 'text-btn', text: 'Cancel', onclick: () => root.querySelector('.bs-modal').remove() }),
-                h('button', {
-                    type: 'button',
-                    class: 'btn btn-solid',
-                    text: 'Save',
-                    onclick: () => {
-                        draft.players = Math.max(10, parseInt(players.value, 10) || 10);
-                        draft.facility = facility.value;
-                        draft.otherFacility = other.value.trim();
-                        draft.remarks = remarks.value.trim();
-                        root.querySelector('.bs-modal').remove();
-                        renderStep();
-                    }
-                })
-            ])
-        ]);
-
-        root.append(h('div', { class: 'bs-modal' }, [h('div', { class: 'bs-modal-card' }, [
-            h('h3', { text: 'Everything else' }), body
-        ])]));
+            draft.facility === 'Andere / Other'
+                ? h('div', { class: 'bs-field' }, [h('label', { class: 'bs-label', text: 'Name the facility' }), other])
+                : null,
+            h('div', { class: 'bs-field' }, [h('label', { class: 'bs-label', text: 'Remarks' }), remarks])
+        ];
     }
 
     // --- Shell ---------------------------------------------------------------------------

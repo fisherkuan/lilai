@@ -936,18 +936,6 @@ select.bs-unit { flex: none; width: 150px; max-width: none; }
 
 .bq-pip.used { background: var(--ink); }
 
-/* The last row of step 2: a rule above it, not a box around it. */
-.bs-summary {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--s3);
-}
-
-.bs-summary-main { flex: 1; min-width: 0; }
-.bs-summary-title { font-size: 16px; font-weight: 600; }
-.bs-summary-text { font-size: var(--meta); color: var(--ink-2); overflow-wrap: anywhere; }
-
 /* Who it is for, on the confirm screen. */
 .bs-person {
     display: flex;
@@ -1077,46 +1065,6 @@ select.bs-unit { flex: none; width: 150px; max-width: none; }
 
 .bs-locked { flex: none; font-size: var(--meta); color: var(--ink-3); }
 
-/* Details sub-sheet: a second sheet stacked inside the first. */
-.bs-modal {
-    position: absolute;
-    inset: 0;
-    z-index: 2;
-    display: flex;
-    align-items: flex-end;
-    justify-content: center;
-    background: var(--scrim);
-}
-
-.bs-modal-card {
-    width: 100%;
-    max-height: 88%;
-    overflow-y: auto;
-    padding: var(--s4) var(--gutter) calc(var(--s5) + env(safe-area-inset-bottom));
-    background: var(--paper-raised);
-    border-radius: var(--radius-sheet) var(--radius-sheet) 0 0;
-    box-shadow: var(--shadow-float);
-    animation: sheet-in var(--duration-sheet) var(--ease-sheet);
-}
-
-.bs-modal-card h3 {
-    margin: 0 0 var(--s4);
-    font-size: 22px;
-    font-weight: 600;
-    line-height: 1.25;
-}
-
-.bs-details { display: flex; flex-direction: column; gap: var(--s5); }
-
-.bs-modal-actions {
-    display: flex;
-    flex-direction: row-reverse;
-    align-items: center;
-    gap: var(--s5);
-}
-
-.bs-modal-actions .btn { flex: 1 1 auto; }
-
 /* People manager */
 .bp-layer { z-index: 130; }
 
@@ -1151,8 +1099,6 @@ select.bs-unit { flex: none; width: 150px; max-width: none; }
     .bs-mode, .bs-head, .bs-footer { padding-left: var(--s5); padding-right: var(--s5); }
     .bs-body { padding-left: var(--s5); padding-right: var(--s5); }
     .bs-error { margin: 0 var(--s5); }
-    .bs-modal { align-items: center; padding: var(--s4); }
-    .bs-modal-card { max-width: 480px; padding: var(--s4) var(--s5) var(--s5); border-radius: var(--radius-card); animation-name: pop-in; animation-duration: var(--duration-pop); }
 }
 
 /* ---------- Entry detail ---------- */
