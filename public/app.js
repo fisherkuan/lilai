@@ -344,6 +344,8 @@ const RAIL_DAYS = 14;
 const VIEW_KEY = 'lilaiHomeView';
 let rail = null;
 let homeView = 'cards';
+// The agenda row tapped open in Rows view, kept across re-renders (live seat counts).
+let openAgendaRow = null;
 
 function railMark(ev) {
     const st = styleFor(ev);
@@ -372,6 +374,7 @@ function renderRail() {
 }
 
 function onRailSelect(day, via) {
+    openAgendaRow = null;
     renderAgenda();
     // Arrow keys only move the selection, so the rail stays in view while stepping.
     if (homeView === 'cards' && via === 'click' && day.events.length) scrollToEvent(day.events[0].id);
@@ -388,8 +391,8 @@ function renderAgenda() {
     if (!list || !rail) return;
     const day = rail.selected;
     const n = day.events.length;
-    // Cards view lists a day's events as cards already; the agenda speaks only for an empty day.
-    document.getElementById('agenda').hidden = homeView === 'cards' && n > 0;
+    // Cards view lists a day's events as cards already; the agenda belongs to Rows view.
+    document.getElementById('agenda').hidden = homeView === 'cards';
     document.getElementById('agenda-title').textContent = agendaHeading(day);
     document.getElementById('agenda-count').textContent = n === 0 ? '' : `${n} event${n === 1 ? '' : 's'}`;
     if (n === 0) {
@@ -412,12 +415,18 @@ function renderAgenda() {
                 ? '<button type="button" class="btn btn-line agenda-join" disabled>Full</button>'
                 : `<button type="button" class="btn btn-line agenda-join" data-event-id="${escapeAttribute(ev.id)}" aria-label="${escapeAttribute(`Join ${ev.title}`)}">Join</button>`;
         }
-        return `<li class="agenda-row${isPast ? ' is-past' : ''}">`
+        const open = ev.id === openAgendaRow;
+        const revealId = `agenda-reveal-${ev.id}`;
+        return `<li class="agenda-row${isPast ? ' is-past' : ''}${open ? ' is-open' : ''}" data-event-id="${escapeAttribute(ev.id)}">`
             + `<span class="agenda-time">${escapeHtml(time)}</span>`
             + '<span class="agenda-bar" aria-hidden="true"></span>'
-            + `<span class="agenda-main"><span class="agenda-name">${escapeHtml(ev.title)}</span>`
+            + `<button type="button" class="agenda-main" aria-expanded="${open}" aria-controls="${escapeAttribute(revealId)}">`
+            + `<span class="agenda-name">${escapeHtml(ev.title)}</span>`
             + (meta ? `<span class="agenda-meta">${escapeHtml(meta)}</span>` : '')
-            + `</span>${action}</li>`;
+            + `</button>${action}`
+            + `<span class="agenda-reveal" id="${escapeAttribute(revealId)}"${open ? '' : ' hidden'}>`
+            + `<button type="button" class="text-btn agenda-to-card" data-event-id="${escapeAttribute(ev.id)}">Show card</button></span>`
+            + '</li>';
     }).join('');
 }
 
@@ -426,7 +435,27 @@ function wireAgenda() {
     if (list) {
         list.addEventListener('click', e => {
             const join = e.target.closest('.agenda-join');
-            if (join && join.dataset.eventId) openRsvpModal(join.dataset.eventId);
+            if (join) {
+                if (join.dataset.eventId) openRsvpModal(join.dataset.eventId);
+                return;
+            }
+            const toCard = e.target.closest('.agenda-to-card');
+            if (toCard) {
+                showCard(toCard.dataset.eventId);
+                return;
+            }
+            // Anywhere else on a row opens it, revealing the way to its card; a second tap closes it.
+            const row = e.target.closest('.agenda-row');
+            if (!row) return;
+            openAgendaRow = openAgendaRow === row.dataset.eventId ? null : row.dataset.eventId;
+            renderAgenda();
+        });
+    }
+    const toTop = document.getElementById('to-top-btn');
+    if (toTop) {
+        toTop.addEventListener('click', () => {
+            const smooth = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+            window.scrollTo({ top: 0, behavior: smooth ? 'smooth' : 'auto' });
         });
     }
     let saved = null;
@@ -435,6 +464,13 @@ function wireAgenda() {
     document.querySelectorAll('.view-btn').forEach(btn => {
         btn.addEventListener('click', () => setHomeView(btn.dataset.view));
     });
+}
+
+// From a row to its card: switch to Cards, then scroll once the list is showing again.
+function showCard(id) {
+    openAgendaRow = null;
+    setHomeView('cards');
+    requestAnimationFrame(() => scrollToEvent(id));
 }
 
 function setHomeView(view, { remember = true } = {}) {
@@ -611,11 +647,12 @@ function fetchFutureEvents() {
     return fetch(url, { cache: 'no-store', headers: { 'Cache-Control': 'no-cache' } });
 }
 
-function loadEvents() {
+// quiet: a pull to refresh keeps the current list on screen until the new one arrives.
+function loadEvents({ quiet = false } = {}) {
     oldestLoadedDate = null;
     hasMoreOlder = (currentRange === 'all');
 
-    eventsList.innerHTML = '<p class="state-line">Loading events…</p>';
+    if (!quiet) eventsList.innerHTML = '<p class="state-line">Loading events…</p>';
 
     const request = prefetchedEvents || fetchFutureEvents();
     prefetchedEvents = null;
@@ -640,7 +677,7 @@ function loadEvents() {
         })
         .catch(err => {
             console.error('Error loading events:', err);
-            eventsList.innerHTML = '<p class="state-line is-error">Events did not load. Check your connection, then press Refresh.</p>';
+            eventsList.innerHTML = '<p class="state-line is-error">Events did not load. Check your connection, then pull down to refresh.</p>';
         });
 }
 
@@ -1173,12 +1210,8 @@ function setupEventListeners() {
         });
     }
 
-    const refreshBtn = document.getElementById('refresh-events-btn');
-    if (refreshBtn) {
-        refreshBtn.addEventListener('click', debounce(() => {
-            loadEvents();
-            loadAllCalendarEvents();
-        }, 250));
+    if (typeof PullToRefresh !== 'undefined') {
+        PullToRefresh.attach(() => Promise.all([loadEvents({ quiet: true }), loadAllCalendarEvents()]));
     }
 }
 
