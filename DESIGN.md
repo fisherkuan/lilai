@@ -73,9 +73,12 @@ typography:
     lineHeight: 1.5
   label:
     fontFamily: "Jost, Futura, PingFang TC, Noto Sans TC, Microsoft JhengHei, system-ui, sans-serif"
-    fontSize: "12px"
-    fontWeight: 700
-    letterSpacing: "0.1em"
+    fontSize: "13px"
+    fontWeight: 600
+  button:
+    fontFamily: "Jost, Futura, PingFang TC, Noto Sans TC, Microsoft JhengHei, system-ui, sans-serif"
+    fontSize: "15px"
+    fontWeight: 600
   body:
     fontFamily: "-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica Neue, Arial, PingFang TC, Noto Sans TC, Microsoft JhengHei, sans-serif"
     fontSize: "16px"
@@ -104,6 +107,10 @@ typography:
     lineHeight: 1.2
 rounded:
   none: "0px"
+  control: "12px"
+  card: "16px"
+  sheet: "20px"
+  full: "9999px"
 spacing:
   s1: "4px"
   s2: "8px"
@@ -117,8 +124,8 @@ components:
   button-solid:
     backgroundColor: "{colors.ink}"
     textColor: "{colors.paper}"
-    typography: "{typography.label}"
-    rounded: "{rounded.none}"
+    typography: "{typography.button}"
+    rounded: "{rounded.full}"
     padding: "0 24px"
     height: "44px"
   button-solid-hover:
@@ -127,42 +134,42 @@ components:
   button-line:
     backgroundColor: "transparent"
     textColor: "{colors.ink}"
-    typography: "{typography.label}"
-    rounded: "{rounded.none}"
+    typography: "{typography.button}"
+    rounded: "{rounded.full}"
     padding: "0 24px"
     height: "44px"
   button-line-hover:
     backgroundColor: "{colors.ink}"
     textColor: "{colors.paper}"
   button-event:
-    typography: "{typography.label}"
-    rounded: "{rounded.none}"
+    typography: "{typography.button}"
+    rounded: "{rounded.full}"
     padding: "0 16px"
     height: "40px"
   button-disabled:
     backgroundColor: "transparent"
     textColor: "{colors.ink-muted}"
-    rounded: "{rounded.none}"
+    rounded: "{rounded.full}"
     height: "44px"
   text-button:
     textColor: "{colors.ink}"
     typography: "{typography.meta}"
     height: "44px"
   input:
-    backgroundColor: "{colors.paper-raised}"
+    backgroundColor: "{colors.fill}"
     textColor: "{colors.ink}"
     typography: "{typography.control}"
-    rounded: "{rounded.none}"
+    rounded: "{rounded.control}"
     padding: "0 12px"
     height: "50px"
   field-label:
-    textColor: "{colors.ink}"
+    textColor: "{colors.ink-muted}"
     typography: "{typography.label}"
   choice-chip:
     backgroundColor: "{colors.paper-raised}"
     textColor: "{colors.ink}"
     typography: "{typography.body-small}"
-    rounded: "{rounded.none}"
+    rounded: "{rounded.full}"
     padding: "0 16px"
     height: "44px"
   choice-chip-selected:
@@ -171,12 +178,12 @@ components:
   event-box:
     backgroundColor: "{colors.paper-raised}"
     textColor: "{colors.ink}"
-    rounded: "{rounded.none}"
+    rounded: "{rounded.card}"
     padding: "24px 16px"
   sheet:
     backgroundColor: "{colors.paper-raised}"
     textColor: "{colors.ink}"
-    rounded: "{rounded.none}"
+    rounded: "{rounded.sheet}"
     width: "480px"
   admin-tab:
     textColor: "{colors.ink-3}"
@@ -204,17 +211,17 @@ components:
 
 **Creative North Star: "The Shape Calendar"**
 
-Lilai follows a Bauhaus form-colour grammar on off-white paper. Each enabled calendar owns one primary shape, assigned in config order: a blue circle, a red square, a yellow triangle. A fourth calendar, or an event with no known source, gets an ink diamond. The shape is the calendar's identity everywhere it appears: the wordmark, the 14-day band, the legend, the event title mark, the seat slots and the admin Events rows. The band reads as an abstract composition drawn from the real events.
+Lilai follows a Bauhaus form-colour grammar on off-white paper. Each enabled calendar owns one primary shape, assigned in config order: a blue circle, a red square, a yellow triangle. A fourth calendar, or an event with no known source, gets an ink diamond. The shape is the calendar's identity everywhere it appears: the wordmark, the date rail, the legend, the event title mark, the seat slots and the admin Events rows. The rail reads as a compact picker of the next two weeks, marked with the real events.
 
-Everything else is ink on paper. Text, rules and buttons carry no colour, so the primaries stay loud and always mean "this calendar". Each event sits in its own square box with a 2px ink outline on raised paper, so where one ends and the next begins is plain; sections are divided by 2px ink rules. Labels are short uppercase Jost. Metadata sits at one constant size. Every event carries the same weight: there is no lead event. The date numerals are the only type that breaks scale, all at one size.
+Everything else is ink on paper. Text, rules and buttons carry no colour, so the primaries stay loud and always mean "this calendar". Each event sits in its own rounded box (16px) with a 2px ink outline on raised paper, so where one ends and the next begins is plain; sections are divided by 2px ink rules. Labels are short sentence-case Jost. Metadata sits at one constant size. Every event carries the same weight: there is no lead event. The date numerals are the only type that breaks scale, all at one size.
 
 Motion is scarce and tied to state. When attendance changes, a shape scales from its centre with an exponential ease-out. A new RSVP prints bold into the names list. Nothing moves on load, and reduced motion is instant.
 
 **Key Characteristics:**
 - One primary shape per calendar, flat fill, 1.5px ink contour.
 - Primaries appear only inside shapes. The two exceptions come from the kit: the yellow text selection and the blue focus ring. Outbound links take lilai's own azure, not a primary.
-- Square corners everywhere. Controls, fields and event boxes carry a 2px ink outline; sections are divided by 2px ink rules; 1px line-grey hairlines divide dense rows inside a section. There are no shadows or gradients.
-- Every event has the same size and the same line Join button. The 14-day band and its readout already show what comes next.
+- Lifted, as in iOS grouped lists: a grey ground (`--ground`, the kit's fill; paper in dark) under raised, borderless 16px cards with a soft shadow. Buttons and chips are filled pills with no outline; fields are filled with 12px corners. Calendar shapes and status marks stay square. 1px line-grey hairlines divide dense rows inside a section. There are no gradients.
+- Every event has the same size and the same grey Join pill. The date rail and its agenda already show what comes next.
 - Constant 14px metadata; only numerals break scale (the event dates, the Donate balance, 96px on the booking detail date).
 - Shapes carry state: outline open, calendar colour taken, all ink full, grey outline past.
 - Motion happens on state change only, scaling shapes from their centre.
@@ -225,10 +232,12 @@ Motion is scarce and tied to state. When attendance changes, a shape scales from
 - **The solid button is ink, never red.** The kit's primary button is a red fill. In lilai red is the second calendar's colour, so a red button would read as that calendar.
 - **The field error mark is an 8px ink square.** The kit marks errors with a red square and a red border. A red square is the second calendar's shape.
 - **Running text uses the device's UI sans.** The kit sets everything in Jost. Users found the all-Jost version (2026-09-27 to 2026-10-02) harder to read, so Jost sets only headings, numerals and labels.
-- **Spacing keeps lilai's eight-step scale (4px to 64px).** The kit's four steps (8, 16, 32, 64) are all on it; lilai's band, slots and dense admin rows need the 4px, 12px, 24px and 48px steps.
-- **Lilai keeps its own type ramp, motion, band, seat slots and status marks.** The kit's 72px display and 44px H1 have no place on a list of meetups; lilai titles stop at 30px.
+- **Spacing keeps lilai's eight-step scale (4px to 64px).** The kit's four steps (8, 16, 32, 64) are all on it; lilai's rail, slots and dense admin rows need the 4px, 12px, 24px and 48px steps.
+- **Lilai keeps its own type ramp, motion, date rail, seat slots and status marks.** The kit's 72px display and 44px H1 have no place on a list of meetups; lilai titles stop at 30px.
 - **Buttons are 44px tall, not the kit's 40px,** so every touch target holds 44px. Event buttons step down to 40px.
 - **The text button keeps an ink underline on hover.** The kit turns a quiet button's underline red.
+- **The rail is green.** The selected day (`--rail-sel`, light text) and the agenda bar (`--rail-accent`) are green, the owner's choice (2026-10-22). Green is no calendar's colour, so it cannot be read as one.
+- **The scrim stays lilai's** in light (ink at 40%); dark uses black at 40%, the kit's value, since the sheet carries its own shadow (owner, 2026-10-22). Like `--link`, it is redefined in `lilai.css`.
 
 **Scope.** Every page is in the system. Each loads `public/bauhaus/tokens.css` first, then `public/css/lilai.css` (lilai's additions and shared components), then its own page stylesheet: Home uses `lilai.css` alone, FAQ adds `faq.css`, Donate adds `donate.css`, and admin Events, admin Donations, the Booking queue and booking detail add `admin.css` (the booking pages then add `booking.css`). The legacy `public/styles.css` is deleted.
 
@@ -247,7 +256,7 @@ An ink-on-paper product with three Bauhaus primaries held inside shapes. All val
 - **Paper Raised** (paper-raised): the ground of event boxes, fields, choice chips and sheets.
 - **Ink Muted** (ink-muted, also named `--ink-2` in lilai): metadata, descriptions, section counts, disabled button labels.
 - **Ink Faint** (ink-3, a lilai addition): weekday ticks, placeholders, captions, the colophon, inactive range tabs and admin tabs, past titles and numerals, cancelled booking titles.
-- **Line** (line, also named `--hair`): the 1px rule between rows of a dense list (admin tables, the booking timeline, the booking detail table, the FAQ questions and the FAQ table), the thin Monday divider in the 14-day band, disabled button borders.
+- **Line** (line, also named `--hair`): the 1px rule between rows of a dense list (admin tables, the booking timeline, the booking detail table, the FAQ questions and the FAQ table).
 - **Stone** (stone, also named `--wash`): hover ground for icon buttons.
 - **Past Grey** (past, a lilai addition): contour of every shape on a past event. Past shapes lose their fill. It is also the secondary text reversed out of the booking queue's ink midnight banner.
 - **Link** (link): outbound links from content, at 500 with an underline. Lilai's own azure, #0b57d0 in light and #8ab4f8 in dark, set in `lilai.css` over the kit's value. The kit's link equals blue in light, the first calendar's colour, so a link would read as "this calendar".
@@ -256,14 +265,14 @@ An ink-on-paper product with three Bauhaus primaries held inside shapes. All val
 
 ### Dark
 
-The pages follow the device's light or dark setting by default. A footer switch (`Theme: Auto · Light · Dark`, `js/theme.js`) can override it per device; the choice lives in `localStorage` and a one-line script in each page's `<head>` applies it before first paint, so nothing flashes. The kit's `tokens.css` swaps its own palette in two blocks: the media query guarded by `:root:not([data-theme="light"])` and an explicit `:root[data-theme="dark"]`. Lilai's dark additions (ink-3 #8f9095, past #55565b, the 0.6 black scrim) sit in the same two blocks in `lilai.css`, and those two blocks must hold the same values. Any new hard-coded colour needs a copy in both. The favicon follows the device only.
+The pages follow the device's light or dark setting by default. A footer switch (`Theme: Auto · Light · Dark`, `js/theme.js`) can override it per device; the choice lives in `localStorage` and a one-line script in each page's `<head>` applies it before first paint, so nothing flashes. The kit's `tokens.css` swaps its own palette in two blocks: the media query guarded by `:root:not([data-theme="light"])` and an explicit `:root[data-theme="dark"]`. Lilai's dark additions (ink-3 #8f9095, past #55565b, the 0.4 black scrim) sit in the same two blocks in `lilai.css`, and those two blocks must hold the same values. Any new hard-coded colour needs a copy in both. The favicon follows the device only.
 
 In dark the kit sets paper #111214, paper-raised #1b1c1f, stone #26272b, line #77787d, ink #f2f2ee and ink-muted #aeafb3. Because every rule, contour, text and solid button reads `--ink`, they all turn light together: Join is a light outline, and shape contours are light on a dark ground, as on the iPhone icon. The primaries brighten to the kit's night values (red #ff3b28, blue #4d5fff, yellow #ffb000) and still live only inside shapes. An open seat is the ground colour inside a light contour; a full row fills light. Icons drawn as data URIs carry their stroke colour inline (#161616 light, #f2f2ee dark), so each has a light copy in both dark blocks. The browser bar colour (theme-color metas, `manifest.json` and `js/theme.js`) is #efefea in light and #111214 in dark. `favicon.svg` switches with the same media query.
 
 ### Named Rules
 **The Shapes-Only Primaries Rule.** Blue, red and yellow appear only as the fill of a calendar shape. Text, rules, buttons and grounds are ink or paper. Two exceptions come from the kit and stay narrow: the yellow text selection and the blue focus ring. Outbound links use lilai's own azure `--link`, which is not a primary.
 
-**The One Shape Per Calendar Rule.** Calendars take circle/blue, square/red, triangle/yellow in config order. The fourth and later calendars, and unsourced events, take the ink diamond. Never give a calendar a second shape or colour, and never use a primary shape for something that is not a calendar. On the band and its readout, a title emoji replaces the shape for that one event; everywhere else the event keeps its calendar's shape.
+**The One Shape Per Calendar Rule.** Calendars take circle/blue, square/red, triangle/yellow in config order. The fourth and later calendars, and unsourced events, take the ink diamond. Never give a calendar a second shape or colour, and never use a primary shape for something that is not a calendar. On the date rail, a title emoji replaces the shape for that one event; everywhere else the event keeps its calendar's shape.
 
 **The Kit Owns Tokens Rule.** Change a kit colour, stroke or radius in `~/code/bauhaus` and copy it across. Lilai adds tokens in `lilai.css`; it never overrides a kit value.
 
@@ -288,9 +297,10 @@ In dark the kit sets paper #111214, paper-raised #1b1c1f, stone #26272b, line #7
 - **Body** (400, 16px, 1.5): running text.
 - **Body Small** (400 to 600, 15px, 1.5): descriptions, the names list, FAQ answers, the Donate lede and donor lines, the booking explainer and notes, booking detail values, the booking sheet's choice chips, and the weekday line beside a 96px numeral. It also sets navigation: header links, admin tabs and the FAQ language switch. Descriptions cap at 65ch and clamp to three lines on Home.
 - **Meta** (400 to 600, 14px): dates, times, places, seat labels, counts, table cells, admin subtitles, row status lines and text buttons.
-- **Label** (Jost 700, 12px, 0.1em, uppercase): the kit's label style. It sets button labels, field labels, booking sheet labels and admin table heads. Write the source in sentence case; CSS sets the capitals.
-- **Caption** (400, 13px): captions, the colophon, and band weekday ticks from 640px.
-- **Small** (400, 12px): weekday ticks in the band on phones.
+- **Button** (Jost 600, 15px, sentence case): the kit's button style, for every button label.
+- **Label** (Jost 600, 13px, sentence case): the kit's label style. It sets booking sheet labels and admin table heads. Field labels above a text field are Jost 600 17px in ink, the field's own size, 12px above it so the focus ring keeps clear; the field carries no placeholder hint (owner, 2026-10-22).
+- **Caption** (400, 13px): captions, the colophon and agenda details.
+- **Small** (400, 12px): weekday labels in the date rail.
 
 The wordmark sets "Lilai" at the Headline size (600, -0.02em) above a 12px ink-muted subline. Inline calendar shapes are sized in em off the text they sit in (0.62em in a title) or at a fixed size (16px seat slots, 14px legend, 13px subscribe links); these size a shape, not type.
 
@@ -305,40 +315,40 @@ The wordmark sets "Lilai" at the Headline size (600, -0.02em) above a 12px ink-m
 
 The page is a single column capped at 1180px, with a 16px gutter on phones and 32px from 640px. Spacing runs on an eight-step scale from 4px to 64px.
 
-- **Order.** The 14-day band, then the event list, then the sidebar (calendar links, support).
-- **From 1000px.** The band spans the full width. Below it the list takes the flexible column and the sidebar takes a 400px column with a 64px gap. The sidebar is sticky 16px from the top.
-- **The 14-day band.** Fourteen equal columns between two ink rules. A 3px ink bar marks today's left edge and today's date sits reversed out of an ink block. A hairline marks each Monday. Each event is its calendar's shape, stacked in its day, sized by headcount. An event whose title holds an emoji shows that emoji instead (the first grapheme that renders as emoji by default or carries VS16), at the same size with a 14px floor so it stays legible on phones; the readout uses it as its mark and drops it from the title. Size: `min(max, base + n × step)` with n capped at 12. Phones use 8px + 1.4px per head up to 24px; 640px uses 12px + 3.5px up to 40px; 1000px uses 14px + 4.5px up to 64px. Day columns are 96px, 112px, 136px and 196px tall across the breakpoints.
-- **The band readout.** One 14px ink line under the band names one event: its shape mark, then `Thu 1 Oct · 19:30 · title · seats`, with the seats in the event list's wording. It shows the hovered or focused shape, else the selected one, else the next upcoming event. The row is a fixed 56px, so the page never jumps; the text wraps to two lines at most and a long title ends in an ellipsis. A "Show" text button ends the line and jumps to the card. On phones the first tap on a shape selects it (2px ink ring, `aria-pressed`) and a second tap jumps; with a mouse a click jumps at once. No tooltip, no box.
-- **Events.** Each event is a two-column row: a 56px date column (72px from 640px) and the body. Every event uses this layout, the next one included. The date column stacks the day number, weekday, month, the start time, an ink-faint en dash (the range mark, read aloud as "to") turned upright to follow the stack, and the end time, centred in their own column at the same line height as the rows above, so all rows sit evenly; an end on another day adds its date above the end time. There is no duration. The title's shape names the calendar, so the meta line under the title holds the place and, when the description has a link, an Event link. The link is the one coloured text on Home: `--link`, 500, underlined, with a small arrow. The `link: URL` line leaves the description. A 3px ink Today rule divides past from future in the list.
-- **Phones.** On phones the header and band tighten so the first event lands in the first screen. The subline hides below 380px.
+- **Order.** The date rail, then the event list (Cards view) or the selected day's agenda rows (Rows view), then the sidebar (calendar links, support). From 1000px, Rows view puts the rail beside the sidebar.
+- **From 1000px.** The rail spans the full width. Below it the list takes the flexible column and the sidebar takes a 400px column with a 64px gap. The sidebar is sticky 16px from the top.
+- **The date rail.** The header reads "Upcoming", the range ("22 Oct – 4 Nov") in ink-muted, and at the right a Cards | Rows pill switch with two icons. Under 360px the range drops below the title. Below it, today and the next 13 days scroll sideways as day buttons: abbreviated weekday (12px, ink-muted), day number (Jost 600, 20px) and the day's marks. A mark is the event's title emoji, else its calendar's shape: 16px for one or two events, 13px when three share the row, and past three, two marks and "+N". About seven days show on a phone, the eighth cut off to show the row scrolls; from 640px all fourteen fit. The row bleeds to the screen edge and snaps gently. A month change puts the new month's short name, set vertically, between the days. Today is selected by default and today's weekday is green when another day is selected. The selected day is a 14px-rounded solid green (`--rail-sel`) with light text; others stay clear. Days are 44px wide at least. Arrow keys, Home and End move the selection; it scrolls into view.
+- **The agenda.** Under a hairline, the selected day's heading ("Today · 22 Oct", "Saturday · 24 Oct") with its event count opposite, then one row per event sorted by start: the start time, a 3px green bar (`--rail-accent`), the title and the place (or calendar) with the seat count, and a raised Join pill ("Full" when full, none for a past event). The agenda shows in Rows view, and in Cards view only for a day without events, which says "No events planned." In Cards view a day click scrolls to that day's first card instead.
+- **Events.** Each event is a two-column row: a 56px date column (72px from 640px) and the body. Every event uses this layout, the next one included. The date column holds the day number over the weekday ("Today" for today); the month shows in the rail. The time range ("16:00–18:00", ink, 500) leads the meta line under the title; an end on another day adds its date before the end time. There is no duration (owner, 2026-10-22). The title's shape names the calendar, so after the time the meta line holds the place and, when the description has a link, an Event link. The link is the one coloured text on Home: `--link`, 500, underlined, with a small arrow. The `link: URL` line and a `limit: N` line leave the description; the seat count already shows the limit. A 3px ink Today rule divides past from future in the list.
+- **Phones.** On phones the header tightens so the rail and the first agenda row land in the first screen. The subline hides below 380px.
 - **Other pages.** FAQ and Donate are a single 640px reading column. Admin pages use the same 1180px shell and gutter as Home. Booking detail caps its content at 720px. Donate left-aligns the balance on the same axis as the transaction list; nothing on it is centred.
 - **Admin tables on phones.** From 640px an admin list is a real table. Below 640px each row stacks its cells as full-width blocks, the column heads hide, and a label-style tag above a value stands in for them where the value needs a name ("Limit" on Events). The Events row shows its time as on Home, 24-hour start and end: "Fri 2 Oct · 18:00–20:00".
 - **Touch targets.** Links, tabs, legend items, buttons and icon buttons are at least 44px tall. Event buttons are the one 40px exception.
 
 ## Elevation & Depth
 
-The system is flat. There are no shadows and no gradients. Depth comes from surface tone, as in the kit: the page sits on paper, and event boxes, fields and sheets sit on paper-raised. Ink rules, the reversed ink block for today and one scrim behind an open sheet do the rest. A shape's 1.5px ink contour separates it from paper, so even the yellow triangle holds its edge.
+The page is lifted. The ground is grey (`--ground`: the kit's fill in light, paper in dark, so cards always sit lighter than the ground). Event boxes, sidebar cards and sheets sit on paper-raised; fields sit on the kit's `fill` and switch tracks on stone. Cards take `--shadow-raised`, sheets `--shadow-float`. There are no gradients. A shape's 1.5px ink contour separates it from paper, so even the yellow triangle holds its edge.
 
 ### Named Rules
-**The Flat Paper Rule.** Nothing casts a shadow. When a layer must sit above the page, it gets paper-raised, the scrim behind it and a 2px ink rule on its edge.
+**The Lifted Card Rule.** Cards are raised paper with 16px corners and `--shadow-raised`, never an outline. A sheet gets paper-raised, the scrim behind it and `--shadow-float`. On phones it slides up from the bottom edge with a grabber and a round filled close button; from 640px it slides in from the right as a full-height panel (420px; the booking sheet 520px) with 20px corners on its left side. This deviates from the kit's Float Rule, which keeps cards on the page shadowless (owner's choice, 2026-10-22).
 
 ## Shapes
 
 The form language has two registers.
 
 - **Calendar shapes.** Circle, square, triangle and diamond are drawn from one SVG symbol set on a 24-unit grid. Each has a flat fill and a 1.5px ink contour with mitred joins that does not scale with size. The circle is the only curve in the system.
-- **Everything else is square.** Every rectangle has 0px corners (the kit's `--radius-0`): buttons, choice chips, fields, event boxes, the sheet, the band and the reversed date block. There are no pills. Controls, fields and event boxes carry a 2px ink outline (`--stroke-2`). Section rules are 2px ink (`--rule` is `--stroke-2`). The Today marker is 3px ink. Active range tabs get a 2px ink underline.
+- **Controls are soft; geometry stays square.** Buttons, choice chips, icon-button hovers and switches are pills (`--radius-full`). Fields are filled with 12px corners (`--radius-control`). Event boxes and the desktop sheet take 16px (`--radius-card`); the phone sheet takes 20px on its top corners (`--radius-sheet`). Status marks, seat pips and the balance bar stay square. Buttons, chips, fields and event boxes carry no outline. Section rules are 2px ink (`--rule` is `--stroke-2`). The Today marker is 3px ink. The range and language switches are the kit's pill switch.
 
-**The Event Box Rule.** Each event on Home is a square box with a 2px ink outline on paper-raised, 24px padding (16px sides on phones) and 12px between boxes. Sections and sidebar blocks are divided by full-width 2px ink rules. The box replaced a bare rule above each event on 2026-10-02, because users could not tell where one event ended. Only events, controls (buttons, inputs, choice chips), the desktop sheet, the status mark and the balance bar carry a full border.
+**The Event Box Rule.** Each event on Home is a lifted card (see The Lifted Card Rule), 24px padding (16px sides on phones) and 12px between cards. Sidebar blocks are the same cards. The box replaced a bare rule above each event on 2026-10-02, because users could not tell where one event ended; the 2px ink outline gave way to the lift on 2026-10-22. Only the status mark and the balance bar carry a full border.
 
 **The Hairline Rule.** Inside a section, a dense list divides its rows with a 1px line-grey hairline, and keeps the 2px ink rule for its edges: above the list, and under a table's column heads when it has them. Admin tables, the booking timeline, the booking detail table, the FAQ questions (under their 2px section header rule) and the FAQ table all work this way. A hairline never starts or ends a section. The heavier 3px ink rule marks a moment: Today on Home (between event boxes, 24px above it), NOW on the booking timeline, the row in flight, and a stale-data notice.
 
 ## Components
 
-Square, uppercase, outlined in ink, as in the kit. Hover swaps fills; nothing fades. Every focusable control shows the 2px blue focus ring.
+Soft, sentence case, outlined or filled in ink, as in the kit. Hover swaps fills; nothing fades. Every focusable control shows the 2px blue focus ring.
 
 ### Buttons
-- **Shape:** square (0px), 2px ink outline, 44px tall, 24px side padding, label style (Jost 12px 700, 0.1em, uppercase).
+- **Shape:** a pill, 2px ink outline, 44px tall, 24px side padding, button style (Jost 15px 600, sentence case).
 - **Solid:** ink ground, paper label. The one main action of a form or sheet: Confirm, Remove, Add entry, Queue a slot, Next. It stays ink, never red (see Deviations).
 - **Line:** clear ground, ink label, ink outline. Join on every event, and secondary calls such as "Create an event" and "Pay by card". A page of solid Joins read as a column of black blocks (removed 2026-10-02).
 - **Event buttons:** inside an event the button steps down to 40px tall with 16px side padding, since every event carries one.
@@ -353,12 +363,12 @@ Square, uppercase, outlined in ink, as in the kit. Hover swaps fills; nothing fa
 - **Legend:** each calendar is its shape at 14px beside its name (15px). The legend is also the filter. A calendar that is switched off turns ink-faint, and its shape drops to an unfilled ink-faint outline.
 
 ### Cards / Containers
-An event is a square box with a 2px ink outline on paper-raised. See The Event Box Rule.
+An event is a 16px rounded box with a 2px ink outline on paper-raised. See The Event Box Rule.
 
 ### Inputs / Fields
-- **Style:** 50px tall, 2px ink border, square corners, paper-raised ground, 17px text, ink-faint placeholder. Labels sit 8px above the field in the label style. The select adds a 2px ink chevron at the right.
+- **Style:** a filled field: 50px tall, `fill` ground, a transparent 2px border, 12px corners, 17px text, ink-faint placeholder. Labels sit 8px above the field in the label style, in ink-muted. The select adds a 2px ink chevron at the right.
 - **Focus:** a 2px focus-blue outline offset 2px outside the border.
-- **Choice chips:** the booking sheet's exclusive answers (segments, weekday chips) are separate 44px square chips with an 8px gap (4px for the seven weekdays), a 2px ink outline on paper-raised, and 15px 500 text. Hover and the chosen state both fill ink with a paper label; chosen sets the text at 600.
+- **Choice chips:** the booking sheet's exclusive answers (segments, weekday chips) are separate 44px pill chips with an 8px gap (4px for the seven weekdays), a 2px ink outline on paper-raised, and 15px 500 text. Hover and the chosen state both fill ink with a paper label; chosen sets the text at 600.
 - **Error:** a 14px 500 ink line below the field, led by an 8px ink square. The kit's red mark is not used (see Deviations).
 
 ### Navigation
@@ -409,14 +419,13 @@ The sheet is a paper-raised panel, 480px wide at most. On phones it rises from t
 The icon is a 2x2 calendar of shapes on paper: blue circle, red square, yellow triangle, and an open white square in the fourth cell, which reads as an open seat. Every shape has an ink contour. Sources live in `public/icons/`: `icon.svg` (any purpose), maskable PNGs with the grid inside the 80% safe circle, and `favicon.svg`, drawn on a 32-unit pixel grid so it stays sharp at 32px and 16px. `favicon.ico` (16, 32, 48) is rendered from `favicon.svg`. The iPhone icon, `apple-touch-icon.png` (180, from `apple-touch-icon.svg`), is the same grid inverted: ink ground, paper contours, and the open seat as a paper outline. iOS 18+ darkens home-screen icons in Dark mode and a web clip cannot supply its own dark variant, so a white icon loses its white cell to black; an ink icon has nothing left for iOS to darken. The white fourth cell keeps the rule that primaries live only inside shapes.
 
 ### Motion
-One easing, `cubic-bezier(0.16, 1, 0.3, 1)`, drives every movement. Shapes scale from their centre when state changes: a new seat slot grows, a band shape steps, and an event pointed at from the band steps its shapes for 520ms while nothing else moves. Band shapes scale by 1.12 on hover. The band readout fades in over 220ms when it names a different event, and a selected shape's ring fades in over 140ms. Under `prefers-reduced-motion` every animation and transition runs in 1ms.
+One easing, `cubic-bezier(0.16, 1, 0.3, 1)`, drives every movement. Shapes scale from their centre when state changes: a new seat slot grows, and an event scrolled to from the rail steps its shapes for 520ms while nothing else moves. A rail day swaps to and from green over 150ms. Under `prefers-reduced-motion` every animation and transition runs in 1ms.
 
 **The State-Only Motion Rule.** Motion marks a change in attendance or a pointer landing, and nothing else. Nothing moves on load.
 
 **The Print-Not-Toast Rule.** Feedback is the change itself, printed where it happened: for an RSVP a filled slot and a bold name, for an admin action a status line under its row. Do not announce it in a floating message.
 
 ### Known accepted limit
-On phones the band's column is about 25px wide, so the headcount scale caps at 24px. One RSVP changes a shape's resting size by only 1.4px. The step animation carries the signal. The owner chose to ship this.
 
 ## Do's and Don'ts
 
@@ -424,8 +433,8 @@ On phones the band's column is about 25px wide, so the headcount scale caps at 2
 - **Do** take colours, strokes, radii and Jost from the kit's `tokens.css`, and change them in `~/code/bauhaus` first.
 - **Do** give each calendar its shape in config order (circle/blue, square/red, triangle/yellow) and the ink diamond to the fourth and later calendars and unsourced events.
 - **Do** draw every shape with a flat fill and a 1.5px ink contour.
-- **Do** box each event in a 2px ink outline on paper-raised, divide sections with full-width 2px ink rules, and the rows of a dense list with 1px line-grey hairlines.
-- **Do** set button labels, field labels and table heads in the label style (Jost 12px 700, 0.1em, uppercase). Section and sidebar titles stay sentence-case Jost headings.
+- **Do** box each event in a 16px rounded, 2px ink outline on paper-raised, divide sections with full-width 2px ink rules, and the rows of a dense list with 1px line-grey hairlines.
+- **Do** set button labels in the button style (Jost 15px 600) table heads in the label style (Jost 13px 600), and field labels at the field's 17px, all in sentence case.
 - **Do** show hover by swapping fills: line to ink, solid to paper.
 - **Do** keep metadata at 14px and let only numerals break scale (event dates, the Donate balance, 96px on the booking detail date).
 - **Do** carry status in a word, with ink weight and a 10px ink status mark as the second channel.
@@ -436,10 +445,10 @@ On phones the band's column is about 25px wide, so the headcount scale caps at 2
 ### Don't:
 - **Don't** put blue, red or yellow on text, rules, buttons or grounds. The kit's focus ring is the only primary blue outside a shape; the azure `--link` is a separate link colour.
 - **Don't** make the solid button or the error mark red; red is a calendar.
-- **Don't** round a rectangle: no pills, no soft fields, no rounded boxes. Only the circle shape curves.
-- **Don't** use shadows or gradients, or show hover by fading.
+- **Don't** round the geometry: calendar shapes, status marks, seat pips and the balance bar stay square.
+- **Don't** use gradients, put a shadow on an event box or section, or show hover by fading.
 - **Don't** confirm an RSVP or an admin action with a toast or banner.
 - **Don't** animate on page load, or use bouncy or spring motion.
 - **Don't** set running text in Jost, or add a third typeface; Jost is for headings, numerals and labels, the system sans for reading.
 - **Don't** reuse a primary shape as decoration or for anything that is not a calendar.
-- **Don't** edit `public/bauhaus/tokens.css` by hand, or redefine a kit token in `lilai.css`.
+- **Don't** edit `public/bauhaus/tokens.css` by hand, or redefine a kit token in `lilai.css` beyond the named deviations (`--link`, `--scrim`).

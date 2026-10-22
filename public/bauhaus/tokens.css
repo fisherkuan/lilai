@@ -11,6 +11,8 @@
   --paper-raised: #fafaf7;
   --stone: #dcdbd3;
   --line: #85857e;
+  --fill: #e5e4de;
+  --hairline: #85857e4d;
   --ink: #161616;
   --ink-muted: #55554f;
   --red: #d63a2a;
@@ -30,6 +32,8 @@
     --paper-raised: #1b1c1f;
     --stone: #26272b;
     --line: #77787d;
+    --fill: #232427;
+    --hairline: #77787d4d;
     --ink: #f2f2ee;
     --ink-muted: #aeafb3;
     --red: #ff3b28;
@@ -49,6 +53,8 @@
   --paper-raised: #1b1c1f;
   --stone: #26272b;
   --line: #77787d;
+  --fill: #232427;
+  --hairline: #77787d4d;
   --ink: #f2f2ee;
   --ink-muted: #aeafb3;
   --red: #ff3b28;
@@ -67,9 +73,12 @@
   --space-2: 16px; /* Control padding, gaps between related items; the checker pitch inside a tile. */
   --space-3: 32px; /* Card padding, gaps between groups. */
   --space-4: 64px; /* The module: the default tile size, section spacing and the layout grid unit. */
-  --radius-0: 0; /* The default for every rectangle: cards, panels, buttons, inputs, tags. Squares stay square. */
+  --radius-0: 0; /* Geometry only: tiles, tile bands, section bands and square marks. Shapes from the poster stay square. */
   --radius-sm: 2px; /* Checkboxes and other marks under 16px only, where a hard corner looks broken at size. */
-  --radius-full: 9999px; /* Circles: avatars, status dots, the circle shape. Never on a rectangle (no pills). */
+  --radius-control: 12px; /* Fields, selects and other boxes you type or pick in. */
+  --radius-card: 16px; /* Cards, grouped lists and menus. */
+  --radius-sheet: 20px; /* The top corners of a bottom sheet. */
+  --radius-full: 9999px; /* Pills and circles: buttons, tags, the pill switch, avatars, status dots and the circle shape. */
   --stroke-1: 1px; /* Hairline rules and table dividers, in line. */
   --stroke-2: 2px; /* Control borders, card outlines and the focus ring, in ink (focus in focus). */
   --font-sans: Jost, "Futura", "Century Gothic", system-ui, sans-serif;
@@ -80,7 +89,20 @@
   --text-h3: 600 20px/28px var(--font-sans); /* Card titles and sub-sections. */
   --text-body: 400 16px/24px var(--font-sans); /* Running text, form values. */
   --text-small: 400 13px/20px var(--font-sans); /* Captions and help text, in ink-muted. */
-  --text-label: 700 12px/16px var(--font-sans); /* Eyebrows, button labels, tags and table headers. Set in uppercase. */
+  --text-label: 600 13px/18px var(--font-sans); /* Section labels, field labels and tags. Sentence case, a step under body. */
+  --text-button: 600 15px/20px var(--font-sans); /* Button labels, sentence case. 14px in small buttons. */
+}
+
+/* Elevation and motion: only what floats above the page casts a shadow */
+:root {
+  --shadow-raised: 0 1px 3px rgb(0 0 0 / 0.12), 0 1px 1px rgb(0 0 0 / 0.04); /* The active pill of a switch; a small chip on a floating part. */
+  --shadow-float: 0 8px 28px rgb(0 0 0 / 0.18), 0 2px 6px rgb(0 0 0 / 0.08); /* Bottom sheets, menus and a floating action button. */
+  --ease-sheet: cubic-bezier(0.32, 0.72, 0, 1); /* The iOS sheet curve: sheets sliding up, menus popping in. */
+  --duration-sheet: 320ms; /* A bottom sheet sliding up. */
+  --duration-fade: 240ms; /* The scrim fading in behind a sheet. */
+  --duration-pop: 160ms; /* A menu scaling in from 0.9 at its anchor corner. */
+  --duration-swap: 150ms; /* Colour swaps on a switch segment. */
+  --scrim: rgb(0 0 0 / 0.4); /* The dim behind a bottom sheet. */
 }
 
 /* Text styles */
@@ -128,9 +150,8 @@
 }
 .label {
   font-family: var(--font-sans);
-  font-size: 12px;
-  line-height: 16px;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 600;
+  letter-spacing: 0;
 }

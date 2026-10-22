@@ -52,14 +52,28 @@
     </nav>
 </header>
 
-<main class="home">
-    <section class="band-section" aria-labelledby="band-title">
-        <div class="section-head">
-            <h2 class="section-title" id="band-title">Next 14 days</h2>
-            <p class="section-meta" id="events-section-meta">Loading…</p>
+<main class="home" id="home">
+    <section class="band-section" aria-labelledby="rail-title">
+        <div class="rail-head">
+            <h2 class="rail-title" id="rail-title">Upcoming</h2>
+            <p class="rail-range" id="rail-range"></p>
+            <div class="view-switch" role="radiogroup" aria-label="Show events as">
+                <button type="button" class="view-btn" role="radio" aria-checked="true" data-view="cards" aria-label="Cards" title="Cards">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="7" rx="2"/><rect x="4" y="13" width="16" height="7" rx="2"/></svg>
+                </button>
+                <button type="button" class="view-btn" role="radio" aria-checked="false" data-view="rows" aria-label="Rows" title="Rows">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+                </button>
+            </div>
         </div>
-        <div id="band-container" class="band" aria-live="polite"></div>
-        <p class="band-readout is-empty" id="band-readout"><span class="band-readout-text" aria-live="polite"></span><button type="button" class="text-btn band-readout-show" hidden>Show</button></p>
+        <div id="rail-container"></div>
+        <div class="agenda" id="agenda" aria-live="polite">
+            <div class="agenda-head">
+                <h3 class="agenda-title" id="agenda-title">Today</h3>
+                <p class="agenda-count" id="agenda-count"></p>
+            </div>
+            <ol class="agenda-list" id="agenda-list"></ol>
+        </div>
     </section>
 
     <section class="events-section" aria-labelledby="events-title">
@@ -114,7 +128,7 @@
                 <label for="attendee-name">Your name</label>
                 <button type="button" id="forget-name-btn" class="text-btn" hidden>Not you?</button>
             </div>
-            <input type="text" id="attendee-name" class="input" placeholder="The name people know you by" autocomplete="name" enterkeyhint="done">
+            <input type="text" id="attendee-name" class="input" autocomplete="name" enterkeyhint="done">
             <p class="field-error" id="rsvp-error" role="alert" hidden></p>
         </div>
         <div class="sheet-actions">
@@ -151,6 +165,7 @@
 </footer>
 <script src="/js/theme.js"></script>
 
+<script src="/js/date-rail.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

@@ -20,27 +20,31 @@
 
 .lang-switch {
     display: flex;
-    gap: var(--s4);
+    padding: 3px;
+    border-radius: var(--radius-full);
+    background: var(--fill);
 }
 
 .lang-btn {
-    min-height: 44px;
-    padding: 0;
+    min-height: 38px;
+    padding: 0 var(--s4);
     border: 0;
-    border-bottom: 2px solid transparent;
+    border-radius: var(--radius-full);
     background: none;
     font: inherit;
     font-size: 15px;
-    font-weight: 500;
-    color: var(--ink-3);
+    font-weight: 600;
+    color: var(--ink-2);
     cursor: pointer;
+    transition: background-color var(--duration-swap), color var(--duration-swap);
 }
 
 .lang-btn:hover { color: var(--ink); }
 
 .lang-btn.active {
+    background: var(--paper-raised);
     color: var(--ink);
-    border-bottom-color: var(--ink);
+    box-shadow: var(--shadow-raised);
 }
 
 /* ---------- Hero ---------- */
