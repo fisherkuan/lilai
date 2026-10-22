@@ -319,7 +319,34 @@ button { font: inherit; color: inherit; }
 
 .rail-title { font-family: var(--font-display); font-size: 22px; font-weight: 600; letter-spacing: -0.01em; }
 .rail-range { font-size: var(--meta); color: var(--ink-2); font-variant-numeric: tabular-nums; }
-.rail-span { margin-left: auto; font-size: var(--meta); color: var(--ink-3); }
+.rail-head .view-switch { margin-left: auto; }
+/* Under 360px the range drops below the title, so the switch keeps the title's line. */
+@media (max-width: 359px) {
+    .rail-head { align-items: center; }
+    .rail-range { order: 3; flex-basis: 100%; }
+}
+
+/* Cards or rows: the kit's pill switch with two icon segments. */
+.view-switch { display: flex; padding: 3px; border-radius: var(--radius-full); background: var(--stone); }
+.view-btn {
+    display: grid;
+    place-items: center;
+    width: 40px;
+    height: 38px;
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius-full);
+    background: none;
+    color: var(--ink-2);
+    cursor: pointer;
+    transition: background-color var(--duration-swap), color var(--duration-swap);
+}
+.view-btn svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2px; }
+.view-btn[aria-checked="true"] { background: var(--paper-raised); color: var(--ink); box-shadow: var(--shadow-raised); }
+.view-btn:focus-visible { outline: var(--stroke-2) solid var(--focus); outline-offset: 2px; }
+
+/* Rows view: the agenda under the rail replaces the cards. */
+.home.is-rows .events-section { display: none; }
 
 /* About seven days across a phone, the eighth cut off to show the row scrolls.
    It bleeds to the screen edge and snaps gently to a day. */
@@ -343,8 +370,8 @@ button { font: inherit; color: inherit; }
     flex-direction: column;
     align-items: center;
     gap: 2px;
-    min-height: 68px;
-    padding: var(--s2) 0 6px;
+    min-height: 74px;
+    padding: var(--s2) 0 var(--s2);
     border: 0;
     border-radius: 14px;
     background: transparent;
@@ -368,15 +395,15 @@ button { font: inherit; color: inherit; }
 
 /* One mark per event: its emoji, else its calendar's shape. One or two marks read at 16px;
    three, or two and "+N", step down to 13px so they sit abreast in a 44px day. */
-.rail-marks { display: flex; align-items: center; justify-content: center; gap: 1px; max-width: 100%; height: 18px; margin-top: 2px; overflow: hidden; }
-.rail-mark { display: grid; place-items: center; width: 18px; height: 18px; }
-.rail-mark .band-emoji { font-size: 16px; line-height: 1; }
+.rail-marks { display: flex; align-items: center; justify-content: center; gap: 1px; max-width: 100%; height: 22px; margin-top: 2px; overflow-x: clip; }
+.rail-mark { display: grid; place-items: center; width: 18px; height: 22px; }
+.rail-mark .band-emoji { font-size: 16px; line-height: 22px; }
 .rail-mark .shape { width: 10px; height: 10px; }
 .rail-marks:has(> :nth-child(3)) { gap: 0; }
 .rail-marks:has(> :nth-child(3)) .rail-mark { width: 14px; }
 .rail-marks:has(> :nth-child(3)) .band-emoji { font-size: 13px; }
 .rail-marks:has(> :nth-child(3)) .shape { width: 8px; height: 8px; }
-.rail-more { font-size: 10px; line-height: 18px; font-weight: 700; letter-spacing: -0.02em; padding-left: 1px; }
+.rail-more { font-size: 10px; line-height: 22px; font-weight: 700; letter-spacing: -0.02em; padding-left: 1px; }
 
 /* At a month change, the new month's short name stands between the days. */
 .rail-month {
@@ -413,24 +440,25 @@ button { font: inherit; color: inherit; }
 
 .agenda-row {
     display: grid;
-    grid-template-columns: 44px 3px minmax(0, 1fr);
+    grid-template-columns: 44px 3px minmax(0, 1fr) auto;
+    align-items: start;
     gap: 0 var(--s3);
-    width: 100%;
     min-height: 48px;
-    padding: var(--s2) var(--s2) var(--s2) 0;
-    border: 0;
-    border-radius: 12px;
-    background: none;
-    color: var(--ink);
-    font: inherit;
-    text-align: left;
-    cursor: pointer;
+    padding: var(--s2) 0;
 }
 
-@media (hover: hover) { .agenda-row:hover { background: var(--paper-raised); } }
-.agenda-row:focus-visible { outline: var(--stroke-2) solid var(--focus); outline-offset: 2px; }
+.agenda-row .agenda-bar { align-self: stretch; }
+.agenda-row.is-past .agenda-time,
+.agenda-row.is-past .agenda-name { color: var(--ink-3); }
 
-.agenda-time { padding-left: var(--s2); font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums; }
+/* Quick sign-up: a small grey pill, the same Join as on a card. */
+.agenda-join.btn { align-self: center; min-height: 36px; padding: 0 var(--s4); font-size: 14px; }
+/* The rows sit on the page ground, which is the same grey as a line button; raise it instead. */
+.agenda-join.btn.btn-line { background: var(--paper-raised); box-shadow: var(--shadow-raised); }
+@media (hover: hover) { .agenda-join.btn.btn-line:hover:not(:disabled) { background: var(--stone); } }
+.agenda-join.btn.btn-line:disabled { background: transparent; box-shadow: none; color: var(--ink-2); }
+
+.agenda-time { font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums; }
 .agenda-bar { border-radius: 2px; background: var(--rail-accent); }
 .agenda-main { display: flex; flex-direction: column; min-width: 0; }
 .agenda-name { font-size: 15px; font-weight: 600; line-height: 1.35; overflow-wrap: anywhere; }
@@ -1070,6 +1098,9 @@ button { font: inherit; color: inherit; }
             "list side";
         column-gap: var(--s8);
     }
+    /* Rows view has no card list, so the rail and its rows take the left column. */
+    .home.is-rows { grid-template-areas: "band side"; }
+    .home.is-rows .sidebar { margin-top: var(--s4); }
 
 
     .sidebar {

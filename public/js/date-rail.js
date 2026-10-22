@@ -64,7 +64,7 @@
 
     /**
      * Mounts a rail in `container`.
-     * opts: { count = 14, events = [], selected = today, onSelect(date, day), mark(event) -> HTML,
+     * opts: { count = 14, events = [], selected = today, onSelect(date, day, { via: 'click' | 'key' }), mark(event) -> HTML,
      *         locale = 'en-GB', label = 'Pick a day', today = new Date() }
      * Returns { update({ events, selected, today }), select(date, { focus }), days, selected }.
      */
@@ -125,7 +125,7 @@
             return state.days.find(d => d.key === state.selectedKey);
         }
 
-        function setSelected(key, { focus = false, notify = false } = {}) {
+        function setSelected(key, { focus = false, notify = false, via = 'click' } = {}) {
             if (!state.days.some(d => d.key === key)) return;
             const changed = key !== state.selectedKey;
             state.selectedKey = key;
@@ -137,12 +137,13 @@
             const btn = buttonFor(key);
             if (focus) btn.focus({ preventScroll: true });
             btn.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
-            if (notify && changed) state.onSelect(new Date(selectedDay().date), selectedDay());
+            // A click reports even an unchanged day, so the screen can act on a second tap.
+            if (notify && (changed || via === 'click')) state.onSelect(new Date(selectedDay().date), selectedDay(), { via });
         }
 
         scroller.addEventListener('click', e => {
             const btn = e.target.closest('.rail-day');
-            if (btn) setSelected(btn.dataset.key, { notify: true });
+            if (btn) setSelected(btn.dataset.key, { notify: true, via: 'click' });
         });
 
         // Arrows step one day, Home and End jump to the ends; the selection follows focus.
@@ -152,7 +153,7 @@
             if (to === undefined) return;
             e.preventDefault();
             const day = state.days[Math.max(0, Math.min(state.days.length - 1, to))];
-            setSelected(day.key, { focus: true, notify: true });
+            setSelected(day.key, { focus: true, notify: true, via: 'key' });
         });
 
         if (opts.selected) state.selectedKey = dayKey(opts.selected);

@@ -306,12 +306,15 @@ function eventsByDayKey() {
     return byDay;
 }
 
-// ---------- The date rail and the day's agenda ----------
+// ---------- The date rail and the two views ----------
 // Today and the next 13 days as a row of day buttons (public/js/date-rail.js), each marked
-// with its events' emoji or calendar shape. The selected day's events are listed below it;
-// a row jumps to its card in the events list.
+// with its events' emoji or calendar shape. Two views share it. Cards: the events list as
+// cards, and tapping a date scrolls to that day's first card. Rows: the cards go away and the
+// selected day's events are listed under the rail, each with its own Join.
 const RAIL_DAYS = 14;
+const VIEW_KEY = 'lilaiHomeView';
 let rail = null;
+let homeView = 'cards';
 
 function railMark(ev) {
     const st = styleFor(ev);
@@ -328,7 +331,7 @@ function renderRail() {
             events,
             mark: railMark,
             label: 'Pick a day',
-            onSelect: () => renderAgenda()
+            onSelect: (date, day, { via }) => onRailSelect(day, via)
         });
     } else {
         // Past midnight the rail starts on the new today.
@@ -337,6 +340,12 @@ function renderRail() {
     const range = document.getElementById('rail-range');
     if (range) range.textContent = DateRail.rangeLabel(rail.days);
     renderAgenda();
+}
+
+function onRailSelect(day, via) {
+    renderAgenda();
+    // Arrow keys only move the selection, so the rail stays in view while stepping.
+    if (homeView === 'cards' && via === 'click' && day.events.length) scrollToEvent(day.events[0].id);
 }
 
 function agendaHeading(day) {
@@ -349,35 +358,67 @@ function renderAgenda() {
     const list = document.getElementById('agenda-list');
     if (!list || !rail) return;
     const day = rail.selected;
-    document.getElementById('agenda-title').textContent = agendaHeading(day);
     const n = day.events.length;
+    // Cards view lists a day's events as cards already; the agenda speaks only for an empty day.
+    document.getElementById('agenda').hidden = homeView === 'cards' && n > 0;
+    document.getElementById('agenda-title').textContent = agendaHeading(day);
     document.getElementById('agenda-count').textContent = n === 0 ? '' : `${n} event${n === 1 ? '' : 's'}`;
     if (n === 0) {
         list.innerHTML = '<li class="agenda-empty">No events planned.</li>';
         return;
     }
+    const now = Date.now();
     list.innerHTML = day.events.map(ev => {
         const d = new Date(ev.date);
+        const isPast = d.getTime() < now;
         const time = d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false });
         const detail = ev.location || styleFor(ev).name || '';
-        const seats = seatsLabel(ev, { isPast: d.getTime() < Date.now() });
+        const seats = seatsLabel(ev, { isPast });
         const meta = [detail, seats].filter(Boolean).join(' · ');
-        return `<li><button type="button" class="agenda-row" data-event-id="${escapeAttribute(ev.id)}">`
+        const hasLimit = ev.attendance_limit !== null && ev.attendance_limit !== undefined;
+        const isFull = hasLimit && (ev.attendingCount || 0) >= ev.attendance_limit;
+        let action = '';
+        if (!isPast) {
+            action = isFull
+                ? '<button type="button" class="btn btn-line agenda-join" disabled>Full</button>'
+                : `<button type="button" class="btn btn-line agenda-join" data-event-id="${escapeAttribute(ev.id)}" aria-label="${escapeAttribute(`Join ${ev.title}`)}">Join</button>`;
+        }
+        return `<li class="agenda-row${isPast ? ' is-past' : ''}">`
             + `<span class="agenda-time">${escapeHtml(time)}</span>`
             + '<span class="agenda-bar" aria-hidden="true"></span>'
             + `<span class="agenda-main"><span class="agenda-name">${escapeHtml(ev.title)}</span>`
             + (meta ? `<span class="agenda-meta">${escapeHtml(meta)}</span>` : '')
-            + '</span></button></li>';
+            + `</span>${action}</li>`;
     }).join('');
 }
 
 function wireAgenda() {
     const list = document.getElementById('agenda-list');
-    if (!list) return;
-    list.addEventListener('click', e => {
-        const row = e.target.closest('.agenda-row');
-        if (row) scrollToEvent(row.dataset.eventId);
+    if (list) {
+        list.addEventListener('click', e => {
+            const join = e.target.closest('.agenda-join');
+            if (join && join.dataset.eventId) openRsvpModal(join.dataset.eventId);
+        });
+    }
+    let saved = null;
+    try { saved = localStorage.getItem(VIEW_KEY); } catch (_) {}
+    setHomeView(saved === 'rows' ? 'rows' : 'cards', { remember: false });
+    document.querySelectorAll('.view-btn').forEach(btn => {
+        btn.addEventListener('click', () => setHomeView(btn.dataset.view));
     });
+}
+
+function setHomeView(view, { remember = true } = {}) {
+    homeView = view;
+    const home = document.getElementById('home');
+    if (home) home.classList.toggle('is-rows', view === 'rows');
+    document.querySelectorAll('.view-btn').forEach(btn => {
+        btn.setAttribute('aria-checked', btn.dataset.view === view ? 'true' : 'false');
+    });
+    if (remember) {
+        try { localStorage.setItem(VIEW_KEY, view); } catch (_) {}
+    }
+    renderAgenda();
 }
 
 function populateAddToCalendarDropdown(id) {
@@ -869,8 +910,13 @@ function formatSheetDate(event) {
     return `${day}, ${time(start)}–${endDay}${time(end)}`;
 }
 
+// The rail's rows can name an event the list is hiding (its calendar unticked), so look in both.
+function findEvent(eventId) {
+    return currentEvents.find(e => e.id === eventId) || allCalendarEvents.find(e => e.id === eventId);
+}
+
 function openRsvpModal(eventId) {
-    const event = currentEvents.find(e => e.id === eventId);
+    const event = findEvent(eventId);
     if (!event) return;
     currentEventForRsvp = event;
     lastSheetTrigger = document.activeElement;
@@ -911,7 +957,7 @@ function closeRsvpModal() {
 }
 
 function openRemoveRsvpModal(eventId) {
-    const event = currentEvents.find(e => e.id === eventId);
+    const event = findEvent(eventId);
     if (!event) return;
     currentEventForRsvp = event;
     lastSheetTrigger = document.activeElement;

@@ -84,7 +84,7 @@ Vanilla JavaScript with no build step.
 **Client-side features:**
 - WebSocket connection for real-time attendance updates
 - Event cards with RSVP buttons (add/remove attendance)
-- **Date rail** rendered client-side from `/api/events?timeRange=all`: today plus 13 days as day buttons, each marked with its events' title emoji or calendar shape (`titleEmoji`/`bandMark`), up to three, then "+N". The component is `public/js/date-rail.js` (`DateRail.create(container, { events, selected, onSelect, mark })`, pure helpers tested in `tests/date-rail.test.js`); `app.js` wires it (`renderRail`, `renderAgenda`, `loadAllCalendarEvents`). Today is selected by default; the selected day's agenda lists its events below, and a row scrolls to the event's card.
+- **Date rail** rendered client-side from `/api/events?timeRange=all`: today plus 13 days as day buttons, each marked with its events' title emoji or calendar shape (`titleEmoji`/`bandMark`), up to three, then "+N". The component is `public/js/date-rail.js` (`DateRail.create(container, { events, selected, onSelect, mark })`, pure helpers tested in `tests/date-rail.test.js`); `app.js` wires it (`renderRail`, `renderAgenda`, `loadAllCalendarEvents`). Today is selected by default. A Cards | Rows switch (`setHomeView`, kept in localStorage as `lilaiHomeView`) picks the view. In Cards view, clicking a day scrolls to its first card (`onSelect` reports `via: 'click'`; arrow keys never scroll), and the agenda shows only for an empty day. In Rows view the card list hides and the selected day's agenda rows carry a Join button that opens the RSVP sheet (`findEvent` looks up events outside the list too).
 - Admin pages for creating/editing events and managing donations
 
 ### Configuration (config/app.json)

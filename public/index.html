@@ -52,12 +52,19 @@
     </nav>
 </header>
 
-<main class="home">
+<main class="home" id="home">
     <section class="band-section" aria-labelledby="rail-title">
         <div class="rail-head">
             <h2 class="rail-title" id="rail-title">Upcoming</h2>
             <p class="rail-range" id="rail-range"></p>
-            <p class="rail-span" aria-hidden="true">14 days →</p>
+            <div class="view-switch" role="radiogroup" aria-label="Show events as">
+                <button type="button" class="view-btn" role="radio" aria-checked="true" data-view="cards" aria-label="Cards" title="Cards">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="7" rx="2"/><rect x="4" y="13" width="16" height="7" rx="2"/></svg>
+                </button>
+                <button type="button" class="view-btn" role="radio" aria-checked="false" data-view="rows" aria-label="Rows" title="Rows">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+                </button>
+            </div>
         </div>
         <div id="rail-container"></div>
         <div class="agenda" id="agenda" aria-live="polite">
