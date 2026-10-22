@@ -23,6 +23,7 @@ const {
 } = require('./booking-repeat');
 const { readBankDetails, renderEpcQrSvg } = require('./donation-bank');
 const { createSeriesSchema, toSeriesView, LIST_SQL: SERIES_LIST_SQL, ONE_SQL: SERIES_ONE_SQL } = require('./booking-series');
+const feedback = require('./feedback');
 const {
     createProfileSchema, publicProfile, fullProfile, validateProfile
 } = require('./booking-profiles');
@@ -62,6 +63,12 @@ const PORT = process.env.PORT || 3000;
 // gzip: the band's events JSON and app.js shrink about 5x, which is most of their transfer time.
 app.use(compression());
 app.use(cors());
+// Feedback carries its attachments base64 in the body, so it gets a larger limit. The
+// general parser below skips a body that is already parsed.
+app.use('/api/feedback', bodyParser.json({ limit: feedback.BODY_LIMIT }), (err, req, res, next) => {
+    if (err.type === 'entity.too.large') return res.status(413).json({ error: 'too_large' });
+    next(err);
+});
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
@@ -326,6 +333,7 @@ async function initializeDatabase() {
 
         await createBookingSchema(client);
         await createSeriesSchema(client);
+        await feedback.createFeedbackSchema(client);
         const seeded = await createProfileSchema(client, uuidv4);
         if (seeded.created > 0) {
             console.log(`[bookings] address book seeded from the queue: ${seeded.created} people, ${seeded.linked} entries linked.`);
@@ -2263,6 +2271,40 @@ app.delete('/api/bookings/:id', async (req, res) => {
     } finally {
         client.release();
     }
+});
+
+// Feedback from the footer sheet: saved, then emailed when Resend is set up.
+// The email is the owner's nudge, so a failed one is logged and the sender still sees Sent.
+app.post('/api/feedback', async (req, res) => {
+    let entry;
+    try {
+        entry = feedback.validateFeedback(req.body, req.get('user-agent'));
+    } catch (error) {
+        if (error instanceof feedback.FeedbackInputError) {
+            return res.status(error.status).json({ error: error.code });
+        }
+        console.error('feedback', error);
+        return res.status(500).json({ error: 'save' });
+    }
+    const id = uuidv4();
+    try {
+        await pool.query(
+            `INSERT INTO feedback (id, message, email, page, user_agent, attachments)
+             VALUES ($1, $2, $3, $4, $5, $6)`,
+            [id, entry.message, entry.email, entry.page, entry.device, entry.files.map(f => f.name)]
+        );
+    } catch (error) {
+        console.error('feedback', error);
+        return res.status(502).json({ error: 'save' });
+    }
+    try {
+        if (await feedback.mailFeedback(entry)) {
+            await pool.query('UPDATE feedback SET emailed = TRUE WHERE id = $1', [id]);
+        }
+    } catch (error) {
+        console.error('feedback mail', error);
+    }
+    res.status(204).end();
 });
 
 // Health check endpoint

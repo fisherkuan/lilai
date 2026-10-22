@@ -27,7 +27,7 @@ The server runs on `http://localhost:3000` by default (configurable via PORT env
 ### Database
 - PostgreSQL is used for production (connection via `DATABASE_URL` env var)
 - Database schema is auto-initialized on server startup via `initializeDatabase()` in server/app.js
-- Tables: `events`, `rsvps`, `donations`, `booking_queue`, `booking_profiles`, `booking_series`
+- Tables: `events`, `rsvps`, `donations`, `feedback`, `booking_queue`, `booking_profiles`, `booking_series`
 - Schema migrations are idempotent and run automatically on startup
 
 ### Testing
@@ -79,6 +79,7 @@ Vanilla JavaScript with no build step.
 - `bauhaus/tokens.css` - The Bauhaus kit's tokens, copied verbatim (do not edit)
 - `css/lilai.css` - Lilai's token additions, shared components and Home (Shape Calendar world, see `DESIGN.md`)
 - `css/faq.css`, `css/donate.css`, `css/admin.css`, `css/booking.css` - Page stylesheets, loaded after `lilai.css`
+- `js/feedback.js` - Footer "Send feedback" button and sheet, on every page with a `.colophon` (ported from splitly)
 - `sw.js` - Service worker for PWA support
 
 **Client-side features:**
@@ -126,6 +127,9 @@ Required in `.env`:
 - `DATABASE_URL` - PostgreSQL connection string (format: postgresql://user:password@host:port/database)
 - `DONATION_IBAN`, `DONATION_ACCOUNT_HOLDER` - Optional. Bank details on the Donate page; set both or neither. An invalid IBAN stops startup
 - `DONATION_BIC`, `DONATION_REFERENCE`, `DONATION_PAY_LINK` - Optional: BIC, transfer message (default "Lilai donation"), an https card-payment link such as revolut.me
+- `RESEND_API_KEY` - Optional. Without it feedback is saved but not emailed
+- `FEEDBACK_EMAIL_TO` - Optional, comma-separated; overrides the default inbox `lilai@fisherkuan.com`
+- `FEEDBACK_EMAIL_FROM` - Optional. Needs a domain verified in Resend, else the default `onboarding@resend.dev` only delivers to the Resend account's own address
 - `PORT` - Server port (default: 3000)
 - `NODE_ENV` - Set to "production" to enable SSL for PostgreSQL
 
@@ -168,6 +172,9 @@ Required in `.env`:
 - `POST /api/donations` - Create donation entry (body: `{amount, description, donator, entry_date}`)
 - `GET /api/donation-details` - Account holder, masked IBAN and pay link for the Donate page (404 when not configured). The full IBAN travels only in the QR code and `GET /api/donation-iban`, which the Copy button calls on click
 - `GET /api/donation-qr.svg` - SEPA "scan to pay" QR code (EPC069-12) for the same details
+
+### Feedback Endpoint
+- `POST /api/feedback` - Body `{message, email?, page?, files?: [{name, type, data: base64}]}`, up to 5 files and 10 MB in all. Saves to the `feedback` table, then emails it through Resend (`server/feedback.js`), subject prefixed `[Lilai]`, Reply-To the sender's email when given. Files travel in the email only (Heroku's disk does not keep them); the table keeps their names and an `emailed` flag. A failed email is logged, never shown to the sender. Nothing reads feedback back over HTTP: use `heroku pg:psql -a lilai-eu`
 
 ### Booking Queue Endpoints
 - `GET /api/bookings` - Board data: `queued[]`, `history[]`, `historyHasMore`, `quotaPerWeek`. Params: `limit`, `before=<ISO>`
