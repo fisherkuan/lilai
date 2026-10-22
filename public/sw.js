@@ -1,4 +1,4 @@
-const CACHE_NAME = 'lilai-cache-v47'; // Bumped version
+const CACHE_NAME = 'lilai-cache-v48'; // Bumped version
 const urlsToCache = [
   '/',
   '/index.html',
@@ -15,6 +15,7 @@ const urlsToCache = [
   '/js/date-rail.js',
   '/js/pull-to-refresh.js',
   '/manifest.json',
+  '/manifest-organizer.json',
   '/icons/icon-192x192.png',
   '/icons/icon-512x512.png',
   '/icons/icon-maskable-192x192.png',

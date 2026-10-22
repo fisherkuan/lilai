@@ -593,11 +593,18 @@ function setupFilterPills() {
  * what you use on a borrowed phone. The flag lives in localStorage, so it is per device and
  * per browser, and it survives nothing you did not do yourself.
  *
+ * A home-screen app is a separate browser as far as storage goes: iOS gives it its own
+ * localStorage and starts it at the manifest's start_url, so the flag set in Safari does not
+ * follow it and there is no address bar to type ?admin=1 into. So a remembered device points
+ * the page at manifest-organizer.json, whose start_url carries the switch, and the app it adds
+ * tells itself on every launch. Add to Home Screen after the Admin link has appeared.
+ *
  * Anyone who reads this file learns the path. That is the accepted cost, and it is the same
  * audience that would have typed /admin anyway.
  */
 const ADMIN_HOME = '/admin/events';
 const ADMIN_FLAG_KEY = 'lilaiOrganizer';
+const ORGANIZER_MANIFEST = '/manifest-organizer.json';
 
 function isRememberedOrganizer() {
     try {
@@ -628,6 +635,9 @@ function setupAdminLink() {
     }
 
     if (!isRememberedOrganizer()) return;
+
+    const manifest = document.querySelector('link[rel="manifest"]');
+    if (manifest) manifest.setAttribute('href', ORGANIZER_MANIFEST);
 
     document.querySelectorAll('.app-header-links').forEach(nav => {
         if (nav.querySelector('[data-admin-link]')) return;

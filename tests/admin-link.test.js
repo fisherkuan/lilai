@@ -24,6 +24,7 @@ function makeHarness({ search = '', stored = null } = {}) {
     const store = new Map();
     if (stored !== null) store.set('lilaiOrganizer', stored);
 
+    const manifest = { href: 'manifest.json', setAttribute(k, v) { this[k] = v; } };
     const replaced = [];
     const context = {
         console,
@@ -37,12 +38,14 @@ function makeHarness({ search = '', stored = null } = {}) {
         history: { replaceState: (a, b, url) => replaced.push(url) },
         document: {
             querySelectorAll: () => navs,
+            querySelector: sel => (sel === 'link[rel="manifest"]' ? manifest : null),
             createElement: () => ({ dataset: {}, href: '', textContent: '' })
         }
     };
     context.navs = navs;
     context.store = store;
     context.replaced = replaced;
+    context.manifest = manifest;
     return context;
 }
 
@@ -80,6 +83,23 @@ test('the switch is stripped from the address bar so a shared URL does not carry
 test('a remembered device keeps the link on later plain visits', () => {
     const links = runSetup(makeHarness({ stored: '1' }));
     assert.strictEqual(links.length, 2);
+});
+
+test('a remembered device installs a home-screen app that starts with the switch', () => {
+    const ctx = makeHarness({ stored: '1' });
+    runSetup(ctx);
+    assert.strictEqual(ctx.manifest.href, '/manifest-organizer.json');
+    const organizer = JSON.parse(fs.readFileSync(path.join(PUBLIC_DIR, 'manifest-organizer.json'), 'utf8'));
+    const plain = JSON.parse(fs.readFileSync(path.join(PUBLIC_DIR, 'manifest.json'), 'utf8'));
+    assert.strictEqual(organizer.start_url, '/index.html?admin=1');
+    // Same id, so it is the same app to the OS, not a second Lilai.
+    assert.strictEqual(organizer.id, plain.id);
+});
+
+test('a fresh device keeps the plain manifest', () => {
+    const ctx = makeHarness();
+    runSetup(ctx);
+    assert.strictEqual(ctx.manifest.href, 'manifest.json');
 });
 
 test('?admin=0 forgets the device and hides the link again', () => {
