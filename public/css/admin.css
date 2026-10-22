@@ -127,9 +127,9 @@
     font-weight: 600;
 }
 
+/* Left-aligned like every other field, so the number keeps clear of the spinner arrows. */
 .input-num {
     width: 112px;
-    text-align: right;
     font-variant-numeric: tabular-nums;
 }
 
@@ -147,11 +147,8 @@
 .admin-form > .field:first-child,
 .admin-form > .field-pair:first-child > .field { margin-top: 0; }
 
-/* A form field, so it spans its column and reads left to right like the others. */
-.admin-form .input-num {
-    width: 100%;
-    text-align: left;
-}
+/* A form field, so it spans its column like the others. */
+.admin-form .input-num { width: 100%; }
 
 .field-hint {
     margin-top: var(--s2);
