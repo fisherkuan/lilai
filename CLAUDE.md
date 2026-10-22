@@ -221,12 +221,19 @@ the whole path and stops short of the POST, and the row lands as `not_sent` — 
 terminal status, never `unconfirmed`, so a board that says "Request sent" always means one
 was. `not_sent` costs the week no quota, because no request exists to hold a court. `server/../.plans/` holds the design notes.
 
-Recovery is stateless: an entry stays due from its opening until opening + grace, so any
-process alive inside that window picks it up through the ordinary check. There is no
+Recovery is stateless: an entry stays due from its opening until grace after the later of
+its opening and `send_after`, so any process alive inside that window picks it up through
+the ordinary check. There is no
 catch-up path. `lateSubmissionGraceSeconds` is 43200 — twelve hours, matching the Python
 reference's live config — so a process that was not running at midnight still sends when
 it next comes up. A late request will usually get a worse court than a punctual one, but
 it is not nothing.
+
+A slot whose window has already opened can still be queued, any time before it is played
+(the picker offers dates from today). Its `send_after` is the moment it was queued, so its
+grace counts from then, and the route calls `scheduler.nudge()` after the commit: the
+request goes out within a second instead of at the next 15s tick. Pacing and the claim
+still apply.
 
 The board's midnight banner is deliberately **not** driven by this number: it uses its own
 five-minute `LIVE_WINDOW_MS`, because a countdown clock running all morning would misstate

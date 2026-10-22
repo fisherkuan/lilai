@@ -74,16 +74,25 @@ function bookingSettings(appConfig = {}) {
  * Pick the moment an entry may be submitted: its opening plus an independent random
  * delay. Sampled ONCE when the entry is queued and never re-rolled, so a restart cannot
  * move an entry's place in the night's order.
+ *
+ * An entry queued after that moment has passed goes out now. The delay spreads out a
+ * midnight; a window that opened hours or days ago has no midnight left to spread.
  */
-function sampleSendAfter(opensAt, settings, random = Math.random) {
+function sampleSendAfter(opensAt, settings, random = Math.random, now = new Date()) {
     const { openingDelayMinSeconds: low, openingDelayMaxSeconds: high } = settings;
     const seconds = low + Math.floor(random() * (high - low + 1));
-    return new Date(opensAt.getTime() + seconds * 1000);
+    const sampled = new Date(opensAt.getTime() + seconds * 1000);
+    return sampled > now ? sampled : new Date(now.getTime());
 }
 
-/** The last moment an entry may still go out. */
-function graceDeadline(opensAt, settings) {
-    return new Date(opensAt.getTime() + settings.lateSubmissionGraceSeconds * 1000);
+/**
+ * The last moment an entry may still go out: grace after the later of its opening and
+ * its send time. An entry queued into a window that is already open counts its grace
+ * from when it was queued, so it is never born missed.
+ */
+function graceDeadline(opensAt, settings, sendAfter = opensAt) {
+    const anchor = Math.max(new Date(opensAt).getTime(), new Date(sendAfter).getTime());
+    return new Date(anchor + settings.lateSubmissionGraceSeconds * 1000);
 }
 
 module.exports = { DEFAULTS, bookingSettings, sampleSendAfter, graceDeadline };

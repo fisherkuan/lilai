@@ -71,7 +71,7 @@
         const iso = `${opening.getUTCFullYear()}-${String(opening.getUTCMonth() + 1).padStart(2, '0')}-${String(opening.getUTCDate()).padStart(2, '0')}`;
         const days = Math.round((opening - new Date(new Date().setHours(0, 0, 0, 0))) / 86400000);
         const when = days <= 0 ? ' — already open' : days === 1 ? ' — tonight' : days === 2 ? ' — tomorrow night' : '';
-        return { text: `${prettyDate(iso)} at 00:00`, suffix: when, iso };
+        return { text: `${prettyDate(iso)} at 00:00`, suffix: when, iso, open: days <= 0 };
     }
 
     /** The Brussels wall-clock start of a stored instant, for the held-slot list. */
@@ -338,12 +338,25 @@
                 h('label', { class: 'bs-label', text: 'Day you want to play' }),
                 picker,
                 h('p', { class: 'bs-note', text: options.seasonEndsOn
-                    ? `Nothing before ${prettyDate(isoDate(earliestPlayDate()))} — those windows have already closed — and nothing after ${prettyDate(options.seasonEndsOn)}, when this season's sports card runs out.`
-                    : `Nothing before ${prettyDate(isoDate(earliestPlayDate()))} — those windows have already closed.` })
+                    ? `Any day from today to ${prettyDate(options.seasonEndsOn)}, when this season's sports card runs out.`
+                    : 'Any day from today.' })
             ])
         ];
 
-        if (draft.playDate) {
+        if (draft.playDate && openingLabel(draft.playDate).open) {
+            const opening = openingLabel(draft.playDate);
+            body.push(h('div', { class: 'bs-block' }, [
+                h('div', { class: 'bs-block-title', text: 'What happens next' }),
+                h('p', { class: 'bs-block-lead' }, [
+                    'The form for ',
+                    h('strong', { text: prettyDate(draft.playDate) }),
+                    ' opened ',
+                    h('strong', { text: opening.text }),
+                    '.'
+                ]),
+                h('p', { class: 'bs-note', text: 'The request goes out as soon as you queue it. A late request often gets a worse court than one sent at midnight.' })
+            ]));
+        } else if (draft.playDate) {
             const opening = openingLabel(draft.playDate);
             body.push(h('div', { class: 'bs-block' }, [
                 h('div', { class: 'bs-block-title', text: 'What happens next' }),
@@ -573,7 +586,7 @@
             ['Duration', draft.durationHours === 1 ? '1 hr' : `${draft.durationHours} hrs`],
             ['Players', String(draft.players)],
             ['Where', `${draft.indoorOutdoor}${draft.facility ? ` · ${draft.facility === 'Andere / Other' ? draft.otherFacility : draft.facility}` : ''}`],
-            [draft.repeatOn ? 'First goes out' : 'Goes out', `${openingLabel(draft.playDate).text}`]
+            [draft.repeatOn ? 'First goes out' : 'Goes out', openingLabel(draft.playDate).open ? 'Now, when you queue it' : openingLabel(draft.playDate).text]
         ];
         if (draft.repeatOn && preview && preview.dates.length > 0) {
             const dates = preview.dates;
@@ -617,7 +630,7 @@
             ]),
             h('div', { class: 'bs-block' }, [
                 h('div', { class: 'bs-block-title', text: 'Queuing is not booking.' }),
-                h('p', { class: 'bs-block-note', text: `We submit the request at midnight. KU Leuven decides, and emails ${firstName} directly — usually within a day or two.` })
+                h('p', { class: 'bs-block-note', text: `We submit the request ${openingLabel(draft.playDate).open ? 'right away' : 'at midnight'}. KU Leuven decides, and emails ${firstName} directly — usually within a day or two.` })
             ]),
             // The only fine print left, and it stays readable: 12px muted grey on white is
             // 2.5:1, which is not a colour this sentence may be set in.

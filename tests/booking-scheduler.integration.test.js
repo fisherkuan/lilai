@@ -207,6 +207,19 @@ test('past the grace window an entry is marked missed, not sent late', async (t)
     } finally { client.release(); }
 });
 
+test('an entry queued days after its window opened is sent, not marked missed', async (t) => {
+    if (skipUnless(t)) return;
+    const client = await fresh();
+    try {
+        const id = await seed(client, { opensAtOffsetMs: -3 * 86400000, sendAfterOffsetMs: -1000 });
+        const fake = fakeClient();
+        const summary = await createScheduler({ pool, settings, live: true, clientFactory: fake.factory, log: quiet }).tick();
+        assert.equal(summary.missed, 0);
+        assert.equal(fake.calls.submit, 1);
+        assert.equal((await statusOf(client, id)).status, 'sent');
+    } finally { client.release(); }
+});
+
 test('an entry waits out its own random delay', async (t) => {
     if (skipUnless(t)) return;
     const client = await fresh();

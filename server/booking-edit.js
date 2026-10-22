@@ -35,9 +35,9 @@ function mergeContact(body, stored) {
  * not cost someone their place in the order requests go out in; changing which midnight
  * the entry belongs to has to, because the old delay was measured from a different opening.
  */
-function sendAfterForEdit(stored, opensAt, settings, random = Math.random) {
+function sendAfterForEdit(stored, opensAt, settings, random = Math.random, now = new Date()) {
     const moved = new Date(stored.opens_at).getTime() !== opensAt.getTime();
-    return moved ? sampleSendAfter(opensAt, settings, random) : stored.send_after;
+    return moved ? sampleSendAfter(opensAt, settings, random, now) : stored.send_after;
 }
 
 module.exports = { mergeContact, sendAfterForEdit };

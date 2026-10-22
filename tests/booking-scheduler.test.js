@@ -67,6 +67,13 @@ test('a missing alternative falls back to the preferred start', () => {
     assert.equal(dueState(single, new Date('2026-10-01T16:00:01Z'), 86400), 'missed');
 });
 
+test('an entry queued days after its opening is due from its send time', () => {
+    const late = { ...entry({ opensAt: OPENS }), send_after: '2026-09-20T09:00:00.000Z' };
+    assert.equal(dueState(late, new Date('2026-09-20T09:00:00Z'), GRACE), 'due');
+    assert.equal(dueState(late, new Date('2026-09-20T09:05:00Z'), GRACE), 'due');
+    assert.equal(dueState(late, new Date('2026-09-20T09:05:01Z'), GRACE), 'missed');
+});
+
 // --- Surviving the database ---------------------------------------------------------------
 
 const quiet = { info() {}, warn() {}, error() {} };
@@ -105,4 +112,34 @@ test('a database unreachable at boot costs one pass, not the interval', async (t
     await new Promise((resolve) => setImmediate(resolve));
     assert.equal(pool.connects, 2, 'the interval fired and tried again');
     scheduler.stop();
+});
+
+test('a nudge runs a pass at once', async () => {
+    const pool = flakyPool(0);
+    const scheduler = createScheduler({ pool, settings: bookingSettings({}), log: quiet });
+
+    scheduler.nudge();
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.equal(pool.connects, 1);
+});
+
+test('a nudge during a pass runs one more pass straight after it', async () => {
+    let release;
+    const gate = new Promise((resolve) => { release = resolve; });
+    const pool = { connects: 0 };
+    pool.connect = async () => {
+        pool.connects += 1;
+        if (pool.connects === 1) await gate;
+        return { query: async () => ({ rows: [] }), release() {} };
+    };
+    const scheduler = createScheduler({ pool, settings: bookingSettings({}), log: quiet });
+
+    const first = scheduler.tick();
+    scheduler.nudge();
+    scheduler.nudge();
+    release();
+    await first;
+    await new Promise((resolve) => setImmediate(resolve));
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.equal(pool.connects, 2, 'two nudges during one pass fold into a single rerun');
 });

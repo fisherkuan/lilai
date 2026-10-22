@@ -62,11 +62,17 @@ test('an edit that leaves the opening alone keeps the delay already rolled', () 
 
 test('moving the entry to another midnight re-rolls the delay from the new opening', () => {
     const moved = new Date('2026-09-22T22:00:00Z');
-    const sendAfter = sendAfterForEdit(STORED, moved, SETTINGS, () => 0.5);
+    const sendAfter = sendAfterForEdit(STORED, moved, SETTINGS, () => 0.5, new Date('2026-09-20T12:00:00Z'));
     assert.notEqual(sendAfter, STORED.send_after);
     const offset = (sendAfter.getTime() - moved.getTime()) / 1000;
     assert.ok(offset >= SETTINGS.openingDelayMinSeconds && offset <= SETTINGS.openingDelayMaxSeconds,
         `delay ${offset}s is outside the configured bounds`);
+});
+
+test('moving the entry into a window that is already open sends it now', () => {
+    const opened = new Date('2026-09-22T22:00:00Z');
+    const now = new Date('2026-09-25T08:15:00Z');
+    assert.equal(sendAfterForEdit(STORED, opened, SETTINGS, () => 0.5, now).toISOString(), now.toISOString());
 });
 
 test('the opening is compared as an instant, not by object identity', () => {

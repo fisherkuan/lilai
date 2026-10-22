@@ -23,7 +23,7 @@
      *
      * Bump it when changing anything in public/js or public/css/booking.css.
      */
-    const BUILD = '2026-10-17a';
+    const BUILD = '2026-10-23a';
 
     const { BRUSSELS, MONTHS } = window.bookingShared;
     const MINUTE = 60000;
@@ -98,19 +98,14 @@
     const el = (id) => document.getElementById(id);
 
     /*
-     * The soonest play date still worth offering: the next midnight that has not passed,
-     * plus fourteen days. The five minutes is a rounding allowance for someone sitting on
-     * the page as midnight ticks over, NOT the grace window — grace is twelve hours, and
-     * letting it govern this would offer dates whose window opened this morning.
+     * The soonest play date worth offering: today. Any day less than fourteen days away
+     * has an open window, and a slot queued into one is sent at once. A time later today
+     * can still be booked; the server refuses a slot that is already in the past.
      */
     function earliestPlayDate() {
-        const now = new Date();
-        const opening = new Date(now);
-        opening.setHours(0, 0, 0, 0);
-        if (now.getTime() > opening.getTime() + 5 * 60000) opening.setDate(opening.getDate() + 1);
-        const play = new Date(opening);
-        play.setDate(play.getDate() + 14);
-        return play;
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        return today;
     }
 
     // --- Brussels formatting ----------------------------------------------------------
@@ -536,7 +531,9 @@
         if (entry.status !== 'cancelled' || !entry.cancelledAt) return 0;
         const deadline = new Date(entry.cancelledAt).getTime() + state.cancelUndoSeconds * 1000;
         // A slot whose window has closed cannot come back however recently it was cancelled.
-        const sendable = new Date(entry.opensAt).getTime() + state.graceSeconds * 1000;
+        // Grace runs from the later of the opening and the send time, as on the server.
+        const anchor = Math.max(new Date(entry.opensAt).getTime(), new Date(entry.sendAfter || entry.opensAt).getTime());
+        const sendable = anchor + state.graceSeconds * 1000;
         return Math.min(deadline, sendable) - now;
     }
 

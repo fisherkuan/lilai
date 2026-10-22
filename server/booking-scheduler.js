@@ -26,16 +26,21 @@ const TICK_MS = 15000;
  * waiting - the window has not opened.
  * due     - inside the window, and the slot has not been played yet.
  * missed  - the grace window has closed, or the slot itself has been and gone.
+ *
+ * Grace runs from the later of the opening and send_after, the same anchor as
+ * graceDeadline: an entry queued into a window that opened days ago is due from then.
  */
 function dueState(entry, now, graceSeconds) {
     const opensAt = new Date(entry.opens_at);
+    const sendAfter = new Date(entry.send_after || entry.opens_at);
+    const anchor = Math.max(opensAt.getTime(), sendAfter.getTime());
     const preferred = new Date(entry.start_preferred);
     const alternative = new Date(entry.start_alternative || entry.start_preferred);
     const earliestPlay = preferred <= alternative ? preferred : alternative;
 
     if (now < opensAt) return 'waiting';
     if (now >= earliestPlay) return 'missed';
-    if (now.getTime() > opensAt.getTime() + graceSeconds * 1000) return 'missed';
+    if (now.getTime() > anchor + graceSeconds * 1000) return 'missed';
     return 'due';
 }
 
@@ -54,6 +59,8 @@ function createScheduler({
     let nextAllowedAt = 0;
     let timer = null;
     let running = false;
+    // A nudge that lands while a pass is running asks for one more pass straight after it.
+    let rerun = false;
     // Interrupted rows are recovered on the first pass that reaches the database, not at
     // start(): a connection blip at boot must not leave them `sending` until the next deploy.
     let recovered = false;
@@ -228,8 +235,25 @@ function createScheduler({
         } finally {
             if (client) client.release();
             running = false;
+            if (rerun) {
+                rerun = false;
+                setImmediate(nudge);
+            }
         }
         return summary;
+    }
+
+    /*
+     * Run a pass now instead of at the next interval. Called after a row is queued into a
+     * window that is already open, so the request goes out within seconds. The pass is the
+     * ordinary one, so the claim, the pacing and the dry-run rule all still apply.
+     */
+    function nudge() {
+        if (running) {
+            rerun = true;
+            return;
+        }
+        tick().catch((error) => log.error('[bookings] nudged pass failed:', error.message));
     }
 
     /*
@@ -251,7 +275,7 @@ function createScheduler({
         timer = null;
     }
 
-    return { start, stop, tick, recoverInterrupted, isLive: () => live };
+    return { start, stop, tick, nudge, recoverInterrupted, isLive: () => live };
 }
 
 module.exports = { dueState, createScheduler, TICK_MS };
