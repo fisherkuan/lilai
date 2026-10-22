@@ -23,7 +23,7 @@
      *
      * Bump it when changing anything in public/js or public/css/booking.css.
      */
-    const BUILD = '2026-10-23d';
+    const BUILD = '2026-10-23e';
 
     const { BRUSSELS, MONTHS } = window.bookingShared;
     const MINUTE = 60000;
