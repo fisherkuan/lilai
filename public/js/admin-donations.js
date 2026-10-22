@@ -103,7 +103,7 @@ function formatEntryPrint(data) {
 function showMessage(message, type) {
     const messageDiv = document.getElementById('form-message');
     messageDiv.textContent = message;
-    messageDiv.className = `state-line${type === 'error' ? ' is-error' : ''}`;
+    messageDiv.className = `row-status${type === 'error' ? ' is-error' : ''}`;
     messageDiv.hidden = !message;
 }
 

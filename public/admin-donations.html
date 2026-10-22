@@ -45,42 +45,59 @@
 <main class="admin">
     <div class="admin-head">
         <h1 class="admin-title">Donations</h1>
-        <p class="admin-sub">Add a donation or expense entry. Use a negative amount for an expense.</p>
+        <p class="admin-sub">Add a donation or an expense. Entries show on the Donate page.</p>
     </div>
 
-    <form id="donation-form" class="admin-form" novalidate>
-        <div class="field">
-            <label for="amount">Amount (€)</label>
-            <input type="number" id="amount" name="amount" class="input input-num" step="0.01" placeholder="25.00">
-            <p class="row-status is-error" id="amount-error" role="alert" hidden></p>
-        </div>
+    <div class="admin-grid">
+        <section class="admin-main" aria-label="New entry">
+            <form id="donation-form" class="admin-card admin-form" novalidate>
+                <div class="field-pair">
+                    <div class="field">
+                        <label for="amount">Amount (€)</label>
+                        <input type="number" id="amount" name="amount" class="input input-num" step="0.01" inputmode="decimal" aria-describedby="amount-hint">
+                        <p class="field-hint" id="amount-hint">Negative for an expense.</p>
+                        <p class="field-error" id="amount-error" role="alert" hidden></p>
+                    </div>
 
-        <div class="field">
-            <label for="entry_date">Entry date</label>
-            <input type="date" id="entry_date" name="entry_date" class="input">
-            <p class="field-hint">Defaults to today if blank.</p>
-        </div>
+                    <div class="field">
+                        <label for="entry_date">Entry date</label>
+                        <input type="date" id="entry_date" name="entry_date" class="input" aria-describedby="date-hint">
+                        <p class="field-hint" id="date-hint">Today if left empty.</p>
+                    </div>
+                </div>
 
-        <div class="field">
-            <label for="donator">Donator</label>
-            <input type="text" id="donator" name="donator" class="input" placeholder="Name of donor or payer">
-        </div>
+                <div class="field">
+                    <label for="donator">Donor or payee</label>
+                    <input type="text" id="donator" name="donator" class="input" autocomplete="off">
+                </div>
 
-        <div class="field">
-            <label for="description">Description</label>
-            <input type="text" id="description" name="description" class="input" placeholder="Brief description">
-        </div>
+                <div class="field">
+                    <label for="description">Description</label>
+                    <input type="text" id="description" name="description" class="input" autocomplete="off">
+                </div>
 
-        <div class="admin-actions">
-            <button type="button" class="text-btn" id="reset-btn">Reset</button>
-            <button type="submit" class="btn btn-solid">Add entry</button>
-        </div>
-    </form>
+                <div class="sheet-actions">
+                    <button type="submit" class="btn btn-solid">Add entry</button>
+                    <button type="button" class="text-btn" id="reset-btn">Reset</button>
+                </div>
 
-    <p class="state-line" id="form-message" role="status" aria-live="polite" hidden></p>
+                <p class="row-status" id="form-message" role="status" aria-live="polite" hidden></p>
+            </form>
+        </section>
 
-    <div class="admin-foot">
-        <button type="button" class="text-btn" id="clear-key-btn">Clear stored admin key</button>
+        <aside class="sidebar" aria-label="Admin key and public page">
+            <section class="side-block" aria-labelledby="side-key-title">
+                <h2 class="side-title" id="side-key-title">Admin key</h2>
+                <p class="side-note">The first entry asks for the key and saves it in this browser. Clear it on a shared device.</p>
+                <button type="button" class="text-btn" id="clear-key-btn">Clear stored admin key</button>
+            </section>
+
+            <section class="side-block" aria-labelledby="side-public-title">
+                <h2 class="side-title" id="side-public-title">Donate page</h2>
+                <p class="side-note">Shows the balance and the most recent entries to everyone.</p>
+                <a href="/donate" class="text-link">Open the Donate page</a>
+            </section>
+        </aside>
     </div>
 </main>
 

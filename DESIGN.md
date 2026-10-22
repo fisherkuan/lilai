@@ -186,10 +186,12 @@ components:
     rounded: "{rounded.sheet}"
     width: "480px"
   admin-tab:
-    textColor: "{colors.ink-3}"
-    typography: "{typography.body-small}"
-    height: "44px"
+    textColor: "{colors.ink-muted}"
+    typography: "{typography.meta}"
+    rounded: "{rounded.full}"
+    height: "38px"
   admin-tab-active:
+    backgroundColor: "{colors.paper-raised}"
     textColor: "{colors.ink}"
   table-head:
     textColor: "{colors.ink}"
@@ -211,7 +213,7 @@ components:
 
 **Creative North Star: "The Shape Calendar"**
 
-Lilai follows a Bauhaus form-colour grammar on off-white paper. Each enabled calendar owns one primary shape, assigned in config order: a blue circle, a red square, a yellow triangle. A fourth calendar, or an event with no known source, gets an ink diamond. The shape is the calendar's identity everywhere it appears: the wordmark, the date rail, the legend, the event title mark, the seat slots and the admin Events rows. The rail reads as a compact picker of the next two weeks, marked with the real events.
+Lilai follows a Bauhaus form-colour grammar on off-white paper. Each enabled calendar owns one primary shape, assigned in config order: a blue circle, a red square, a yellow triangle. A fourth calendar, or an event with no known source, gets an ink diamond. The shape is the calendar's identity everywhere it appears: the wordmark, the date rail, the legend, the event title mark, the seat slots and the admin Events cards. The rail reads as a compact picker of the next two weeks, marked with the real events.
 
 Everything else is ink on paper. Text, rules and buttons carry no colour, so the primaries stay loud and always mean "this calendar". Each event sits in its own rounded box (16px) with a 2px ink outline on raised paper, so where one ends and the next begins is plain; sections are divided by 2px ink rules. Labels are short sentence-case Jost. Metadata sits at one constant size. Every event carries the same weight: there is no lead event. The date numerals are the only type that breaks scale, all at one size.
 
@@ -255,8 +257,8 @@ An ink-on-paper product with three Bauhaus primaries held inside shapes. All val
 - **Paper** (paper): the page, open seat slots, status marks and text on ink.
 - **Paper Raised** (paper-raised): the ground of event boxes, fields, choice chips and sheets.
 - **Ink Muted** (ink-muted, also named `--ink-2` in lilai): metadata, descriptions, section counts, disabled button labels.
-- **Ink Faint** (ink-3, a lilai addition): weekday ticks, placeholders, captions, the colophon, inactive range tabs and admin tabs, past titles and numerals, cancelled booking titles.
-- **Line** (line, also named `--hair`): the 1px rule between rows of a dense list (admin tables, the booking timeline, the booking detail table, the FAQ questions and the FAQ table).
+- **Ink Faint** (ink-3, a lilai addition): weekday ticks, placeholders, captions, the colophon, inactive range tabs, past titles and numerals, cancelled booking titles.
+- **Line** (line, also named `--hair`): the 1px rule between rows of a dense list (the booking timeline, the booking detail table, the FAQ questions and the FAQ table).
 - **Stone** (stone, also named `--wash`): hover ground for icon buttons.
 - **Past Grey** (past, a lilai addition): contour of every shape on a past event. Past shapes lose their fill. It is also the secondary text reversed out of the booking queue's ink midnight banner.
 - **Link** (link): outbound links from content, at 500 with an underline. Lilai's own azure, #0b57d0 in light and #8ab4f8 in dark, set in `lilai.css` over the kit's value. The kit's link equals blue in light, the first calendar's colour, so a link would read as "this calendar".
@@ -293,9 +295,9 @@ In dark the kit sets paper #111214, paper-raised #1b1c1f, stone #26272b, line #7
 - **Sheet Title** (600, 22px, 1.25): the title of every sheet and dialog: the RSVP sheet, the booking sheet and the booking confirm dialog.
 - **Title** (600, 20px, 1.25, balanced wrap): event titles, the booking section heads (Recurring, Timeline), and the heads of the explainer and the detail headline.
 - **Control** (500, 17px): inputs, number fields and range tabs, so phones do not zoom into a field.
-- **Section** (Jost 600, 16px, sentence case): section and sidebar titles ("Next 14 days", "Add to the calendar", "Keep this running", "Transactions"), and in the system sans admin row titles, booking row titles and FAQ questions. The owner kept these titles out of the label style (2026-10-13).
+- **Section** (Jost 600, 16px, sentence case): section and sidebar titles ("Next 14 days", "Add to the calendar", "Keep this running", "Transactions"), and in the system sans booking row titles and FAQ questions. The owner kept these titles out of the label style (2026-10-13).
 - **Body** (400, 16px, 1.5): running text.
-- **Body Small** (400 to 600, 15px, 1.5): descriptions, the names list, FAQ answers, the Donate lede and donor lines, the booking explainer and notes, booking detail values, the booking sheet's choice chips, and the weekday line beside a 96px numeral. It also sets navigation: header links, admin tabs and the FAQ language switch. Descriptions cap at 65ch and clamp to three lines on Home.
+- **Body Small** (400 to 600, 15px, 1.5): descriptions, the names list, FAQ answers, the Donate lede and donor lines, the booking explainer and notes, booking detail values, the booking sheet's choice chips, and the weekday line beside a 96px numeral. It also sets navigation: header links and the FAQ language switch. Descriptions cap at 65ch and clamp to three lines on Home.
 - **Meta** (400 to 600, 14px): dates, times, places, seat labels, counts, table cells, admin subtitles, row status lines and text buttons.
 - **Button** (Jost 600, 15px, sentence case): the kit's button style, for every button label.
 - **Label** (Jost 600, 13px, sentence case): the kit's label style. It sets booking sheet labels and admin table heads. Field labels above a text field are Jost 600 17px in ink, the field's own size, 12px above it so the focus ring keeps clear; the field carries no placeholder hint (owner, 2026-10-22).
@@ -322,7 +324,7 @@ The page is a single column capped at 1180px, with a 16px gutter on phones and 3
 - **Events.** Each event is a two-column row: a 56px date column (72px from 640px) and the body. Every event uses this layout, the next one included. The date column holds the day number over the weekday ("Today" for today); the month shows in the rail. The time range ("16:00–18:00", ink, 500) leads the meta line under the title; an end on another day adds its date before the end time. There is no duration (owner, 2026-10-22). The title's shape names the calendar, so after the time the meta line holds the place and, when the description has a link, an Event link. The link is the one coloured text on Home: `--link`, 500, underlined, with a small arrow. The `link: URL` line and a `limit: N` line leave the description; the seat count already shows the limit. A 3px ink Today rule divides past from future in the list.
 - **Phones.** On phones the header tightens so the rail and the first agenda row land in the first screen. The subline hides below 380px.
 - **Other pages.** FAQ and Donate are a single 640px reading column. Admin pages use the same 1180px shell and gutter as Home. Booking detail caps its content at 720px. Donate left-aligns the balance on the same axis as the transaction list; nothing on it is centred.
-- **Admin tables on phones.** From 640px an admin list is a real table. Below 640px each row stacks its cells as full-width blocks, the column heads hide, and a label-style tag above a value stands in for them where the value needs a name ("Limit" on Events). The Events row shows its time as on Home, 24-hour start and end: "Fri 2 Oct · 18:00–20:00".
+- **Admin Events and Donations.** These pages use Home's layout: the main column, then a sidebar of cards that sits beside it (320px, 64px gap, sticky) from 1000px. Admin Events draws each upcoming event as Home's event card (same classes): the day numeral over the weekday and month, the title with its calendar shape, and the meta line (time, place, seat count). In place of names and Join the card holds the limit control: a "Limit" label (Jost 600 15px), a 40px number field, a 40px Save pill and a Remove limit text button, which wraps under them on phones. The sidebar card explains that a "limit: N" line in the calendar description wins. Admin Donations puts the form in one raised card (amount and date side by side from 640px, no placeholders, a hint line under a field where needed, Add entry solid then Reset) and the admin key in a sidebar card.
 - **Touch targets.** Links, tabs, legend items, buttons and icon buttons are at least 44px tall. Event buttons are the one 40px exception.
 
 ## Elevation & Depth
@@ -376,10 +378,9 @@ The wordmark is the way home on every page, so no page carries a Back link (remo
 
 ### Admin Navigation and Header
 Every admin page opens with the same header.
-- **Tabs:** Events, Donations and Booking queue are 15px 500 text tabs, ink-faint at rest and ink on hover, 44px tall. The current page turns ink with a 2px ink underline.
-- **Rule:** one 2px ink rule runs under the tabs and ends at the content edges, inside the gutter, like every other rule.
-- **Title:** the page title follows 16px below the rule at the Headline size (26px 600, -0.01em). A 14px ink-muted subline sits 8px under it. The header block ends 24px later.
-- **Table heads:** where an admin table has column heads (Donations, the booking tables), they use the label style above a 2px ink rule. The Events table has no heads; a table without heads takes the 2px ink rule on its top edge instead.
+- **Tabs:** Events, Donations and Booking queue sit in Home's pill switch (the Upcoming | All switch): a stone track hugging the tabs, each tab 14px 600 ink-muted, the current page a raised paper pill in ink. The track sits 8px under the masthead on the content's left edge. There is no rule under it (2026-10-23, to match Home).
+- **Title:** the page title follows 24px below the tabs at the Headline size (26px 600, -0.01em). A 14px ink-muted subline sits 8px under it. The header block ends 24px later.
+- **Table heads:** where a booking table has column heads, they use the label style above a 2px ink rule.
 
 On FAQ and Donate the current page in the masthead is marked the same way: a 2px underline offset 3px.
 
