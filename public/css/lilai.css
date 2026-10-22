@@ -211,12 +211,22 @@ button { font: inherit; color: inherit; }
     min-height: 44px;
 }
 
+/* The app icon without its tile: the rail's three marks on a baseline. */
 .wordmark-mark {
     display: inline-flex;
     align-items: center;
-    gap: 3px;
-    font-size: 15px;
 }
+
+.wordmark-mark svg {
+    display: block;
+    width: 47px;
+    height: 20px;
+}
+
+.wm-circle { fill: var(--blue); }
+.wm-square { fill: var(--red); }
+.wm-triangle { fill: var(--yellow); }
+.wm-base { fill: var(--ink); }
 
 .wordmark-name {
     font-size: 26px;

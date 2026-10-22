@@ -372,7 +372,7 @@ An event is a 16px rounded box with a 2px ink outline on paper-raised. See The E
 - **Error:** a 14px 500 ink line below the field, led by an 8px ink square. The kit's red mark is not used (see Deviations).
 
 ### Navigation
-The wordmark is the way home on every page, so no page carries a Back link (removed 2026-10-02). The masthead puts the wordmark at left: the three calendar shapes at 15px, then "Lilai" and its subline. FAQ and Donate sit at right as 15px 500 ink links without underline, underlined on hover. Body links are ink with a 1px underline offset 3px, 2px on hover. Links that leave the app from content (the event link on Home and in the RSVP sheet, links in FAQ answers) take `--link` at 500 instead.
+The wordmark is the way home on every page, so no page carries a Back link (removed 2026-10-02). The masthead puts the wordmark at left: the app icon without its tile (circle, square and triangle on an ink baseline, 20px tall, primaries from the kit tokens so they take the night values in dark), then "Lilai" and its subline. FAQ and Donate sit at right as 15px 500 ink links without underline, underlined on hover. Body links are ink with a 1px underline offset 3px, 2px on hover. Links that leave the app from content (the event link on Home and in the RSVP sheet, links in FAQ answers) take `--link` at 500 instead.
 
 ### Admin Navigation and Header
 Every admin page opens with the same header.
