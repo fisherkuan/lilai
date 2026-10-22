@@ -1,4 +1,4 @@
-// Lilai Home: the 14-day band, the events list and RSVP.
+// Lilai Home: the date rail and its agenda, the events list and RSVP.
 
 // ---------- Utilities ----------
 function debounce(func, wait, immediate) {
@@ -125,7 +125,7 @@ document.addEventListener('DOMContentLoaded', initializeApp);
 
 function initializeApp() {
     setupAdminLink();
-    wireBandReadout();
+    wireAgenda();
 
     loadConfig().then(() => {
         buildCalendarStyles();
@@ -196,7 +196,7 @@ function styleFor(event) {
     return calendarStyleBySource[event.source] || UNSOURCED_STYLE;
 }
 
-// An emoji in the event title stands in for the shape on the band and its readout.
+// An emoji in the event title stands in for the shape on the date rail.
 // Only graphemes that render as emoji by default (or carry VS16) count, so a © or a
 // digit in a title keeps the calendar's shape. Without Intl.Segmenter every event keeps its shape.
 const titleSegmenter = typeof Intl !== 'undefined' && Intl.Segmenter ? new Intl.Segmenter(undefined, { granularity: 'grapheme' }) : null;
@@ -210,7 +210,7 @@ function titleEmoji(title) {
     return null;
 }
 
-// The band's mark for one event: its title emoji, else its calendar's shape.
+// The rail's mark for one event: its title emoji, else its calendar's shape.
 function bandMark(ev, st) {
     const emoji = titleEmoji(ev.title);
     return emoji ? `<span class="band-emoji" aria-hidden="true">${escapeHtml(emoji)}</span>` : shapeSvg(st.shape);
@@ -279,7 +279,7 @@ async function loadAllCalendarEvents() {
         const events = await res.json();
         if (!Array.isArray(events)) return;
         allCalendarEvents = events;
-        renderBand();
+        renderRail();
     } catch (err) {
         console.error('Error loading all events for calendar:', err);
     }
@@ -306,166 +306,77 @@ function eventsByDayKey() {
     return byDay;
 }
 
-// ---------- The 14-day band ----------
-// Every event in the next two weeks drawn as its calendar's shape, sized by headcount.
-const BAND_DAYS = 14;
-let bandCounts = null; // eventId -> attendingCount at the last render, to grow shapes on change
+// ---------- The date rail and the day's agenda ----------
+// Today and the next 13 days as a row of day buttons (public/js/date-rail.js), each marked
+// with its events' emoji or calendar shape. The selected day's events are listed below it;
+// a row jumps to its card in the events list.
+const RAIL_DAYS = 14;
+let rail = null;
 
-function renderBand() {
-    const band = document.getElementById('band-container');
-    if (!band) return;
-
-    const today = startOfDay(new Date());
-    const byDay = eventsByDayKey();
-    const nextCounts = {};
-    let total = 0;
-    const bandEvents = [];
-
-    const days = [];
-    for (let i = 0; i < BAND_DAYS; i++) {
-        const d = new Date(today.getFullYear(), today.getMonth(), today.getDate() + i);
-        const dayEvents = byDay[dayKey(d)] || [];
-        total += dayEvents.length;
-
-        bandEvents.push(...dayEvents);
-        const shapes = dayEvents.map(ev => {
-            const st = styleFor(ev);
-            const count = ev.attendingCount || 0;
-            nextCounts[ev.id] = count;
-            const grew = bandCounts && bandCounts[ev.id] !== undefined && count > bandCounts[ev.id];
-            const when = new Date(ev.date).toLocaleString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
-            const label = `${ev.title}, ${when}, ${count} going`;
-            const pressed = ev.id === bandSelectedId ? 'true' : 'false';
-            return `<button type="button" class="band-ev tone-${st.tone}${grew ? ' is-grown' : ''}" data-event-id="${escapeAttribute(ev.id)}" style="--n:${Math.min(count, 12)}" aria-label="${escapeAttribute(label)}" aria-pressed="${pressed}">${bandMark(ev, st)}</button>`;
-        }).join('');
-
-        const classes = ['band-day'];
-        if (i === 0) classes.push('is-today');
-        if (d.getDay() === 1) classes.push('is-monday');
-        const dow = d.toLocaleDateString('en-GB', { weekday: 'narrow' });
-        days.push(`<li class="${classes.join(' ')}"><span class="band-dow" aria-hidden="true">${escapeHtml(dow)}</span><span class="band-date" aria-hidden="true">${d.getDate()}</span><div class="band-shapes">${shapes}</div></li>`);
-    }
-
-    bandCounts = nextCounts;
-    const metaEl = document.getElementById('events-section-meta');
-    if (metaEl) metaEl.textContent = total === 0 ? 'Nothing planned' : `${total} event${total === 1 ? '' : 's'}`;
-    const empty = total === 0
-        ? '<p class="band-empty">Nothing on the calendar in the next two weeks.</p>'
-        : '';
-    band.innerHTML = `<ol class="band-days" aria-label="Events in the next 14 days">${days.join('')}</ol>${empty}`;
-
-    bandEventsById = {};
-    bandEvents.forEach(ev => { bandEventsById[ev.id] = ev; });
-    // A selection whose event has left the band goes with it.
-    if (bandSelectedId && !bandEventsById[bandSelectedId]) bandSelectedId = null;
-    bandPreviewId = null;
-    const nowMs = Date.now();
-    const upcoming = bandEvents.find(ev => new Date(ev.date).getTime() >= nowMs);
-    bandDefaultId = upcoming ? upcoming.id : null;
-
-    band.querySelectorAll('.band-ev').forEach(btn => {
-        const id = btn.dataset.eventId;
-        btn.addEventListener('click', () => onBandShapeClick(id));
-        btn.addEventListener('pointerenter', () => { if (canHover.matches) previewBandEvent(id); });
-        btn.addEventListener('pointerleave', () => { if (canHover.matches) previewBandEvent(null); });
-        btn.addEventListener('focus', () => previewBandEvent(id));
-        btn.addEventListener('blur', () => previewBandEvent(null));
-    });
-    renderBandReadout();
-}
-
-// ---------- The band readout ----------
-// One line under the band names one event: the hovered or focused shape, else the
-// selected one, else the next upcoming event. Phones have no hover, so there the
-// first tap selects a shape and a second tap (or Show) jumps to its card.
-const canHover = window.matchMedia('(hover: hover)');
-let bandEventsById = {};
-let bandSelectedId = null;
-let bandPreviewId = null;
-let bandDefaultId = null;
-let bandReadoutShownId = null;
-
-function bandReadoutId() {
-    return bandPreviewId || bandSelectedId || bandDefaultId;
-}
-
-function onBandShapeClick(id) {
-    if (canHover.matches || bandSelectedId === id) {
-        selectBandEvent(id);
-        scrollToEvent(id);
-        return;
-    }
-    selectBandEvent(id);
-}
-
-function selectBandEvent(id) {
-    bandSelectedId = id;
-    document.querySelectorAll('#band-container .band-ev').forEach(btn => {
-        btn.setAttribute('aria-pressed', btn.dataset.eventId === id ? 'true' : 'false');
-    });
-    renderBandReadout();
-}
-
-function previewBandEvent(id) {
-    bandPreviewId = id;
-    renderBandReadout();
-}
-
-function bandReadoutText(ev, title = ev.title) {
-    const d = new Date(ev.date);
-    const day = d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }).replace(',', '');
-    const time = d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false });
-    const parts = [day, time, title];
-    const seats = seatsLabel(ev, { isPast: d.getTime() < Date.now() });
-    if (seats) parts.push(seats);
-    return parts.join(' · ');
-}
-
-function renderBandReadout() {
-    const readout = document.getElementById('band-readout');
-    if (!readout) return;
-    const id = bandReadoutId();
-    const ev = id ? bandEventsById[id] : null;
-    const text = readout.querySelector('.band-readout-text');
-    const show = readout.querySelector('.band-readout-show');
-    if (!ev) {
-        readout.classList.add('is-empty');
-        text.textContent = '';
-        text.dataset.key = '';
-        show.hidden = true;
-        bandReadoutShownId = null;
-        return;
-    }
+function railMark(ev) {
     const st = styleFor(ev);
-    // The shape mark sits inline at the start, so it stays on the first line when the text wraps.
-    // Rewrite only on a real change, so a WebSocket re-render does not re-announce the line.
-    // An emoji mark is lifted out of the title, so the line does not show it twice.
-    const emoji = titleEmoji(ev.title);
-    const title = emoji ? (ev.title.replace(emoji, '').replace(/\s+/g, ' ').trim() || ev.title) : ev.title;
-    const line = bandReadoutText(ev, title);
-    const key = `${st.tone}|${st.shape}|${emoji || ''}|${line}`;
-    readout.classList.remove('is-empty');
-    if (text.dataset.key !== key) {
-        text.innerHTML = `<span class="band-readout-mark tone-${st.tone}" aria-hidden="true">${bandMark(ev, st)}</span>${escapeHtml(line)}`;
-        text.dataset.key = key;
-    }
-    show.hidden = false;
-    show.dataset.eventId = ev.id;
-    show.setAttribute('aria-label', `Show ${ev.title}`);
-    // Motion only when the named event changes.
-    if (bandReadoutShownId !== ev.id) {
-        readout.classList.remove('is-changed');
-        void readout.offsetWidth;
-        readout.classList.add('is-changed');
-    }
-    bandReadoutShownId = ev.id;
+    return `<span class="tone-${st.tone}">${bandMark(ev, st)}</span>`;
 }
 
-function wireBandReadout() {
-    const show = document.querySelector('#band-readout .band-readout-show');
-    if (!show) return;
-    show.addEventListener('click', () => {
-        if (show.dataset.eventId) scrollToEvent(show.dataset.eventId);
+function renderRail() {
+    const container = document.getElementById('rail-container');
+    if (!container || typeof DateRail === 'undefined') return;
+    const events = calendarSource() || [];
+    if (!rail) {
+        rail = DateRail.create(container, {
+            count: RAIL_DAYS,
+            events,
+            mark: railMark,
+            label: 'Pick a day',
+            onSelect: () => renderAgenda()
+        });
+    } else {
+        // Past midnight the rail starts on the new today.
+        rail.update({ events, today: new Date() });
+    }
+    const range = document.getElementById('rail-range');
+    if (range) range.textContent = DateRail.rangeLabel(rail.days);
+    renderAgenda();
+}
+
+function agendaHeading(day) {
+    const date = day.date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+    const name = day.isToday ? 'Today' : day.date.toLocaleDateString('en-GB', { weekday: 'long' });
+    return `${name} · ${date}`;
+}
+
+function renderAgenda() {
+    const list = document.getElementById('agenda-list');
+    if (!list || !rail) return;
+    const day = rail.selected;
+    document.getElementById('agenda-title').textContent = agendaHeading(day);
+    const n = day.events.length;
+    document.getElementById('agenda-count').textContent = n === 0 ? '' : `${n} event${n === 1 ? '' : 's'}`;
+    if (n === 0) {
+        list.innerHTML = '<li class="agenda-empty">No events planned.</li>';
+        return;
+    }
+    list.innerHTML = day.events.map(ev => {
+        const d = new Date(ev.date);
+        const time = d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false });
+        const detail = ev.location || styleFor(ev).name || '';
+        const seats = seatsLabel(ev, { isPast: d.getTime() < Date.now() });
+        const meta = [detail, seats].filter(Boolean).join(' · ');
+        return `<li><button type="button" class="agenda-row" data-event-id="${escapeAttribute(ev.id)}">`
+            + `<span class="agenda-time">${escapeHtml(time)}</span>`
+            + '<span class="agenda-bar" aria-hidden="true"></span>'
+            + `<span class="agenda-main"><span class="agenda-name">${escapeHtml(ev.title)}</span>`
+            + (meta ? `<span class="agenda-meta">${escapeHtml(meta)}</span>` : '')
+            + '</span></button></li>';
+    }).join('');
+}
+
+function wireAgenda() {
+    const list = document.getElementById('agenda-list');
+    if (!list) return;
+    list.addEventListener('click', e => {
+        const row = e.target.closest('.agenda-row');
+        if (row) scrollToEvent(row.dataset.eventId);
     });
 }
 
@@ -644,7 +555,7 @@ function loadEvents() {
                 oldestLoadedDate = new Date().toISOString();
             }
             displayEvents({ scrollToToday: currentRange === 'all' });
-            renderBand();
+            renderRail();
             // In 'all' mode, eagerly fetch the first batch of past events so the user
             // doesn't need to click "Load earlier events" to see anything in the past.
             if (currentRange === 'all' && hasMoreOlder) {
@@ -793,7 +704,7 @@ function syncDescriptionToggles() {
 }
 
 // Human-readable duration between start and end (e.g. "3 hrs", "1 hr 30 min", "45 min").
-// The seat count in words, shared by the seat row and the band readout.
+// The seat count in words, shared by the seat row and the agenda.
 // Empty when there is no limit and nobody yet.
 function seatsLabel(event, { isPast }) {
     const count = event.attendingCount || 0;
@@ -931,7 +842,7 @@ function applyAttendance(eventId, attendees) {
         }
     });
     displayEvents();
-    renderBand();
+    renderRail();
 }
 
 // ---------- RSVP sheets ----------

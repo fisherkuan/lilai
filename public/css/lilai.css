@@ -19,6 +19,13 @@
        light mode is the first calendar's circle. Outbound links only; focus stays the kit's. */
     --link: #0b57d0;
 
+    /* The lifted page: a grey ground under raised cards (dark keeps paper, so cards sit lighter). */
+    --ground: var(--fill);
+    /* The date rail's green: the selected day and the agenda accent. Owner's choice, 2026-10-22. */
+    --rail-sel: #1f5c43;
+    --on-rail-sel: #fafaf7;
+    --rail-accent: #2f7d58;
+
     /* Jost (from the kit) for headings, numerals and labels; reading text keeps the device's
        own UI font, which stays legible at 14-16px where Jost's small x-height does not. */
     --font-display: Jost, Futura, 'PingFang TC', 'Noto Sans TC', 'Microsoft JhengHei', system-ui, sans-serif;
@@ -51,6 +58,10 @@
         --past: #55565b;
         --scrim: rgba(0, 0, 0, 0.6);
         --link: #8ab4f8;
+        --ground: var(--paper);
+        --rail-sel: #2f7d58;
+        --on-rail-sel: #ffffff;
+        --rail-accent: #5cbf8c;
         color-scheme: dark;
     }
     :root:not([data-theme="light"]) .select {
@@ -63,6 +74,10 @@
     --past: #55565b;
     --scrim: rgba(0, 0, 0, 0.6);
     --link: #8ab4f8;
+    --ground: var(--paper);
+    --rail-sel: #2f7d58;
+    --on-rail-sel: #ffffff;
+    --rail-accent: #5cbf8c;
     color-scheme: dark;
 }
 :root[data-theme="dark"] .select {
@@ -91,7 +106,7 @@ html {
 
 body {
     margin: 0;
-    background: var(--paper);
+    background: var(--ground);
     color: var(--ink);
     font-family: var(--font);
     font-size: 16px;
@@ -292,167 +307,135 @@ button { font: inherit; color: inherit; }
     font-variant-numeric: tabular-nums;
 }
 
-/* ---------- The 14-day band ---------- */
+/* ---------- The date rail ---------- */
 
-.band-days {
-    list-style: none;
-    display: grid;
-    grid-template-columns: repeat(14, minmax(0, 1fr));
-    margin: 0;
-    padding: 0;
-    border-top: var(--rule) solid var(--ink);
-    border-bottom: var(--rule) solid var(--ink);
+.rail-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0 var(--s3);
+    padding: var(--s4) 0 var(--s2);
 }
 
-.band-day {
-    position: relative;
+.rail-title { font-family: var(--font-display); font-size: 22px; font-weight: 600; letter-spacing: -0.01em; }
+.rail-range { font-size: var(--meta); color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.rail-span { margin-left: auto; font-size: var(--meta); color: var(--ink-3); }
+
+/* About seven days across a phone, the eighth cut off to show the row scrolls.
+   It bleeds to the screen edge and snaps gently to a day. */
+.rail {
+    --gap: 4px;
+    display: flex;
+    gap: var(--gap);
+    margin: 0 calc(-1 * var(--gutter));
+    padding: var(--s1) var(--gutter) var(--s2);
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x proximity;
+    scroll-padding-inline: var(--gutter);
+    scrollbar-width: none;
+}
+.rail::-webkit-scrollbar { display: none; }
+
+.rail-day {
+    flex: 1 0 max(44px, calc((100% - 6 * var(--gap)) / 7.3));
     display: flex;
     flex-direction: column;
     align-items: center;
-    min-height: 112px;
-    padding: var(--s2) 0 var(--s3);
-    font-variant-numeric: tabular-nums;
-}
-
-.band-day.is-monday::before {
-    content: "";
-    position: absolute;
-    top: 0;
-    bottom: 0;
-    left: 0;
-    width: 1px;
-    background: var(--hair);
-}
-
-.band-day.is-today::before {
-    content: "";
-    position: absolute;
-    top: 0;
-    bottom: 0;
-    left: 0;
-    width: 3px;
-    background: var(--ink);
-}
-
-.band-dow {
-    font-size: 12px;
-    color: var(--ink-3);
-    line-height: 1.2;
-}
-
-.band-date {
-    display: grid;
-    place-items: center;
-    min-width: 22px;
-    height: 22px;
-    font-size: var(--meta);
-    font-weight: 500;
-}
-
-.band-day.is-today .band-date {
-    background: var(--ink);
-    color: var(--paper);
-}
-
-.band-shapes {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    width: 100%;
-    margin-top: var(--s2);
-}
-
-.band-ev {
-    --base: 8px;
-    --step: 1.4px;
-    --max: 24px;
-    --size: min(var(--max), calc(var(--base) + var(--n, 0) * var(--step)));
-    display: grid;
-    place-items: center;
-    width: 100%;
-    min-height: 28px;
-    padding: 3px 0;
+    gap: 2px;
+    min-height: 68px;
+    padding: var(--s2) 0 6px;
     border: 0;
+    border-radius: 14px;
+    background: transparent;
+    color: var(--ink);
+    font: inherit;
+    font-variant-numeric: tabular-nums;
+    scroll-snap-align: start;
+    cursor: pointer;
+    transition: background-color var(--duration-swap), color var(--duration-swap);
+}
+
+@media (hover: hover) { .rail-day:not([aria-pressed="true"]):hover { background: var(--paper-raised); } }
+.rail-day:focus-visible { outline: var(--stroke-2) solid var(--focus); outline-offset: 2px; }
+
+.rail-dow { font-size: 12px; line-height: 16px; color: var(--ink-2); }
+.rail-num { font-family: var(--font-display); font-size: 20px; line-height: 24px; font-weight: 600; }
+.rail-day.is-today .rail-dow { color: var(--rail-accent); font-weight: 600; }
+
+.rail-day[aria-pressed="true"] { background: var(--rail-sel); color: var(--on-rail-sel); }
+.rail-day[aria-pressed="true"] .rail-dow { color: var(--on-rail-sel); }
+
+/* One mark per event: its emoji, else its calendar's shape. One or two marks read at 16px;
+   three, or two and "+N", step down to 13px so they sit abreast in a 44px day. */
+.rail-marks { display: flex; align-items: center; justify-content: center; gap: 1px; max-width: 100%; height: 18px; margin-top: 2px; overflow: hidden; }
+.rail-mark { display: grid; place-items: center; width: 18px; height: 18px; }
+.rail-mark .band-emoji { font-size: 16px; line-height: 1; }
+.rail-mark .shape { width: 10px; height: 10px; }
+.rail-marks:has(> :nth-child(3)) { gap: 0; }
+.rail-marks:has(> :nth-child(3)) .rail-mark { width: 14px; }
+.rail-marks:has(> :nth-child(3)) .band-emoji { font-size: 13px; }
+.rail-marks:has(> :nth-child(3)) .shape { width: 8px; height: 8px; }
+.rail-more { font-size: 10px; line-height: 18px; font-weight: 700; letter-spacing: -0.02em; padding-left: 1px; }
+
+/* At a month change, the new month's short name stands between the days. */
+.rail-month {
+    flex: none;
+    align-self: center;
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+    padding: 0 2px;
+    font-family: var(--font-display);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    color: var(--ink-2);
+    border-right: 1px solid var(--hairline);
+}
+
+@media (min-width: 640px) {
+    .rail-day { flex-basis: max(44px, calc((100% - 13 * var(--gap)) / 14)); }
+}
+
+/* ---------- The selected day's agenda ---------- */
+
+.agenda {
+    margin-top: var(--s1);
+    padding-top: var(--s3);
+    border-top: 1px solid var(--hairline);
+}
+
+.agenda-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s3); }
+.agenda-title { font-family: var(--font-display); font-size: 16px; font-weight: 600; }
+.agenda-count { font-size: var(--meta); color: var(--ink-2); font-variant-numeric: tabular-nums; }
+
+.agenda-list { list-style: none; margin: var(--s2) 0 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+
+.agenda-row {
+    display: grid;
+    grid-template-columns: 44px 3px minmax(0, 1fr);
+    gap: 0 var(--s3);
+    width: 100%;
+    min-height: 48px;
+    padding: var(--s2) var(--s2) var(--s2) 0;
+    border: 0;
+    border-radius: 12px;
     background: none;
+    color: var(--ink);
+    font: inherit;
+    text-align: left;
     cursor: pointer;
 }
 
-.band-ev .shape {
-    width: var(--size);
-    height: var(--size);
-    transform-origin: center;
-}
+@media (hover: hover) { .agenda-row:hover { background: var(--paper-raised); } }
+.agenda-row:focus-visible { outline: var(--stroke-2) solid var(--focus); outline-offset: 2px; }
 
-/* A title emoji in place of the shape. It floors at 14px, where an emoji still reads. */
-.band-emoji {
-    display: block;
-    font-size: max(14px, var(--size));
-    line-height: 1;
-    transform-origin: center;
-}
-
-.band-ev:hover .shape,
-.band-ev:hover .band-emoji { transform: scale(1.12); }
-
-/* The selected shape: an ink ring, the only mark of selection. */
-.band-ev .shape,
-.band-ev .band-emoji {
-    outline: var(--rule) solid transparent;
-    outline-offset: 2px;
-    transition: transform 180ms var(--ease), outline-color 140ms var(--ease);
-}
-.band-ev[aria-pressed="true"] .shape,
-.band-ev[aria-pressed="true"] .band-emoji { outline-color: var(--ink); }
-.band-ev.is-grown .shape,
-.band-ev.is-grown .band-emoji { animation: shape-step 640ms var(--ease); }
-
-/* One line under the band naming one event. Fixed height, so the page never jumps. */
-.band-readout {
-    display: flex;
-    align-items: center;
-    gap: var(--s3);
-    height: 56px;
-    margin: 0;
-    padding-top: var(--s2);
-    font-size: var(--meta);
-    line-height: 1.3;
-    color: var(--ink);
-    font-variant-numeric: tabular-nums;
-}
-
-.band-readout.is-empty { visibility: hidden; }
-
-.band-readout-mark { display: inline-block; margin-right: var(--s2); vertical-align: -0.05em; }
-.band-readout-mark .shape { width: 12px; height: 12px; display: block; }
-.band-readout-mark .band-emoji { font-size: 14px; }
-
-/* Two lines at most inside the fixed 56px row: a phone fits the date, the time and the
-   seats beside a short title, and a long title ends in an ellipsis. */
-.band-readout-text {
-    flex: 0 1 auto;
-    min-width: 0;
-    display: -webkit-box;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 2;
-    line-clamp: 2;
-    overflow: hidden;
-    overflow-wrap: anywhere;
-}
-
-.band-readout-show { flex: none; }
-
-.band-readout.is-changed .band-readout-text { animation: readout-in 220ms var(--ease); }
-
-@keyframes readout-in {
-    from { opacity: 0; }
-    to { opacity: 1; }
-}
-
-.band-empty {
-    padding: var(--s3) 0 0;
-    font-size: var(--meta);
-    color: var(--ink-2);
-}
+.agenda-time { padding-left: var(--s2); font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.agenda-bar { border-radius: 2px; background: var(--rail-accent); }
+.agenda-main { display: flex; flex-direction: column; min-width: 0; }
+.agenda-name { font-size: 15px; font-weight: 600; line-height: 1.35; overflow-wrap: anywhere; }
+.agenda-meta { font-size: 13px; color: var(--ink-2); overflow-wrap: anywhere; }
+.agenda-empty { padding: var(--s2) 0; font-size: var(--meta); color: var(--ink-2); }
 
 /* ---------- List controls ---------- */
 
@@ -468,7 +451,7 @@ button { font: inherit; color: inherit; }
     display: flex;
     padding: 3px;
     border-radius: var(--radius-full);
-    background: var(--fill);
+    background: var(--stone);
     margin-right: auto;
 }
 
@@ -553,9 +536,9 @@ button { font: inherit; color: inherit; }
     gap: 0 var(--s4);
     margin-top: var(--s3);
     padding: var(--s5) var(--s4);
-    border: var(--stroke-2) solid var(--ink);
     border-radius: var(--radius-card);
     background: var(--paper-raised);
+    box-shadow: var(--shadow-raised);
     scroll-margin-top: var(--s4);
 }
 
@@ -770,26 +753,26 @@ button { font: inherit; color: inherit; }
     justify-content: center;
     min-height: 44px;
     padding: 0 var(--s5);
-    border: var(--stroke-2) solid var(--ink);
+    border: 0;
     border-radius: var(--radius-full);
     text-decoration: none;
     cursor: pointer;
-    transition: background-color 140ms var(--ease), border-color 140ms var(--ease), color 140ms var(--ease);
+    transition: background-color 140ms var(--ease), color 140ms var(--ease);
 }
 
 /* Solid is the one main action in a form or sheet; line is everything else. Hover swaps
    fills, never fades: the kit's rule. Solid stays ink, because red belongs to a calendar. */
+/* Filled, never outlined: solid is ink, line is a grey pill. Hover swaps to the next tone. */
 .btn-solid { background: var(--ink); color: var(--paper); }
-.btn-solid:hover { background: var(--paper); color: var(--ink); }
+.btn-solid:hover { background: var(--ink-2); color: var(--paper); }
 
-.btn-line { background: transparent; color: var(--ink); }
-.btn-line:hover { background: var(--ink); color: var(--paper); }
+.btn-line { background: var(--fill); color: var(--ink); }
+.btn-line:hover { background: var(--stone); color: var(--ink); }
 
 .btn:disabled,
 .btn[disabled] {
-    background: transparent;
-    border-color: var(--line);
-    color: var(--ink-muted);
+    background: var(--fill);
+    color: var(--ink-3);
     cursor: not-allowed;
 }
 
@@ -798,12 +781,15 @@ button { font: inherit; color: inherit; }
 .sidebar { margin-top: var(--s7); }
 
 .side-block + .side-block {
-    margin-top: var(--s6);
+    margin-top: var(--s3);
 }
 
+/* A raised card, like an event. */
 .side-block {
-    padding-top: var(--s4);
-    border-top: var(--rule) solid var(--ink);
+    padding: var(--s4);
+    border-radius: var(--radius-card);
+    background: var(--paper-raised);
+    box-shadow: var(--shadow-raised);
 }
 
 .side-title {
@@ -851,20 +837,37 @@ button { font: inherit; color: inherit; }
 .modal.hidden { display: none; }
 
 .sheet {
+    position: relative;
     width: 100%;
     max-width: 480px;
     max-height: 92vh;
     overflow-y: auto;
-    padding: var(--s3) var(--gutter) calc(var(--s5) + env(safe-area-inset-bottom));
+    padding: 28px var(--gutter) calc(var(--s5) + env(safe-area-inset-bottom));
     background: var(--paper-raised);
     border-radius: var(--radius-sheet) var(--radius-sheet) 0 0;
     box-shadow: var(--shadow-float);
     animation: sheet-in var(--duration-sheet) var(--ease-sheet);
 }
 
-/* Phones: the kit's sheet slides up from the bottom edge. Wider screens centre it and pop it in. */
+/* Phones: the sheet slides up from the bottom edge, with a grabber on top.
+   Wider screens slide it in from the right as a full-height panel. */
+.sheet::before {
+    content: "";
+    position: absolute;
+    top: var(--s2);
+    left: 50%;
+    width: 36px;
+    height: 4px;
+    margin-left: -18px;
+    border-radius: var(--radius-full);
+    background: var(--hairline);
+}
+
 @keyframes sheet-in {
     from { transform: translateY(100%); }
+}
+@keyframes drawer-in {
+    from { transform: translateX(100%); }
 }
 @keyframes pop-in {
     from { opacity: 0; transform: scale(0.96); }
@@ -878,7 +881,9 @@ button { font: inherit; color: inherit; }
     margin-right: -10px;
 }
 
-.sheet-head .icon-btn { flex: none; margin-top: -4px; }
+.sheet-head .icon-btn { flex: none; width: 32px; height: 32px; margin: 0 10px 0 0; background: var(--fill); }
+.sheet-head .icon-btn:hover { background: var(--stone); }
+.sheet-head .icon-btn svg { width: 16px; height: 16px; stroke-width: 2px; }
 
 .sheet-title {
     padding-top: var(--s2);
@@ -1033,7 +1038,6 @@ button { font: inherit; color: inherit; }
 @media (max-width: 639px) {
     .masthead { gap: var(--s3); }
     .wordmark { gap: var(--s2); }
-    .band-day { min-height: 96px; }
     .list-head { margin-top: var(--s4); }
     .legend { margin-bottom: var(--s1); }
 }
@@ -1041,19 +1045,19 @@ button { font: inherit; color: inherit; }
 @media (min-width: 640px) {
     :root { --gutter: 32px; }
 
-    .band-ev { --base: 12px; --step: 3.5px; --max: 40px; }
-    .band-day { min-height: 136px; }
 
     .event { grid-template-columns: 72px minmax(0, 1fr); gap: 0 var(--s5); padding: var(--s5); }
     .event-day { font-size: 52px; }
 
-    .modal { align-items: center; padding: var(--s4); }
+    .modal { align-items: stretch; justify-content: flex-end; }
     .sheet {
-        border-radius: var(--radius-card);
-        padding: var(--s4) var(--s5) var(--s5);
-        animation-name: pop-in;
-        animation-duration: var(--duration-pop);
+        max-width: 420px;
+        max-height: none;
+        border-radius: var(--radius-sheet) 0 0 var(--radius-sheet);
+        padding: var(--s5);
+        animation-name: drawer-in;
     }
+    .sheet::before { display: none; }
 }
 
 @media (min-width: 1000px) {
@@ -1067,10 +1071,6 @@ button { font: inherit; color: inherit; }
         column-gap: var(--s8);
     }
 
-    .band-ev { --base: 14px; --step: 4.5px; --max: 64px; }
-    .band-day { min-height: 196px; }
-    .band-dow { font-size: 13px; }
-    .band-date { font-size: 14px; min-width: 26px; height: 26px; }
 
     .sidebar {
         align-self: start;

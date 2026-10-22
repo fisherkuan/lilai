@@ -53,13 +53,20 @@
 </header>
 
 <main class="home">
-    <section class="band-section" aria-labelledby="band-title">
-        <div class="section-head">
-            <h2 class="section-title" id="band-title">Next 14 days</h2>
-            <p class="section-meta" id="events-section-meta">Loading…</p>
+    <section class="band-section" aria-labelledby="rail-title">
+        <div class="rail-head">
+            <h2 class="rail-title" id="rail-title">Upcoming</h2>
+            <p class="rail-range" id="rail-range"></p>
+            <p class="rail-span" aria-hidden="true">14 days →</p>
         </div>
-        <div id="band-container" class="band" aria-live="polite"></div>
-        <p class="band-readout is-empty" id="band-readout"><span class="band-readout-text" aria-live="polite"></span><button type="button" class="text-btn band-readout-show" hidden>Show</button></p>
+        <div id="rail-container"></div>
+        <div class="agenda" id="agenda" aria-live="polite">
+            <div class="agenda-head">
+                <h3 class="agenda-title" id="agenda-title">Today</h3>
+                <p class="agenda-count" id="agenda-count"></p>
+            </div>
+            <ol class="agenda-list" id="agenda-list"></ol>
+        </div>
     </section>
 
     <section class="events-section" aria-labelledby="events-title">
@@ -151,6 +158,7 @@
 </footer>
 <script src="/js/theme.js"></script>
 
+<script src="/js/date-rail.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

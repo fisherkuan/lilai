@@ -805,9 +805,9 @@ select.bs-unit { flex: none; width: 150px; max-width: none; }
     position: relative;
     min-height: 44px;
     padding: 0 var(--s4);
-    border: var(--stroke-2) solid var(--ink);
+    border: 0;
     border-radius: var(--radius-full);
-    background: var(--paper-raised);
+    background: var(--fill);
     color: var(--ink);
     font-size: 15px;
     font-weight: 500;
@@ -816,7 +816,7 @@ select.bs-unit { flex: none; width: 150px; max-width: none; }
 }
 
 .bs-seg:hover,
-.bs-pill:hover { background: var(--ink); color: var(--paper); }
+.bs-pill:hover { background: var(--stone); }
 
 .bs-seg.selected,
 .bs-pill.selected {
@@ -892,9 +892,9 @@ select.bs-unit { flex: none; width: 150px; max-width: none; }
 .bs-person-add {
     min-height: 48px;
     padding: 0 var(--s5);
-    border: var(--stroke-2) solid var(--ink);
+    border: 0;
     border-radius: var(--radius-full);
-    background: var(--paper-raised);
+    background: var(--fill);
     color: var(--ink);
     font-size: 16px;
     font-weight: 600;
@@ -902,7 +902,7 @@ select.bs-unit { flex: none; width: 150px; max-width: none; }
     transition: background-color 140ms var(--ease), color 140ms var(--ease);
 }
 
-.bs-person-add:hover { background: var(--ink); color: var(--paper); }
+.bs-person-add:hover { background: var(--stone); }
 
 /* What we will submit: label and value on one line, between two ink rules. */
 .bs-table {
@@ -991,14 +991,14 @@ select.bs-unit { flex: none; width: 150px; max-width: none; }
 .bs-held .bs-swap,
 .bs-full .bp-remove {
     padding: 0 var(--s4);
-    border: var(--rule) solid var(--ink);
+    border: 0;
     border-radius: var(--radius-full);
     font-weight: 600;
     text-decoration: none;
     transition: background-color 140ms var(--ease), color 140ms var(--ease);
 }
 
-.bs-held .bs-swap { background: var(--paper); }
+.bs-held .bs-swap { background: var(--fill); }
 .bs-held .bs-swap:hover { background: var(--ink); color: var(--paper); }
 .bs-full .bp-remove { background: var(--ink); color: var(--paper); }
 .bs-full .bp-remove:hover { background: var(--paper); color: var(--ink); }
@@ -1074,8 +1074,8 @@ select.bs-unit { flex: none; width: 150px; max-width: none; }
 .bp-error { color: var(--ink); font-weight: 600; }
 
 @media (min-width: 640px) {
-    .bs-root { align-items: center; padding: var(--s4); }
-    .bs-sheet { max-height: 86vh; border-radius: var(--radius-card); animation-name: pop-in; animation-duration: var(--duration-pop); }
+    .bs-root { align-items: stretch; justify-content: flex-end; }
+    .bs-sheet { max-width: 520px; max-height: none; border-radius: var(--radius-sheet) 0 0 var(--radius-sheet); animation-name: drawer-in; }
     .bs-mode, .bs-head, .bs-footer { padding-left: var(--s5); padding-right: var(--s5); }
     .bs-body { padding-left: var(--s5); padding-right: var(--s5); }
     .bs-error { margin: 0 var(--s5); }
