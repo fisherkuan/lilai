@@ -23,7 +23,7 @@
      *
      * Bump it when changing anything in public/js or public/css/booking.css.
      */
-    const BUILD = '2026-10-23c';
+    const BUILD = '2026-10-23d';
 
     const { BRUSSELS, MONTHS } = window.bookingShared;
     const MINUTE = 60000;
@@ -263,9 +263,10 @@
     }
 
     /*
-     * The action budget: a row shows at most two actions. A third and any after it go behind
-     * one "More" button, so a row never wraps into a wall of links on a phone and the action
-     * people use most stays one tap away.
+     * Every action has one fixed place, whatever else the row carries. What a row is opened
+     * for stays visible (Edit, Details, Undo); everything else (Duplicate, Cancel, Report
+     * failure) lives behind one "More" button. Counting actions instead made Duplicate
+     * visible on some rows and hidden on the next, so the same button moved around.
      *
      * The button and its menu sit directly in the actions line, not in a wrapper of their own.
      * askThen and sayTrouble work on the line around the button they are handed, so an item
@@ -396,12 +397,7 @@
      */
     function rowActions(entry) {
         const actions = node('div', 'bq-actions');
-        const duplicate = () => {
-            const button = node('button', 'bq-action-link', 'Duplicate');
-            button.type = 'button';
-            button.addEventListener('click', () => window.duplicateBookingSheet(entry));
-            return button;
-        };
+        const duplicate = { label: 'Duplicate', run: () => window.duplicateBookingSheet(entry) };
 
         /*
          * A cancelled slot keeps a way back for a short while, and says how long is left.
@@ -428,18 +424,18 @@
          * which this app never sees, so without this the refused request keeps holding one
          * of the person's two slots that week.
          */
-        // Details (added by sentRow) stays visible; the other two go behind More.
+        // Details (added by sentRow) stays visible on every past row; the rest goes behind More.
         if (entry.status === 'sent' || entry.status === 'unconfirmed') {
             actions.append(...moreMenu(`row:${entry.id}`, [
                 { label: 'Report failure', run: (anchor) => reportFailure(entry, anchor) },
-                { label: 'Duplicate', run: () => window.duplicateBookingSheet(entry) }
+                duplicate
             ]));
             return actions;
         }
 
         // Past rows are a record: nothing on them changes, but they can seed a new booking.
         if (entry.status !== 'queued') {
-            actions.append(duplicate());
+            actions.append(...moreMenu(`row:${entry.id}`, [duplicate]));
             return actions;
         }
 
@@ -448,7 +444,7 @@
         edit.type = 'button';
         edit.addEventListener('click', () => window.editBookingSheet(entry));
         actions.append(edit, ...moreMenu(`row:${entry.id}`, [
-            { label: 'Duplicate', run: () => window.duplicateBookingSheet(entry) },
+            duplicate,
             { label: 'Cancel', danger: true, run: (anchor) => cancelEntry(entry, anchor) }
         ]));
         return actions;
@@ -757,29 +753,24 @@
                 (yes) => seriesAction(series, 'cancel-remaining', yes)
             );
 
+            // The same fixed places as a row: Undo all and Edit visible, Cancel behind More.
             if (undoLeft > 0) {
-                // Undo all is the one thing worth doing in its window; the rest waits behind More.
                 const undo = node('button', 'bq-action-link', 'Undo all');
                 undo.type = 'button';
                 undo.addEventListener('click', () => seriesAction(series, 'restore-remaining', undo));
                 const note = node('span', 'bq-action-note', `${countdown(undoLeft)} left`);
                 note.dataset.undoUntil = String(now.getTime() + undoLeft);
-                const items = [{ label: 'Edit', run: (anchor) => editSeries(series, anchor) }];
-                if (series.queued > 0) items.push({ label: `Cancel the remaining ${series.queued}`, danger: true, run: askCancel });
-                actions.append(undo, note, ...moreMenu(`series:${series.id}`, items));
+                actions.append(undo, note);
                 startCountdowns();
-            } else {
-                const edit = node('button', 'bq-action-link', 'Edit');
-                edit.type = 'button';
-                edit.addEventListener('click', () => editSeries(series, edit));
-                actions.append(edit);
-
-                if (series.queued > 0) {
-                    const cancel = node('button', 'bq-action-link bq-action-danger', `Cancel the remaining ${series.queued}`);
-                    cancel.type = 'button';
-                    cancel.addEventListener('click', () => askCancel(cancel));
-                    actions.append(cancel);
-                }
+            }
+            const edit = node('button', 'bq-action-link', 'Edit');
+            edit.type = 'button';
+            edit.addEventListener('click', () => editSeries(series, edit));
+            actions.append(edit);
+            if (series.queued > 0) {
+                actions.append(...moreMenu(`series:${series.id}`, [
+                    { label: `Cancel the remaining ${series.queued}`, danger: true, run: askCancel }
+                ]));
             }
 
             card.append(actions);
