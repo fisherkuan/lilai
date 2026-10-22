@@ -16,6 +16,7 @@ const { bookingSettings, sampleSendAfter, graceDeadline } = require('./booking-s
 const { createBookingSchema } = require('./booking-schema');
 const { BookingFormClient, readFormOptions } = require('./booking-form');
 const { createScheduler } = require('./booking-scheduler');
+const { findStaleEventIds, looksLikeIcsFeed } = require('./calendar-sync');
 const { mergeContact, sendAfterForEdit } = require('./booking-edit');
 const {
     expandRepeat, validateRule, describeRule, RepeatError, UNITS, MAX_EVERY, MAX_OCCURRENCES
@@ -368,41 +369,48 @@ function refreshCalendar() {
 // Function to fetch events from Google Calendar
 async function fetchCalendarEvents() {
     if (!appConfig.calendars || appConfig.calendars.length === 0) {
-        return [];
+        return { events: [], unreadSources: new Set() };
     }
 
-    let allEvents = [];
-    try {
-        for (const calendarEntry of appConfig.calendars) {
-            if (!calendarEntry.enabled) {
-                continue;
-            }
-            const calendarUrl = calendarEntry.url;
-            let calendarId = null;
-            if (calendarUrl.includes('src=')) {
-                const match = calendarUrl.match(/src=([^&]+)/);
-                if (match) calendarId = decodeURIComponent(match[1]);
-            } else if (calendarUrl.includes('calendar.google.com/calendar/ical/')) {
-                const match = calendarUrl.match(/ical\/([^\/]+)\//);
-                if (match) calendarId = decodeURIComponent(match[1]);
-            } else {
-                const match = calendarUrl.match(/calendar\/([^\/?&]+)/);
-                if (match) calendarId = decodeURIComponent(match[1]);
-            }
+    const allEvents = [];
+    const unreadSources = new Set(); // calendars whose feed failed: their events must not be deleted
+    for (const calendarEntry of appConfig.calendars) {
+        if (!calendarEntry.enabled) {
+            continue;
+        }
+        const calendarUrl = calendarEntry.url;
+        let calendarId = null;
+        if (calendarUrl.includes('src=')) {
+            const match = calendarUrl.match(/src=([^&]+)/);
+            if (match) calendarId = decodeURIComponent(match[1]);
+        } else if (calendarUrl.includes('calendar.google.com/calendar/ical/')) {
+            const match = calendarUrl.match(/ical\/([^\/]+)\//);
+            if (match) calendarId = decodeURIComponent(match[1]);
+        } else {
+            const match = calendarUrl.match(/calendar\/([^\/?&]+)/);
+            if (match) calendarId = decodeURIComponent(match[1]);
+        }
 
-            if (!calendarId) {
-                console.warn(`Could not extract calendar ID from URL: ${calendarUrl}`);
-                continue;
-            }
+        if (!calendarId) {
+            console.warn(`Could not extract calendar ID from URL: ${calendarUrl}`);
+            continue;
+        }
 
+        try {
             const icalUrl = `https://calendar.google.com/calendar/ical/${encodeURIComponent(calendarId)}/public/basic.ics`;
             const response = await fetch(icalUrl);
             if (!response.ok) {
                 console.error(`Error fetching calendar from ${icalUrl}: HTTP ${response.status}: ${response.statusText}`);
+                unreadSources.add(calendarId);
                 continue;
             }
-            
+
             const icsText = await response.text();
+            if (!looksLikeIcsFeed(icsText)) {
+                console.error(`Calendar ${calendarId} answered with something that is not iCalendar`);
+                unreadSources.add(calendarId);
+                continue;
+            }
             const veventBlocks = icsText.split('BEGIN:VEVENT').slice(1);
             
             for (const block of veventBlocks) {
@@ -458,12 +466,12 @@ async function fetchCalendarEvents() {
                     });
                 }
             }
+        } catch (error) {
+            console.error(`Error fetching calendar ${calendarId}:`, error);
+            unreadSources.add(calendarId);
         }
-        return allEvents;
-    } catch (error) {
-        console.error('Error fetching calendar events:', error);
-        return allEvents;
     }
+    return { events: allEvents, unreadSources };
 }
 
 
@@ -515,7 +523,8 @@ app.get('/api/donation-qr.svg', async (req, res) => {
 });
 
 // Write one calendar snapshot to the DB: upsert every event, delete the ones the feed dropped.
-async function syncCalendarToDb(calendarEvents) {
+// A calendar in unreadSources failed to load, so none of its events count as dropped.
+async function syncCalendarToDb({ events: calendarEvents, unreadSources }) {
     const client = await pool.connect();
     try {
         await client.query('BEGIN');
@@ -573,29 +582,7 @@ async function syncCalendarToDb(calendarEvents) {
 
         // Remove deleted calendar events
         const dbEventsResult = await client.query('SELECT id, source FROM events WHERE source IS NOT NULL');
-        const dbEventsBySource = dbEventsResult.rows.reduce((acc, row) => {
-            if (!acc[row.source]) {
-                acc[row.source] = new Set();
-            }
-            acc[row.source].add(row.id);
-            return acc;
-        }, {});
-
-        const calendarEventsBySource = calendarEvents.reduce((acc, event) => {
-            if (!acc[event.source]) {
-                acc[event.source] = new Set();
-            }
-            acc[event.source].add(event.id);
-            return acc;
-        }, {});
-
-        let staleEventIds = [];
-        for (const source in dbEventsBySource) {
-            const dbIds = dbEventsBySource[source];
-            const calendarIds = calendarEventsBySource[source] || new Set();
-            const staleIds = [...dbIds].filter(id => !calendarIds.has(id));
-            staleEventIds.push(...staleIds);
-        }
+        const staleEventIds = findStaleEventIds(dbEventsResult.rows, calendarEvents, unreadSources);
 
         if (staleEventIds.length > 0) {
             await client.query(`DELETE FROM events WHERE id = ANY($1::varchar[])`, [staleEventIds]);
