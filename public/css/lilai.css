@@ -90,11 +90,12 @@
     font-size: 15px;
     font-weight: 600;
 }
+/* The same size as the field's text, so the label and its value read as one line of type. */
 .field label {
     font-family: var(--font-display);
-    font-size: 13px;
+    font-size: 17px;
     font-weight: 600;
-    color: var(--ink-2);
+    color: var(--ink);
 }
 
 *, *::before, *::after { box-sizing: border-box; }
@@ -940,15 +941,17 @@ button { font: inherit; color: inherit; }
 
 .field { margin-top: var(--s5); }
 
+/* 12px clears the focus ring (2px outline, 2px offset) with room to spare. */
 .field label {
     display: block;
-    margin-bottom: var(--s2);
+    margin-bottom: var(--s3);
 }
 
 .field-label-row {
     display: flex;
     align-items: center;
     justify-content: space-between;
+    margin-bottom: var(--s3);
 }
 
 .field-label-row label { margin-bottom: 0; }

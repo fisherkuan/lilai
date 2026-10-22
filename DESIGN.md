@@ -298,7 +298,7 @@ In dark the kit sets paper #111214, paper-raised #1b1c1f, stone #26272b, line #7
 - **Body Small** (400 to 600, 15px, 1.5): descriptions, the names list, FAQ answers, the Donate lede and donor lines, the booking explainer and notes, booking detail values, the booking sheet's choice chips, and the weekday line beside a 96px numeral. It also sets navigation: header links, admin tabs and the FAQ language switch. Descriptions cap at 65ch and clamp to three lines on Home.
 - **Meta** (400 to 600, 14px): dates, times, places, seat labels, counts, table cells, admin subtitles, row status lines and text buttons.
 - **Button** (Jost 600, 15px, sentence case): the kit's button style, for every button label.
-- **Label** (Jost 600, 13px, sentence case): the kit's label style. It sets field labels (in ink-muted), booking sheet labels and admin table heads.
+- **Label** (Jost 600, 13px, sentence case): the kit's label style. It sets booking sheet labels and admin table heads. Field labels above a text field are Jost 600 17px in ink, the field's own size, 12px above it so the focus ring keeps clear; the field carries no placeholder hint (owner, 2026-10-22).
 - **Caption** (400, 13px): captions, the colophon and agenda details.
 - **Small** (400, 12px): weekday labels in the date rail.
 
@@ -434,7 +434,7 @@ One easing, `cubic-bezier(0.16, 1, 0.3, 1)`, drives every movement. Shapes scale
 - **Do** give each calendar its shape in config order (circle/blue, square/red, triangle/yellow) and the ink diamond to the fourth and later calendars and unsourced events.
 - **Do** draw every shape with a flat fill and a 1.5px ink contour.
 - **Do** box each event in a 16px rounded, 2px ink outline on paper-raised, divide sections with full-width 2px ink rules, and the rows of a dense list with 1px line-grey hairlines.
-- **Do** set button labels in the button style (Jost 15px 600) and field labels and table heads in the label style (Jost 13px 600), all in sentence case.
+- **Do** set button labels in the button style (Jost 15px 600) table heads in the label style (Jost 13px 600), and field labels at the field's 17px, all in sentence case.
 - **Do** show hover by swapping fills: line to ink, solid to paper.
 - **Do** keep metadata at 14px and let only numerals break scale (event dates, the Donate balance, 96px on the booking detail date).
 - **Do** carry status in a word, with ink weight and a 10px ink status mark as the second channel.
