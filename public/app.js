@@ -138,6 +138,11 @@ function initializeApp() {
     setupAdminLink();
     wireAgenda();
 
+    // Both event requests leave now instead of after /api/config answers,
+    // so Home's three requests share one round trip.
+    prefetchedEvents = fetchFutureEvents();
+    prefetchedRail = fetchRailEvents();
+
     loadConfig().then(() => {
         buildCalendarStyles();
         setupCalendar();
@@ -249,6 +254,9 @@ function scrollToEvent(id) {
 
 // ---------- Calendar sources ----------
 let allCalendarEvents = []; // independent of the events list filter — always all events
+// Requests started at boot. The first load takes each one; later loads (Refresh) fetch afresh.
+let prefetchedEvents = null;
+let prefetchedRail = null;
 
 function setupCalendar() {
     if (!appConfig.calendars || appConfig.calendars.length === 0) {
@@ -283,9 +291,19 @@ function wireCreateEventButtons() {
     if (createBtn) createBtn.href = href;
 }
 
+// Only the rail's days: every past event ever was most of Home's download.
+function fetchRailEvents() {
+    const from = startOfDay(new Date());
+    const to = new Date(from.getFullYear(), from.getMonth(), from.getDate() + RAIL_DAYS);
+    const query = `from=${encodeURIComponent(from.toISOString())}&to=${encodeURIComponent(to.toISOString())}`;
+    return fetch(`${API_BASE_URL}/api/events?${query}`, { cache: 'no-store' });
+}
+
 async function loadAllCalendarEvents() {
     try {
-        const res = await fetch(`${API_BASE_URL}/api/events?timeRange=all`, { cache: 'no-store' });
+        const request = prefetchedRail || fetchRailEvents();
+        prefetchedRail = null;
+        const res = await request;
         if (!res.ok) return;
         const events = await res.json();
         if (!Array.isArray(events)) return;
@@ -586,16 +604,22 @@ function setupAdminLink() {
 }
 
 // ---------- Load events ----------
+// Both modes initially load future events only.
+// 'all' mode additionally exposes "Load earlier events" to lazy-fetch past batches.
+function fetchFutureEvents() {
+    const url = `${API_BASE_URL}/api/events?timeRange=future`;
+    return fetch(url, { cache: 'no-store', headers: { 'Cache-Control': 'no-cache' } });
+}
+
 function loadEvents() {
     oldestLoadedDate = null;
     hasMoreOlder = (currentRange === 'all');
 
-    // Both modes initially load future events only.
-    // 'all' mode additionally exposes "Load earlier events" to lazy-fetch past batches.
-    const url = `${API_BASE_URL}/api/events?timeRange=future`;
     eventsList.innerHTML = '<p class="state-line">Loading events…</p>';
 
-    return fetch(url, { cache: 'no-store', headers: { 'Cache-Control': 'no-cache' } })
+    const request = prefetchedEvents || fetchFutureEvents();
+    prefetchedEvents = null;
+    return request
         .then(res => res.json())
         .then(events => {
             events.sort((a, b) => new Date(a.date) - new Date(b.date));
