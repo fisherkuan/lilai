@@ -69,14 +69,17 @@
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23f2f2ee' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
 }
 
-/* The kit's label style: uppercase Jost, for button labels, field labels and table heads.
-   Section and sidebar titles keep lilai's own sentence-case Jost heading. */
-.btn, .field label {
+/* The kit's button and label styles: sentence-case Jost, semibold. */
+.btn {
     font-family: var(--font-display);
-    font-size: 12px;
-    font-weight: 700;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
+    font-size: 15px;
+    font-weight: 600;
+}
+.field label {
+    font-family: var(--font-display);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ink-2);
 }
 
 *, *::before, *::after { box-sizing: border-box; }
@@ -228,6 +231,7 @@ button { font: inherit; color: inherit; }
     padding: 0;
     border: 0;
     background: none;
+    border-radius: var(--radius-full);
     cursor: pointer;
 }
 
@@ -459,29 +463,34 @@ button { font: inherit; color: inherit; }
     margin-top: var(--s6);
 }
 
+/* The kit's pill switch: a filled track, the active choice a raised pill. 3 + 38 + 3 = a 44px target. */
 .range-switch {
     display: flex;
-    gap: var(--s5);
+    padding: 3px;
+    border-radius: var(--radius-full);
+    background: var(--fill);
     margin-right: auto;
 }
 
 .range-btn {
-    min-height: 44px;
-    padding: 0;
+    min-height: 38px;
+    padding: 0 var(--s4);
     border: 0;
-    border-bottom: 2px solid transparent;
+    border-radius: var(--radius-full);
     background: none;
-    font-size: 17px;
-    font-weight: 500;
-    color: var(--ink-3);
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--ink-2);
     cursor: pointer;
+    transition: background-color var(--duration-swap), color var(--duration-swap);
 }
 
 .range-btn:hover { color: var(--ink); }
 
 .range-btn.active {
+    background: var(--paper-raised);
     color: var(--ink);
-    border-bottom-color: var(--ink);
+    box-shadow: var(--shadow-raised);
 }
 
 .text-btn {
@@ -545,6 +554,7 @@ button { font: inherit; color: inherit; }
     margin-top: var(--s3);
     padding: var(--s5) var(--s4);
     border: var(--stroke-2) solid var(--ink);
+    border-radius: var(--radius-card);
     background: var(--paper-raised);
     scroll-margin-top: var(--s4);
 }
@@ -761,7 +771,7 @@ button { font: inherit; color: inherit; }
     min-height: 44px;
     padding: 0 var(--s5);
     border: var(--stroke-2) solid var(--ink);
-    border-radius: var(--radius-0);
+    border-radius: var(--radius-full);
     text-decoration: none;
     cursor: pointer;
     transition: background-color 140ms var(--ease), border-color 140ms var(--ease), color 140ms var(--ease);
@@ -847,13 +857,17 @@ button { font: inherit; color: inherit; }
     overflow-y: auto;
     padding: var(--s3) var(--gutter) calc(var(--s5) + env(safe-area-inset-bottom));
     background: var(--paper-raised);
-    border-top: var(--rule) solid var(--ink);
-    animation: sheet-in 260ms var(--ease);
+    border-radius: var(--radius-sheet) var(--radius-sheet) 0 0;
+    box-shadow: var(--shadow-float);
+    animation: sheet-in var(--duration-sheet) var(--ease-sheet);
 }
 
+/* Phones: the kit's sheet slides up from the bottom edge. Wider screens centre it and pop it in. */
 @keyframes sheet-in {
-    from { transform: translateY(16px); opacity: 0; }
-    to { transform: none; opacity: 1; }
+    from { transform: translateY(100%); }
+}
+@keyframes pop-in {
+    from { opacity: 0; transform: scale(0.96); }
 }
 
 .sheet-head {
@@ -912,9 +926,9 @@ button { font: inherit; color: inherit; }
     width: 100%;
     min-height: 50px;
     padding: 0 var(--s3);
-    border: var(--stroke-2) solid var(--ink);
-    border-radius: var(--radius-0);
-    background: var(--paper-raised);
+    border: var(--stroke-2) solid transparent;
+    border-radius: var(--radius-control);
+    background-color: var(--fill);
     color: var(--ink);
     font: inherit;
     font-size: 17px;
@@ -1035,8 +1049,10 @@ button { font: inherit; color: inherit; }
 
     .modal { align-items: center; padding: var(--s4); }
     .sheet {
-        border: var(--rule) solid var(--ink);
+        border-radius: var(--radius-card);
         padding: var(--s4) var(--s5) var(--s5);
+        animation-name: pop-in;
+        animation-duration: var(--duration-pop);
     }
 }
 

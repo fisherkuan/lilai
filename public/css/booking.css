@@ -571,9 +571,11 @@
     width: 100%;
     max-width: 560px;
     max-height: 92vh;
+    overflow: hidden;
     background: var(--paper-raised);
-    border-top: var(--rule) solid var(--ink);
-    animation: sheet-in 260ms var(--ease);
+    border-radius: var(--radius-sheet) var(--radius-sheet) 0 0;
+    box-shadow: var(--shadow-float);
+    animation: sheet-in var(--duration-sheet) var(--ease-sheet);
 }
 
 .bs-handle { display: none; }
@@ -682,7 +684,7 @@
 
 .bs-field .bs-field { gap: var(--s2); }
 
-.bs-label { font-family: var(--font-display); font-size: 12px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; }
+.bs-label { font-family: var(--font-display); font-size: 13px; font-weight: 600; }
 .bs-label-sm { font-weight: 500; color: var(--ink-2); }
 
 .bs-label-row {
@@ -723,7 +725,7 @@
 .bs-block-note { margin-top: var(--s1); font-size: var(--meta); color: var(--ink-2); }
 .bs-block .bs-note { margin-top: var(--s1); }
 
-/* Every text control is Home's .input: 50px, 2px ink, square, 17px so phones do not zoom. */
+/* Every text control is Home's .input: 50px, filled, 12px corners, 17px so phones do not zoom. */
 .bs-input,
 .bs-select,
 .bs-date,
@@ -733,9 +735,9 @@ input.bs-number {
     width: 100%;
     min-height: 50px;
     padding: 0 var(--s3);
-    border: var(--stroke-2) solid var(--ink);
-    border-radius: var(--radius-0);
-    background-color: var(--paper-raised);
+    border: var(--stroke-2) solid transparent;
+    border-radius: var(--radius-control);
+    background-color: var(--fill);
     color: var(--ink);
     font: inherit;
     font-size: 17px;
@@ -804,7 +806,7 @@ select.bs-unit { flex: none; width: 150px; max-width: none; }
     min-height: 44px;
     padding: 0 var(--s4);
     border: var(--stroke-2) solid var(--ink);
-    border-radius: var(--radius-0);
+    border-radius: var(--radius-full);
     background: var(--paper-raised);
     color: var(--ink);
     font-size: 15px;
@@ -891,7 +893,7 @@ select.bs-unit { flex: none; width: 150px; max-width: none; }
     min-height: 48px;
     padding: 0 var(--s5);
     border: var(--stroke-2) solid var(--ink);
-    border-radius: var(--radius-0);
+    border-radius: var(--radius-full);
     background: var(--paper-raised);
     color: var(--ink);
     font-size: 16px;
@@ -990,6 +992,7 @@ select.bs-unit { flex: none; width: 150px; max-width: none; }
 .bs-full .bp-remove {
     padding: 0 var(--s4);
     border: var(--rule) solid var(--ink);
+    border-radius: var(--radius-full);
     font-weight: 600;
     text-decoration: none;
     transition: background-color 140ms var(--ease), color 140ms var(--ease);
@@ -1019,8 +1022,9 @@ select.bs-unit { flex: none; width: 150px; max-width: none; }
     overflow-y: auto;
     padding: var(--s4) var(--gutter) calc(var(--s5) + env(safe-area-inset-bottom));
     background: var(--paper-raised);
-    border-top: var(--rule) solid var(--ink);
-    animation: sheet-in 260ms var(--ease);
+    border-radius: var(--radius-sheet) var(--radius-sheet) 0 0;
+    box-shadow: var(--shadow-float);
+    animation: sheet-in var(--duration-sheet) var(--ease-sheet);
 }
 
 .bs-modal-card h3 {
@@ -1071,12 +1075,12 @@ select.bs-unit { flex: none; width: 150px; max-width: none; }
 
 @media (min-width: 640px) {
     .bs-root { align-items: center; padding: var(--s4); }
-    .bs-sheet { max-height: 86vh; border: var(--rule) solid var(--ink); }
+    .bs-sheet { max-height: 86vh; border-radius: var(--radius-card); animation-name: pop-in; animation-duration: var(--duration-pop); }
     .bs-mode, .bs-head, .bs-footer { padding-left: var(--s5); padding-right: var(--s5); }
     .bs-body { padding-left: var(--s5); padding-right: var(--s5); }
     .bs-error { margin: 0 var(--s5); }
     .bs-modal { align-items: center; padding: var(--s4); }
-    .bs-modal-card { max-width: 480px; padding: var(--s4) var(--s5) var(--s5); border: var(--rule) solid var(--ink); }
+    .bs-modal-card { max-width: 480px; padding: var(--s4) var(--s5) var(--s5); border-radius: var(--radius-card); animation-name: pop-in; animation-duration: var(--duration-pop); }
 }
 
 /* ---------- Entry detail ---------- */
