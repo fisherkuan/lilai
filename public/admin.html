@@ -48,12 +48,20 @@
         <p class="admin-sub">Set attendance limits for upcoming events.</p>
     </div>
 
-    <div class="table-wrap">
-        <table class="data-table" id="admin-events-table" role="table">
-            <tbody id="admin-events-list" role="rowgroup">
-                <tr role="row"><td role="cell" colspan="3"><p class="state-line">Loading events…</p></td></tr>
-            </tbody>
-        </table>
+    <div class="admin-grid">
+        <section class="admin-main" aria-label="Upcoming events">
+            <div id="admin-events-list" class="event-list">
+                <p class="state-line">Loading events…</p>
+            </div>
+        </section>
+
+        <aside class="sidebar" aria-label="About limits">
+            <section class="side-block" aria-labelledby="side-limit-title">
+                <h2 class="side-title" id="side-limit-title">How limits work</h2>
+                <p class="side-note">A limit closes Join once that many people have signed up. Leave the field empty for no limit.</p>
+                <p class="side-note">A “limit: N” line in the calendar description wins over this page. Change it in Google Calendar instead.</p>
+            </section>
+        </aside>
     </div>
 </main>
 
