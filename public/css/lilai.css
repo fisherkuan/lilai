@@ -1107,6 +1107,65 @@ button { font: inherit; color: inherit; }
     text-underline-offset: 4px;
 }
 
+/* Feedback: a footer-sized link that opens its sheet (js/feedback.js). */
+.feedback-btn {
+    min-height: 44px;
+    padding: 0;
+    border: 0;
+    background: none;
+    font: inherit;
+    font-size: 13px;
+    color: var(--ink-3);
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 3px;
+    cursor: pointer;
+}
+
+.feedback-btn:hover { color: var(--ink); }
+
+.textarea {
+    min-height: 140px;
+    padding: var(--s3);
+    line-height: 1.45;
+    resize: vertical;
+}
+
+.feedback-files {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s2);
+    margin: var(--s5) 0 0;
+    padding: 0;
+    list-style: none;
+}
+
+.feedback-files[hidden] { display: none; }
+
+.feedback-files li {
+    display: flex;
+    align-items: center;
+    gap: var(--s2);
+    min-height: 44px;
+    padding-left: var(--s3);
+    border-radius: var(--radius-control);
+    background: var(--fill);
+}
+
+.feedback-file-name {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: var(--meta);
+}
+
+.feedback-files .icon-btn { flex: none; width: 44px; height: 44px; background: none; }
+.feedback-files .icon-btn svg { width: 16px; height: 16px; stroke-width: 2px; }
+.feedback-attach { margin-top: var(--s3); }
+.feedback-attach[hidden] { display: none; }
+
 /* ---------- Breakpoints ---------- */
 
 /* Phones: a tighter header, so the first event lands in the first screen. */
