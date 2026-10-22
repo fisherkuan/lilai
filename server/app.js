@@ -1060,6 +1060,8 @@ function toBoardEntry(row) {
         failureReportedAt: row.failure_reported_at || null,
         status: row.status,
         opensAt: row.opens_at,
+        // The Undo countdown needs it: grace runs from the later of this and opensAt.
+        sendAfter: row.send_after,
         queuedAt: row.queued_at,
         queuedBy: row.queued_by,
         submittedAt: row.submitted_at
@@ -1088,10 +1090,10 @@ app.use(['/api/bookings', '/api/booking-series'], (req, res, next) => {
 });
 
 /*
- * One expanded date, checked the way both queue paths check it: the entry validates, its
- * window has not closed, and the slot is not already in the past. A window that has closed
- * is refused rather than accepted as an entry that can only ever become `missed`; inside
- * the grace window is fine, it fires at once. Returns the entry or the refusal — the caller
+ * One expanded date, checked the way both queue paths check it: the entry validates and
+ * the slot is not already in the past. A window that has already opened is fine: the row
+ * gets a send time of now, so it goes out on the next pass and its grace counts from
+ * there. Returns the entry or the refusal — the caller
  * decides whether that refusal is the request's problem (the first date) or a date to
  * report as skipped (the rest).
  */
@@ -1103,13 +1105,18 @@ function screenOccurrence(body, playDate, now) {
         if (!(error instanceof BookingInputError)) throw error;
         return { refused: { message: error.message, field: error.field } };
     }
-    if (now > graceDeadline(entry.opensAt, BOOKING_SETTINGS)) {
-        return { refused: { message: 'That booking window has already closed.', field: 'playDate' } };
-    }
     if (now >= entry.startPreferred && now >= entry.startAlternative) {
         return { refused: { message: 'That slot is already in the past.', field: 'playDate' } };
     }
     return { entry };
+}
+
+/*
+ * After a commit that may have queued a row into an open window: run a scheduler pass now
+ * rather than at the next interval. Harmless when nothing is due.
+ */
+function sendDueNow() {
+    if (bookingScheduler) bookingScheduler.nudge();
 }
 
 /*
@@ -1325,7 +1332,7 @@ app.post('/api/booking-series/:id/cancel-remaining', async (req, res) => {
  *
  * Cancelling eleven occurrences in one click and then having to restore them one at a time
  * inside a five-minute window is not an undo. Bounded by the same window as a single Undo,
- * and by the same closed-window rule: a slot whose midnight has passed cannot come back.
+ * and by the same closed-window rule: a slot whose grace has run out cannot come back.
  */
 app.post('/api/booking-series/:id/restore-remaining', async (req, res) => {
     const settings = BOOKING_SETTINGS;
@@ -1338,11 +1345,12 @@ app.post('/api/booking-series/:id/restore-remaining', async (req, res) => {
             WHERE series_id = $1
               AND status = 'cancelled'
               AND cancelled_at > NOW() - make_interval(secs => $2::int)
-              AND opens_at + make_interval(secs => $3::int) > NOW()
+              AND GREATEST(opens_at, COALESCE(send_after, opens_at)) + make_interval(secs => $3::int) > NOW()
             RETURNING *
         `, [req.params.id, settings.cancelUndoSeconds, settings.lateSubmissionGraceSeconds]);
 
         await client.query('COMMIT');
+        sendDueNow();
 
         /*
          * No quota check, deliberately — the same call the single Undo makes. These slots
@@ -1603,6 +1611,7 @@ app.put('/api/booking-series/:id', async (req, res) => {
         if (saved.rowCount === 0) throw new Error('the schedule vanished mid-edit');
 
         await client.query('COMMIT');
+        sendDueNow();
 
         for (const board of [...cancelled, ...kept, ...created]) {
             broadcast({ type: 'booking_update', booking: board });
@@ -1958,6 +1967,7 @@ app.post('/api/bookings', async (req, res) => {
         }
 
         await client.query('COMMIT');
+        sendDueNow();
 
         for (const board of created) broadcast({ type: 'booking_update', booking: board });
         res.status(201).json({
@@ -2026,7 +2036,10 @@ app.put('/api/bookings/:id', async (req, res) => {
         }
 
         const now = new Date();
-        const deadline = graceDeadline(entry.opensAt, settings);
+        // Moving the slot into a window that is already open re-rolls the send time to now,
+        // so only an entry left sitting past its own grace is refused here.
+        const sendAfter = sendAfterForEdit(before, entry.opensAt, settings);
+        const deadline = graceDeadline(entry.opensAt, settings, sendAfter);
         if (now > deadline) {
             await client.query('ROLLBACK');
             return res.status(400).json({
@@ -2055,8 +2068,6 @@ app.put('/api/bookings/:id', async (req, res) => {
             });
         }
 
-        const sendAfter = sendAfterForEdit(before, entry.opensAt, settings);
-
         const updated = await client.query(`
             UPDATE booking_queue SET
                 sport = $2, play_date = $3, start_preferred = $4, start_alternative = $5,
@@ -2075,6 +2086,7 @@ app.put('/api/bookings/:id', async (req, res) => {
         ]);
 
         await client.query('COMMIT');
+        sendDueNow();
 
         const board = toBoardEntry(updated.rows[0]);
         broadcast({ type: 'booking_update', booking: board });
@@ -2106,7 +2118,6 @@ app.get('/api/bookings/:id', async (req, res) => {
                 ...toBoardEntry(row),
                 language: row.language,
                 validSportsCard: row.valid_sports_card,
-                sendAfter: row.send_after,
                 // Operator-facing only, and never the raw response body.
                 responseNote: row.response_note
             }
@@ -2174,7 +2185,7 @@ app.post('/api/bookings/:id/restore', async (req, res) => {
         }
 
         // Restoring cannot put a slot back into a window that has since closed.
-        const deadline = graceDeadline(new Date(entry.opens_at), settings);
+        const deadline = graceDeadline(new Date(entry.opens_at), settings, entry.send_after);
         if (new Date() > deadline) {
             await client.query('ROLLBACK');
             return res.status(409).json({
@@ -2190,6 +2201,7 @@ app.post('/api/bookings/:id/restore', async (req, res) => {
         `, [entry.id]);
 
         await client.query('COMMIT');
+        sendDueNow();
 
         const board = toBoardEntry(restored.rows[0]);
         broadcast({ type: 'booking_update', booking: board });

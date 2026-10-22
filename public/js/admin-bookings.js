@@ -23,7 +23,7 @@
      *
      * Bump it when changing anything in public/js or public/css/booking.css.
      */
-    const BUILD = '2026-10-17a';
+    const BUILD = '2026-10-23b';
 
     const { BRUSSELS, MONTHS } = window.bookingShared;
     const MINUTE = 60000;
@@ -98,19 +98,14 @@
     const el = (id) => document.getElementById(id);
 
     /*
-     * The soonest play date still worth offering: the next midnight that has not passed,
-     * plus fourteen days. The five minutes is a rounding allowance for someone sitting on
-     * the page as midnight ticks over, NOT the grace window — grace is twelve hours, and
-     * letting it govern this would offer dates whose window opened this morning.
+     * The soonest play date worth offering: today. Any day less than fourteen days away
+     * has an open window, and a slot queued into one is sent at once. A time later today
+     * can still be booked; the server refuses a slot that is already in the past.
      */
     function earliestPlayDate() {
-        const now = new Date();
-        const opening = new Date(now);
-        opening.setHours(0, 0, 0, 0);
-        if (now.getTime() > opening.getTime() + 5 * 60000) opening.setDate(opening.getDate() + 1);
-        const play = new Date(opening);
-        play.setDate(play.getDate() + 14);
-        return play;
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        return today;
     }
 
     // --- Brussels formatting ----------------------------------------------------------
@@ -319,11 +314,19 @@
     /*
      * Edit and Cancel only while a slot is still `queued` — once the scheduler has claimed
      * it there is nothing left to change, so they are absent rather than disabled. Duplicate
-     * is always there: the common case is a run of bookings identical but for the date, and
-     * repeating one that already went out is just as useful as repeating one still waiting.
+     * is on every row but a cancelled one: the common case is a run of bookings identical
+     * but for the date, and repeating one that already went out is just as useful as
+     * repeating one still waiting. The sheet drops a date that has gone by, so a duplicate
+     * of a past slot starts with the day left to choose.
      */
     function rowActions(entry) {
         const actions = node('div', 'bq-actions');
+        const duplicate = () => {
+            const button = node('button', 'bq-action-link', 'Duplicate');
+            button.type = 'button';
+            button.addEventListener('click', () => window.duplicateBookingSheet(entry));
+            return button;
+        };
 
         /*
          * A cancelled slot keeps a way back for a short while, and says how long is left.
@@ -354,24 +357,23 @@
             const report = node('button', 'bq-action-link', 'Report failure');
             report.type = 'button';
             report.addEventListener('click', () => reportFailure(entry, report));
-            actions.append(report);
+            actions.append(report, duplicate());
             return actions;
         }
 
-        // Only a slot still waiting can be acted on. Past rows are a record; the way to
-        // repeat one is to queue it fresh, where the dates are chosen deliberately.
-        if (entry.status !== 'queued') return actions;
-
-        for (const [label, extra, onclick] of [
-            ['Edit', '', () => window.editBookingSheet(entry)],
-            ['Duplicate', '', () => window.duplicateBookingSheet(entry)],
-            ['Cancel', ' bq-action-danger', null]
-        ]) {
-            const button = node('button', `bq-action-link${extra}`, label);
-            button.type = 'button';
-            button.addEventListener('click', onclick || (() => cancelEntry(entry, button)));
-            actions.append(button);
+        // Past rows are a record: nothing on them changes, but they can seed a new booking.
+        if (entry.status !== 'queued') {
+            actions.append(duplicate());
+            return actions;
         }
+
+        const edit = node('button', 'bq-action-link', 'Edit');
+        edit.type = 'button';
+        edit.addEventListener('click', () => window.editBookingSheet(entry));
+        const cancel = node('button', 'bq-action-link bq-action-danger', 'Cancel');
+        cancel.type = 'button';
+        cancel.addEventListener('click', () => cancelEntry(entry, cancel));
+        actions.append(edit, duplicate(), cancel);
         return actions;
     }
 
@@ -536,7 +538,9 @@
         if (entry.status !== 'cancelled' || !entry.cancelledAt) return 0;
         const deadline = new Date(entry.cancelledAt).getTime() + state.cancelUndoSeconds * 1000;
         // A slot whose window has closed cannot come back however recently it was cancelled.
-        const sendable = new Date(entry.opensAt).getTime() + state.graceSeconds * 1000;
+        // Grace runs from the later of the opening and the send time, as on the server.
+        const anchor = Math.max(new Date(entry.opensAt).getTime(), new Date(entry.sendAfter || entry.opensAt).getTime());
+        const sendable = anchor + state.graceSeconds * 1000;
         return Math.min(deadline, sendable) - now;
     }
 

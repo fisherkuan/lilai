@@ -50,12 +50,14 @@ test('the sampled send time lands inside the configured delay range, inclusive',
     const settings = bookingSettings({});
     const opensAt = new Date('2026-09-11T22:00:00.000Z');
 
-    assert.equal(sampleSendAfter(opensAt, settings, () => 0).toISOString(), '2026-09-11T22:00:05.000Z');
+    const before = new Date('2026-09-11T12:00:00.000Z');
+
+    assert.equal(sampleSendAfter(opensAt, settings, () => 0, before).toISOString(), '2026-09-11T22:00:05.000Z');
     // Math.random() never returns 1, so the top of the range needs the nearest value below it.
-    assert.equal(sampleSendAfter(opensAt, settings, () => 0.9999999).toISOString(), '2026-09-11T22:01:00.000Z');
+    assert.equal(sampleSendAfter(opensAt, settings, () => 0.9999999, before).toISOString(), '2026-09-11T22:01:00.000Z');
 
     for (let i = 0; i < 500; i += 1) {
-        const offset = (sampleSendAfter(opensAt, settings).getTime() - opensAt.getTime()) / 1000;
+        const offset = (sampleSendAfter(opensAt, settings, Math.random, before).getTime() - opensAt.getTime()) / 1000;
         assert.ok(offset >= 5 && offset <= 60, `sampled ${offset}s, outside 5-60`);
         assert.ok(Number.isInteger(offset), `sampled ${offset}s, not a whole second`);
     }
@@ -64,4 +66,21 @@ test('the sampled send time lands inside the configured delay range, inclusive',
 test('the grace deadline is the opening plus the grace window', () => {
     const opensAt = new Date('2026-09-11T22:00:00.000Z');
     assert.equal(graceDeadline(opensAt, bookingSettings({})).toISOString(), '2026-09-11T22:05:00.000Z');
+});
+
+test('an entry queued after its window opened is sent now, not at a sampled delay', () => {
+    const settings = bookingSettings({});
+    const opensAt = new Date('2026-09-11T22:00:00.000Z');
+    const threeDaysLater = new Date('2026-09-14T09:30:00.000Z');
+    assert.equal(sampleSendAfter(opensAt, settings, () => 0, threeDaysLater).toISOString(), threeDaysLater.toISOString());
+
+    // Inside the first minute the sampled delay can still lie ahead, and it is kept.
+    const tenSecondsIn = new Date('2026-09-11T22:00:10.000Z');
+    assert.equal(sampleSendAfter(opensAt, settings, () => 0.9999999, tenSecondsIn).toISOString(), '2026-09-11T22:01:00.000Z');
+});
+
+test('the grace deadline counts from the send time when that is later than the opening', () => {
+    const opensAt = new Date('2026-09-11T22:00:00.000Z');
+    const queuedLate = new Date('2026-09-14T09:30:00.000Z');
+    assert.equal(graceDeadline(opensAt, bookingSettings({}), queuedLate).toISOString(), '2026-09-14T09:35:00.000Z');
 });
