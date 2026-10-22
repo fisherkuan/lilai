@@ -56,7 +56,7 @@
     :root:not([data-theme="light"]) {
         --ink-3: #8f9095;
         --past: #55565b;
-        --scrim: rgba(0, 0, 0, 0.6);
+        --scrim: rgba(0, 0, 0, 0.4);
         --link: #8ab4f8;
         --ground: var(--paper);
         --rail-sel: #2f7d58;
@@ -72,7 +72,7 @@
 :root[data-theme="dark"] {
     --ink-3: #8f9095;
     --past: #55565b;
-    --scrim: rgba(0, 0, 0, 0.6);
+    --scrim: rgba(0, 0, 0, 0.4);
     --link: #8ab4f8;
     --ground: var(--paper);
     --rail-sel: #2f7d58;
@@ -602,21 +602,6 @@ button { font: inherit; color: inherit; }
 .event-mark .shape { font-size: 0.62em; }
 
 .event-time { color: var(--ink); font-weight: 500; }
-
-/* Start over end, joined by an en dash (the range mark) turned upright to follow the stack,
-   as vertical CJK type sets it. */
-.event-times {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    align-self: flex-start;
-}
-
-.event-to {
-    display: block;
-    color: var(--ink-3);
-    transform: rotate(90deg);
-}
 
 .event-title {
     margin: 0 0 var(--s1);

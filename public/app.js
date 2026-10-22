@@ -77,6 +77,17 @@ function withoutLinkLine(value) {
     return value.replace(/^[ \t]*link:?\s*https?:\/\/\S+[ \t]*$/gim, '').trim();
 }
 
+// The server reads a "limit: N" line as the seat limit, which the seat count already shows.
+// Only a line that holds nothing else goes, so prose that mentions a limit stays.
+function withoutLimitLine(value) {
+    return value.replace(/^[ \t]*limit:?[ \t]*\d+[ \t]*$/gim, '').replace(/\n{3,}/g, '\n\n').trim();
+}
+
+// The description as shown: without the lines Lilai turns into the Event link and the seat count.
+function shownDescriptionOf(value) {
+    return withoutLimitLine(withoutLinkLine(value));
+}
+
 function eventLinkHtml(href) {
     return `<a class="event-link" href="${escapeAttribute(href)}" target="_blank" rel="noopener noreferrer">Event link<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 16 16 8M9 8h7v7"/></svg><span class="sr-only"> (opens in a new tab)</span></a>`;
 }
@@ -785,7 +796,6 @@ function renderSeats(event, st, { isPast, hasLimit, isFull, newFrom }) {
 function renderEventCard(event, { isPast, isToday, prevNames }) {
     const eventDate = new Date(event.date);
     const dayNum = String(eventDate.getDate());
-    const monthAbbr = eventDate.toLocaleDateString('en-GB', { month: 'short' });
     const weekdayAbbr = eventDate.toLocaleDateString('en-GB', { weekday: 'short' });
     const timeStr = eventDate.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false });
     // Postgres folds the unquoted endDate column to lowercase, so accept either casing.
@@ -797,7 +807,7 @@ function renderEventCard(event, { isPast, isToday, prevNames }) {
     const sanitizedEventId = escapeAttribute(event.id);
     const sanitizedTitle = escapeHtml(event.title);
     const descriptionText = typeof event.description === 'string' ? event.description : '';
-    const shownDescription = withoutLinkLine(descriptionText);
+    const shownDescription = shownDescriptionOf(descriptionText);
     const sanitizedDescription = escapeHtml(shownDescription).replace(/\n/g, '<br>');
     const locationText = typeof event.location === 'string' ? event.location : '';
     const eventLink = extractEventLink(descriptionText);
@@ -808,20 +818,19 @@ function renderEventCard(event, { isPast, isToday, prevNames }) {
     const isFull = hasLimit && attendingCount >= event.attendance_limit;
     const newFrom = prevNames ? prevNames.size : Infinity;
 
-    // The title's shape already names the calendar, so the meta line is the place and the link.
-    const link = eventLink ? eventLinkHtml(eventLink) : '';
-    const metaParts = [locationText ? escapeHtml(locationText) : '', link].filter(Boolean);
-    const meta = metaParts.length ? `<p class="event-meta">${metaParts.join('<span class="sep" aria-hidden="true"> · </span>')}</p>` : '';
-
-    // Start over end in the date column, joined by an en dash (the range mark), centred under the times.
-    // An end on another day names that day.
-    let endTime = '';
+    // "16:00–18:00" leads the meta line under the title; an end on another day names that day.
+    let times = escapeHtml(timeStr);
     if (hasEnd) {
         const endStr = endDate.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false });
         const sameDay = endDate.toDateString() === eventDate.toDateString();
-        const endDay = sameDay ? '' : `<span>${escapeHtml(endDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }))}</span>`;
-        endTime = `<span class="event-to" aria-hidden="true">–</span><span class="sr-only">to</span>${endDay}<span class="event-time">${escapeHtml(endStr)}</span>`;
+        const endDay = sameDay ? '' : `${escapeHtml(endDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }))} `;
+        times += `<span aria-hidden="true">–</span><span class="sr-only"> to </span>${endDay}${escapeHtml(endStr)}`;
     }
+
+    // The title's shape already names the calendar, so the meta line is the time, the place and the link.
+    const link = eventLink ? eventLinkHtml(eventLink) : '';
+    const metaParts = [`<span class="event-time">${times}</span>`, locationText ? escapeHtml(locationText) : '', link].filter(Boolean);
+    const meta = `<p class="event-meta">${metaParts.join('<span class="sep" aria-hidden="true"> · </span>')}</p>`;
 
     let names;
     if (attendees.length > 0) {
@@ -854,7 +863,7 @@ function renderEventCard(event, { isPast, isToday, prevNames }) {
         <article class="${classes.join(' ')}" data-event-id="${sanitizedEventId}" aria-labelledby="ev-${sanitizedEventId}">
             <div class="event-date">
                 <span class="event-day">${dayNum}</span>
-                <span class="event-daymeta"><span>${escapeHtml(isToday ? 'Today' : weekdayAbbr)}</span><span>${escapeHtml(monthAbbr)}</span><span class="event-times"><span class="event-time">${escapeHtml(timeStr)}</span>${endTime}</span></span>
+                <span class="event-daymeta"><span>${escapeHtml(isToday ? 'Today' : weekdayAbbr)}</span></span>
             </div>
             <div class="event-body">
                 <h3 class="event-title" id="ev-${sanitizedEventId}"><span class="event-mark">${shapeSvg(st.shape)}</span>${sanitizedTitle}</h3>
@@ -925,7 +934,7 @@ function openRsvpModal(eventId) {
     document.getElementById('modal-event-title').textContent = event.title;
     document.getElementById('modal-event-date').textContent = formatSheetDate(event);
     const rawDesc = typeof event.description === 'string' ? event.description : '';
-    const desc = withoutLinkLine(rawDesc);
+    const desc = shownDescriptionOf(rawDesc);
     const sheetLink = extractEventLink(rawDesc);
     const descEl = document.getElementById('modal-event-description');
     descEl.innerHTML = escapeHtml(desc).replace(/\n/g, '<br>') + (sheetLink ? `${desc ? '<br>' : ''}${eventLinkHtml(sheetLink)}` : '');
