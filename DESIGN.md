@@ -50,13 +50,13 @@ typography:
     lineHeight: 1.25
     letterSpacing: "-0.01em"
   sheet-title:
-    fontFamily: "Jost, Futura, PingFang TC, Noto Sans TC, Microsoft JhengHei, system-ui, sans-serif"
+    fontFamily: "-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica Neue, Arial, PingFang TC, Noto Sans TC, Microsoft JhengHei, sans-serif"
     fontSize: "22px"
     fontWeight: 600
     lineHeight: 1.25
     letterSpacing: "-0.01em"
   title:
-    fontFamily: "Jost, Futura, PingFang TC, Noto Sans TC, Microsoft JhengHei, system-ui, sans-serif"
+    fontFamily: "-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica Neue, Arial, PingFang TC, Noto Sans TC, Microsoft JhengHei, sans-serif"
     fontSize: "20px"
     fontWeight: 600
     lineHeight: 1.25
@@ -67,16 +67,16 @@ typography:
     fontWeight: 500
     lineHeight: 1.5
   section:
-    fontFamily: "Jost, Futura, PingFang TC, Noto Sans TC, Microsoft JhengHei, system-ui, sans-serif"
+    fontFamily: "-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica Neue, Arial, PingFang TC, Noto Sans TC, Microsoft JhengHei, sans-serif"
     fontSize: "16px"
     fontWeight: 600
     lineHeight: 1.5
   label:
-    fontFamily: "Jost, Futura, PingFang TC, Noto Sans TC, Microsoft JhengHei, system-ui, sans-serif"
+    fontFamily: "-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica Neue, Arial, PingFang TC, Noto Sans TC, Microsoft JhengHei, sans-serif"
     fontSize: "13px"
     fontWeight: 600
   button:
-    fontFamily: "Jost, Futura, PingFang TC, Noto Sans TC, Microsoft JhengHei, system-ui, sans-serif"
+    fontFamily: "-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica Neue, Arial, PingFang TC, Noto Sans TC, Microsoft JhengHei, sans-serif"
     fontSize: "15px"
     fontWeight: 600
   body:
@@ -233,7 +233,7 @@ Motion is scarce and tied to state. When attendance changes, a shape scales from
 **Deviations from the kit.** Each is deliberate.
 - **The solid button is ink, never red.** The kit's primary button is a red fill. In lilai red is the second calendar's colour, so a red button would read as that calendar.
 - **The field error mark is an 8px ink square.** The kit marks errors with a red square and a red border. A red square is the second calendar's shape.
-- **Running text uses the device's UI sans.** The kit sets everything in Jost. Users found the all-Jost version (2026-09-27 to 2026-10-02) harder to read, so Jost sets only headings, numerals and labels.
+- **Running text uses the device's UI sans.** The kit sets everything in Jost. Users found the all-Jost version (2026-09-27 to 2026-10-02) harder to read, so Jost sets only headings, numerals and labels. From 2026-10-23 it narrows further, to page titles and the big numerals: buttons, labels, event titles and section heads read better in the system sans (owner).
 - **Spacing keeps lilai's eight-step scale (4px to 64px).** The kit's four steps (8, 16, 32, 64) are all on it; lilai's rail, slots and dense admin rows need the 4px, 12px, 24px and 48px steps.
 - **Lilai keeps its own type ramp, motion, date rail, seat slots and status marks.** The kit's 72px display and 44px H1 have no place on a list of meetups; lilai titles stop at 30px.
 - **Buttons are 44px tall, not the kit's 40px,** so every touch target holds 44px. Event buttons step down to 40px.
@@ -280,11 +280,11 @@ In dark the kit sets paper #111214, paper-raised #1b1c1f, stone #26272b, line #7
 
 ## Typography
 
-**Display Font:** Jost (from the kit, self-hosted in `public/bauhaus/fonts/`, SIL OFL, variable weight 400 to 700), token `--font-display`. It sets h1 to h3, the wordmark, the Numeral roles (`.event-day`, `.balance-amount`, `.bd-day`) and the Label role, and nothing else.
-**Body Font:** the device's UI sans (San Francisco, Segoe UI, Roboto), token `--font`, falling back to PingFang TC, Noto Sans TC, Microsoft JhengHei for Chinese. It sets every reading role: control, body, meta, caption and small.
-**Label/Mono Font:** Jost in the kit's label style; numerals use tabular figures.
+**Display Font:** Jost (from the kit, self-hosted in `public/bauhaus/fonts/`, SIL OFL, variable weight 400 to 700), token `--font-display`. It sets page titles (every h1, the wordmark, and Home's "Upcoming") and the big numerals (`.event-day`, the rail's day numbers, `.balance-amount`, `.bd-day`, the midnight clock), and nothing else.
+**Body Font:** the device's UI sans (San Francisco, Segoe UI, Roboto), token `--font`, falling back to PingFang TC, Noto Sans TC, Microsoft JhengHei for Chinese. It sets everything that is not a page title or a big numeral: event and sheet titles, section heads, buttons, labels, tabs and every reading role.
+**Label/Mono Font:** the system sans in the kit's label style (600, sentence case); numerals use tabular figures.
 
-**Character:** Jost carries the Futura lineage, so its geometric letterforms match the circle, square and triangle in headings, numerals and labels. Its small x-height reads poorly at 14 to 16px, so running text uses the system sans, which also matches the CJK fallback that Chinese names and titles use.
+**Character:** Jost carries the Futura lineage, so its geometric letterforms match the circle, square and triangle in page titles and numerals. Its small x-height reads poorly at 13 to 20px, so everything smaller, labels and buttons included, uses the system sans, which also matches the CJK fallback that Chinese names and titles use.
 
 ### Hierarchy
 - **Numeral Lead** (500, 96px, 0.78, -0.04em): the play date on booking detail. It is the largest type in the system.
@@ -295,12 +295,12 @@ In dark the kit sets paper #111214, paper-raised #1b1c1f, stone #26272b, line #7
 - **Sheet Title** (600, 22px, 1.25): the title of every sheet and dialog: the RSVP sheet, the booking sheet and the booking confirm dialog.
 - **Title** (600, 20px, 1.25, balanced wrap): event titles, the booking section heads (Recurring, Timeline), and the heads of the explainer and the detail headline.
 - **Control** (500, 17px): inputs, number fields and range tabs, so phones do not zoom into a field.
-- **Section** (Jost 600, 16px, sentence case): section and sidebar titles ("Next 14 days", "Add to the calendar", "Keep this running", "Transactions"), and in the system sans booking row titles and FAQ questions. The owner kept these titles out of the label style (2026-10-13).
+- **Section** (600, 16px, sentence case): section and sidebar titles ("Next 14 days", "Add to the calendar", "Keep this running", "Transactions"), and booking row titles and FAQ questions. The owner kept these titles out of the label style (2026-10-13).
 - **Body** (400, 16px, 1.5): running text.
 - **Body Small** (400 to 600, 15px, 1.5): descriptions, the names list, FAQ answers, the Donate lede and donor lines, the booking explainer and notes, booking detail values, the booking sheet's choice chips, and the weekday line beside a 96px numeral. It also sets navigation: header links and the FAQ language switch. Descriptions cap at 65ch and clamp to three lines on Home.
 - **Meta** (400 to 600, 14px): dates, times, places, seat labels, counts, table cells, admin subtitles, row status lines and text buttons.
-- **Button** (Jost 600, 15px, sentence case): the kit's button style, for every button label.
-- **Label** (Jost 600, 13px, sentence case): the kit's label style. It sets booking sheet labels and admin table heads. Field labels above a text field are Jost 600 17px in ink, the field's own size, 12px above it so the focus ring keeps clear; the field carries no placeholder hint (owner, 2026-10-22).
+- **Button** (600, 15px, sentence case): the kit's button style, for every button label.
+- **Label** (600, 13px, sentence case): the kit's label style. It sets booking sheet labels and admin table heads. Field labels above a text field are 600 17px in ink, the field's own size, 12px above it so the focus ring keeps clear; the field carries no placeholder hint (owner, 2026-10-22).
 - **Caption** (400, 13px): captions, the colophon and agenda details.
 - **Small** (400, 12px): weekday labels in the date rail.
 
@@ -350,7 +350,7 @@ The form language has two registers.
 Soft, sentence case, outlined or filled in ink, as in the kit. Hover swaps fills; nothing fades. Every focusable control shows the 2px blue focus ring.
 
 ### Buttons
-- **Shape:** a pill, 2px ink outline, 44px tall, 24px side padding, button style (Jost 15px 600, sentence case).
+- **Shape:** a pill, 2px ink outline, 44px tall, 24px side padding, button style (15px 600, sentence case).
 - **Solid:** ink ground, paper label. The one main action of a form or sheet: Confirm, Remove, Add entry, Queue a slot, Next. It stays ink, never red (see Deviations).
 - **Line:** clear ground, ink label, ink outline. Join on every event, and secondary calls such as "Create an event" and "Pay by card". A page of solid Joins read as a column of black blocks (removed 2026-10-02).
 - **Event buttons:** inside an event the button steps down to 40px tall with 16px side padding, since every event carries one.
@@ -441,7 +441,7 @@ One easing, `cubic-bezier(0.16, 1, 0.3, 1)`, drives every movement. Shapes scale
 - **Do** give each calendar its shape in config order (circle/blue, square/red, triangle/yellow) and the ink diamond to the fourth and later calendars and unsourced events.
 - **Do** draw every shape with a flat fill and a 1.5px ink contour.
 - **Do** box each event in a 16px rounded, 2px ink outline on paper-raised, divide sections with full-width 2px ink rules, and the rows of a dense list with 1px line-grey hairlines.
-- **Do** set button labels in the button style (Jost 15px 600) table heads in the label style (Jost 13px 600), and field labels at the field's 17px, all in sentence case.
+- **Do** set button labels in the button style (15px 600), table heads in the label style (13px 600), and field labels at the field's 17px, all in sentence case.
 - **Do** show hover by swapping fills: line to ink, solid to paper.
 - **Do** keep metadata at 14px and let only numerals break scale (event dates, the Donate balance, 96px on the booking detail date).
 - **Do** carry status in a word, with ink weight and a 10px ink status mark as the second channel.
@@ -456,6 +456,6 @@ One easing, `cubic-bezier(0.16, 1, 0.3, 1)`, drives every movement. Shapes scale
 - **Don't** use gradients, put a shadow on an event box or section, or show hover by fading.
 - **Don't** confirm an RSVP or an admin action with a toast or banner.
 - **Don't** animate on page load, or use bouncy or spring motion.
-- **Don't** set running text in Jost, or add a third typeface; Jost is for headings, numerals and labels, the system sans for reading.
+- **Don't** set anything but page titles and big numerals in Jost, or add a third typeface.
 - **Don't** reuse a primary shape as decoration or for anything that is not a calendar.
 - **Don't** edit `public/bauhaus/tokens.css` by hand, or redefine a kit token in `lilai.css` beyond the named deviations (`--link`, `--scrim`).

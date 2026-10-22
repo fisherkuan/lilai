@@ -26,8 +26,9 @@
     --on-rail-sel: #fafaf7;
     --rail-accent: #2f7d58;
 
-    /* Jost (from the kit) for headings, numerals and labels; reading text keeps the device's
-       own UI font, which stays legible at 14-16px where Jost's small x-height does not. */
+    /* Jost (from the kit) for page titles and the big numerals only. Everything else, buttons
+       and labels included, keeps the device's own UI font, which stays legible at 13-20px where
+       Jost's small x-height does not (owner, 2026-10-23). */
     --font-display: Jost, Futura, 'PingFang TC', 'Noto Sans TC', 'Microsoft JhengHei', system-ui, sans-serif;
     --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'PingFang TC', 'Noto Sans TC', 'Microsoft JhengHei', sans-serif;
     --meta: 14px;
@@ -84,15 +85,13 @@
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23f2f2ee' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
 }
 
-/* The kit's button and label styles: sentence-case Jost, semibold. */
+/* The kit's button and label styles, semibold and sentence case, in the system sans. */
 .btn {
-    font-family: var(--font-display);
     font-size: 15px;
     font-weight: 600;
 }
 /* The same size as the field's text, so the label and its value read as one line of type. */
 .field label {
-    font-family: var(--font-display);
     font-size: 17px;
     font-weight: 600;
     color: var(--ink);
@@ -132,8 +131,9 @@ a:hover { text-decoration-thickness: 2px; }
 
 h1, h2, h3, p { margin: 0; }
 
-/* Display type: headings and the numerals DESIGN.md calls Numeral, on every page. */
-h1, h2, h3, .wordmark-name, .event-day, .balance-amount, .bd-day { font-family: var(--font-display); }
+/* Display type: page titles and the big numerals, and nothing else. Home's title is the rail's
+   "Upcoming"; its day numbers are the rail's numerals. */
+h1, .wordmark-name, .rail-title, .event-day, .rail-num, .balance-amount, .bd-day, .bq-clock { font-family: var(--font-display); }
 
 button { font: inherit; color: inherit; }
 
@@ -328,7 +328,7 @@ button { font: inherit; color: inherit; }
     padding: var(--s4) 0 var(--s2);
 }
 
-.rail-title { font-family: var(--font-display); font-size: 22px; font-weight: 600; letter-spacing: -0.01em; }
+.rail-title { font-size: 22px; font-weight: 600; letter-spacing: -0.01em; }
 .rail-range { font-size: var(--meta); color: var(--ink-2); font-variant-numeric: tabular-nums; }
 .rail-head .view-switch { margin-left: auto; }
 /* Under 360px the range drops below the title, so the switch keeps the title's line. */
@@ -398,7 +398,7 @@ button { font: inherit; color: inherit; }
 .rail-day:focus-visible { outline: var(--stroke-2) solid var(--focus); outline-offset: 2px; }
 
 .rail-dow { font-size: 12px; line-height: 16px; color: var(--ink-2); }
-.rail-num { font-family: var(--font-display); font-size: 20px; line-height: 24px; font-weight: 600; }
+.rail-num { font-size: 20px; line-height: 24px; font-weight: 600; }
 .rail-day.is-today .rail-dow { color: var(--rail-accent); font-weight: 600; }
 
 .rail-day[aria-pressed="true"] { background: var(--rail-sel); color: var(--on-rail-sel); }
@@ -424,7 +424,6 @@ button { font: inherit; color: inherit; }
     writing-mode: vertical-rl;
     transform: rotate(180deg);
     padding: 0 2px;
-    font-family: var(--font-display);
     font-size: 11px;
     font-weight: 600;
     letter-spacing: 0.04em;
@@ -445,7 +444,7 @@ button { font: inherit; color: inherit; }
 }
 
 .agenda-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s3); }
-.agenda-title { font-family: var(--font-display); font-size: 16px; font-weight: 600; }
+.agenda-title { font-size: 16px; font-weight: 600; }
 .agenda-count { font-size: var(--meta); color: var(--ink-2); font-variant-numeric: tabular-nums; }
 
 .agenda-list { list-style: none; margin: var(--s2) 0 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
