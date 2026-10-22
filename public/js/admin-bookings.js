@@ -23,7 +23,7 @@
      *
      * Bump it when changing anything in public/js or public/css/booking.css.
      */
-    const BUILD = '2026-10-23b';
+    const BUILD = '2026-10-23c';
 
     const { BRUSSELS, MONTHS } = window.bookingShared;
     const MINUTE = 60000;
@@ -92,6 +92,7 @@
         cancelUndoSeconds: 300,
         series: [],
         countdownHandle: null,
+        openMenu: null,
         seen: new Set()
     };
 
@@ -261,6 +262,80 @@
         button.parentNode.append(node('span', 'bq-action-trouble', message));
     }
 
+    /*
+     * The action budget: a row shows at most two actions. A third and any after it go behind
+     * one "More" button, so a row never wraps into a wall of links on a phone and the action
+     * people use most stays one tap away.
+     *
+     * The button and its menu sit directly in the actions line, not in a wrapper of their own.
+     * askThen and sayTrouble work on the line around the button they are handed, so an item
+     * that asks first (Cancel, Report failure) hands them the More button and its question
+     * lands in the row exactly as it would from a visible link.
+     */
+    const MORE_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg>';
+
+    function moreMenu(key, items) {
+        const button = node('button', 'icon-btn bq-more-btn');
+        button.type = 'button';
+        button.innerHTML = MORE_ICON;
+        button.setAttribute('aria-label', 'More actions');
+        button.setAttribute('aria-haspopup', 'menu');
+        button.setAttribute('aria-expanded', 'false');
+        button.dataset.menuKey = key;
+
+        const menu = node('div', 'bq-menu');
+        menu.setAttribute('role', 'menu');
+        menu.hidden = true;
+        for (const item of items) {
+            const entry = node('button', `bq-menu-item${item.danger ? ' bq-menu-danger' : ''}`, item.label);
+            entry.type = 'button';
+            entry.setAttribute('role', 'menuitem');
+            entry.addEventListener('click', () => {
+                closeMenus();
+                item.run(button);
+            });
+            menu.append(entry);
+        }
+
+        button.addEventListener('click', (event) => {
+            event.stopPropagation();
+            const opening = menu.hidden;
+            closeMenus();
+            if (opening) openMenu(button, menu);
+        });
+        menu.addEventListener('keydown', (event) => {
+            const entries = [...menu.querySelectorAll('.bq-menu-item')];
+            const at = entries.indexOf(document.activeElement);
+            if (event.key === 'ArrowDown') { event.preventDefault(); entries[(at + 1) % entries.length].focus(); }
+            if (event.key === 'ArrowUp') { event.preventDefault(); entries[(at - 1 + entries.length) % entries.length].focus(); }
+        });
+        return [button, menu];
+    }
+
+    function openMenu(button, menu, focus = true) {
+        menu.hidden = false;
+        button.setAttribute('aria-expanded', 'true');
+        state.openMenu = button.dataset.menuKey;
+        if (focus) menu.querySelector('.bq-menu-item').focus();
+    }
+
+    function closeMenus() {
+        state.openMenu = null;
+        for (const menu of document.querySelectorAll('.bq-menu:not([hidden])')) {
+            menu.hidden = true;
+            const button = menu.previousElementSibling;
+            if (button) button.setAttribute('aria-expanded', 'false');
+        }
+    }
+
+    /* A redraw rebuilds every row; a menu that was open comes back open, without taking focus. */
+    function reopenMenu() {
+        if (!state.openMenu) return;
+        const button = document.querySelector(`.bq-more-btn[data-menu-key="${CSS.escape(state.openMenu)}"]`);
+        if (button) openMenu(button, button.nextElementSibling, false);
+        else state.openMenu = null;
+    }
+
     /* Something worth saying that outlives the redraw the action causes. */
     function notice(message) {
         const bar = el('bq-notice');
@@ -353,11 +428,12 @@
          * which this app never sees, so without this the refused request keeps holding one
          * of the person's two slots that week.
          */
+        // Details (added by sentRow) stays visible; the other two go behind More.
         if (entry.status === 'sent' || entry.status === 'unconfirmed') {
-            const report = node('button', 'bq-action-link', 'Report failure');
-            report.type = 'button';
-            report.addEventListener('click', () => reportFailure(entry, report));
-            actions.append(report, duplicate());
+            actions.append(...moreMenu(`row:${entry.id}`, [
+                { label: 'Report failure', run: (anchor) => reportFailure(entry, anchor) },
+                { label: 'Duplicate', run: () => window.duplicateBookingSheet(entry) }
+            ]));
             return actions;
         }
 
@@ -367,13 +443,14 @@
             return actions;
         }
 
+        // Edit is what a waiting slot is opened for; Duplicate and Cancel go behind More.
         const edit = node('button', 'bq-action-link', 'Edit');
         edit.type = 'button';
         edit.addEventListener('click', () => window.editBookingSheet(entry));
-        const cancel = node('button', 'bq-action-link bq-action-danger', 'Cancel');
-        cancel.type = 'button';
-        cancel.addEventListener('click', () => cancelEntry(entry, cancel));
-        actions.append(edit, duplicate(), cancel);
+        actions.append(edit, ...moreMenu(`row:${entry.id}`, [
+            { label: 'Duplicate', run: () => window.duplicateBookingSheet(entry) },
+            { label: 'Cancel', danger: true, run: (anchor) => cancelEntry(entry, anchor) }
+        ]));
         return actions;
     }
 
@@ -506,12 +583,10 @@
     }
 
     function nowRule(now) {
-        const li = node('li', 'bq-now');
-        li.append(node('span', 'bq-now-line'));
+        const rule = node('div', 'bq-now');
         const p = partsOf(now);
-        li.append(node('span', 'bq-now-pill', `Now · ${p.weekday} ${p.hour}:${p.minute}`));
-        li.append(node('span', 'bq-now-line'));
-        return li;
+        rule.append(node('span', 'bq-now-pill', `Now · ${p.weekday} ${p.hour}:${p.minute}`));
+        return rule;
     }
 
     function emptyAbove() {
@@ -673,32 +748,38 @@
                 : 0;
 
             const actions = node('div', 'bq-series-actions');
+            // One click used to cancel a whole season. It asks now, like every other
+            // button here: the number in the question is the point of asking.
+            const askCancel = (anchor) => askThen(
+                anchor,
+                `Cancel ${plural(series.queued, 'booking')} still waiting?`,
+                'Cancel them',
+                (yes) => seriesAction(series, 'cancel-remaining', yes)
+            );
+
             if (undoLeft > 0) {
+                // Undo all is the one thing worth doing in its window; the rest waits behind More.
                 const undo = node('button', 'bq-action-link', 'Undo all');
                 undo.type = 'button';
                 undo.addEventListener('click', () => seriesAction(series, 'restore-remaining', undo));
                 const note = node('span', 'bq-action-note', `${countdown(undoLeft)} left`);
                 note.dataset.undoUntil = String(now.getTime() + undoLeft);
-                actions.append(undo, note);
+                const items = [{ label: 'Edit', run: (anchor) => editSeries(series, anchor) }];
+                if (series.queued > 0) items.push({ label: `Cancel the remaining ${series.queued}`, danger: true, run: askCancel });
+                actions.append(undo, note, ...moreMenu(`series:${series.id}`, items));
                 startCountdowns();
-            }
-            const edit = node('button', 'bq-action-link', 'Edit');
-            edit.type = 'button';
-            edit.addEventListener('click', () => editSeries(series, edit));
-            actions.append(edit);
+            } else {
+                const edit = node('button', 'bq-action-link', 'Edit');
+                edit.type = 'button';
+                edit.addEventListener('click', () => editSeries(series, edit));
+                actions.append(edit);
 
-            if (series.queued > 0) {
-                const cancel = node('button', 'bq-action-link bq-action-danger', `Cancel the remaining ${series.queued}`);
-                cancel.type = 'button';
-                // One click used to cancel a whole season. It asks now, like every other
-                // button here: the number in the question is the point of asking.
-                cancel.addEventListener('click', () => askThen(
-                    cancel,
-                    `Cancel ${plural(series.queued, 'booking')} still waiting?`,
-                    'Cancel them',
-                    (yes) => seriesAction(series, 'cancel-remaining', yes)
-                ));
-                actions.append(cancel);
+                if (series.queued > 0) {
+                    const cancel = node('button', 'bq-action-link bq-action-danger', `Cancel the remaining ${series.queued}`);
+                    cancel.type = 'button';
+                    cancel.addEventListener('click', () => askCancel(cancel));
+                    actions.append(cancel);
+                }
             }
 
             card.append(actions);
@@ -768,36 +849,44 @@
          * booking puts seventy slots below the rule and months of outcomes above it, and
          * neither end is what anyone opens this page to see.
          */
+        /*
+         * Two raised cards, as on Home: what went out, then what is waiting. The NOW rule
+         * sits between them the way Home's Today rule sits between event cards.
+         */
+        const past = node('ol', 'bq-group bq-group-past');
+        const ahead = node('ol', 'bq-group bq-group-ahead');
+
         const shownHistory = state.history.slice(0, state.historyShown);
         const heldBack = state.history.length - shownHistory.length;
         if (heldBack > 0 || state.historyHasMore) {
-            list.append(foldRow(heldBack > 0 ? `${heldBack} earlier` : 'earlier', loadMore));
+            past.append(foldRow(heldBack > 0 ? `${heldBack} earlier` : 'earlier', loadMore));
         }
 
         if (state.history.length === 0) {
-            list.append(emptyAbove());
+            past.append(emptyAbove());
         } else {
             // Oldest first, so the most recent outcome sits directly against the NOW rule.
-            for (const entry of shownHistory.slice().reverse()) list.append(sentRow(entry, now));
+            for (const entry of shownHistory.slice().reverse()) past.append(sentRow(entry, now));
         }
 
-        // The NOW rule renders even with no data: it is the element that explains the layout.
-        list.append(nowRule(now));
-
         if (waiting.length === 0 && state.history.length > 0) {
-            list.append(node('li', 'bq-none', 'Nothing queued'));
+            ahead.append(node('li', 'bq-none', 'Nothing queued'));
         }
 
         const upcomingShown = state.showAllUpcoming ? waiting.length : Math.min(waiting.length, UPCOMING_AT_REST);
-        for (const entry of waiting.slice(0, upcomingShown)) list.append(waitingRow(entry, now));
+        for (const entry of waiting.slice(0, upcomingShown)) ahead.append(waitingRow(entry, now));
         if (waiting.length > upcomingShown) {
-            list.append(foldRow(
+            ahead.append(foldRow(
                 `${waiting.length - upcomingShown} further out`,
                 () => { state.showAllUpcoming = true; render(); }
             ));
         } else if (state.showAllUpcoming && waiting.length > UPCOMING_AT_REST) {
-            list.append(foldRow('Show fewer', () => { state.showAllUpcoming = false; render(); }));
+            ahead.append(foldRow('Show fewer', () => { state.showAllUpcoming = false; render(); }));
         }
+
+        // The NOW rule renders even with no data: it is the element that explains the layout.
+        list.append(past, nowRule(now));
+        if (ahead.childElementCount > 0) list.append(ahead);
 
         renderMeta(pending, now);
         renderMidnight(pending, now);
@@ -814,6 +903,7 @@
         }
         for (const entry of state.history) state.seen.add(entry.id);
 
+        reopenMenu();
         scheduleTick(pending, now);
     }
 
@@ -1066,7 +1156,7 @@
 
     /** The first timeline row at or below the top of the viewport, and where it sits. */
     function visibleAnchor() {
-        for (const row of el('bq-timeline').children) {
+        for (const row of el('bq-timeline').querySelectorAll('[data-id]')) {
             const top = row.getBoundingClientRect().top;
             if (top >= 0 && row.dataset.id) return { id: row.dataset.id, top };
         }
@@ -1125,6 +1215,16 @@
         });
         el('bq-people').addEventListener('click', () => {
             if (window.bookingPeople) window.bookingPeople.openManager();
+        });
+        // A More menu closes on any click outside it, and on Escape, which hands focus back.
+        document.addEventListener('click', (event) => {
+            if (!event.target.closest('.bq-menu')) closeMenus();
+        });
+        document.addEventListener('keydown', (event) => {
+            if (event.key !== 'Escape' || !state.openMenu) return;
+            const button = document.querySelector(`.bq-more-btn[data-menu-key="${CSS.escape(state.openMenu)}"]`);
+            closeMenus();
+            if (button) button.focus();
         });
         // A phone that slept can hold a socket that looks open but missed messages, so
         // coming back to the tab re-reads the board rather than only redrawing it.

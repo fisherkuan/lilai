@@ -1,7 +1,22 @@
 /* Lilai: booking queue board, its sheets, and the entry detail page.
-   Loads after lilai.css and admin.css, and restates the old board in the Shape Calendar
-   world: black ink on white, rules instead of boxes, status carried by words, ink weight
-   and a small ink square, never by colour. See DESIGN.md. */
+   Loads after lilai.css and admin.css. Home's grammar: grouped lists on raised cards over
+   the grey ground, hairlines between rows, the 3px NOW rule between cards like Home's Today
+   rule. Status is carried by words, ink weight and a small ink square, never by colour.
+   See DESIGN.md. */
+
+/* A raised card: Home's event box and sidebar block. */
+.bq-explainer,
+.bq-series-list,
+.bq-group,
+.bq-stale,
+.bq-notice,
+.bq-midnight.done,
+.bd-headline,
+.bd-card {
+    border-radius: var(--radius-card);
+    background: var(--paper-raised);
+    box-shadow: var(--shadow-raised);
+}
 
 /* ---------- Page ----------
    The shell, nav rule and title come from admin.css (.admin, .admin-head), so all four
@@ -56,9 +71,8 @@
 /* ---------- First visit ---------- */
 
 .bq-explainer {
-    margin-top: var(--s5);
-    padding: var(--s4) 0 var(--s5);
-    border-top: var(--rule) solid var(--ink);
+    margin-bottom: var(--s5);
+    padding: var(--s5) var(--s4);
 }
 
 .bq-explainer h2 {
@@ -105,7 +119,7 @@
     flex-wrap: wrap;
     align-items: center;
     gap: var(--s3) var(--s5);
-    padding: 0 0 var(--s5);
+    padding: 0 0 var(--s3);
 }
 
 .bq-cta {
@@ -152,8 +166,9 @@
     align-items: center;
     justify-content: space-between;
     gap: var(--s4);
-    margin-bottom: var(--s5);
+    margin-bottom: var(--s3);
     padding: var(--s4);
+    border-radius: var(--radius-card);
     background: var(--ink);
     color: var(--paper);
 }
@@ -199,13 +214,10 @@
     color: var(--past);
 }
 
-/* Once the batch is done the banner drops to one line between two rules. */
+/* Once the batch is done the banner drops to one line on a plain card. */
 .bq-midnight.done {
-    padding: var(--s3) 0;
-    background: var(--paper);
+    padding: var(--s3) var(--s4);
     color: var(--ink);
-    border-top: var(--rule) solid var(--ink);
-    border-bottom: var(--rule) solid var(--ink);
 }
 
 .bq-midnight.done .bq-midnight-title { font-size: 15px; }
@@ -215,21 +227,19 @@
 
 /* ---------- Standing messages ---------- */
 
+/* The one card with a heavy top edge: the page itself is out of date. */
 .bq-stale {
-    margin-bottom: var(--s5);
-    padding: var(--s3) 0;
+    margin-bottom: var(--s3);
+    padding: var(--s3) var(--s4);
     border-top: 3px solid var(--ink);
-    border-bottom: var(--rule) solid var(--ink);
     font-size: var(--meta);
 }
 
 .bq-stale strong { font-weight: 600; }
 
 .bq-notice {
-    margin-bottom: var(--s5);
-    padding: var(--s3) 0;
-    border-top: var(--rule) solid var(--ink);
-    border-bottom: var(--rule) solid var(--ink);
+    margin-bottom: var(--s3);
+    padding: var(--s3) var(--s4);
     font-size: var(--meta);
     font-weight: 500;
 }
@@ -241,17 +251,14 @@
     flex-wrap: wrap;
     align-items: baseline;
     gap: var(--s1) var(--s3);
-    padding: var(--s4) 0 var(--s3);
-    border-top: var(--rule) solid var(--ink);
+    padding: var(--s5) 0 var(--s3);
 }
 
 .bq-head .section-title { font-size: 20px; letter-spacing: -0.01em; }
 
 /* ---------- Recurring schedules ---------- */
 
-.bq-series { margin-bottom: var(--s6); }
-
-.bq-series-list { display: flex; flex-direction: column; }
+.bq-series-list { display: flex; flex-direction: column; padding: 0 var(--s4); }
 
 .bq-series-card {
     display: grid;
@@ -261,7 +268,7 @@
     border-top: 1px solid var(--hair);
 }
 
-.bq-series-card:first-child { border-top: 0; padding-top: 0; }
+.bq-series-card:first-child { border-top: 0; }
 
 .bq-series-main { min-width: 0; }
 
@@ -292,11 +299,13 @@
    coming. Rows sit under hairlines so a long board stays scannable; the NOW rule is the
    one heavy line inside it. */
 
-.bq-timeline {
+.bq-timeline { font-variant-numeric: tabular-nums; }
+
+/* What went out, and what is waiting: one card each. */
+.bq-group {
     list-style: none;
     margin: 0;
-    padding: 0;
-    font-variant-numeric: tabular-nums;
+    padding: 0 var(--s4);
 }
 
 .bq-row {
@@ -307,9 +316,7 @@
     border-top: 1px solid var(--hair);
 }
 
-.bq-timeline > :first-child,
-.bq-now + .bq-row,
-.bq-now + .bq-none { border-top: 0; }
+.bq-group > :first-child { border-top: 0; }
 
 .bq-gutter { min-width: 0; }
 
@@ -389,23 +396,22 @@
 
 .bq-sending { font-weight: 700; }
 
-/* The in-flight row: a 3px ink rule above it, the same weight as the Today marker. */
+/* The in-flight row: a 3px ink rule above it, the same weight as the Today marker. At the
+   top of its card the NOW rule just above already says it. */
 .bq-inflight { border-top: 3px solid var(--ink); }
-.bq-now + .bq-inflight { border-top: 3px solid var(--ink); margin-top: var(--s2); }
 
 /* A row that just crossed the NOW rule prints in, like a new name on Home. */
 .bq-landed { animation: name-print 700ms var(--ease) both; }
 
-/* The NOW rule: Home's Today rule, verbatim. It renders even on an empty board. */
+/* The NOW rule: Home's Today rule, between the two cards. It renders even on an empty board. */
 .bq-now {
+    margin-top: var(--s5);
     padding: var(--s2) 0 var(--s3);
     border-top: 3px solid var(--ink);
     font-size: var(--meta);
     font-weight: 600;
 }
 
-.bq-timeline > .bq-now:first-child { border-top: 3px solid var(--ink); }
-.bq-now-line { display: none; }
 .bq-now-pill { font-variant-numeric: tabular-nums; }
 
 .bq-none {
@@ -448,7 +454,9 @@
     background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' fill='none' stroke='%23161616' stroke-width='1.5'%3E%3Cpath d='M6 1v10M1 6h10'/%3E%3C/svg%3E") no-repeat center / 12px;
 }
 
-/* ---------- Row actions ---------- */
+/* ---------- Row actions ----------
+   At most two show; the rest sit behind More (see moreMenu in admin-bookings.js). The line
+   hugs its actions so the menu, anchored to its right edge, opens under the More button. */
 
 .bq-actions {
     display: flex;
@@ -456,6 +464,55 @@
     align-items: center;
     gap: 0 var(--s5);
 }
+
+.bq-actions,
+.bq-series-actions {
+    position: relative;
+    width: fit-content;
+    max-width: 100%;
+}
+
+/* The dots sit on the text edge; the 44px target reaches past it. */
+.bq-more-btn { flex: none; margin: 0 -10px 0 calc(var(--s4) - var(--s5)); }
+.bq-more-btn svg { fill: var(--ink); stroke: none; }
+.bq-more-btn[aria-expanded="true"] { background: var(--wash); }
+
+.bq-menu {
+    position: absolute;
+    top: 100%;
+    right: -10px;
+    z-index: 20;
+    min-width: 200px;
+    padding: var(--s1) 0;
+    border-radius: var(--radius-control);
+    background: var(--paper-raised);
+    box-shadow: var(--shadow-float);
+}
+
+.bq-menu[hidden] { display: none; }
+
+.bq-menu-item {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    min-height: 44px;
+    padding: 0 var(--s4);
+    border: 0;
+    background: none;
+    font: inherit;
+    font-size: 15px;
+    color: var(--ink);
+    text-align: left;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.bq-menu-item:hover,
+.bq-menu-item:focus-visible { background: var(--wash); }
+.bq-menu-item:focus-visible { outline-offset: -2px; }
+
+/* Destructive by weight, never by colour: red is a calendar. */
+.bq-menu-danger { font-weight: 600; }
 
 .bq-action-link {
     display: inline-flex;
@@ -514,15 +571,30 @@
     font-variant-numeric: tabular-nums;
 }
 
+/* ---------- Phones: the when line sits above the title, so the title gets the card's width ---------- */
+
+@media (max-width: 639px) {
+    .bq-row { grid-template-columns: minmax(0, 1fr); }
+    .bq-gutter { display: flex; flex-wrap: wrap; gap: 0 var(--s2); margin-bottom: 2px; }
+    .bq-gutter-sub::before { content: "· "; }
+    .bq-aside { grid-column: 1; }
+    /* Actions sit at the card's left edge here, so the menu opens rightward from them. */
+    .bq-menu { left: 0; right: auto; }
+}
+
 /* ---------- Wide screens: a three-column board ---------- */
 
 @media (min-width: 640px) {
+    .bq-explainer { padding: var(--s5); }
+    .bq-series-list, .bq-group { padding: 0 var(--s5); }
+    .bq-stale, .bq-notice, .bq-midnight.done { padding-left: var(--s5); padding-right: var(--s5); }
+
     .bq-series-card {
         grid-template-columns: minmax(0, 1fr) auto;
         gap: var(--s5);
         align-items: center;
     }
-    .bq-series-actions { justify-content: flex-end; }
+    .bq-series-actions { justify-content: flex-end; justify-self: end; }
 }
 
 @media (min-width: 1000px) {
@@ -1171,8 +1243,7 @@ select.bs-unit { flex: none; width: 150px; max-width: none; }
 
 .bd-headline {
     margin-top: var(--s5);
-    padding: var(--s4) 0 var(--s5);
-    border-top: var(--rule) solid var(--ink);
+    padding: var(--s5) var(--s4);
 }
 
 .bd-headline h2 {
@@ -1192,8 +1263,8 @@ select.bs-unit { flex: none; width: 150px; max-width: none; }
 }
 
 .bd-card {
-    padding: var(--s4) 0 var(--s5);
-    border-top: var(--rule) solid var(--ink);
+    margin-top: var(--s3);
+    padding: var(--s5) var(--s4);
 }
 
 .bd-card-title {
@@ -1261,6 +1332,10 @@ select.bs-unit { flex: none; width: 150px; max-width: none; }
 .bd-row-value.muted { color: var(--ink-3); }
 
 .bd-main > .state-line { border-top: 0; }
+
+@media (min-width: 640px) {
+    .bd-headline, .bd-card { padding: var(--s5); }
+}
 
 @media (min-width: 1000px) {
     .bd-layout { margin-top: var(--s5); }
