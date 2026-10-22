@@ -1,10 +1,15 @@
 name: Weekly database backup
 
-# Supabase free tier has no automatic backups. This dumps the database
-# weekly and stores it as an encrypted workflow artifact (90 days).
-# The repo is public, so the dump is GPG-encrypted before upload.
+# Heroku keeps its own daily backups of the lilai-eu database, inside Heroku.
+# This is the off-site copy: a weekly dump stored as an encrypted workflow
+# artifact (90 days). The repo is public, so the dump is GPG-encrypted before upload.
+#
+# Heroku rotates Postgres credentials, so the URL is read from the Heroku API at
+# run time. HEROKU_API_KEY is a `read-protected` authorization
+# (heroku authorizations:create --scope read-protected).
+#
 # To restore: download the artifact, then
-#   gpg --decrypt --batch --passphrase "$BACKUP_PASSPHRASE" lilai-db-backup.sql.gz.gpg | gunzip | psql "$SUPABASE_DB_URL"
+#   gpg --decrypt --batch --passphrase "$BACKUP_PASSPHRASE" lilai-db-backup.sql.gz.gpg | gunzip | psql "$DATABASE_URL"
 on:
   schedule:
     - cron: '43 3 * * 1'
@@ -19,14 +24,25 @@ jobs:
           sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
           sudo apt-get install -y postgresql-client-18
 
-      - name: Dump the database
+      - name: Look up the database URL
         env:
-          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
+        run: |
+          set -o pipefail
+          url=$(curl --fail --silent --show-error \
+            -H 'Accept: application/vnd.heroku+json; version=3' \
+            -H "Authorization: Bearer $HEROKU_API_KEY" \
+            https://api.heroku.com/apps/lilai-eu/config-vars | jq -r '.DATABASE_URL // empty')
+          [ -n "$url" ] || { echo 'lilai-eu has no DATABASE_URL'; exit 1; }
+          echo "::add-mask::$url"
+          echo "DATABASE_URL=$url" >> "$GITHUB_ENV"
+
+      - name: Dump the database
         # Without pipefail, gzip's success hid every pg_dump failure: the job
         # stayed green for weeks while dumping nothing.
         run: |
           set -o pipefail
-          /usr/lib/postgresql/18/bin/pg_dump "$SUPABASE_DB_URL" \
+          /usr/lib/postgresql/18/bin/pg_dump "$DATABASE_URL" \
             --no-owner --no-acl -n public \
             | gzip > lilai-db-backup.sql.gz
 
