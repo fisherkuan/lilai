@@ -343,7 +343,7 @@ The form language has two registers.
 
 **The Event Box Rule.** Each event on Home is a lifted card (see The Lifted Card Rule), 24px padding (16px sides on phones) and 12px between cards. Sidebar blocks are the same cards. The box replaced a bare rule above each event on 2026-10-02, because users could not tell where one event ended; the 2px ink outline gave way to the lift on 2026-10-22. Only the status mark and the balance bar carry a full border.
 
-**The Hairline Rule.** Inside a section, a dense list divides its rows with a 1px line-grey hairline, and keeps the 2px ink rule for its edges: above the list, and under a table's column heads when it has them. Admin tables, the booking timeline, the booking detail table, the FAQ questions (under their 2px section header rule) and the FAQ table all work this way. A hairline never starts or ends a section. The heavier 3px ink rule marks a moment: Today on Home (between event boxes, 24px above it), NOW on the booking timeline, the row in flight, and a stale-data notice.
+**The Hairline Rule.** Inside a section, a dense list divides its rows with a 1px line-grey hairline, and keeps the 2px ink rule for its edges: above the list, and under a table's column heads when it has them. The FAQ questions (under their 2px section header rule) and the FAQ table work this way. Lists that sit on a raised card (the Recurring schedules, the booking timeline's two cards, the booking detail table) use only the hairlines: the card's own edge replaces the 2px rules. A hairline never starts or ends a section. The heavier 3px ink rule marks a moment: Today on Home (between event boxes, 24px above it), NOW on the booking timeline (between its two cards, the same way), the row in flight, and a stale-data notice.
 
 ## Components
 
@@ -356,7 +356,7 @@ Soft, sentence case, outlined or filled in ink, as in the kit. Hover swaps fills
 - **Event buttons:** inside an event the button steps down to 40px tall with 16px side padding, since every event carries one.
 - **Hover:** the fills swap. Solid turns paper with an ink label; line turns ink with a paper label. 140ms on the system ease.
 - **Disabled:** clear ground, line-grey border, ink-muted label. A full event shows a disabled "Full" button in place of Join.
-- **Text button:** 14px 500 ink with a 1px underline offset 3px, 2px on hover, 44px tall. Used for Refresh, Remove a name, Show more, Load earlier events, Cancel and Keep it.
+- **Text button:** 14px 500 ink with a 1px underline offset 3px, 2px on hover, 44px tall. Used for Refresh, Remove a name, Show more, Load earlier events, Cancel, Keep it and the visible booking row actions.
 - **Icon button:** a 44px square holding a 22px ink line SVG (1.5px, square caps), with a stone ground on hover.
 - **Focus:** every control gets a 2px focus-blue outline offset 2px.
 
@@ -383,6 +383,12 @@ Every admin page opens with the same header.
 - **Table heads:** where a booking table has column heads, they use the label style above a 2px ink rule.
 
 On FAQ and Donate the current page in the masthead is marked the same way: a 2px underline offset 3px.
+
+### Booking Queue
+
+The board uses Home's grammar. Section heads (Recurring, Timeline) are 20px titles with a 14px ink-muted count, and no rule above them. The Recurring schedules sit on one raised card. The timeline is two raised cards, what went out and then what is waiting, with the NOW rule between them; each row is divided from the next by a hairline. The first-visit explainer, the standing notices and the stale-code warning are raised cards too (the warning keeps a 3px ink top edge). The midnight banner stays an ink block, with 16px corners. On phones a row's when line ("in 2 h 59 m · today 03:49") sits above its title, so the title gets the card's full width. The booking detail page puts its headline, What happened and What we sent on raised cards under the 96px numeral.
+
+**The Fixed Places Rule.** Every booking action has one place, whatever else the row carries, so the same button never moves between rows. Visible: Edit (waiting slots and schedules), Details (every past row), Undo with its time left (a cancelled slot), Undo all (a schedule inside its window). Behind a More button: Duplicate, Cancel, Report failure and Cancel the remaining N. A row with nothing behind More (a cancelled slot) shows no More button. Counting actions instead ("collapse past two") put Duplicate in view on some rows and behind More on the next (owner, 2026-10-23). The More button is a 44px icon button with three dots; it opens a menu of 44px items on paper-raised with `--shadow-float` and 12px corners. A destructive item is set in 600, never in a colour. An item that asks first (Cancel, Report failure) asks in the row, exactly as a visible link would. The menu closes on a click outside it and on Escape, which returns focus to the More button. A redraw keeps an open menu open.
 
 ### Status Marks
 A booking's status is a word first. A 10px square with a 2px ink contour sits beside the word so a column of them can be scanned.
