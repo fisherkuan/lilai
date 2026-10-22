@@ -87,7 +87,6 @@
                 <option value="future" selected>Future Events</option>
                 <option value="all">All Events</option>
             </select>
-            <button type="button" class="text-btn" id="refresh-events-btn">Refresh</button>
         </div>
         <div class="calendar-filter-container legend" role="group" aria-label="Show calendars"></div>
 
@@ -111,6 +110,10 @@
         </section>
     </aside>
 </main>
+
+<button type="button" class="to-top" id="to-top-btn" aria-label="Back to top" title="Back to top">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+</button>
 
 <!-- RSVP sheet -->
 <div id="rsvp-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="modal-event-title">
@@ -166,6 +169,7 @@
 <script src="/js/theme.js"></script>
 
 <script src="/js/date-rail.js"></script>
+<script src="/js/pull-to-refresh.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

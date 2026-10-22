@@ -5,22 +5,6 @@ let donationData = {
     donations: []
 };
 
-// Debounce function
-function debounce(func, wait, immediate) {
-    var timeout;
-    return function() {
-        var context = this, args = arguments;
-        var later = function() {
-            timeout = null;
-            if (!immediate) func.apply(context, args);
-        };
-        var callNow = immediate && !timeout;
-        clearTimeout(timeout);
-        timeout = setTimeout(later, wait);
-        if (callNow) func.apply(context, args);
-    };
-}
-
 const BALANCE_BAR_MIN_RANGE = 100; // smallest half-width of the bar, in euros
 
 // Round up to the next 1/2/5 × 10ⁿ so the axis labels stay round numbers.
@@ -43,15 +27,8 @@ function balanceBarRange(balance) {
 document.addEventListener('DOMContentLoaded', () => {
     loadDonations();
     loadTransferDetails();
-    setupRefreshButton();
+    if (typeof PullToRefresh !== 'undefined') PullToRefresh.attach(loadDonations);
 });
-
-function setupRefreshButton() {
-    const refreshBtn = document.getElementById('refresh-donations-btn');
-    if (refreshBtn) {
-        refreshBtn.addEventListener('click', debounce(loadDonations, 250));
-    }
-}
 
 async function loadDonations() {
     try {

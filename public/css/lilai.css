@@ -349,7 +349,7 @@ button { font: inherit; color: inherit; }
 /* Rows view: the agenda under the rail replaces the cards. */
 .home.is-rows .events-section { display: none; }
 
-/* About seven days across a phone, the eighth cut off to show the row scrolls.
+/* About six and a half days across a phone, the last cut off to show the row scrolls.
    It bleeds to the screen edge and snaps gently to a day. */
 .rail {
     --gap: 4px;
@@ -366,7 +366,7 @@ button { font: inherit; color: inherit; }
 .rail::-webkit-scrollbar { display: none; }
 
 .rail-day {
-    flex: 1 0 max(44px, calc((100% - 6 * var(--gap)) / 7.3));
+    flex: 1 0 max(48px, calc((100% - 6 * var(--gap)) / 6.6));
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -394,17 +394,18 @@ button { font: inherit; color: inherit; }
 .rail-day[aria-pressed="true"] { background: var(--rail-sel); color: var(--on-rail-sel); }
 .rail-day[aria-pressed="true"] .rail-dow { color: var(--on-rail-sel); }
 
-/* One mark per event: its emoji, else its calendar's shape. One or two marks read at 16px;
-   three, or two and "+N", step down to 13px so they sit abreast in a 44px day. */
-.rail-marks { display: flex; align-items: center; justify-content: center; gap: 1px; max-width: 100%; height: 22px; margin-top: 2px; overflow-x: clip; }
-.rail-mark { display: grid; place-items: center; width: 18px; height: 22px; }
-.rail-mark .band-emoji { font-size: 16px; line-height: 22px; }
+/* One mark per event: its emoji, else its calendar's shape. An emoji glyph is wider than its
+   font size (about 1.2em on iOS), so each box is sized to the glyph, never clipped. One or two
+   marks read at 16px; three, or two and "+N", step down to 12px to sit abreast in a 48px day. */
+.rail-marks { display: flex; align-items: center; justify-content: center; gap: 1px; height: 22px; margin-top: 2px; }
+.rail-mark { display: grid; place-items: center; flex: none; width: 20px; height: 22px; }
+.rail-mark .band-emoji { font-size: 16px; line-height: 1; }
 .rail-mark .shape { width: 10px; height: 10px; }
 .rail-marks:has(> :nth-child(3)) { gap: 0; }
-.rail-marks:has(> :nth-child(3)) .rail-mark { width: 14px; }
-.rail-marks:has(> :nth-child(3)) .band-emoji { font-size: 13px; }
+.rail-marks:has(> :nth-child(3)) .rail-mark { width: 15px; }
+.rail-marks:has(> :nth-child(3)) .band-emoji { font-size: 12px; }
 .rail-marks:has(> :nth-child(3)) .shape { width: 8px; height: 8px; }
-.rail-more { font-size: 10px; line-height: 22px; font-weight: 700; letter-spacing: -0.02em; padding-left: 1px; }
+.rail-more { flex: none; font-size: 10px; line-height: 22px; font-weight: 700; letter-spacing: -0.02em; padding-left: 1px; }
 
 /* At a month change, the new month's short name stands between the days. */
 .rail-month {
@@ -422,7 +423,7 @@ button { font: inherit; color: inherit; }
 }
 
 @media (min-width: 640px) {
-    .rail-day { flex-basis: max(44px, calc((100% - 13 * var(--gap)) / 14)); }
+    .rail-day { flex-basis: max(48px, calc((100% - 13 * var(--gap)) / 14)); }
 }
 
 /* ---------- The selected day's agenda ---------- */
@@ -446,6 +447,7 @@ button { font: inherit; color: inherit; }
     gap: 0 var(--s3);
     min-height: 48px;
     padding: var(--s2) 0;
+    cursor: pointer;
 }
 
 .agenda-row .agenda-bar { align-self: stretch; }
@@ -461,10 +463,67 @@ button { font: inherit; color: inherit; }
 
 .agenda-time { font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums; }
 .agenda-bar { border-radius: 2px; background: var(--rail-accent); }
-.agenda-main { display: flex; flex-direction: column; min-width: 0; }
+.agenda-main {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+.agenda-main:focus-visible { outline: var(--stroke-2) solid var(--focus); outline-offset: 2px; border-radius: 4px; }
+/* A tapped row opens under its title: the way to its card. */
+.agenda-reveal { grid-column: 3 / -1; }
+.agenda-reveal[hidden] { display: none; }
+.agenda-to-card { min-height: 40px; }
 .agenda-name { font-size: 15px; font-weight: 600; line-height: 1.35; overflow-wrap: anywhere; }
 .agenda-meta { font-size: 13px; color: var(--ink-2); overflow-wrap: anywhere; }
 .agenda-empty { padding: var(--s2) 0; font-size: var(--meta); color: var(--ink-2); }
+
+/* ---------- Back to top (Cards view) ---------- */
+
+.to-top {
+    position: fixed;
+    right: max(var(--gutter), env(safe-area-inset-right));
+    bottom: max(var(--s5), env(safe-area-inset-bottom));
+    z-index: 40;
+    display: grid;
+    place-items: center;
+    width: 48px;
+    height: 48px;
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius-full);
+    background: var(--paper-raised);
+    color: var(--ink);
+    box-shadow: var(--shadow-raised);
+    cursor: pointer;
+}
+.to-top svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2px; stroke-linecap: round; stroke-linejoin: round; }
+@media (hover: hover) { .to-top:hover { background: var(--stone); } }
+.to-top:focus-visible { outline: var(--stroke-2) solid var(--focus); outline-offset: 2px; }
+.home.is-rows ~ .to-top { display: none; }
+
+/* ---------- Pull to refresh ---------- */
+
+/* Sits behind the page in the gap a pull opens; js/pull-to-refresh.js fills in the spokes. */
+.ptr {
+    position: fixed;
+    inset: max(var(--s4), env(safe-area-inset-top)) 0 auto;
+    z-index: 1;
+    display: flex;
+    justify-content: center;
+    pointer-events: none;
+    color: var(--ink-2);
+}
+.ptr line { stroke: currentColor; stroke-width: 2.5; stroke-linecap: round; }
+/* The iOS activity spinner: eight spokes that tick round rather than glide. */
+.ptr-spinner.is-spinning svg { animation: ptr-spokes 800ms steps(8) infinite; }
+@keyframes ptr-spokes { to { transform: rotate(360deg); } }
 
 /* ---------- List controls ---------- */
 
