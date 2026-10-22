@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const compression = require('compression');
 const bodyParser = require('body-parser');
 const path = require('path');
 const fs = require('fs');
@@ -57,6 +58,8 @@ for (const method of ['get', 'post', 'put', 'delete']) {
 const PORT = process.env.PORT || 3000;
 
 // Middleware
+// gzip: the band's events JSON and app.js shrink about 5x, which is most of their transfer time.
+app.use(compression());
 app.use(cors());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
@@ -66,12 +69,11 @@ app.use(express.static(path.join(__dirname, '../public')));
 
 const isProduction = process.env.NODE_ENV === 'production';
 
-// Calendar cache to reduce external API calls
+// When the calendar feed was last pulled into the DB, to reduce external API calls
 let calendarCache = {
-    events: [],
-    lastFetch: 0
+    lastFetch: 0,
+    refreshing: null // the in-flight refresh, so concurrent requests start only one
 };
-let lastSyncedFetch = 0; // calendarCache.lastFetch generation already synced to the DB
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
 // Database connection
@@ -344,17 +346,23 @@ async function initializeDatabase() {
     }
 }
 
-// Function to fetch events from Google Calendar with caching
-async function getCachedCalendarEvents() {
-    const now = Date.now();
-    if (now - calendarCache.lastFetch > CACHE_TTL) {
-        calendarCache.events = await fetchCalendarEvents();
-        calendarCache.lastFetch = now;
-        console.log('Calendar events fetched from Google Calendar');
-    } else {
-        console.log('Using cached calendar events');
-    }
-    return calendarCache.events;
+// Pull the calendar feed into the DB. One refresh at a time; it never throws, because
+// nobody awaits it. The attempt time counts as the fetch time, so a failing feed is
+// retried once per TTL rather than on every request.
+function refreshCalendar() {
+    if (calendarCache.refreshing) return calendarCache.refreshing;
+    calendarCache.lastFetch = Date.now();
+    calendarCache.refreshing = (async () => {
+        try {
+            await syncCalendarToDb(await fetchCalendarEvents());
+            console.log('Calendar events fetched from Google Calendar');
+        } catch (error) {
+            console.error('Calendar refresh failed:', error);
+        } finally {
+            calendarCache.refreshing = null;
+        }
+    })();
+    return calendarCache.refreshing;
 }
 
 // Function to fetch events from Google Calendar
@@ -506,108 +514,114 @@ app.get('/api/donation-qr.svg', async (req, res) => {
     }
 });
 
+// Write one calendar snapshot to the DB: upsert every event, delete the ones the feed dropped.
+async function syncCalendarToDb(calendarEvents) {
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+
+        // Sync calendar events
+        if (calendarEvents.length > 0) {
+            // Fetch existing events for comparison
+            const existingEventsResult = await client.query('SELECT id, attendance_limit FROM events');
+            const existingEventsMap = new Map(existingEventsResult.rows.map(row => [row.id, row]));
+
+            // Dedupe by id (last wins, like the per-row upserts did) — a
+            // repeated id in one multi-row INSERT is a Postgres error.
+            const rowsById = new Map();
+            for (const event of calendarEvents) {
+                let finalAttendanceLimit;
+                const existingEvent = existingEventsMap.get(event.id);
+
+                if (event.attendance_limit_from_description !== undefined) {
+                    // Limit was explicitly specified in the description (a number)
+                    finalAttendanceLimit = event.attendance_limit_from_description;
+                } else if (existingEvent) {
+                    // Preserve existing limit if event already exists
+                    finalAttendanceLimit = existingEvent.attendance_limit;
+                } else {
+                    // New event, no limit in description, so default to null (unlimited)
+                    finalAttendanceLimit = null;
+                }
+
+                rowsById.set(event.id, [event.id, event.title, event.date, event.endDate, event.description, event.location, event.source, finalAttendanceLimit]);
+            }
+
+            // One multi-row upsert — per-row statements cost a network
+            // round trip each, which is fatal when the DB isn't local.
+            const upsertParams = [];
+            const placeholders = [];
+            for (const row of rowsById.values()) {
+                const base = upsertParams.length;
+                placeholders.push(`($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6}, $${base + 7}, $${base + 8})`);
+                upsertParams.push(...row);
+            }
+            await client.query(
+                `INSERT INTO events (id, title, date, endDate, description, location, source, attendance_limit)
+                 VALUES ${placeholders.join(', ')}
+                 ON CONFLICT (id) DO UPDATE SET
+                    title = EXCLUDED.title,
+                    date = EXCLUDED.date,
+                    endDate = EXCLUDED.endDate,
+                    description = EXCLUDED.description,
+                    location = EXCLUDED.location,
+                    source = EXCLUDED.source,
+                    attendance_limit = EXCLUDED.attendance_limit`,
+                upsertParams
+            );
+        }
+
+        // Remove deleted calendar events
+        const dbEventsResult = await client.query('SELECT id, source FROM events WHERE source IS NOT NULL');
+        const dbEventsBySource = dbEventsResult.rows.reduce((acc, row) => {
+            if (!acc[row.source]) {
+                acc[row.source] = new Set();
+            }
+            acc[row.source].add(row.id);
+            return acc;
+        }, {});
+
+        const calendarEventsBySource = calendarEvents.reduce((acc, event) => {
+            if (!acc[event.source]) {
+                acc[event.source] = new Set();
+            }
+            acc[event.source].add(event.id);
+            return acc;
+        }, {});
+
+        let staleEventIds = [];
+        for (const source in dbEventsBySource) {
+            const dbIds = dbEventsBySource[source];
+            const calendarIds = calendarEventsBySource[source] || new Set();
+            const staleIds = [...dbIds].filter(id => !calendarIds.has(id));
+            staleEventIds.push(...staleIds);
+        }
+
+        if (staleEventIds.length > 0) {
+            await client.query(`DELETE FROM events WHERE id = ANY($1::varchar[])`, [staleEventIds]);
+        }
+
+        await client.query('COMMIT');
+    } catch (error) {
+        // Without ROLLBACK the released connection poisons the pool.
+        try { await client.query('ROLLBACK'); } catch (rollbackError) { /* connection gone */ }
+        throw error;
+    } finally {
+        client.release();
+    }
+}
+
 // Get all events
 app.get('/api/events', async (req, res) => {
     const client = await pool.connect();
     try {
         const timeRange = req.query.timeRange || appConfig.events.defaultTimeRange;
 
-        // Sync at most once per calendar refresh — within the cache TTL the DB
-        // already reflects the feed, so those requests skip the write path.
-        // "Stale cache" must enter too: getCachedCalendarEvents() is what
-        // refreshes the cache in the first place.
-        const cacheIsStale = Date.now() - calendarCache.lastFetch > CACHE_TTL;
-        if (appConfig.events.autoFetch && (cacheIsStale || calendarCache.lastFetch !== lastSyncedFetch)) {
-            const calendarEvents = await getCachedCalendarEvents();
-            // Snapshot the generation this request is about to write; a
-            // concurrent refresh mid-sync must not be marked synced by us.
-            const syncedGeneration = calendarCache.lastFetch;
-
-            await client.query('BEGIN');
-
-            // Sync calendar events
-            if (calendarEvents.length > 0) {
-                // Fetch existing events for comparison
-                const existingEventsResult = await client.query('SELECT id, attendance_limit FROM events');
-                const existingEventsMap = new Map(existingEventsResult.rows.map(row => [row.id, row]));
-
-                // Dedupe by id (last wins, like the per-row upserts did) — a
-                // repeated id in one multi-row INSERT is a Postgres error.
-                const rowsById = new Map();
-                for (const event of calendarEvents) {
-                    let finalAttendanceLimit;
-                    const existingEvent = existingEventsMap.get(event.id);
-
-                    if (event.attendance_limit_from_description !== undefined) {
-                        // Limit was explicitly specified in the description (a number)
-                        finalAttendanceLimit = event.attendance_limit_from_description;
-                    } else if (existingEvent) {
-                        // Preserve existing limit if event already exists
-                        finalAttendanceLimit = existingEvent.attendance_limit;
-                    } else {
-                        // New event, no limit in description, so default to null (unlimited)
-                        finalAttendanceLimit = null;
-                    }
-
-                    rowsById.set(event.id, [event.id, event.title, event.date, event.endDate, event.description, event.location, event.source, finalAttendanceLimit]);
-                }
-
-                // One multi-row upsert — per-row statements cost a network
-                // round trip each, which is fatal when the DB isn't local.
-                const upsertParams = [];
-                const placeholders = [];
-                for (const row of rowsById.values()) {
-                    const base = upsertParams.length;
-                    placeholders.push(`($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6}, $${base + 7}, $${base + 8})`);
-                    upsertParams.push(...row);
-                }
-                await client.query(
-                    `INSERT INTO events (id, title, date, endDate, description, location, source, attendance_limit)
-                     VALUES ${placeholders.join(', ')}
-                     ON CONFLICT (id) DO UPDATE SET
-                        title = EXCLUDED.title,
-                        date = EXCLUDED.date,
-                        endDate = EXCLUDED.endDate,
-                        description = EXCLUDED.description,
-                        location = EXCLUDED.location,
-                        source = EXCLUDED.source,
-                        attendance_limit = EXCLUDED.attendance_limit`,
-                    upsertParams
-                );
-            }
-
-            // Remove deleted calendar events
-            const dbEventsResult = await client.query('SELECT id, source FROM events WHERE source IS NOT NULL');
-            const dbEventsBySource = dbEventsResult.rows.reduce((acc, row) => {
-                if (!acc[row.source]) {
-                    acc[row.source] = new Set();
-                }
-                acc[row.source].add(row.id);
-                return acc;
-            }, {});
-
-            const calendarEventsBySource = calendarEvents.reduce((acc, event) => {
-                if (!acc[event.source]) {
-                    acc[event.source] = new Set();
-                }
-                acc[event.source].add(event.id);
-                return acc;
-            }, {});
-
-            let staleEventIds = [];
-            for (const source in dbEventsBySource) {
-                const dbIds = dbEventsBySource[source];
-                const calendarIds = calendarEventsBySource[source] || new Set();
-                const staleIds = [...dbIds].filter(id => !calendarIds.has(id));
-                staleEventIds.push(...staleIds);
-            }
-
-            if (staleEventIds.length > 0) {
-                await client.query(`DELETE FROM events WHERE id = ANY($1::varchar[])`, [staleEventIds]);
-            }
-
-            await client.query('COMMIT');
-            lastSyncedFetch = syncedGeneration;
+        // Serve what the DB holds and refresh the calendar behind the request:
+        // a visitor never waits for Google. The DB lags the feed by at most one
+        // refresh, the same five minutes the cache already allowed.
+        if (appConfig.events.autoFetch && Date.now() - calendarCache.lastFetch > CACHE_TTL) {
+            refreshCalendar();
         }
 
         // Paginated past-events mode: ?before=<ISO>&limit=N
@@ -620,6 +634,13 @@ app.get('/api/events', async (req, res) => {
                 beforeCursor = d;
             }
         }
+
+        // Window mode: ?from=<ISO>&to=<ISO> returns events starting in [from, to).
+        // The 14-day band uses it, so it no longer downloads every past event.
+        const fromDate = new Date(req.query.from);
+        const toDate = new Date(req.query.to);
+        const windowed = req.query.from && req.query.to
+            && !isNaN(fromDate.getTime()) && !isNaN(toDate.getTime());
 
         const parsedLimit = parseInt(req.query.limit, 10);
         const limit = (Number.isFinite(parsedLimit) && parsedLimit > 0)
@@ -639,6 +660,9 @@ app.get('/api/events', async (req, res) => {
                 params.push(limit);
                 limitClause = `LIMIT $${params.length}`;
             }
+        } else if (windowed) {
+            params.push(fromDate.toISOString(), toDate.toISOString());
+            whereClause = 'WHERE e.date >= $1 AND e.date < $2';
         } else {
             switch (timeRange) {
                 case 'future':
@@ -686,9 +710,6 @@ app.get('/api/events', async (req, res) => {
 
         res.json(eventsWithAttendance);
     } catch (error) {
-        // A failed sync leaves the transaction open; without ROLLBACK the
-        // released connection poisons the pool for every later request.
-        try { await client.query('ROLLBACK'); } catch (rollbackError) { /* connection gone */ }
         console.error('Error fetching events:', error);
         res.status(500).json({ error: 'Failed to fetch events' });
     } finally {
@@ -2322,6 +2343,8 @@ initializeDatabase().then(() => {
         console.log(`🚀 Event Attendance App server running on http://localhost:${PORT}`);
         console.log('🎉 Ready to accept RSVPs!');
     });
+    // Pull the feed now, so the first visitor after a restart is not the one who triggers it.
+    if (appConfig.events.autoFetch) refreshCalendar();
     if (bookingScheduler) {
         bookingScheduler.start().catch((error) => {
             console.error('Booking scheduler failed to start:', error.message);
