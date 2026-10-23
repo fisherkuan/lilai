@@ -18,13 +18,17 @@ function makeHarness({ search = '', stored = null } = {}) {
     const navs = [{ name: 'header', children: [] }, { name: 'menu', children: [] }];
     navs.forEach(nav => {
         nav.querySelector = sel => nav.children.find(c => sel === '[data-admin-link]' && c.dataset.adminLink) || null;
-        nav.appendChild = el => nav.children.push(el);
+        nav.appendChild = el => {
+            el.remove = () => nav.children.splice(nav.children.indexOf(el), 1);
+            nav.children.push(el);
+        };
     });
 
     const store = new Map();
     if (stored !== null) store.set('lilaiOrganizer', stored);
 
-    const manifest = { href: 'manifest.json', setAttribute(k, v) { this[k] = v; } };
+    const heading = { listeners: [], addEventListener(type, fn) { if (type === 'click') this.listeners.push(fn); } };
+    let now = 1_000_000;
     const replaced = [];
     const context = {
         console,
@@ -35,17 +39,23 @@ function makeHarness({ search = '', stored = null } = {}) {
             removeItem: k => store.delete(k)
         },
         window: { location: { search, pathname: '/index.html' } },
+        Date: { now: () => now },
         history: { replaceState: (a, b, url) => replaced.push(url) },
         document: {
             querySelectorAll: () => navs,
-            querySelector: sel => (sel === 'link[rel="manifest"]' ? manifest : null),
+            getElementById: id => (id === 'rail-title' ? heading : null),
             createElement: () => ({ dataset: {}, href: '', textContent: '' })
         }
     };
     context.navs = navs;
     context.store = store;
     context.replaced = replaced;
-    context.manifest = manifest;
+    context.tap = (times, gapMs = 100) => {
+        for (let i = 0; i < times; i++) {
+            now += gapMs;
+            heading.listeners.forEach(fn => fn());
+        }
+    };
     return context;
 }
 
@@ -85,21 +95,31 @@ test('a remembered device keeps the link on later plain visits', () => {
     assert.strictEqual(links.length, 2);
 });
 
-test('a remembered device installs a home-screen app that starts with the switch', () => {
-    const ctx = makeHarness({ stored: '1' });
-    runSetup(ctx);
-    assert.strictEqual(ctx.manifest.href, '/manifest-organizer.json');
-    const organizer = JSON.parse(fs.readFileSync(path.join(PUBLIC_DIR, 'manifest-organizer.json'), 'utf8'));
-    const plain = JSON.parse(fs.readFileSync(path.join(PUBLIC_DIR, 'manifest.json'), 'utf8'));
-    assert.strictEqual(organizer.start_url, '/index.html?admin=1');
-    // Same id, so it is the same app to the OS, not a second Lilai.
-    assert.strictEqual(organizer.id, plain.id);
-});
-
-test('a fresh device keeps the plain manifest', () => {
+test('five quick taps on the heading turn the device into an organizer', () => {
+    // The home-screen app has its own storage and no address bar, so this is its way in.
     const ctx = makeHarness();
     runSetup(ctx);
-    assert.strictEqual(ctx.manifest.href, 'manifest.json');
+    ctx.tap(5);
+    assert.strictEqual(ctx.navs.flatMap(nav => nav.children).length, 2);
+    assert.strictEqual(ctx.store.get('lilaiOrganizer'), '1');
+});
+
+test('five more taps forget the device and remove the link', () => {
+    const ctx = makeHarness({ stored: '1' });
+    runSetup(ctx);
+    ctx.tap(5);
+    assert.deepStrictEqual(ctx.navs.flatMap(nav => nav.children), []);
+    assert.strictEqual(ctx.store.has('lilaiOrganizer'), false);
+});
+
+test('slow or too few taps change nothing', () => {
+    for (const [times, gapMs] of [[4, 100], [8, 1000]]) {
+        const ctx = makeHarness();
+        runSetup(ctx);
+        ctx.tap(times, gapMs);
+        assert.deepStrictEqual(ctx.navs.flatMap(nav => nav.children), [], `${times} taps ${gapMs}ms apart`);
+        assert.strictEqual(ctx.store.has('lilaiOrganizer'), false);
+    }
 });
 
 test('?admin=0 forgets the device and hides the link again', () => {

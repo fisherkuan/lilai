@@ -594,17 +594,17 @@ function setupFilterPills() {
  * per browser, and it survives nothing you did not do yourself.
  *
  * A home-screen app is a separate browser as far as storage goes: iOS gives it its own
- * localStorage and starts it at the manifest's start_url, so the flag set in Safari does not
- * follow it and there is no address bar to type ?admin=1 into. So a remembered device points
- * the page at manifest-organizer.json, whose start_url carries the switch, and the app it adds
- * tells itself on every launch. Add to Home Screen after the Admin link has appeared.
+ * localStorage, so the flag set in Safari does not follow it, and there is no address bar to
+ * type ?admin=1 into. For that, five quick taps on the "Upcoming" heading flip the flag in
+ * whatever browser the page is running in, the installed app included. Five more flip it back.
  *
  * Anyone who reads this file learns the path. That is the accepted cost, and it is the same
  * audience that would have typed /admin anyway.
  */
 const ADMIN_HOME = '/admin/events';
 const ADMIN_FLAG_KEY = 'lilaiOrganizer';
-const ORGANIZER_MANIFEST = '/manifest-organizer.json';
+const ORGANIZER_TAPS = 5;
+const ORGANIZER_TAP_WINDOW_MS = 3000;
 
 function isRememberedOrganizer() {
     try {
@@ -634,18 +634,39 @@ function setupAdminLink() {
         history.replaceState(null, '', window.location.pathname + (query ? `?${query}` : ''));
     }
 
-    if (!isRememberedOrganizer()) return;
+    showAdminLink(isRememberedOrganizer());
+    listenForOrganizerTaps();
+}
 
-    const manifest = document.querySelector('link[rel="manifest"]');
-    if (manifest) manifest.setAttribute('href', ORGANIZER_MANIFEST);
-
+function showAdminLink(on) {
     document.querySelectorAll('.app-header-links').forEach(nav => {
-        if (nav.querySelector('[data-admin-link]')) return;
+        const existing = nav.querySelector('[data-admin-link]');
+        if (!on) {
+            if (existing) existing.remove();
+            return;
+        }
+        if (existing) return;
         const link = document.createElement('a');
         link.href = ADMIN_HOME;
         link.textContent = 'Admin';
         link.dataset.adminLink = 'true';
         nav.appendChild(link);
+    });
+}
+
+function listenForOrganizerTaps() {
+    const heading = document.getElementById('rail-title');
+    if (!heading) return;
+    let taps = [];
+    heading.addEventListener('click', () => {
+        const now = Date.now();
+        taps = taps.filter(t => now - t < ORGANIZER_TAP_WINDOW_MS);
+        taps.push(now);
+        if (taps.length < ORGANIZER_TAPS) return;
+        taps = [];
+        const on = !isRememberedOrganizer();
+        rememberOrganizer(on);
+        showAdminLink(on);
     });
 }
 
