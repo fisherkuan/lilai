@@ -329,6 +329,8 @@ button { font: inherit; color: inherit; }
 }
 
 .rail-title { font-size: 22px; font-weight: 600; letter-spacing: -0.01em; }
+/* The organizer switch is five quick taps here: no double-tap zoom, no text selection. */
+.rail-title { touch-action: manipulation; -webkit-user-select: none; user-select: none; }
 .rail-range { font-size: var(--meta); color: var(--ink-2); font-variant-numeric: tabular-nums; }
 .rail-head .view-switch { margin-left: auto; }
 /* Under 360px the range drops below the title, so the switch keeps the title's line. */
