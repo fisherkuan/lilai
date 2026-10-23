@@ -642,7 +642,7 @@
     flex-direction: column;
     width: 100%;
     max-width: 560px;
-    max-height: 92vh;
+    max-height: 92%;
     overflow: hidden;
     background: var(--paper-raised);
     border-radius: var(--radius-sheet) var(--radius-sheet) 0 0;
@@ -650,7 +650,25 @@
     animation: sheet-in var(--duration-sheet) var(--ease-sheet);
 }
 
-.bs-handle { display: none; }
+/* The grabber js/sheet.js adds: a row of its own above the header, on phones only. */
+.bs-sheet > .sheet-grip {
+    position: relative;
+    flex: none;
+    height: 20px;
+    margin: 0;
+}
+
+.bs-body { overscroll-behavior: contain; }
+
+@media (max-width: 639px) {
+    .bs-root {
+        bottom: auto;
+        top: var(--vv-top, 0);
+        height: var(--vv-h, 100%);
+    }
+
+    .bs-mode, .bs-head { touch-action: none; }
+}
 
 /* Mode line: fixed while the steps advance, because the title becomes the booking's own
    name from step 2 and can no longer say whether this is a new slot or an edit. */
@@ -1095,6 +1113,7 @@ select.bs-unit { flex: none; width: 150px; max-width: none; }
 
 @media (min-width: 640px) {
     .bs-root { align-items: stretch; justify-content: flex-end; }
+    .bs-sheet > .sheet-grip { display: none; }
     .bs-sheet { max-width: 520px; max-height: none; border-radius: var(--radius-sheet) 0 0 var(--radius-sheet); animation-name: drawer-in; }
     .bs-mode, .bs-head, .bs-footer { padding-left: var(--s5); padding-right: var(--s5); }
     .bs-body { padding-left: var(--s5); padding-right: var(--s5); }

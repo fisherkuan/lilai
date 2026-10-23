@@ -239,9 +239,6 @@
         const watch = new MutationObserver(() => {
             if (layer.isConnected) return;
             watch.disconnect();
-            // The manager releases the page scroll on its way out, but this sheet is still
-            // open behind it and still owns it.
-            if (root) document.body.style.overflow = 'hidden';
             if (draft.profileId && !window.bookingPeople.byId(draft.profileId)) {
                 draft.profileId = null;
                 draft.name = '';
@@ -938,7 +935,6 @@
         if (!root) return;
         root.remove();
         root = null;
-        document.body.style.overflow = '';
     }
 
     async function loadReference() {
@@ -1055,7 +1051,6 @@
         root = h('div', { class: 'bs-root' }, [
             h('div', { class: 'bs-backdrop', onclick: close }),
             h('section', { class: 'bs-sheet', role: 'dialog', 'aria-modal': 'true', 'aria-label': sheetTitle() }, [
-                h('div', { class: 'bs-handle' }),
                 // A new slot needs no strip: its title already says "Queue a slot". Only an
                 // edit or a copy, whose title becomes the booking's name, keeps one.
                 draft.mode === 'create' ? null : h('div', { class: `bs-mode bs-mode-${draft.mode}` }, [
@@ -1077,7 +1072,6 @@
         ]);
 
         document.body.append(root);
-        document.body.style.overflow = 'hidden';
         renderStep();
         loadReference();
     }

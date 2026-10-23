@@ -59,7 +59,7 @@
         function start(e) {
             if (busy || e.touches.length !== 1 || window.scrollY > 0) return;
             if (e.target.closest && e.target.closest('[role="dialog"]')) return;
-            if (document.querySelector('.modal:not(.hidden)')) return;
+            if (document.querySelector('.modal:not(.hidden), .bs-root')) return;
             state = 'maybe';
             x0 = e.touches[0].clientX;
             y0 = e.touches[0].clientY;

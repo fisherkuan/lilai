@@ -1,4 +1,4 @@
-const CACHE_NAME = 'lilai-cache-v49'; // Bumped version
+const CACHE_NAME = 'lilai-cache-v50'; // Bumped version
 const urlsToCache = [
   '/',
   '/index.html',
@@ -12,6 +12,7 @@ const urlsToCache = [
   '/app.js',
   '/js/theme.js',
   '/js/feedback.js',
+  '/js/sheet.js',
   '/js/date-rail.js',
   '/js/pull-to-refresh.js',
   '/manifest.json',

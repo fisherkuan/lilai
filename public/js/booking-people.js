@@ -87,7 +87,6 @@
             const layer = h('div', { class: 'bs-root bp-layer' }, [
                 h('div', { class: 'bs-backdrop', onclick: () => done(null) }),
                 h('section', { class: 'bs-sheet bp-sheet', role: 'dialog', 'aria-modal': 'true' }, [
-                    h('div', { class: 'bs-handle' }),
                     h('header', { class: 'bs-head' }, [
                         h('div', {}, [
                             h('div', { class: 'bs-title', text: existing ? 'Edit this person' : 'Add a person' }),
@@ -268,7 +267,6 @@
         if (!root) return;
         root.remove();
         root = null;
-        document.body.style.overflow = '';
     }
 
     async function openManager() {
@@ -276,7 +274,6 @@
         root = h('div', { class: 'bs-root' }, [
             h('div', { class: 'bs-backdrop', onclick: closeManager }),
             h('section', { class: 'bs-sheet', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'People' }, [
-                h('div', { class: 'bs-handle' }),
                 h('header', { class: 'bs-head' }, [
                     h('div', {}, [
                         h('div', { class: 'bs-title', text: 'People' }),
@@ -291,7 +288,6 @@
             ])
         ]);
         document.body.append(root);
-        document.body.style.overflow = 'hidden';
         renderManager();
         await load();
         if (root) renderManager();
