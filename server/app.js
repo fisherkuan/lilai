@@ -90,6 +90,16 @@ const pool = new Pool({
     ssl: isProduction ? { rejectUnauthorized: false } : false
 });
 
+/*
+ * Heroku Postgres closes idle connections now and then (maintenance, failover, a credential
+ * rotation). pg reports that as an 'error' event on the pool, and an 'error' event nobody
+ * listens to ends the process: one dropped idle connection took the whole app down. The pool
+ * has already discarded the dead client and opens a fresh one on the next query.
+ */
+pool.on('error', (error) => {
+    console.error('Idle database connection dropped:', error.message);
+});
+
 // Read once at startup: an invalid IBAN stops the server rather than reaching a donor.
 const bankDetails = readBankDetails();
 
@@ -159,6 +169,11 @@ wss.on('connection', ws => {
     console.log('Client connected');
     ws.isAlive = true;
     ws.on('pong', () => { ws.isAlive = true; });
+    // A malformed frame is an 'error' on this socket; unheard, it ends the process. ws closes
+    // the connection itself, so logging is all that is left to do.
+    ws.on('error', (error) => {
+        console.error('WebSocket client error:', error.message);
+    });
     ws.on('close', () => {
         console.log('Client disconnected');
     });
@@ -2379,7 +2394,28 @@ const bookingScheduler = bookingConfigError ? null : createScheduler({
     toBoardEntry
 });
 
-initializeDatabase().then(() => {
+/*
+ * The database can be unreachable for a moment while the dyno boots. A rejection here used to
+ * crash the process, and Heroku backs off further after each crash, so the app stayed down
+ * until someone restarted it. Wait and try again; give up loudly after about a minute.
+ */
+const DB_CONNECT_ATTEMPTS = 6;
+
+async function initializeDatabaseWithRetry() {
+    for (let attempt = 1; ; attempt++) {
+        try {
+            await initializeDatabase();
+            return;
+        } catch (error) {
+            if (attempt >= DB_CONNECT_ATTEMPTS) throw error;
+            const waitMs = Math.min(2000 * 2 ** (attempt - 1), 20000);
+            console.error(`Database not ready (attempt ${attempt}/${DB_CONNECT_ATTEMPTS}): ${error.message}. Retrying in ${waitMs / 1000}s`);
+            await new Promise(resolve => setTimeout(resolve, waitMs));
+        }
+    }
+}
+
+initializeDatabaseWithRetry().then(() => {
     server.listen(PORT, () => {
         console.log(`🚀 Event Attendance App server running on http://localhost:${PORT}`);
         console.log('🎉 Ready to accept RSVPs!');
@@ -2391,4 +2427,7 @@ initializeDatabase().then(() => {
             console.error('Booking scheduler failed to start:', error.message);
         });
     }
+}).catch((error) => {
+    console.error('Database unreachable, giving up:', error.message);
+    process.exit(1);
 });
