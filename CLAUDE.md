@@ -80,6 +80,7 @@ Vanilla JavaScript with no build step.
 - `css/lilai.css` - Lilai's token additions, shared components and Home (Shape Calendar world, see `DESIGN.md`)
 - `css/faq.css`, `css/donate.css`, `css/admin.css`, `css/booking.css` - Page stylesheets, loaded after `lilai.css`
 - `js/feedback.js` - Footer "Send feedback" button and sheet, on every page with a `.colophon` (ported from splitly)
+- `js/sheet.js` - Shared behaviour for every sheet (`.modal`, `.bs-root`), on every page with feedback: locks the page scroll while one is open, keeps the sheet above the iOS keyboard (`--vv-top`/`--vv-h` from `visualViewport`), and makes the grabber work on phones (drag up for full screen, down to go back or dismiss, tap to toggle; `settle` tested in `tests/sheet.test.js`). Sheets do not touch `body.style.overflow` themselves
 - `sw.js` - Service worker for PWA support
 
 **Client-side features:**
