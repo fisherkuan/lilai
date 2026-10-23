@@ -12,6 +12,7 @@
   --stone: #dcdbd3;
   --line: #85857e;
   --fill: #e5e4de;
+  --ground: var(--fill);
   --hairline: #85857e4d;
   --ink: #161616;
   --ink-muted: #55554f;
@@ -25,6 +26,11 @@
   --focus: var(--blue);
 }
 
+/* Native controls and scrollbars follow the theme */
+:root { color-scheme: light dark; }
+:root[data-theme="light"] { color-scheme: light; }
+:root[data-theme="dark"] { color-scheme: dark; }
+
 /* Dark theme from the OS setting, unless the page forces light */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
@@ -33,6 +39,7 @@
     --stone: #26272b;
     --line: #77787d;
     --fill: #232427;
+    --ground: var(--paper);
     --hairline: #77787d4d;
     --ink: #f2f2ee;
     --ink-muted: #aeafb3;
@@ -54,6 +61,7 @@
   --stone: #26272b;
   --line: #77787d;
   --fill: #232427;
+  --ground: var(--paper);
   --hairline: #77787d4d;
   --ink: #f2f2ee;
   --ink-muted: #aeafb3;
@@ -81,77 +89,100 @@
   --radius-full: 9999px; /* Pills and circles: buttons, tags, the pill switch, avatars, status dots and the circle shape. */
   --stroke-1: 1px; /* Hairline rules and table dividers, in line. */
   --stroke-2: 2px; /* Control borders, card outlines and the focus ring, in ink (focus in focus). */
-  --font-sans: Jost, "Futura", "Century Gothic", system-ui, sans-serif;
+  --font-display: Jost, "Futura", "Century Gothic", system-ui, sans-serif; /* Page titles and big numerals only. */
+  --font-text: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", "PingFang SC", "Hiragino Sans", "Noto Sans CJK SC", sans-serif; /* Every other word: the device's own UI sans. */
+  --font-sans: var(--font-text); /* Deprecated alias of --font-text, kept for older copies. */
   --font-mono: ui-monospace, "SF Mono", Menlo, monospace;
-  --text-display: 700 72px/68px var(--font-sans); /* One per page, at most: hero headlines and section openers. Tight, heavy, flush left. */
-  --text-h1: 700 44px/48px var(--font-sans); /* Page titles. */
-  --text-h2: 600 28px/32px var(--font-sans); /* Section headings. */
-  --text-h3: 600 20px/28px var(--font-sans); /* Card titles and sub-sections. */
-  --text-body: 400 16px/24px var(--font-sans); /* Running text, form values. */
-  --text-small: 400 13px/20px var(--font-sans); /* Captions and help text, in ink-muted. */
-  --text-label: 600 13px/18px var(--font-sans); /* Section labels, field labels and tags. Sentence case, a step under body. */
-  --text-button: 600 15px/20px var(--font-sans); /* Button labels, sentence case. 14px in small buttons. */
+  --text-display: 700 72px/68px var(--font-display); /* One per page, at most: hero headlines and section openers. Tight, heavy, flush left. */
+  --text-h1: 700 44px/48px var(--font-display); /* Page titles. */
+  --text-numeral: 500 44px/48px var(--font-display); /* Big figures: a balance, a day numeral, a key number. Tabular. */
+  --text-h2: 600 28px/32px var(--font-text); /* Section headings. */
+  --text-h3: 600 20px/28px var(--font-text); /* Card titles and sub-sections. */
+  --text-body: 400 16px/24px var(--font-text); /* Running text, form values. */
+  --text-small: 400 13px/20px var(--font-text); /* Captions and help text, in ink-muted. */
+  --text-cell: 400 14px/20px var(--font-text); /* Data grid cells. Tabular. */
+  --text-label: 600 13px/18px var(--font-text); /* Section labels, eyebrows and tags. Sentence case, a step under body. */
+  --text-field-label: 600 16px/24px var(--font-text); /* The label above a field, at the field's own size. */
+  --text-button: 600 15px/20px var(--font-text); /* Button labels, sentence case. 14px in small buttons. */
 }
 
-/* Elevation and motion: only what floats above the page casts a shadow */
+/* Elevation and motion: raised surfaces rest on the ground, floating layers sit above the page */
 :root {
-  --shadow-raised: 0 1px 3px rgb(0 0 0 / 0.12), 0 1px 1px rgb(0 0 0 / 0.04); /* The active pill of a switch; a small chip on a floating part. */
-  --shadow-float: 0 8px 28px rgb(0 0 0 / 0.18), 0 2px 6px rgb(0 0 0 / 0.08); /* Bottom sheets, menus and a floating action button. */
+  --shadow-raised: 0 1px 3px rgb(0 0 0 / 0.12), 0 1px 1px rgb(0 0 0 / 0.04); /* Surfaces resting on the ground: cards, grouped lists, panels, raised icon buttons, the active switch pill. */
+  --shadow-float: 0 8px 28px rgb(0 0 0 / 0.18), 0 2px 6px rgb(0 0 0 / 0.08); /* Layers over the page: sheets, menus, popovers and a floating action button. */
   --ease-sheet: cubic-bezier(0.32, 0.72, 0, 1); /* The iOS sheet curve: sheets sliding up, menus popping in. */
   --duration-sheet: 320ms; /* A bottom sheet sliding up. */
+  --duration-leave: 220ms; /* A sheet or row leaving: a sheet closing, a swiped row sliding out. */
   --duration-fade: 240ms; /* The scrim fading in behind a sheet. */
   --duration-pop: 160ms; /* A menu scaling in from 0.9 at its anchor corner. */
   --duration-swap: 150ms; /* Colour swaps on a switch segment. */
-  --scrim: rgb(0 0 0 / 0.4); /* The dim behind a bottom sheet. */
+  --scrim: #00000066; /* The dim behind a bottom sheet. */
+  --target: 44px; /* The smallest touch target on a touch screen. */
 }
 
 /* Text styles */
 .display {
-  font-family: var(--font-sans);
+  font-family: var(--font-display);
   font-size: 72px;
   line-height: 68px;
   font-weight: 700;
   letter-spacing: -0.03em;
 }
 .h1 {
-  font-family: var(--font-sans);
+  font-family: var(--font-display);
   font-size: 44px;
   line-height: 48px;
   font-weight: 700;
   letter-spacing: -0.02em;
 }
+.numeral {
+  font-family: var(--font-display);
+  font-size: 44px;
+  line-height: 48px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
 .h2 {
-  font-family: var(--font-sans);
+  font-family: var(--font-text);
   font-size: 28px;
   line-height: 32px;
   font-weight: 600;
   letter-spacing: -0.01em;
 }
 .h3 {
-  font-family: var(--font-sans);
+  font-family: var(--font-text);
   font-size: 20px;
   line-height: 28px;
   font-weight: 600;
   letter-spacing: 0;
 }
 .body {
-  font-family: var(--font-sans);
+  font-family: var(--font-text);
   font-size: 16px;
   line-height: 24px;
   font-weight: 400;
   letter-spacing: 0;
 }
 .small {
-  font-family: var(--font-sans);
+  font-family: var(--font-text);
   font-size: 13px;
   line-height: 20px;
   font-weight: 400;
   letter-spacing: 0;
 }
 .label {
-  font-family: var(--font-sans);
+  font-family: var(--font-text);
   font-size: 13px;
   line-height: 18px;
   font-weight: 600;
   letter-spacing: 0;
+}
+.cell {
+  font-family: var(--font-text);
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 400;
+  letter-spacing: 0;
+  font-variant-numeric: tabular-nums;
 }
