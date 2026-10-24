@@ -439,7 +439,7 @@ function populateAddToCalendarDropdown(id) {
         link.target = '_blank';
         link.rel = 'noopener noreferrer';
         link.className = `subscribe-link tone-${st.tone}`;
-        link.innerHTML = `${shapeSvg(st.shape)}<span>${escapeHtml(cal.name)}</span>`;
+        link.innerHTML = `${shapeSvg(st.shape)}<span>${escapeHtml(cal.name)}</span><svg class="subscribe-out" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17 17 7M9 7h8v8"/></svg>`;
         dd.appendChild(link);
     });
 }
@@ -639,6 +639,7 @@ function loadEvents({ quiet = false } = {}) {
             }
             displayEvents({ scrollToToday: currentRange === 'all' });
             renderRail();
+            if (window.renderHosted) window.renderHosted();
             // In 'all' mode, eagerly fetch the first batch of past events so the user
             // doesn't need to click "Load earlier events" to see anything in the past.
             if (currentRange === 'all' && hasMoreOlder) {

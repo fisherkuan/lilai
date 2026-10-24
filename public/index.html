@@ -98,17 +98,19 @@
         </div>
     </section>
 
-    <aside class="sidebar" aria-label="Calendar links and support">
-        <section class="side-block" aria-labelledby="side-cal-title">
-            <h2 class="side-title" id="side-cal-title">Add to the calendar</h2>
-            <button type="button" class="btn btn-line" id="create-event-btn" data-make-event>Create an event</button>
-            <p class="side-note">Subscribe in your calendar app:</p>
-            <div class="subscribe-list" id="add-to-calendar-dropdown"></div>
+    <aside class="sidebar" aria-label="Hosting, calendars and support">
+        <section class="side-block side-host" aria-label="Hosting">
+            <button type="button" class="btn btn-solid side-create" id="create-event-btn" data-make-event><span class="side-create-plus" aria-hidden="true">+</span>Create an event</button>
             <div class="ev-hosted" id="hosted-list" hidden>
-                <h3 class="side-subtitle">You manage</h3>
-                <ul class="ev-hosted-list" id="hosted-items"></ul>
+                <h2 class="side-subtitle">You manage</h2>
+                <ul class="hosted-rows" id="hosted-items"></ul>
             </div>
-            <button type="button" class="text-btn" data-lost-link>Lost a management link?</button>
+            <button type="button" class="text-btn side-lost" data-lost-link>Lost a management link?</button>
+        </section>
+
+        <section class="side-block" aria-labelledby="side-cal-title">
+            <h2 class="side-title" id="side-cal-title">Subscribe on Google Calendar</h2>
+            <div class="subscribe-list" id="add-to-calendar-dropdown"></div>
         </section>
 
         <section class="side-block" aria-labelledby="side-support-title">
@@ -224,7 +226,7 @@
 
 <!-- Make an event: a sheet that slides in (js/make-event.js, js/event-form.js) -->
 <div id="event-sheet" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="event-sheet-title">
-    <div class="sheet">
+    <div class="sheet sheet-make">
         <div class="sheet-head">
             <h3 class="sheet-title" id="event-sheet-title">Make an event</h3>
             <button type="button" class="icon-btn" data-close aria-label="Close">

@@ -971,14 +971,19 @@ button { font: inherit; color: inherit; }
 }
 
 .subscribe-link {
-    display: inline-flex;
+    display: flex;
     align-items: center;
-    gap: var(--s2);
+    gap: var(--s3);
     min-height: 44px;
+    border-top: 1px solid var(--hair);
+    color: var(--ink);
     font-size: 15px;
+    text-decoration: none;
 }
-
+.subscribe-link:first-child { border-top: 0; }
+.subscribe-link:hover span { text-decoration: underline; text-underline-offset: 3px; }
 .subscribe-link .shape { font-size: 13px; }
+.subscribe-out { width: 16px; height: 16px; margin-left: auto; fill: none; stroke: var(--ink-2); stroke-width: 2px; }
 
 /* ---------- Sheets (RSVP) ---------- */
 
@@ -1001,7 +1006,8 @@ button { font: inherit; color: inherit; }
     max-height: 92%;
     overflow-y: auto;
     overscroll-behavior: contain;
-    padding: 0 var(--gutter) calc(var(--s5) + env(safe-area-inset-bottom));
+    --sheet-pad: var(--gutter);
+    padding: 0 var(--sheet-pad) calc(var(--s5) + env(safe-area-inset-bottom));
     background: var(--paper-raised);
     border-radius: var(--radius-sheet) var(--radius-sheet) 0 0;
     box-shadow: var(--shadow-float);
@@ -1186,6 +1192,29 @@ html.sheet-locked body {
 
 .sheet-actions .btn { flex: 1 1 auto; }
 
+/* In a sheet, a field's label takes the label style (13px 600), as in the booking queue. */
+.sheet .field label:not(.ev-check),
+.sheet .ev-label { font-size: 13px; font-weight: 600; line-height: 18px; margin-bottom: var(--s2); }
+
+/* Make an event: a Jost title over a full-width ink rule, and Make event pinned at the foot. */
+.sheet-make .sheet-head {
+    margin: 0 calc(-1 * var(--sheet-pad));
+    padding: 0 var(--sheet-pad) var(--s4);
+    border-bottom: var(--rule) solid var(--ink);
+}
+.sheet-make .sheet-head .icon-btn { margin: var(--s3) 0 0; }
+.sheet-make .sheet-title { padding-top: var(--s2); font-family: var(--font-display); font-size: 32px; font-weight: 700; line-height: 1.05; }
+#event-sheet-form .sheet-actions {
+    position: sticky;
+    bottom: calc(-1 * (var(--s5) + env(safe-area-inset-bottom)));
+    z-index: 1;
+    margin: var(--s5) calc(-1 * var(--sheet-pad)) 0;
+    padding: var(--s3) var(--sheet-pad) calc(var(--s3) + var(--s5) + env(safe-area-inset-bottom));
+    margin-bottom: calc(-1 * (var(--s5) + env(safe-area-inset-bottom)));
+    border-top: var(--rule) solid var(--ink);
+    background: var(--paper-raised);
+}
+
 /* ---------- Event form ----------
    Make an event (Home's sheet) and Edit (the management page's sheet) share one form,
    js/event-form.js. */
@@ -1246,22 +1275,27 @@ html.sheet-locked body {
 }
 
 .ev-seg {
-    min-height: 44px;
-    padding: 0 var(--s4);
+    position: relative;
+    min-height: 36px;
+    padding: 0 14px;
     border: 0;
     border-radius: var(--radius-full);
     background: var(--fill);
     color: var(--ink);
     font: inherit;
-    font-size: 15px;
+    font-size: 14px;
     font-weight: 500;
     cursor: pointer;
     transition: background-color 140ms var(--ease), color 140ms var(--ease);
 }
 
+/* The pill draws 36px; its tap area stays 44px. */
+.ev-seg::after { content: ""; position: absolute; inset: -4px 0; }
+
 .ev-seg:hover { background: var(--stone); }
 .ev-seg[aria-checked="true"] { background: var(--ink); color: var(--paper); font-weight: 600; }
 .ev-seg:focus-visible,
+.ev-cal:focus-visible,
 .ev-step:focus-visible,
 .ev-choice:focus-visible { outline: var(--stroke-2) solid var(--focus); outline-offset: 2px; }
 
@@ -1323,6 +1357,31 @@ html.sheet-locked body {
 .ev-until label { display: block; margin-bottom: var(--s2); font-size: var(--meta); color: var(--ink-2); }
 .ev-preview { margin-top: 0; }
 .ev-first { margin-top: var(--s4); }
+[data-part="calendar"]:not([hidden]) + .ev-first { margin-top: var(--s5); }
+
+/* Calendar as shape tiles: the shape is the calendar, as on Home. Outlined until picked. */
+.ev-cals { display: grid; grid-template-columns: repeat(auto-fit, minmax(92px, 1fr)); gap: var(--s2); }
+.ev-cal {
+    display: grid;
+    justify-items: center;
+    gap: var(--s2);
+    min-width: 0;
+    padding: var(--s4) var(--s2) var(--s3);
+    border: var(--stroke-2) solid transparent;
+    border-radius: var(--radius-control);
+    background: var(--fill);
+    color: var(--ink);
+    font: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 140ms var(--ease), border-color 140ms var(--ease);
+}
+.ev-cal span { max-width: 100%; overflow-wrap: anywhere; text-align: center; }
+.ev-cal .shape { width: 32px; height: 32px; fill: none; }
+.ev-cal:hover { background: var(--stone); }
+.ev-cal[aria-checked="true"] { border-color: var(--ink); background: var(--paper-raised); }
+.ev-cal[aria-checked="true"] .shape { fill: var(--tone); }
 
 /* Two answers with a sentence each: a stacked choice, the chosen one inked. */
 .ev-choice-list {
@@ -1425,20 +1484,32 @@ html.sheet-locked body {
 .ev-hostlink-actions { display: flex; gap: var(--s5); margin-top: var(--s2); }
 .ev-hostlink-actions [hidden] { display: none; }
 
-.ev-hosted-list { list-style: none; margin: var(--s2) 0 0; padding: 0; }
-
-.ev-hosted-list li {
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
+/* The hosting card: Create an event, then the events this device manages as day blocks. */
+.side-create { gap: var(--s2); }
+.side-create-plus { font-size: 20px; line-height: 1; margin-top: -2px; }
+.side-host .ev-hosted { margin-top: var(--s5); }
+.side-lost { margin-top: var(--s3); }
+.hosted-rows { list-style: none; margin: var(--s2) 0 0; padding: 0; border-top: var(--rule) solid var(--ink); }
+.hosted-rows li + li { border-top: 1px solid var(--hair); }
+.hosted-row {
+    display: grid;
+    grid-template-columns: 40px minmax(0, 1fr) auto;
+    align-items: center;
     gap: var(--s3);
     padding: var(--s3) 0;
-    border-top: 1px solid var(--hair);
-    font-size: 15px;
+    color: var(--ink);
+    text-decoration: none;
 }
-
-.ev-hosted-when { flex: none; font-size: var(--meta); color: var(--ink-2); font-variant-numeric: tabular-nums; }
-.ev-hosted + .text-btn, .subscribe-list + .text-btn { margin-top: var(--s2); }
+.hosted-row:hover .hosted-title span { text-decoration: underline; text-underline-offset: 3px; }
+.hosted-day { display: grid; justify-items: center; line-height: 1; }
+.hosted-day b { font-family: var(--font-display); font-size: 24px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.hosted-day span { margin-top: 3px; font-size: 12px; color: var(--ink-2); }
+.hosted-main { display: grid; gap: 2px; min-width: 0; }
+.hosted-title { display: flex; align-items: center; gap: 6px; min-width: 0; font-size: 15px; font-weight: 600; }
+.hosted-title span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hosted-title .shape { flex: none; font-size: 12px; }
+.hosted-meta { font-size: var(--meta); color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.hosted-chev { width: 18px; height: 18px; fill: none; stroke: var(--ink-2); stroke-width: 2px; }
 
 /* Lost a management link: where to look, then the request to the admins. */
 .lost-where { list-style: none; margin: var(--s4) 0 var(--s5); padding: 0; display: grid; gap: var(--s3); }
@@ -1590,6 +1661,7 @@ html.sheet-locked body {
         max-width: 420px;
         max-height: none;
         border-radius: var(--radius-sheet) 0 0 var(--radius-sheet);
+        --sheet-pad: var(--s5);
         padding: var(--s5);
         animation-name: drawer-in;
     }

@@ -238,6 +238,8 @@
         const next = series ? series.dates.find(d => !d.cancelled && new Date(d.date).getTime() > Date.now()) : null;
         DeviceLinks.rememberHosted({
             hostPath: location.pathname,
+            eventId: event.id,
+            calendar: event.calendar ? event.calendar.name : null,
             title: event.title,
             date: next ? next.date : event.date,
             count: series ? series.dates.length : 1

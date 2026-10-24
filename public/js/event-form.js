@@ -55,17 +55,17 @@
     function markup(p, mode) {
         const create = mode === 'create';
         return `
+        ${create ? `
+        <div class="field ev-first" data-part="calendar" hidden>
+            <span class="ev-label" id="${p}-cal-label">Calendar</span>
+            <div class="ev-cals" data-group="calendar" role="radiogroup" aria-labelledby="${p}-cal-label"></div>
+            <p class="field-error" data-error-for="calendar" role="alert" hidden></p>
+        </div>` : ''}
         <div class="field ev-first">
             <label for="${p}-title">What</label>
             <input type="text" id="${p}-title" class="input" maxlength="120" autocomplete="off" placeholder="Badminton at the Sportkot">
             <p class="field-error" data-error-for="title" role="alert" hidden></p>
         </div>
-        ${create ? `
-        <div class="field" data-part="calendar" hidden>
-            <span class="ev-label" id="${p}-cal-label">Calendar</span>
-            <div class="ev-segment" data-group="calendar" role="radiogroup" aria-labelledby="${p}-cal-label"></div>
-            <p class="field-error" data-error-for="calendar" role="alert" hidden></p>
-        </div>` : ''}
         <div class="field">
             <label for="${p}-date">Day</label>
             <input type="date" id="${p}-date" class="input ev-date">
@@ -353,12 +353,18 @@
         }
 
         return {
+            // calendars: [{ name, shape? }]. Each is a tile with its shape, as on Home.
             setCalendars(calendars, preferred) {
                 const names = calendars.map(c => c.name);
                 state.calendar = names.includes(preferred) ? preferred : names[0] || null;
                 const field = part('calendar');
                 if (!field) return;
-                group('calendar').innerHTML = names.map(n => radio(n, n, n === state.calendar, 'calendar')).join('');
+                group('calendar').innerHTML = calendars.map(c => {
+                    const shape = c.shape || 'diamond';
+                    return `<button type="button" class="ev-cal" role="radio" aria-checked="${c.name === state.calendar}" data-calendar="${escapeHtml(c.name)}">`
+                        + `<svg class="shape s-${shape}" aria-hidden="true" focusable="false"><use href="#shape-${shape}"/></svg>`
+                        + `<span>${escapeHtml(c.name)}</span></button>`;
+                }).join('');
                 field.hidden = names.length < 2;
             },
             setHostName(name) {

@@ -31,7 +31,7 @@
         return Array.isArray(list) ? list.filter(e => e && typeof e.hostPath === 'string') : [];
     }
 
-    // entry: { hostPath, title, date, count? }. The newest first; one entry per link.
+    // entry: { hostPath, eventId?, calendar?, title, date, count? }. The newest first; one entry per link.
     function rememberHosted(entry) {
         const list = [entry, ...hosted().filter(e => e.hostPath !== entry.hostPath)].slice(0, MAX_HOSTED);
         write(HOSTED_KEY, list);

@@ -62,7 +62,7 @@
         }
         try {
             await loadConfig();
-            fields.setCalendars(writableCalendars(), preferredCalendar || config.events?.defaultCreateCalendar);
+            fields.setCalendars(writableCalendars().map(c => ({ ...c, shape: shapeFor(c.name) })), preferredCalendar || config.events?.defaultCreateCalendar);
         } catch (_) {
             showFormError('Could not reach Lilai. Check your network and try again.');
         }
@@ -97,7 +97,7 @@
                 return;
             }
             try { localStorage.setItem(NAME_KEY, body.hostName.trim()); } catch (_) { /* private mode */ }
-            DeviceLinks.rememberHosted({ hostPath: result.hostPath, title: body.title.trim(), date: result.date, count: result.count });
+            DeviceLinks.rememberHosted({ hostPath: result.hostPath, eventId: result.id, calendar: body.calendar, title: body.title.trim(), date: result.date, count: result.count });
             renderHosted();
             showMade(body, result);
         } catch (_) {
@@ -150,18 +150,50 @@
         setTimeout(() => { button.textContent = label; }, 2000);
     }
 
-    // "You manage" in the sidebar: events whose management link this device holds.
+    function clock(iso) {
+        return new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false });
+    }
+
+    // The calendar's shape, in config order like Home (circle, square, triangle, then diamond).
+    function shapeFor(calendarName) {
+        const names = ((config || (typeof appConfig !== 'undefined' ? appConfig : {})).calendars || []).filter(c => c.enabled).map(c => c.name);
+        const i = names.indexOf(calendarName);
+        return ['circle', 'square', 'triangle'][i] || 'diamond';
+    }
+
+    function shapeMark(shape) {
+        return `<svg class="shape s-${shape}" aria-hidden="true" focusable="false"><use href="#shape-${shape}"/></svg>`;
+    }
+
+    // "You manage" in the sidebar: events whose management link this device holds, soonest
+    // first, each as a day block like Home's cards. Home's loaded events add the clock range and
+    // who is coming; app.js calls this again once they are in.
     function renderHosted() {
         const box = document.getElementById('hosted-list');
         if (!box) return;
         const now = Date.now();
-        const list = DeviceLinks.hosted().filter(e => e.count > 1 || new Date(e.date).getTime() > now - 86400000);
+        const loaded = typeof currentEvents !== 'undefined' ? currentEvents : [];
+        const list = DeviceLinks.hosted()
+            .filter(e => e.count > 1 || new Date(e.date).getTime() > now - 86400000)
+            .sort((a, b) => new Date(a.date) - new Date(b.date));
         box.hidden = list.length === 0;
-        document.getElementById('hosted-items').innerHTML = list.map(e =>
-            `<li><a class="text-link" href="${escapeHtml(e.hostPath)}">${escapeHtml(e.title)}</a>`
-            + `<span class="ev-hosted-when">${escapeHtml(e.count > 1 ? `${e.count} dates` : whenText(e.date))}</span></li>`
-        ).join('');
+        document.getElementById('hosted-items').innerHTML = list.map(e => {
+            const live = loaded.find(ev => ev.id === e.eventId);
+            const d = new Date(e.date);
+            const time = live && live.enddate ? `${clock(live.date)}–${clock(live.enddate)}` : clock(e.date);
+            const meta = [e.count > 1 ? `${e.count} dates · next ${clock(e.date)}` : time];
+            if (live) {
+                meta.push(`${live.attendingCount || 0} coming`);
+                if (live.pendingCount) meta.push(`${live.pendingCount} asking`);
+            }
+            return `<li><a class="hosted-row" href="${escapeHtml(e.hostPath)}">`
+                + `<span class="hosted-day"><b>${d.getDate()}</b><span>${d.toLocaleDateString('en-GB', { weekday: 'short' })}</span></span>`
+                + `<span class="hosted-main"><span class="hosted-title">${shapeMark(shapeFor(e.calendar))}<span>${escapeHtml(live ? live.title : e.title)}</span></span>`
+                + `<span class="hosted-meta">${escapeHtml(meta.join(' · '))}</span></span>`
+                + '<svg class="hosted-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></a></li>';
+        }).join('');
     }
+    window.renderHosted = renderHosted;
 
     // /#new or /#new=<calendar>: open the sheet, then drop the hash so a reload does not reopen it.
     function openFromHash() {
