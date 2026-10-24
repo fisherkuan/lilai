@@ -6,8 +6,9 @@
  * with that account's email address with "Make changes to events". No SDK: a signed JWT
  * buys an access token, and the three calls Lilai needs are plain fetches.
  *
- * Reading still goes through the public iCal feed (fetchCalendarEvents in app.js); this
- * client only writes, and checks whether an event it made still exists.
+ * Lilai owns its events; each Google calendar is a published copy. This client writes that
+ * copy (calendar-publish.js) and lists a calendar once, when Lilai takes it over
+ * (calendar-import.js).
  */
 
 const crypto = require('crypto');
@@ -81,8 +82,9 @@ function createGoogleCalendar(account, { fetchImpl = fetch, now = Date.now } = {
         return token.value;
     }
 
-    async function call(method, path, body) {
-        const res = await fetchImpl(`${API}${path}`, {
+    async function call(method, path, body, query) {
+        const qs = query ? `?${new URLSearchParams(query)}` : '';
+        const res = await fetchImpl(`${API}${path}${qs}`, {
             method,
             headers: {
                 Authorization: `Bearer ${await accessToken()}`,
@@ -103,19 +105,30 @@ function createGoogleCalendar(account, { fetchImpl = fetch, now = Date.now } = {
 
     return {
         clientEmail: account.clientEmail,
+        // resource.id, when set, is Lilai's own id for the copy: a retried insert then gets
+        // a 409 instead of making a twin.
         insertEvent: (calendarId, resource) => call('POST', eventPath(calendarId), resource),
+        // A full replace (PUT). It also brings back a copy someone deleted in Google.
+        updateEvent: (calendarId, eventId, resource) => call('PUT', eventPath(calendarId, eventId), resource),
         deleteEvent: (calendarId, eventId) => call('DELETE', eventPath(calendarId, eventId)),
 
-        // true: deleted in Google. false: still there. null: could not tell.
-        async eventGone(calendarId, eventId) {
-            try {
-                const event = await call('GET', eventPath(calendarId, eventId));
-                return event.status === 'cancelled';
-            } catch (error) {
-                if (error.status === 404 || error.status === 410) return true;
-                console.error(`Could not check Google event ${eventId}:`, error.message);
-                return null;
-            }
+        // Every event in a calendar, all pages. Repeating events come as their instances,
+        // bounded two years ahead so an endless series cannot run on forever.
+        async listEvents(calendarId, { now = new Date() } = {}) {
+            const timeMax = new Date(now.getTime() + 2 * 365 * 86400000).toISOString();
+            const items = [];
+            let pageToken;
+            do {
+                const page = await call('GET', eventPath(calendarId), null, {
+                    singleEvents: 'true',
+                    maxResults: '2500',
+                    timeMax,
+                    ...(pageToken ? { pageToken } : {})
+                });
+                items.push(...(page.items || []));
+                pageToken = page.nextPageToken;
+            } while (pageToken);
+            return items;
         }
     };
 }

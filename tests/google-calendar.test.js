@@ -54,21 +54,20 @@ test('one token serves several calls, and insert posts to the calendar', async (
     assert.equal(insert.auth, 'Bearer tok');
 });
 
-test('eventGone: deleted is gone, present is not, an error is unknown', async () => {
+test('update is a PUT, and the listing follows every page', async () => {
     const account = readServiceAccount({ GOOGLE_SERVICE_ACCOUNT_JSON: keyFile });
-    const answers = { a: [200, { status: 'confirmed' }], b: [200, { status: 'cancelled' }], c: [404, {}], d: [500, {}] };
-    const { fetchImpl } = fakeGoogle((url) => answers[url.split('/').pop()]);
+    const pages = { '': { items: [{ id: 'a' }], nextPageToken: 'p2' }, p2: { items: [{ id: 'b' }] } };
+    const { calls, fetchImpl } = fakeGoogle((url) => {
+        const token = new URL(url).searchParams.get('pageToken') || '';
+        return [200, pages[token] || { id: 'x' }];
+    });
     const gc = createGoogleCalendar(account, { fetchImpl });
-    const original = console.error;
-    console.error = () => {};
-    try {
-        assert.equal(await gc.eventGone('cal', 'a'), false);
-        assert.equal(await gc.eventGone('cal', 'b'), true);
-        assert.equal(await gc.eventGone('cal', 'c'), true);
-        assert.equal(await gc.eventGone('cal', 'd'), null);
-    } finally {
-        console.error = original;
-    }
+    await gc.updateEvent('cal', 'x', { summary: 's' });
+    assert.ok(calls.some(c => c.method === 'PUT' && c.url.endsWith('/calendars/cal/events/x')));
+    const items = await gc.listEvents('cal');
+    assert.deepEqual(items.map(i => i.id), ['a', 'b']);
+    const list = calls.filter(c => c.method === 'GET');
+    assert.match(list[0].url, /singleEvents=true/);
 });
 
 test('a refused insert carries Google\'s status', async () => {

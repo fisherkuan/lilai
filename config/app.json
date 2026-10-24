@@ -1,4 +1,5 @@
 {
+  "publicUrl": "https://lilai.fisherkuan.com",
   "calendars": [
     {
       "name": "SportsCenter",
@@ -8,7 +9,8 @@
     {
       "name": "TSA",
       "url": "https://calendar.google.com/calendar/embed?src=90e81f658dee696bd826585eaa03e9d9865828e945c2a8c882cfc45de45f74e7%40group.calendar.google.com&ctz=Europe%2FBrussels",
-      "enabled": true
+      "enabled": true,
+      "restricted": true
     },
     {
       "name": "揪團啦",
@@ -20,8 +22,7 @@
     "autoFetch": true,
     "defaultTimeRange": "future",
     "refreshInterval": 300000,
-    "defaultCreateCalendar": "揪團啦",
-    "createCalendars": ["揪團啦"]
+    "defaultCreateCalendar": "揪團啦"
   },
   "rsvp": {
     "allowAnonymous": false,

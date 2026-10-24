@@ -358,6 +358,27 @@ button { font: inherit; color: inherit; }
 .view-btn[aria-checked="true"] { background: var(--paper-raised); color: var(--ink); box-shadow: var(--shadow-raised); }
 .view-btn:focus-visible { outline: var(--stroke-2) solid var(--focus); outline-offset: 2px; }
 
+/* Create an event, where the eye already is: a round "+" beside the view switch, the same
+   stone as the switch. The sidebar keeps the worded button. */
+.new-event-btn {
+    display: inline-grid;
+    place-items: center;
+    width: 38px;
+    height: 38px;
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius-full);
+    background: var(--stone);
+    color: var(--ink);
+    cursor: pointer;
+}
+.new-event-btn svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2px; }
+.new-event-btn:hover { background: var(--ink); color: var(--paper); }
+.new-event-btn:focus-visible { outline: var(--stroke-2) solid var(--focus); outline-offset: 2px; }
+/* The "+" and the view switch wrap as one group, so a narrow phone never splits them. */
+.rail-tools { display: flex; align-items: center; gap: var(--s2); margin-left: auto; }
+.rail-head .rail-tools .view-switch { margin-left: 0; }
+
 /* Rows view: the agenda under the rail replaces the cards. */
 .home.is-rows .events-section { display: none; }
 
@@ -1156,6 +1177,258 @@ html.sheet-locked body {
 }
 
 .sheet-actions .btn { flex: 1 1 auto; }
+
+/* ---------- Event form ----------
+   Make an event (Home's sheet) and Edit (the management page's sheet) share one form,
+   js/event-form.js. */
+
+
+.ev-label {
+    display: block;
+    margin-bottom: var(--s3);
+}
+
+.ev-optional {
+    margin-left: var(--s1);
+    font-weight: 400;
+    color: var(--ink-3);
+}
+
+.ev-hint {
+    margin-top: var(--s2);
+    font-size: var(--meta);
+    color: var(--ink-2);
+}
+
+.ev-hint[hidden] { display: none; }
+.ev-hint-lead { margin: calc(-1 * var(--s2)) 0 var(--s3); }
+
+.ev-textarea { min-height: 112px; padding: var(--s3); resize: vertical; line-height: 1.5; }
+.ev-date { max-width: 240px; }
+.input[type="date"], .input[type="time"] { font-variant-numeric: tabular-nums; }
+
+/* Start and end read as one pair. */
+.ev-two {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: var(--s3);
+    max-width: 360px;
+}
+
+.ev-col { min-width: 0; }
+
+/* A group opens on a full ink rule, like the sections on Home. */
+.ev-group {
+    margin: var(--s7) 0 0;
+    padding: var(--s3) 0 0;
+    border: 0;
+    border-top: var(--rule) solid var(--ink);
+}
+
+.ev-group legend { float: left; width: 100%; padding: 0; }
+.ev-group legend + * { clear: both; }
+.ev-group legend { margin-bottom: var(--s1); }
+
+/* Separate pills; the filled one is the answer (the booking sheet's segment). */
+.ev-segment {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s2);
+}
+
+.ev-seg {
+    min-height: 44px;
+    padding: 0 var(--s4);
+    border: 0;
+    border-radius: var(--radius-full);
+    background: var(--fill);
+    color: var(--ink);
+    font: inherit;
+    font-size: 15px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 140ms var(--ease), color 140ms var(--ease);
+}
+
+.ev-seg:hover { background: var(--stone); }
+.ev-seg[aria-checked="true"] { background: var(--ink); color: var(--paper); font-weight: 600; }
+.ev-seg:focus-visible,
+.ev-step:focus-visible,
+.ev-choice:focus-visible { outline: var(--stroke-2) solid var(--focus); outline-offset: 2px; }
+
+/* "− [8] + places" is one phrase, laid out as one. */
+.ev-limit {
+    display: flex;
+    align-items: center;
+    gap: var(--s2);
+    margin-top: var(--s3);
+}
+
+.ev-limit[hidden] { display: none; }
+
+.ev-step {
+    flex: none;
+    width: 44px;
+    height: 44px;
+    border: 0;
+    border-radius: var(--radius-full);
+    background: var(--fill);
+    color: var(--ink);
+    font: inherit;
+    font-size: 22px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.ev-step:hover { background: var(--stone); }
+
+.ev-number {
+    width: 88px;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+    -moz-appearance: textfield;
+}
+
+.ev-number::-webkit-outer-spin-button,
+.ev-number::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+
+.ev-limit-word { font-size: 15px; }
+
+/* The repeat: "Every [1] [week]", the weekdays, "Until", and a line saying what it makes. */
+.ev-repeat { display: grid; gap: var(--s3); margin-top: var(--s3); }
+.ev-repeat[hidden] { display: none; }
+.ev-every { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2) var(--s3); }
+.ev-every-word { font-size: 15px; }
+.ev-every .ev-number { width: 72px; }
+.ev-unit { width: 140px; }
+.ev-days {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: var(--s1);
+    max-width: 420px;
+}
+.ev-days[hidden] { display: none; }
+.ev-day { min-width: 0; padding: 0; text-align: center; }
+.ev-day[aria-pressed="true"] { background: var(--ink); color: var(--paper); font-weight: 600; }
+.ev-day:focus-visible { outline: var(--stroke-2) solid var(--focus); outline-offset: 2px; }
+.ev-until label { display: block; margin-bottom: var(--s2); font-size: var(--meta); color: var(--ink-2); }
+.ev-preview { margin-top: 0; }
+.ev-first { margin-top: var(--s4); }
+
+/* Two answers with a sentence each: a stacked choice, the chosen one inked. */
+.ev-choice-list {
+    display: grid;
+    gap: var(--s2);
+}
+
+.ev-choice {
+    display: grid;
+    gap: var(--s1);
+    padding: var(--s3) var(--s4);
+    border: var(--stroke-2) solid transparent;
+    border-radius: var(--radius-control);
+    background: var(--fill);
+    color: var(--ink);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    transition: border-color 140ms var(--ease), background-color 140ms var(--ease);
+}
+
+.ev-choice:hover { background: var(--stone); }
+.ev-choice[aria-checked="true"] { border-color: var(--ink); background: var(--paper-raised); }
+.ev-choice-title { font-size: 16px; font-weight: 600; }
+.ev-choice-note { font-size: var(--meta); color: var(--ink-2); }
+
+.ev-check {
+    display: flex;
+    align-items: center;
+    gap: var(--s3);
+    min-height: 44px;
+    margin-top: var(--s3);
+    font-size: 15px;
+    cursor: pointer;
+}
+
+.ev-check input { width: 20px; height: 20px; margin: 0; }
+
+.ev-form-error { margin-top: var(--s5); }
+
+.ev-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--s3) var(--s5);
+    margin-top: var(--s6);
+}
+
+/* ---------- Made ---------- */
+
+.ev-done {
+    margin-top: var(--s5);
+    padding-top: var(--s4);
+    border-top: var(--rule) solid var(--ink);
+}
+
+.ev-done:focus { outline: none; }
+
+.ev-done-title { font-size: 20px; font-weight: 600; }
+.ev-done-when { margin-top: var(--s1); font-size: 15px; color: var(--ink-2); }
+
+.ev-hostlink {
+    margin-top: var(--s5);
+    padding: var(--s4);
+    border-radius: var(--radius-card);
+    background: var(--paper-raised);
+}
+
+.ev-hostlink .ev-label { margin-bottom: 0; font-weight: 600; }
+
+.ev-hostlink-row {
+    display: flex;
+    align-items: center;
+    gap: var(--s3);
+    margin-top: var(--s3);
+}
+
+.ev-hostlink-url {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow-wrap: anywhere;
+    font-size: var(--meta);
+}
+
+.ev-done-links {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--s2) var(--s5);
+    margin-top: var(--s5);
+}
+
+.ev-done-links [hidden] { display: none; }
+
+/* Events this device manages: quiet rows in Home's sidebar. */
+.ev-hosted[hidden] { display: none; }
+.ev-hosted { margin-top: var(--s4); }
+.side-subtitle { font-size: var(--meta); font-weight: 600; }
+.ev-hostlink-url { display: block; margin-top: var(--s3); }
+.ev-hostlink-actions { display: flex; gap: var(--s5); margin-top: var(--s2); }
+.ev-hostlink-actions [hidden] { display: none; }
+
+.ev-hosted-list { list-style: none; margin: var(--s2) 0 0; padding: 0; }
+
+.ev-hosted-list li {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--s3);
+    padding: var(--s3) 0;
+    border-top: 1px solid var(--hair);
+    font-size: 15px;
+}
+
+.ev-hosted-when { flex: none; font-size: var(--meta); color: var(--ink-2); font-variant-numeric: tabular-nums; }
 
 /* ---------- Colophon ---------- */
 

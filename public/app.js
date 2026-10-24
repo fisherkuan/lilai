@@ -218,45 +218,16 @@ function setupCalendar() {
 
     loadAllCalendarEvents();
 
-    const joinLink = document.getElementById('join-group-link');
-    if (joinLink && appConfig.joinGroupUrl) joinLink.href = appConfig.joinGroupUrl;
-
     populateAddToCalendarDropdown('add-to-calendar-dropdown');
-
-    // Point the "Create event" buttons at the configured default calendar (if any)
-    wireCreateEventButtons();
 }
 
-// The create page links back to "/#event-<id>": scroll to that card once the list is in.
+// Links into Home ("/#event-<id>", from the management page and the Google copies): scroll to
+// that card once the list is in.
 function pointAtLinkedEvent() {
     const match = /^#event-(.+)$/.exec(window.location.hash);
     if (!match) return;
     history.replaceState(null, '', window.location.pathname + window.location.search);
     scrollToEvent(decodeURIComponent(match[1]));
-}
-
-function wireCreateEventButtons() {
-    const createBtn = document.getElementById('create-event-btn');
-    // Made in Lilai when the server can write to Google Calendar; otherwise in Google itself.
-    if (appConfig.eventCreation && appConfig.eventCreation.enabled && createBtn) {
-        createBtn.href = '/events/new';
-        createBtn.removeAttribute('target');
-        createBtn.removeAttribute('rel');
-        const note = document.getElementById('create-event-note');
-        if (note) note.textContent = 'It goes into the group calendar. Subscribe in your own calendar app:';
-        return;
-    }
-    const defaultName = appConfig.events && appConfig.events.defaultCreateCalendar;
-    // The documented "create event in calendar X" endpoint is render?action=TEMPLATE.
-    let href = 'https://calendar.google.com/calendar/render?action=TEMPLATE';
-    if (defaultName && Array.isArray(appConfig.calendars)) {
-        const match = appConfig.calendars.find(c => c.enabled && c.name === defaultName);
-        if (match) {
-            const src = calendarIdFromUrl(match.url);
-            if (src) href += `&src=${encodeURIComponent(src)}`;
-        }
-    }
-    if (createBtn) createBtn.href = href;
 }
 
 // Only the rail's days: every past event ever was most of Home's download.
@@ -569,7 +540,7 @@ function setupFilterPills() {
  * Anyone who reads this file learns the path. That is the accepted cost, and it is the same
  * audience that would have typed /admin anyway.
  */
-const ADMIN_HOME = '/admin/events';
+const ADMIN_HOME = '/admin/bookings';
 const ADMIN_FLAG_KEY = 'lilaiOrganizer';
 const ORGANIZER_TAPS = 5;
 const ORGANIZER_TAP_WINDOW_MS = 3000;
@@ -964,17 +935,6 @@ function applyAttendance(eventId, attendees, pendingCount) {
     renderRail();
 }
 
-// Lilai's own fields changed (limit, links): patch both lists and redraw.
-function applyEventUpdate(update) {
-    if (!update || !update.id) return;
-    const { id, attendance_limit: limit, links, attendees, pendingCount } = update;
-    [currentEvents, allCalendarEvents].forEach(list => {
-        const ev = list.find(e => e.id === id);
-        if (ev) Object.assign(ev, { attendance_limit: limit, links: links || [] });
-    });
-    applyAttendance(id, attendees, pendingCount);
-}
-
 // ---------- RSVP sheets ----------
 let lastSheetTrigger = null;
 
@@ -1273,11 +1233,8 @@ function setupWebSocket() {
             if (data.type === 'attendance_update') {
                 const { eventId, attendees, pendingCount } = data.payload;
                 applyAttendance(eventId, Array.isArray(attendees) ? attendees : [], pendingCount);
-            } else if (data.type === 'event_update') {
-                // A host or the admin page changed the limit or the links.
-                applyEventUpdate(data.payload);
-            } else if (data.type === 'event_created') {
-                // Someone made an event: pick it up without a pull to refresh.
+            } else if (['event_created', 'event_update', 'event_cancelled'].includes(data.type)) {
+                // An event was made, edited or cancelled: pick it up without a pull to refresh.
                 loadEvents({ quiet: true });
                 loadAllCalendarEvents();
             }

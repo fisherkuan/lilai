@@ -110,41 +110,9 @@
 
 .row-status[hidden] { display: none; }
 
-/* An event's links on the admin card: the shared editor (lilai.css) and its own Save. */
-.links-block { margin-top: var(--s5); }
-.links-title { margin-bottom: var(--s2); font-size: 15px; font-weight: 600; }
-.links-block .btn { min-height: 40px; margin-top: var(--s2); }
-
-/* ---------- Admin Events ---------- */
-
-/* The limit control inside an event card: label, number field, Save pill, Remove text button. */
-.limit-row {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: var(--s3) var(--s4);
-    margin-top: var(--s4);
-}
-
-.limit-row label {
-    font-size: 15px;
-    font-weight: 600;
-}
-
-/* Left-aligned like every other field, so the number keeps clear of the spinner arrows. */
-.input-num {
-    width: 112px;
-    font-variant-numeric: tabular-nums;
-}
-
-.limit-row .input-num {
-    min-height: 40px;
-}
-
-.limit-row .btn {
-    min-height: 40px;
-    padding: 0 var(--s4);
-}
+/* A number field, left-aligned like every other field so the value keeps clear of the
+   spinner arrows. */
+.input-num { font-variant-numeric: tabular-nums; }
 
 /* ---------- Admin Donations ---------- */
 
@@ -161,11 +129,6 @@
 }
 
 /* ---------- Breakpoints ---------- */
-
-/* Phones: Remove limit takes its own line, so the field grows to close the first one. */
-@media (max-width: 639px) {
-    .limit-row .input-num { flex: 1 1 80px; }
-}
 
 @media (min-width: 640px) {
     .admin-card { padding: var(--s5); }

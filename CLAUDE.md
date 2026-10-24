@@ -27,7 +27,7 @@ The server runs on `http://localhost:3000` by default (configurable via PORT env
 ### Database
 - PostgreSQL is used for production (connection via `DATABASE_URL` env var)
 - Database schema is auto-initialized on server startup via `initializeDatabase()` in server/app.js
-- Tables: `events`, `rsvps`, `donations`, `feedback`, `booking_queue`, `booking_profiles`, `booking_series`
+- Tables: `events`, `rsvps`, `event_series`, `event_host_links`, `calendar_keys`, `calendar_state`, `donations`, `feedback`, `booking_queue`, `booking_profiles`, `booking_series`
 - `rsvps.attendance` is `yes` (holds a seat), `pending` (asked to join an approval event) or `declined` (the host said no). Every count of who is coming filters on `yes`
 - Schema migrations are idempotent and run automatically on startup
 
@@ -44,28 +44,28 @@ Files run with `--test-concurrency=1` because several truncate the same tables.
 ## Architecture Overview
 
 ### Application Flow
-This is an event RSVP management system with Google Calendar integration and bank-transfer donations.
+An event and RSVP app whose events live in its own database and are published to public Google calendars, plus bank-transfer donations and the booking queue.
+
+**Who owns what (since 2026-10-24).** Lilai's database is the source of truth for every event. Each calendar in `config/app.json` is a **published** Google calendar: Lilai writes it through the API and nobody edits it in Google; people subscribe to it from their own calendar apps. There is no two-way sync and nothing is read back from Google once Lilai has taken a calendar over. Design notes: `.plans/LILAI_OWNS_EVENTS_plan.md`.
 
 **Core data flow:**
-1. Google Calendar events are fetched from configured calendar(s) via iCal feed
-2. Events are synced to PostgreSQL if autoFetch is enabled: at startup, then in the background (`refreshCalendar`, one at a time) when a request finds the 5-minute cache stale. A request never waits for Google
-3. Users RSVP to events; RSVPs are stored in database
-4. WebSocket broadcasts real-time attendance updates to all connected clients
-5. Admin pages allow event and donation management
+1. Events are made, edited and cancelled in Lilai (Home's "Make an event" sheet, the event's management page). Each change bumps the row's `version`
+2. The publisher (`server/calendar-publish.js`) copies every changed event to its Google calendar, retrying with backoff; the management page shows where the copy stands
+3. People RSVP in Lilai; WebSocket broadcasts attendance and event changes to every open page
+4. Once per calendar, with Google credentials, the import (`server/calendar-import.js`) takes the calendar over from Google onto the rows the old feed had made. Until then the legacy iCal feed still reads that calendar (never touching a Lilai-owned row)
 
 ### Server Architecture (server/app.js)
-Single-file Express server (~840 lines) that handles:
+Express server in one file (~2,800 lines), with domain modules beside it in `server/`. It handles:
 - **WebSocket Server**: Real-time attendance updates via `broadcast()` function
-- **Calendar Sync**: `fetchCalendarEvents()` fetches and parses iCal format from Google Calendar
-- **Event Management**: CRUD operations for events with attendance tracking
+- **Events**: make, edit, cancel and restore (management links, calendar keys), published to Google by `server/calendar-publish.js`; the legacy iCal feed (`fetchCalendarEvents()`) only for calendars not yet imported
 - **RSVP System**: Add/remove attendance with capacity limits
 - **Donation System**: Tracks donations entered by hand; the Donate page shows bank details (`server/donation-bank.js`)
 - **Database**: PostgreSQL via `pg` Pool with auto-schema initialization
 
 **Key patterns:**
-- Calendar events have source field to track which calendar they came from
-- Lilai owns an event's limit (`attendance_limit`) and links (`links`, JSONB `[{url, label?}]`); Google owns title, time, place and description. Nothing is read out of the description (since 2026-10-24); the sync never writes the limit or the links
-- WebSocket broadcasts attendance changes to all clients for real-time updates
+- An event's `source` is its Google calendar id; `managed = true` means Lilai owns the row (every event once its calendar is imported, and every event made in Lilai)
+- Lilai owns everything about an event: title, time, place, description, `attendance_limit`, `links` (JSONB `[{url, label?}]`), approval, host. Nothing is read out of a description
+- WebSocket broadcasts attendance and event changes to all clients for real-time updates
 - Bank details for donations come from env vars, never `config/app.json` (the repo is public)
 
 ### Frontend Architecture (public/)
@@ -73,52 +73,52 @@ Vanilla JavaScript with no build step.
 
 **Structure:**
 - `index.html` + `app.js` - Main event listing and RSVP interface
-- `admin.html` + `admin.js` - Event management interface
 - `admin-donations.html` + `js/admin-donations.js` - Donation management
 - `donations.html` + `js/donation.js` - Public donation submission page
 - `faq.html` + `js/faq.js` - FAQ page
 - `bauhaus/tokens.css` - The Bauhaus kit's tokens, copied verbatim (do not edit)
 - `css/lilai.css` - Lilai's token additions, shared components and Home (Shape Calendar world, see `DESIGN.md`)
-- `css/faq.css`, `css/donate.css`, `css/admin.css`, `css/booking.css` - Page stylesheets, loaded after `lilai.css`
+- `css/faq.css`, `css/donate.css`, `css/admin.css`, `css/booking.css`, `css/events.css` - Page stylesheets, loaded after `lilai.css` (`events.css`: the management and calendar pages; the event form itself is shared and lives in `lilai.css`)
 - `js/feedback.js` - Footer "Send feedback" button and sheet, on every page with a `.colophon` (ported from splitly)
 - `js/sheet.js` - Shared behaviour for every sheet (`.modal`, `.bs-root`), on every page with feedback: locks the page scroll while one is open, keeps the sheet above the iOS keyboard (`--vv-top`/`--vv-h` from `visualViewport`), and makes the grabber work on phones (drag up for full screen, down to go back or dismiss, tap to toggle; `settle` tested in `tests/sheet.test.js`). Sheets do not touch `body.style.overflow` themselves
-- `new-event.html` + `js/new-event.js` - Make an event (`/events/new`). Remembers the host links made on this device in localStorage (`lilai.hostedEvents`) and lists them as "You host"
-- `host.html` + `js/host.js` - The host page (`/host/:token`): who is coming, and on an approval event who asked, with Accept / Decline / Undo, plus Places and links (edit the limit and the links, one Save). Live over WebSocket
-- `js/event-links.js` - An event's links: `listHtml` draws them on cards and the RSVP sheet (name, else the site), `create` is the editor (address, optional name, remove, "Add a link") on Make an event, the host page and admin Events. Tested in `tests/event-links.test.js`
-- `sw.js` - Service worker for PWA support. It never caches `/host/` or `/api/host/`: those carry the secret link
+- `js/make-event.js` - Home's "Make an event" slide-in (`#event-sheet`), opened by any `[data-make-event]` button (the "+" by the view switch, the sidebar button) and by `/#new` or `/#new=<calendar>`. `/events/new` redirects there. After making, it shows the management link with Copy and Share
+- `js/event-form.js` - `EventForm.create(container, { mode })`: the one form for making (`create`: calendar, repeat, host) and editing (`edit`) an event. Repeat preview from `/api/events/repeat-preview`, place suggestions from `/api/places`
+- `js/event-links.js` - An event's links: `listHtml` draws them on cards and the RSVP sheet (name, else the site), `create` is the link editor inside the event form. Tested in `tests/event-links.test.js`
+- `js/device-links.js` - What this device holds: management links (`lilai.hostedEvents`, listed as "You manage" in Home's sidebar) and calendar keys (`lilai.calendarKeys`), plus `share()` (Web Share, else the clipboard)
+- `host.html` + `js/host.js` - An event's management page (`/host/:token`): the Google copy's status, Edit (the event form in a sheet), Share this page, Cancel / Restore, the dates of a series, and who is coming or asked to join (Accept / Decline / Undo). Live over WebSocket
+- `calendar.html` + `js/calendar-page.js` - A calendar key's page (`/calendars/:token`): stores the key on the device, lists the calendar's upcoming events with Manage (mints a management link), "Make a <calendar> event", Share
+- `sw.js` - Service worker for PWA support. It never caches `/host/`, `/calendars/` or their APIs: those carry secret links
 
 **Client-side features:**
 - WebSocket connection for real-time attendance updates
 - Event cards with RSVP buttons (add/remove attendance)
 - **Date rail** rendered client-side from `/api/events?from=<ISO>&to=<ISO>` (the rail's 14 days; requested at boot alongside `/api/config`): today plus 13 days as day buttons, each marked with its events' title emoji or calendar shape (`titleEmoji`/`bandMark`), up to three, then "+N". The component is `public/js/date-rail.js` (`DateRail.create(container, { events, selected, onSelect, mark })`, pure helpers tested in `tests/date-rail.test.js`); `app.js` wires it (`renderRail`, `renderAgenda`, `loadAllCalendarEvents`). Today is selected by default. A Cards | Rows switch (`setHomeView`, kept in localStorage as `lilaiHomeView`) picks the view. In Cards view, clicking a day scrolls to its first card (`onSelect` reports `via: 'click'`; arrow keys never scroll), the agenda never shows, and a fixed back-to-top button (`#to-top-btn`) is always on screen. In Rows view the card list hides and the selected day's agenda rows carry a Join button that opens the RSVP sheet (`findEvent` looks up events outside the list too); tapping a row opens it to a "Show card" button (`showCard`) that switches to Cards and scrolls to that card.
 - **Pull to refresh** (`public/js/pull-to-refresh.js`, `PullToRefresh.attach(onRefresh)`) on Home and Donate, ported from splitly. There are no Refresh buttons.
-- Admin pages for creating/editing events and managing donations
+- Admin pages for donations and the booking queue (`/admin` opens the queue). There is no admin page for events: each event is managed on its own page
 
 ### Configuration (config/app.json)
 Central configuration file with:
-- `calendars[]` - Array of Google Calendar embed URLs with enable/disable flags
-- `events.autoFetch` - Whether to sync calendar events automatically. **Must be `true`** for the date rail and events list to populate from Google Calendar.
+- `publicUrl` - Where links in emails and in the Google copies point (`https://lilai.fisherkuan.com`). `PUBLIC_URL` overrides it
+- `calendars[]` - The published Google calendars, by embed URL, in shape order. `enabled`; `restricted: true` (TSA) means only holders of a calendar key may make events in it
+- `events.autoFetch` - The legacy feed, for a calendar not yet imported. Harmless once every calendar is
 - `events.defaultTimeRange` - Default filter ("future", "past", "all")
-- `events.createCalendars` - Names of the calendars the Make an event page may write to (each must be shared with the service account). Defaults to `[defaultCreateCalendar]`.
-- `events.defaultCreateCalendar` - The calendar pre-selected on Make an event. Must match a `calendars[].name`. When event creation is not set up (no `GOOGLE_SERVICE_ACCOUNT_JSON`), the "Create an event" button falls back to `https://calendar.google.com/calendar/render?action=TEMPLATE&src=<calendar-id>`.
+- `events.defaultCreateCalendar` - The calendar pre-selected in Make an event. Must match a `calendars[].name`
 - `rsvp` - RSVP behavior settings
 - `joinGroupUrl` - Link to external group (displayed in UI)
 
 ## Key Implementation Details
 
-### Google Calendar Integration
-- Calendars are configured in `config/app.json` with embed URLs
-- Server extracts calendar ID from URL and fetches iCal feed
-- Custom iCal parser handles line folding (RFC 5545), HTML entities, and text sanitization
-- Events are uniquely identified by `cal-{UID}` where UID comes from iCal
-- The description is shown as written. The "limit: N" and "link: URL" conventions are gone; when the `links` column was added, each existing event's description link was copied into it once (`linkFromLegacyDescription`)
-- Stale events (removed from calendar) are automatically deleted from database
-
-### Events made in Lilai
-- `server/google-calendar.js` - service-account JWT sign-in and `insertEvent` / `deleteEvent` / `eventGone`, no SDK. Reading still uses the public iCal feed
-- `server/event-hosting.js` - the create form's rules (`validateNewEvent`), the Google resource (the description goes as written), `validateLimit` / `validateLinks` / `validateEventSettings` (at most 5 links, http(s) only, names up to 40 characters), host tokens, the `events` columns (`approval_required`, `host_name`, `host_email`, `host_token_hash`, `google_calendar_id`, `google_event_id`, `google_link`, `links`, `created_in_app_at`)
-- The host is anyone with the host link, `/host/<32-char token>`; only its SHA-256 is stored. No accounts, in line with the RSVP trust model
-- Google's public feed can lag hours behind an API insert. A Lilai-made event missing from the feed is asked about with `eventGone` before the stale sweep may delete it (`appEventsToCheck`, `keepAppEvent` in `server/calendar-sync.js`); with no answer it is kept for a day after it was made
+### Events (Lilai owns them; Google calendars are published copies)
+- `server/event-hosting.js` - `validateEvent` (one validator for `create` and `edit`; Brussels wall times; an end at or before the start is the next day; DST gaps refused; an edit may keep a start that has passed but not move one into the past), `googleEventResource` (the copy: description plus the links and a "Join, or see who is coming: <publicUrl>/#event-<id>" line, `source` back to Lilai), `convertLegacyDescription`, tokens, `publishState`, the schema
+- Event ids are `cal-<google id>@google.com`, the shape the old feed used, so the import landed on the rows that held RSVPs. Lilai picks each new copy's Google id (`newGoogleEventId`, 32 hex) so a retried insert is refused with 409 instead of making a twin
+- `server/calendar-publish.js` - Pushes rows with `managed AND version > synced_version`: insert (first copy; 409 → update), update (PUT; 404 → insert, which also brings back a copy deleted in Google), delete (cancelled; 404/410 = done). Success records the pushed version; failure stores `push_error`, `push_attempts` and `next_push_at` (30 s doubling to 6 h). 30 s tick plus `nudge()` after each change. Without credentials nothing is pushed and the management page says so
+- `server/calendar-import.js` - Once per calendar (`calendar_state`): `events.list` (all pages, `singleEvents`, two years ahead), each Google event onto `cal-<iCalUID>` (a repeating event's instances by their own id) as `managed`; the old "limit: N" / "link: URL" description lines move into their fields once; upcoming events are published once so their copies match; unmanaged rows Google no longer lists are deleted. Retried every 10 minutes on failure
+- `server/calendar-sync.js` + `fetchCalendarEvents` in `app.js` - The legacy iCal feed, only for calendars not yet imported, never touching a managed row. Remove once production has imported every calendar
+- `server/google-calendar.js` - Service-account JWT sign-in and `insertEvent` / `updateEvent` / `deleteEvent` / `listEvents`, no SDK
+- `server/calendar-access.js` + `scripts/calendar-link.js` - Calendar keys (`calendar_keys`, hash only). `heroku run -a lilai-eu node scripts/calendar-link.js TSA --label "TSA admins"` prints a `/calendars/<token>` link once; `--revoke` stops the earlier ones. A key lets a device make events in a restricted calendar and mint a management link for any event in that calendar
+- Management links: `event_host_links` maps a token hash to one event or one series. Made when an event is made (emailed to the host when `hostEmail` and Resend are set) and when a calendar key holder opens Manage. No accounts, in line with the RSVP trust model; whoever has the link is a host
+- Repeating events: a repeat rule (`server/booking-repeat.js`: every N days / weeks on chosen weekdays / months, until a date, at most 52) expands into ordinary rows sharing `series_id` (`event_series.rule`). Each date has its own RSVPs, approval queue and single Google copy. Edit and Cancel take `scope: this | later`; later dates keep their own day and take the new clock times and everything else. The rule is fixed once made
+- Cancel sets `cancelled_at` (hidden from every public read, RSVPs kept, Google copy deleted); Restore clears it
 - Approval events ("I approve each person"): Join reads "Ask to join", requests hold no seat, the card shows "N asking" and "<host> confirms each place"
 
 ### RSVP System
@@ -126,12 +126,13 @@ Central configuration file with:
 - Attendee name is required for both actions
 - Capacity checking: if attendance_limit is set, prevents RSVPs when full
 - Real-time updates via WebSocket broadcast after each RSVP action
-- Only "yes" attendance status is currently tracked
+- Only `yes` holds a seat; `pending` (asked to join) and `declined` exist for approval events
 
 ### WebSocket Real-Time Updates
 WebSocket server runs on same HTTP server as Express. Broadcast messages:
-- `attendance_update` - Sent when RSVP is added/removed (includes eventId, attendingCount, attendees)
-- `event_update` - Sent when an event's limit or links change (admin page or host page); Home patches its lists (`applyEventUpdate`)
+- `attendance_update` - Sent when an RSVP or a host decision changes who is coming (eventId, attendingCount, attendees, pendingCount)
+- `event_created`, `event_update`, `event_cancelled` - `{ ids }` of events made, edited or restored, cancelled; Home reloads its lists
+- `event_published` - `{ id }` after the publisher tried an event's Google copy; its management page reloads the status
 
 Clients connect via WebSocket and listen for these messages to update UI without refresh.
 
@@ -143,7 +144,8 @@ Required in `.env`:
 - `RESEND_API_KEY` - Optional. Without it feedback is saved but not emailed
 - `FEEDBACK_EMAIL_TO` - Optional, comma-separated; overrides the default inbox `lilai@fisherkuan.com`
 - `FEEDBACK_EMAIL_FROM` - Optional. Needs a domain verified in Resend, else the default `onboarding@resend.dev` only delivers to the Resend account's own address
-- `GOOGLE_SERVICE_ACCOUNT_JSON` - Optional. A Google service account key (the JSON file, or base64 of it) that turns on Make an event. Share each calendar in `events.createCalendars` with its `client_email`, "Make changes to events"; the address is logged at startup. Without it the create page says it is not set up. A value that does not parse stops startup
+- `GOOGLE_SERVICE_ACCOUNT_JSON` - A Google service account key (the JSON file, or base64 of it) that publishes events to the Google calendars and runs the one-time import. Share every calendar in `config/app.json` with its `client_email` ("Make changes to events"); the address is logged at startup. Without it events still work in Lilai and their copies wait. A value that does not parse stops startup
+- `PUBLIC_URL` - Optional. Overrides `publicUrl` (local runs)
 - `PORT` - Server port (default: 3000)
 - `NODE_ENV` - Set to "production" to enable SSL for PostgreSQL
 
@@ -175,15 +177,19 @@ Required in `.env`:
   - `timeRange=future|past|all` (default from `events.defaultTimeRange`)
   - `from=<ISO>&to=<ISO>` - events starting in that window; the date rail uses it.
   - `before=<ISO>&limit=N` - paginated past-events fetch, newest-first; used by the "Load earlier events" flow on the Home page (`loadOlderEvents` in `app.js`).
-- `GET /api/events/:id` - Get specific event
-- `POST /api/events` - Make an event (open to anyone, like RSVP). Body `{title, calendar, date, start, end, location?, description?, links?: [{url, label?}], limit?, approval?, hostName, hostJoins?, hostEmail?}`, times as Brussels wall time; an end at or before the start is the next day. Writes to Google Calendar first, then the row `cal-<iCalUID>` with the host fields; if the row fails the Google event is deleted again. Answers `{id, date, hostPath, googleLink, emailed}` and broadcasts `event_created`. 503 when not set up, 400 `{field, message}` on bad input
-- `GET /api/host/:token` - The host page's data: the event (with host fields) and every RSVP row with its status
-- `PUT /api/host/:token/event` - Body `{limit?, links?}`: the host changes the limit (null for none) or the links; broadcasts `event_update`
-- `POST /api/host/:token/requests/:rsvpId` - Body `{decision: accept|decline|undo}`. Accept respects the limit under a row lock (409 when full); undo puts a row back to `pending`
-- `PUT /api/events/:id` - Admin Events: body `{attendanceLimit?, links?}` (also `limit`). Only Lilai's own fields; broadcasts `event_update` with the public event and its attendance
-- `DELETE /api/events/:id` - Delete event (admin)
-- `POST /api/rsvp` - Submit RSVP (body: `{eventId, action: "add"|"remove", attendeeName}`). On an approval event, `add` asks to join: the row is `pending`, the answer carries `pending: true`, and one open request per name. Answers and the `attendance_update` broadcast carry `attendees`, `attendingCount` and `pendingCount`
-- Public event JSON never includes `host_email` or `host_token_hash` (`publicEvent` in `server/event-hosting.js`)
+- `GET /api/events/:id` - Get specific event (404 once cancelled)
+- `GET /api/events/repeat-preview?date=&every=&unit=&weekdays=&until=` - The dates a repeat lands on (the form's preview), or `{error}`
+- `POST /api/events` - Make an event, or a repeating one (open to anyone, like RSVP). Body `{title, calendar, date, start, end, location?, description?, links?, limit?, approval?, repeat?: {every, unit, weekdays, until}, hostName, hostJoins?, hostEmail?, calendarKeys?: [token]}`, times as Brussels wall time. A restricted calendar needs one of its keys in `calendarKeys` (403 otherwise). Saves first, then the publisher copies it to Google. Answers `{id, ids, count, date, hostPath, emailed, publishing}` and broadcasts `event_created`; 400 `{field, message}` on bad input
+- `GET /api/host/:token[?event=<id>]` - The management page's data: the event (with its form values, calendar, publish status), every RSVP row with its status, and for a series its rule and dates. Without `event` a series opens on its next date
+- `PUT /api/host/:token/events/:eventId` - Edit (the event form's fields plus `scope`); broadcasts `event_update`
+- `POST /api/host/:token/events/:eventId/cancel` - Body `{scope}`; broadcasts `event_cancelled`
+- `POST /api/host/:token/events/:eventId/restore`
+- `POST /api/host/:token/events/:eventId/requests/:rsvpId` - Body `{decision: accept|decline|undo}`. Accept respects the limit under a row lock (409 when full)
+- `GET /api/calendar-access/:token` - A calendar key's calendar and its upcoming events
+- `POST /api/calendar-access/:token/events/:eventId/manage` - Mints a management link for one of that calendar's events (a series gets one link for all its dates)
+- `GET /api/places?q=` - Places used before, most used first (the place field's suggestions)
+- `POST /api/rsvp` - Submit RSVP (body: `{eventId, action: "add"|"remove", attendeeName}`). A cancelled event is not found. On an approval event, `add` asks to join: the row is `pending`, the answer carries `pending: true`, and one open request per name. Answers and the `attendance_update` broadcast carry `attendees`, `attendingCount` and `pendingCount`
+- Public event JSON never includes `host_email` or the publishing bookkeeping (`publicEvent` in `server/event-hosting.js`), and never a cancelled event
 
 ### Donation Endpoints
 - `GET /api/donations` - Get donations with balance (query param: `limit`)
@@ -262,6 +268,14 @@ a fade; it just carries a "catching up" label instead of a countdown.
 a specification, never called at runtime.
 
 ## Deployment Notes
+
+Taking the calendars over (once, when this lands in production):
+1. Create a Google Cloud service account with the Calendar API enabled; set its key as `GOOGLE_SERVICE_ACCOUNT_JSON` on `lilai-eu`
+2. Share each of the three calendars with the service account's email, "Make changes to events"
+3. Deploy. On boot each calendar is imported (`[import]` lines in the log) and upcoming events are re-published
+4. Make the calendars read-only in Google: remove other people's edit access (the Leuven Taiwanese Google Group on 揪團啦, organizers on SportsCenter, TSA managers on TSA); keep "See all event details" for the public
+5. Mint TSA's calendar link and give it to TSA's admins: `heroku run -a lilai-eu node scripts/calendar-link.js TSA --label "TSA admins"`
+
 
 - Designed for Heroku-style deployment (Procfile present)
 - Production is the Heroku app `lilai-eu` (region eu, Basic dyno) serving `lilai.fisherkuan.com` (DNS on Cloudflare, DNS only). Its database is the Heroku Postgres `essential-0` add-on in eu-west-1, with daily backups at 04:00 Brussels (`heroku pg:backups -a lilai-eu`). The Supabase `lilai` project is a paused leftover, not production. Moved from the US app `lilai` on 2026-10-22

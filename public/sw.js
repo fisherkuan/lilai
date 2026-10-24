@@ -1,4 +1,4 @@
-const CACHE_NAME = 'lilai-cache-v52'; // Bumped version
+const CACHE_NAME = 'lilai-cache-v53'; // Bumped version
 const urlsToCache = [
   '/',
   '/index.html',
@@ -15,6 +15,9 @@ const urlsToCache = [
   '/js/sheet.js',
   '/js/date-rail.js',
   '/js/event-links.js',
+  '/js/event-form.js',
+  '/js/device-links.js',
+  '/js/make-event.js',
   '/js/pull-to-refresh.js',
   '/manifest.json',
   '/icons/icon-192x192.png',
@@ -72,13 +75,13 @@ self.addEventListener('activate', event => {
 function isOurCode(url) {
     return url.origin === self.location.origin
         && (/\.(?:js|css|html|md)$/.test(url.pathname) || url.pathname === '/'
-            || url.pathname === '/events/new' || url.pathname.startsWith('/api/'));
+            || url.pathname.startsWith('/api/'));
 }
 
-// A host page's address and answers carry its secret link: never into Cache Storage.
+// Management and calendar pages, and their answers, carry a secret link: never into Cache Storage.
 function isHostTraffic(url) {
     return url.origin === self.location.origin
-        && (url.pathname.startsWith('/host/') || url.pathname.startsWith('/api/host/'));
+        && ['/host/', '/api/host/', '/calendars/', '/api/calendar-access/'].some(p => url.pathname.startsWith(p));
 }
 
 self.addEventListener('fetch', (event) => {

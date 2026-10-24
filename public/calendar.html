@@ -4,15 +4,17 @@
     <meta charset="UTF-8">
     <!-- Apply a saved theme before first paint; the switch itself is js/theme.js. -->
     <script>try{var t=localStorage.getItem("lilaiTheme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}</script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calendar access — Lilai</title>
+    <meta name="description" content="Make and manage events in one calendar.">
+    <meta name="robots" content="noindex">
+    <meta name="referrer" content="no-referrer">
     <meta name="theme-color" content="#efefea" media="(prefers-color-scheme: light)">
     <meta name="theme-color" content="#111214" media="(prefers-color-scheme: dark)">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="robots" content="noindex, nofollow">
-    <title>Admin — Events — Lilai</title>
     <link rel="preload" href="/bauhaus/fonts/jost-latin.woff2" as="font" type="font/woff2" crossorigin>
     <link rel="stylesheet" href="/bauhaus/tokens.css">
     <link rel="stylesheet" href="/css/lilai.css">
-    <link rel="stylesheet" href="/css/admin.css">
+    <link rel="stylesheet" href="/css/events.css">
     <link rel="icon" href="/icons/favicon.ico" sizes="48x48">
     <link rel="icon" href="/icons/favicon.svg" type="image/svg+xml">
     <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
@@ -34,35 +36,37 @@
         </span>
         <span class="wordmark-name">Lilai</span>
     </a>
+    <nav class="app-header-links" aria-label="Site links">
+        <a href="/faq.html">FAQ</a>
+        <a href="/donate">Donate</a>
+    </nav>
 </header>
 
-<nav class="admin-nav" aria-label="Admin">
-    <a href="/admin/events" aria-current="page">Events</a>
-    <a href="/admin/donations">Donations</a>
-    <a href="/admin/bookings">Booking queue</a>
-</nav>
+<main class="ev-page" id="calendar">
+    <p class="ev-eyebrow">Calendar access</p>
+    <p class="state-line" id="cal-state">Loading…</p>
 
-<main class="admin">
-    <div class="admin-head">
-        <h1 class="admin-title">Events</h1>
-        <p class="admin-sub">Set limits and links for upcoming events.</p>
-    </div>
+    <article id="cal-body" hidden>
+        <h1 class="ev-host-title" id="cal-title"></h1>
+        <p class="ev-cal-lede" id="cal-lede"></p>
+        <div class="ev-manage-actions">
+            <a class="btn btn-solid" id="cal-make" href="/#new">Make an event</a>
+            <button type="button" class="btn btn-line" id="cal-share">Share this page</button>
+        </div>
+        <p class="ev-hint" id="cal-share-status" role="status" hidden></p>
+        <p class="ev-cal-note" id="cal-not-imported" hidden>Lilai has not taken this calendar over from Google yet, so its events cannot be managed here. That happens on its own once Google Calendar publishing is set up.</p>
 
-    <div class="admin-grid">
-        <section class="admin-main" aria-label="Upcoming events">
-            <div id="admin-events-list" class="event-list">
-                <p class="state-line">Loading events…</p>
+        <section class="ev-requests" aria-labelledby="cal-events-title">
+            <div class="section-head">
+                <h2 class="section-title" id="cal-events-title">Upcoming</h2>
+                <span class="section-meta" id="cal-count"></span>
             </div>
+            <ul class="ev-request-list" id="cal-events"></ul>
         </section>
+        <p class="field-error" id="cal-error" role="alert" hidden></p>
 
-        <aside class="sidebar" aria-label="About limits and links">
-            <section class="side-block" aria-labelledby="side-limit-title">
-                <h2 class="side-title" id="side-limit-title">How limits and links work</h2>
-                <p class="side-note">A limit closes Join once that many people have signed up. Leave the field empty for no limit.</p>
-                <p class="side-note">Limits and links live in Lilai only. Lilai no longer reads them from the calendar description, which shows on the card as written.</p>
-            </section>
-        </aside>
-    </div>
+        <p class="ev-host-foot">Anyone with this link can add events to this calendar and manage all of them. Share it only with the calendar's admins.</p>
+    </article>
 </main>
 
 <footer class="colophon">
@@ -71,8 +75,7 @@
 <script src="/js/theme.js"></script>
 <script src="/js/feedback.js"></script>
 <script src="/js/sheet.js"></script>
-
-<script src="/js/event-links.js"></script>
-<script src="/admin.js"></script>
+<script src="/js/device-links.js"></script>
+<script src="/js/calendar-page.js"></script>
 </body>
 </html>

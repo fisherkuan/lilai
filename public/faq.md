@@ -6,9 +6,11 @@
 
 No, login is not required for any operation in the webapp, including viewing calendars and RSVPing to events.
 
-### Do I need to join the Leuven Taiwanese group?
+### How do I make an event?
 
-Only if you want to create or edit events on the 揪團啦 calendar. For viewing events and RSVPing, no group membership is needed.
+Tap "+" next to "Upcoming", or "Create an event" in the sidebar. Fill in what, when and where, and choose who gets a place: anyone, up to a number of places, or only the people you approve. An event can repeat, for example every Thursday until the end of term. Anyone can make an event in SportsCenter and 揪團啦; TSA events are for TSA's admins.
+
+When the event is made, Lilai gives you its management link. Keep it: it is how you edit or cancel the event, and how you accept or decline people who ask to join. Share it with anyone who hosts with you. This device also remembers it under "You manage".
 
 ### Can I install this app on my phone?
 
@@ -59,26 +61,27 @@ Your name and RSVP status are visible to anyone viewing the event. This helps co
 
 ### What rights do I have for each calendar?
 
-| Calendar                      | Read     | Create/Edit                                 | Ask for editor rights                                               |
-| ----------------------------- | -------- | ------------------------------------------- | ----------------------------------------------------------------- |
-| Taiwanese Leuven SportsCenter | Everyone | Limited to event organizers                 | Contact [Fisher](mailto:kuanfisher@gmail.com) or existing editors                                |
-| TSA                           | Everyone | Limited to TSA managers                     | Contact [Fisher](mailto:kuanfisher@gmail.com) or TSA managers                                    |
-| 揪團啦                           | Everyone | Everyone who joins [Leuven Taiwanese](https://groups.google.com/g/leuven-taiwanese/) group | Auto-approved |
+| Calendar | See events | Make events | Edit an event |
+| --- | --- | --- | --- |
+| SportsCenter | Everyone | Everyone, in Lilai | Its host, with the event's management link |
+| TSA | Everyone | TSA's admins, with the TSA calendar link | Its host, or TSA's admins |
+| 揪團啦 | Everyone | Everyone, in Lilai | Its host, with the event's management link |
 
-### If I edit an event or move it to my other calendar, will it take effect on other people's calendar view?
+TSA's admins get the TSA calendar link from [Fisher](mailto:kuanfisher@gmail.com). Opening it on a phone lets that phone add TSA events and manage every TSA event.
 
-Yes, any change on the public calendar applies globally. All viewers will see the updated event details.
+### Can I still add or edit events in Google Calendar?
 
-### Why can't I see the "join" button for Leuven Taiwanese group?
+No. Events are made and changed in Lilai, which copies them to the group's Google calendars. The Google calendars are read-only copies for subscribing; a change made there directly would be overwritten.
 
-You need to sign in to your Google account first. Once signed in, the join button will appear.
+### I lost the management link of my event. What now?
+
+Look under "You manage" in the sidebar on the phone you made it on. If it is not there, ask [Fisher](mailto:kuanfisher@gmail.com) or, for a TSA event, a TSA admin.
 
 ### I can't see any events. What's wrong?
 
 - Check that you picked the right tab above the list: "Upcoming" or "All"
 - Check the calendar shapes below the tabs: a calendar you switched off is hidden from the list
-- Tap "Refresh", or reload the page
-- Events are loaded from public Google Calendars, so they should appear automatically
+- Pull the list down to refresh it, or reload the page
 
 ## Technical questions
 

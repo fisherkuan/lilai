@@ -1,4 +1,4 @@
-/* Make an event (/events/new) and the host page (/host/:token): Shape Calendar world.
+/* The management page (/host/:token) and the calendar page (/calendars/:token): Shape Calendar world.
    See DESIGN.md. Loads after /css/lilai.css and reuses its tokens and components
    (.field, .input, .btn, .text-btn, .field-error, .section-title); adds no colour. */
 
@@ -37,231 +37,6 @@
 
 .ev-notice .text-link { display: inline-block; margin-top: var(--s2); }
 
-/* ---------- The form ---------- */
-
-.ev-form { margin-top: var(--s3); }
-
-.ev-label {
-    display: block;
-    margin-bottom: var(--s3);
-}
-
-.ev-optional {
-    margin-left: var(--s1);
-    font-weight: 400;
-    color: var(--ink-3);
-}
-
-.ev-hint {
-    margin-top: var(--s2);
-    font-size: var(--meta);
-    color: var(--ink-2);
-}
-
-.ev-hint[hidden] { display: none; }
-.ev-hint-lead { margin: calc(-1 * var(--s2)) 0 var(--s3); }
-
-.ev-textarea { min-height: 112px; padding: var(--s3); resize: vertical; line-height: 1.5; }
-.ev-date { max-width: 240px; }
-.input[type="date"], .input[type="time"] { font-variant-numeric: tabular-nums; }
-
-/* Start and end read as one pair. */
-.ev-two {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    gap: var(--s3);
-    max-width: 360px;
-}
-
-.ev-col { min-width: 0; }
-
-/* A group opens on a full ink rule, like the sections on Home. */
-.ev-group {
-    margin: var(--s7) 0 0;
-    padding: var(--s3) 0 0;
-    border: 0;
-    border-top: var(--rule) solid var(--ink);
-}
-
-.ev-group legend { float: left; width: 100%; padding: 0; }
-.ev-group legend + * { clear: both; }
-
-/* Separate pills; the filled one is the answer (the booking sheet's segment). */
-.ev-segment {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--s2);
-}
-
-.ev-seg {
-    min-height: 44px;
-    padding: 0 var(--s4);
-    border: 0;
-    border-radius: var(--radius-full);
-    background: var(--fill);
-    color: var(--ink);
-    font: inherit;
-    font-size: 15px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: background-color 140ms var(--ease), color 140ms var(--ease);
-}
-
-.ev-seg:hover { background: var(--stone); }
-.ev-seg[aria-checked="true"] { background: var(--ink); color: var(--paper); font-weight: 600; }
-.ev-seg:focus-visible,
-.ev-step:focus-visible,
-.ev-choice:focus-visible { outline: var(--stroke-2) solid var(--focus); outline-offset: 2px; }
-
-/* "− [8] + places" is one phrase, laid out as one. */
-.ev-limit {
-    display: flex;
-    align-items: center;
-    gap: var(--s2);
-    margin-top: var(--s3);
-}
-
-.ev-limit[hidden] { display: none; }
-
-.ev-step {
-    flex: none;
-    width: 44px;
-    height: 44px;
-    border: 0;
-    border-radius: var(--radius-full);
-    background: var(--fill);
-    color: var(--ink);
-    font: inherit;
-    font-size: 22px;
-    line-height: 1;
-    cursor: pointer;
-}
-
-.ev-step:hover { background: var(--stone); }
-
-.ev-number {
-    width: 88px;
-    text-align: center;
-    font-variant-numeric: tabular-nums;
-    -moz-appearance: textfield;
-}
-
-.ev-number::-webkit-outer-spin-button,
-.ev-number::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
-
-.ev-limit-word { font-size: 15px; }
-
-/* Two answers with a sentence each: a stacked choice, the chosen one inked. */
-.ev-choice-list {
-    display: grid;
-    gap: var(--s2);
-}
-
-.ev-choice {
-    display: grid;
-    gap: var(--s1);
-    padding: var(--s3) var(--s4);
-    border: var(--stroke-2) solid transparent;
-    border-radius: var(--radius-control);
-    background: var(--fill);
-    color: var(--ink);
-    font: inherit;
-    text-align: left;
-    cursor: pointer;
-    transition: border-color 140ms var(--ease), background-color 140ms var(--ease);
-}
-
-.ev-choice:hover { background: var(--stone); }
-.ev-choice[aria-checked="true"] { border-color: var(--ink); background: var(--paper-raised); }
-.ev-choice-title { font-size: 16px; font-weight: 600; }
-.ev-choice-note { font-size: var(--meta); color: var(--ink-2); }
-
-.ev-check {
-    display: flex;
-    align-items: center;
-    gap: var(--s3);
-    min-height: 44px;
-    margin-top: var(--s3);
-    font-size: 15px;
-    cursor: pointer;
-}
-
-.ev-check input { width: 20px; height: 20px; margin: 0; }
-
-.ev-form-error { margin-top: var(--s5); }
-
-.ev-actions {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: var(--s3) var(--s5);
-    margin-top: var(--s6);
-}
-
-/* ---------- Made ---------- */
-
-.ev-done {
-    margin-top: var(--s5);
-    padding-top: var(--s4);
-    border-top: var(--rule) solid var(--ink);
-}
-
-.ev-done:focus { outline: none; }
-
-.ev-done-title { font-size: 20px; font-weight: 600; }
-.ev-done-when { margin-top: var(--s1); font-size: 15px; color: var(--ink-2); }
-
-.ev-hostlink {
-    margin-top: var(--s5);
-    padding: var(--s4);
-    border-radius: var(--radius-card);
-    background: var(--paper-raised);
-}
-
-.ev-hostlink .ev-label { margin-bottom: 0; font-weight: 600; }
-
-.ev-hostlink-row {
-    display: flex;
-    align-items: center;
-    gap: var(--s3);
-    margin-top: var(--s3);
-}
-
-.ev-hostlink-url {
-    flex: 1 1 auto;
-    min-width: 0;
-    overflow-wrap: anywhere;
-    font-size: var(--meta);
-}
-
-.ev-done-links {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: var(--s2) var(--s5);
-    margin-top: var(--s5);
-}
-
-.ev-done-links [hidden] { display: none; }
-
-/* "You host" on this device: quiet rows above the form. */
-.ev-hosted { margin-top: var(--s5); }
-.ev-hosted[hidden] { display: none; }
-
-.ev-hosted-list { list-style: none; margin: var(--s2) 0 0; padding: 0; }
-
-.ev-hosted-list li {
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: var(--s3);
-    padding: var(--s3) 0;
-    border-top: 1px solid var(--hair);
-    font-size: 15px;
-}
-
-.ev-hosted-when { flex: none; font-size: var(--meta); color: var(--ink-2); font-variant-numeric: tabular-nums; }
-
 /* ---------- Host page ---------- */
 
 .ev-host-title {
@@ -274,7 +49,6 @@
 .ev-host-title .shape { flex: none; width: 0.62em; height: 0.62em; }
 .ev-host-when, .ev-host-where { margin-top: var(--s1); font-size: 15px; color: var(--ink-2); }
 .ev-host-where[hidden] { display: none; }
-.ev-host-mode { margin-top: var(--s3); font-size: var(--meta); font-weight: 600; }
 
 /* The count is a numeral: Jost, tabular. */
 .ev-tally {
@@ -329,25 +103,82 @@
 
 .ev-host-foot { margin-top: var(--s6); font-size: var(--meta); color: var(--ink-2); }
 
-/* These pages sit on the grey ground, where the kit's grey fill would vanish: controls
+/* These pages sit on the grey ground, where the kit's grey fill would vanish: line buttons
    take the raised paper, as cards do on Home. */
-.ev-page .input,
-.ev-page .ev-seg,
-.ev-page .ev-step,
-.ev-page .ev-choice,
 .ev-page .btn-line { background-color: var(--paper-raised); }
-
-.ev-page .ev-seg:hover,
-.ev-page .ev-step:hover,
-.ev-page .ev-choice:hover,
 .ev-page .btn-line:hover { background-color: var(--stone); }
 
-.ev-page .ev-seg[aria-checked="true"] { background-color: var(--ink); }
-.ev-page .ev-choice[aria-checked="true"] { background-color: var(--paper-raised); }
-.ev-group legend { margin-bottom: var(--s1); }
+/* ---------- Management page additions ---------- */
 
-/* The host's settings: places and links, saved together. */
-.ev-settings .ev-field-first { margin-top: var(--s3); }
-.ev-settings .ev-limit { margin-top: 0; }
-.ev-actions-tight { margin-top: var(--s5); }
-.ev-saved { margin: 0; }
+/* A cancelled event says so before anything else: reversed out of ink, like the booking
+   sheet's edit mode. */
+.ev-cancelled {
+    margin: var(--s3) 0 0;
+    padding: var(--s2) var(--s3);
+    border-radius: var(--radius-control);
+    background: var(--ink);
+    color: var(--paper);
+    font-size: var(--meta);
+    font-weight: 600;
+}
+.ev-cancelled[hidden] { display: none; }
+
+.ev-host-meta { margin-top: var(--s3); font-size: var(--meta); font-weight: 600; }
+
+/* Where the Google copy stands. A problem is the one line set in ink. */
+.ev-publish { margin-top: var(--s1); font-size: var(--meta); color: var(--ink-2); }
+.ev-publish[data-state="retrying"],
+.ev-publish[data-state="off"] { color: var(--ink); font-weight: 500; }
+
+/* Edit is the main action; Share and Cancel sit beside it and wrap on phones. */
+.ev-manage-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--s3) var(--s4);
+    margin-top: var(--s5);
+}
+.ev-manage-actions [hidden] { display: none; }
+
+/* A series: its rule, then its dates as a row of chips that scrolls sideways. */
+.ev-series { margin-top: var(--s5); border-top: var(--rule) solid var(--ink); }
+.ev-series[hidden] { display: none; }
+.ev-series-rule { font-size: 15px; color: var(--ink-2); }
+
+.ev-series-dates {
+    display: flex;
+    gap: var(--s2);
+    margin: var(--s3) calc(-1 * var(--gutter)) 0;
+    padding: 0 var(--gutter) var(--s2);
+    overflow-x: auto;
+    scrollbar-width: thin;
+}
+
+.ev-date-chip {
+    display: grid;
+    flex: none;
+    justify-items: start;
+    gap: 2px;
+    min-height: 52px;
+    padding: var(--s2) var(--s3);
+    border: var(--stroke-2) solid transparent;
+    border-radius: var(--radius-control);
+    background: var(--paper-raised);
+    color: var(--ink);
+    font: inherit;
+    font-size: var(--meta);
+    font-variant-numeric: tabular-nums;
+    cursor: pointer;
+}
+.ev-date-chip:hover { background: var(--stone); }
+.ev-date-chip[aria-pressed="true"] { border-color: var(--ink); }
+.ev-date-chip:focus-visible { outline: var(--stroke-2) solid var(--focus); outline-offset: 2px; }
+.ev-date-chip.is-past { color: var(--ink-3); }
+.ev-date-chip.is-cancelled span:first-child { text-decoration: line-through; }
+.ev-date-chip-count { font-size: 12px; color: var(--ink-2); }
+
+/* ---------- Calendar page ---------- */
+
+.ev-cal-lede { margin-top: var(--s2); font-size: 15px; color: var(--ink-2); max-width: 52ch; }
+.ev-cal-note { margin-top: var(--s4); font-size: var(--meta); font-weight: 500; }
+.ev-cal-note[hidden] { display: none; }

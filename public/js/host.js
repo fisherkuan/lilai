@@ -1,9 +1,11 @@
-// The host page (/host/:token): one event and everyone who asked to join. The token in the
-// path is the only key; it goes to the API as is and never into localStorage from here.
+// The management page (/host/:token): one event, or one date of a repeating event, and
+// everything a host does with it — edit, cancel or restore, share the page, and accept or
+// decline the people who asked. The token in the path is the only key.
 (() => {
     'use strict';
 
     const token = decodeURIComponent(location.pathname.split('/').filter(Boolean)[1] || '');
+    const pageUrl = `${location.origin}/host/${encodeURIComponent(token)}`;
     const CAL_STYLES = [
         { shape: 'circle', tone: 'blue' },
         { shape: 'square', tone: 'red' },
@@ -13,64 +15,10 @@
     let view = null;
     let calendars = [];
     let busy = false;
-    // Unsaved edits to places or links: a live reload must not overwrite them.
-    let settingsDirty = false;
-    const limitInput = document.getElementById('set-limit');
-    const linkEditor = EventLinks.create(document.getElementById('set-links'), { onChange: markDirty });
+    let selectedId = new URLSearchParams(location.search).get('event');
+    const editFields = EventForm.create(document.getElementById('edit-fields'), { mode: 'edit' });
 
-    function markDirty() {
-        settingsDirty = true;
-        document.getElementById('settings-save').disabled = false;
-        document.getElementById('settings-saved').hidden = true;
-    }
-
-    function fillSettings(event) {
-        if (settingsDirty) return;
-        limitInput.value = event.attendance_limit === null || event.attendance_limit === undefined ? '' : String(event.attendance_limit);
-        linkEditor.set(event.links || []);
-        document.getElementById('settings-save').disabled = true;
-    }
-
-    async function saveSettings(e) {
-        e.preventDefault();
-        const errorEl = document.getElementById('settings-error');
-        errorEl.hidden = true;
-        const bad = linkEditor.invalid();
-        if (bad) {
-            errorEl.textContent = 'That is not a web address. It starts with https://';
-            errorEl.hidden = false;
-            bad.focus();
-            return;
-        }
-        const save = document.getElementById('settings-save');
-        const text = save.querySelector('.text');
-        save.disabled = true;
-        text.textContent = 'Saving…';
-        try {
-            const res = await fetch(`/api/host/${encodeURIComponent(token)}/event`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ limit: limitInput.value.trim() || null, links: linkEditor.value() })
-            });
-            const result = await res.json().catch(() => ({}));
-            if (!res.ok || !result.success) {
-                errorEl.textContent = result.message || 'That did not go through. Try again.';
-                errorEl.hidden = false;
-                save.disabled = false;
-                return;
-            }
-            settingsDirty = false;
-            view = result;
-            render();
-            document.getElementById('settings-saved').hidden = false;
-        } catch (error) {
-            errorEl.textContent = 'No connection. Check your network and try again.';
-            errorEl.hidden = false;
-            save.disabled = false;
-        } finally {
-            text.textContent = 'Save';
-        }
-    }
+    const $ = (id) => document.getElementById(id);
 
     function escapeHtml(value) {
         return String(value).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -105,23 +53,24 @@
 
     // The calendar's shape, in config order like Home, so the host sees the same mark.
     function shapeFor(source) {
-        const at = calendars.findIndex(id => id === source);
+        const at = calendars.indexOf(source);
         const style = at < 0 ? CAL_STYLES[3] : CAL_STYLES[Math.min(at, CAL_STYLES.length - 1)];
         return `<span class="tone-${style.tone}"><svg class="shape s-${style.shape}" aria-hidden="true" focusable="false"><use href="#shape-${style.shape}"/></svg></span>`;
     }
 
     function showState(message, isError = false) {
-        const el = document.getElementById('host-state');
+        const el = $('host-state');
         el.textContent = message;
         el.classList.toggle('is-error', isError);
         el.hidden = !message;
     }
 
-    function showError(message) {
-        const el = document.getElementById('host-error');
-        el.textContent = message || '';
-        el.hidden = !message;
+    function showError(id, message) {
+        $(id).textContent = message || '';
+        $(id).hidden = !message;
     }
+
+    // ---------- Drawing ----------
 
     function row(request, actions) {
         const buttons = actions.map(([decision, label, solid]) =>
@@ -129,12 +78,32 @@
         ).join('');
         return `<li class="ev-request${request.status === 'declined' ? ' is-declined' : ''}">`
             + `<span class="ev-request-who"><span class="ev-request-name">${escapeHtml(request.name)}</span>`
-            + `<span class="ev-request-at">asked ${escapeHtml(askedText(request.at))}</span></span>`
+            + `<span class="ev-request-at">${request.status === 'yes' ? 'joined' : 'asked'} ${escapeHtml(askedText(request.at))}</span></span>`
             + `<span class="ev-request-actions">${buttons}</span></li>`;
     }
 
+    function renderSeries(series, event) {
+        $('series').hidden = !series;
+        if (!series) return;
+        $('series-rule').textContent = series.rule;
+        const live = series.dates.filter(d => !d.cancelled).length;
+        $('series-count').textContent = `${series.dates.length} dates${live < series.dates.length ? `, ${series.dates.length - live} cancelled` : ''}`;
+        $('series-dates').innerHTML = series.dates.map((d) => {
+            const day = new Date(d.date);
+            const label = day.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+            const classes = ['ev-date-chip'];
+            if (d.cancelled) classes.push('is-cancelled');
+            if (day.getTime() < Date.now()) classes.push('is-past');
+            return `<button type="button" class="${classes.join(' ')}" data-event="${escapeHtml(d.id)}" aria-pressed="${d.id === event.id}"`
+                + ` aria-label="${escapeHtml(`${label}${d.cancelled ? ', cancelled' : ''}, ${d.attendingCount} coming`)}">`
+                + `<span>${escapeHtml(label)}</span><span class="ev-date-chip-count" aria-hidden="true">${d.cancelled ? '—' : d.attendingCount}</span></button>`;
+        }).join('');
+        const current = $('series-dates').querySelector('[aria-pressed="true"]');
+        if (current) current.scrollIntoView({ block: 'nearest', inline: 'center' });
+    }
+
     function render() {
-        const { event, requests } = view;
+        const { event, requests, series } = view;
         const approval = event.approval_required;
         const isPast = new Date(event.date).getTime() < Date.now();
         const limit = event.attendance_limit;
@@ -142,120 +111,287 @@
         const coming = requests.filter(r => r.status === 'yes');
         const declined = requests.filter(r => r.status === 'declined');
         const full = limit !== null && coming.length >= limit;
+        const editable = !event.cancelled;
 
-        document.title = `${event.title} — Host page — Lilai`;
-        document.getElementById('host-title').innerHTML = `${shapeFor(event.source)}<span>${escapeHtml(event.title)}</span>`;
-        document.getElementById('host-when').textContent = whenText(event);
-        const where = document.getElementById('host-where');
-        where.textContent = event.location || '';
-        where.hidden = !event.location;
-        document.getElementById('host-mode').textContent = approval
-            ? 'You approve each person who asks to join.'
-            : 'Open: anyone who joins has a place.';
+        document.title = `${event.title} — Manage — Lilai`;
+        $('host-cancelled').hidden = !event.cancelled;
+        $('host-title').innerHTML = `${shapeFor(event.source)}<span>${escapeHtml(event.title)}</span>`;
+        $('host-when').textContent = whenText(event);
+        $('host-where').textContent = event.location || '';
+        $('host-where').hidden = !event.location;
+        $('host-links').innerHTML = EventLinks.listHtml(event.links);
+        const meta = [
+            event.calendar ? event.calendar.name : '',
+            approval ? 'You approve each person' : 'Open to anyone',
+            event.host_name ? `Hosted by ${event.host_name}` : ''
+        ].filter(Boolean);
+        $('host-meta').textContent = meta.join(' · ');
+        $('host-publish').textContent = event.publish.text;
+        $('host-publish').dataset.state = event.publish.state;
 
-        document.getElementById('tally-num').textContent = limit !== null ? `${coming.length}/${limit}` : String(coming.length);
-        document.getElementById('tally-label').textContent = limit !== null
+        renderSeries(series, event);
+
+        $('edit-btn').hidden = !editable;
+        $('cancel-btn').hidden = !editable;
+        $('restore-btn').hidden = editable;
+
+        $('tally-num').textContent = limit !== null ? `${coming.length}/${limit}` : String(coming.length);
+        $('tally-label').textContent = limit !== null
             ? (full ? 'places taken · full' : 'places taken')
             : (isPast ? 'went' : 'coming');
 
-        // Waiting: only an approval event has a queue. Accept is the main action.
-        document.getElementById('waiting-section').hidden = !approval && waiting.length === 0;
-        document.getElementById('waiting-count').textContent = waiting.length ? String(waiting.length) : '';
-        document.getElementById('waiting-list').innerHTML = waiting.length
-            ? waiting.map(r => row(r, full ? [['decline', 'Decline']] : [['accept', 'Accept', true], ['decline', 'Decline']])).join('')
+        const act = !isPast && editable;
+        $('waiting-section').hidden = !approval && waiting.length === 0;
+        $('waiting-count').textContent = waiting.length ? String(waiting.length) : '';
+        $('waiting-list').innerHTML = waiting.length
+            ? waiting.map(r => row(r, !act ? [] : full ? [['decline', 'Decline']] : [['accept', 'Accept', true], ['decline', 'Decline']])).join('')
             : '<li class="ev-empty">No one is waiting.</li>';
 
-        document.getElementById('coming-count').textContent = coming.length ? String(coming.length) : '';
-        document.getElementById('coming-list').innerHTML = coming.length
-            ? coming.map(r => row(r, isPast ? [] : [['decline', 'Remove']])).join('')
+        $('coming-count').textContent = coming.length ? String(coming.length) : '';
+        $('coming-list').innerHTML = coming.length
+            ? coming.map(r => row(r, act ? [['decline', 'Remove']] : [])).join('')
             : '<li class="ev-empty">No one yet.</li>';
 
         // A declined name can come back: to the queue on an approval event, else straight in.
-        document.getElementById('declined-section').hidden = declined.length === 0;
-        document.getElementById('declined-count').textContent = String(declined.length);
-        document.getElementById('declined-list').innerHTML = declined.map(r =>
-            row(r, isPast ? [] : [[approval ? 'undo' : 'accept', 'Undo']])
-        ).join('');
+        $('declined-section').hidden = declined.length === 0;
+        $('declined-count').textContent = String(declined.length);
+        $('declined-list').innerHTML = declined.map(r => row(r, act ? [[approval ? 'undo' : 'accept', 'Undo']] : [])).join('');
 
-        fillSettings(event);
+        $('host-foot').textContent = series
+            ? 'Anyone with this page\'s link can manage every date of this event. Share it only with people who host with you.'
+            : 'Anyone with this page\'s link can manage the event. Share it only with people who host with you.';
+        $('host-google').hidden = !event.google_link || event.cancelled;
+        if (event.google_link) $('host-google').href = event.google_link;
+        $('host-home').hidden = event.cancelled;
+        $('host-home').href = `/#event-${encodeURIComponent(event.id)}`;
 
-        const google = document.getElementById('host-google');
-        google.hidden = !event.google_link;
-        if (event.google_link) google.href = event.google_link;
-        document.getElementById('host-home').href = `/#event-${encodeURIComponent(event.id)}`;
-
-        document.getElementById('host-event').hidden = false;
+        $('host-event').hidden = false;
         showState('');
+
+        // "You manage" on Home lists this page from now on.
+        const next = series ? series.dates.find(d => !d.cancelled && new Date(d.date).getTime() > Date.now()) : null;
+        DeviceLinks.rememberHosted({
+            hostPath: location.pathname,
+            title: event.title,
+            date: next ? next.date : event.date,
+            count: series ? series.dates.length : 1
+        });
     }
+
+    // ---------- Talking to the server ----------
 
     async function load() {
         try {
-            const res = await fetch(`/api/host/${encodeURIComponent(token)}`, { cache: 'no-store' });
+            const qs = selectedId ? `?event=${encodeURIComponent(selectedId)}` : '';
+            const res = await fetch(`/api/host/${encodeURIComponent(token)}${qs}`, { cache: 'no-store' });
             const result = await res.json().catch(() => ({}));
             if (!res.ok || !result.success) {
-                document.getElementById('host-event').hidden = true;
-                showState(result.message || 'This host link does not open any event.', true);
+                $('host-event').hidden = true;
+                showState(result.message || 'This link does not open any event.', true);
                 return;
             }
             view = result;
+            selectedId = view.event.id;
             render();
         } catch (error) {
             if (!view) showState('Could not reach Lilai. Check your network and reload.', true);
         }
     }
 
+    // One write to the event; the answer is the page's new view.
+    async function send(path, method, body) {
+        const res = await fetch(`/api/host/${encodeURIComponent(token)}/events/${encodeURIComponent(view.event.id)}${path}`, {
+            method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body || {})
+        });
+        const result = await res.json().catch(() => ({}));
+        if (res.ok && result.success) {
+            view = result;
+            render();
+        }
+        return { ok: res.ok && result.success, result };
+    }
+
     async function decide(button) {
         if (busy) return;
         busy = true;
-        showError('');
+        showError('host-error', '');
         button.disabled = true;
         try {
-            const res = await fetch(`/api/host/${encodeURIComponent(token)}/requests/${encodeURIComponent(button.dataset.id)}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ decision: button.dataset.decision })
-            });
-            const result = await res.json().catch(() => ({}));
-            if (!res.ok || !result.success) {
-                showError(result.message || 'That did not go through. Try again.');
+            const { ok, result } = await send(`/requests/${encodeURIComponent(button.dataset.id)}`, 'POST', { decision: button.dataset.decision });
+            if (!ok) {
+                showError('host-error', result.message || 'That did not go through. Try again.');
                 button.disabled = false;
-                return;
             }
-            view = result;
-            render();
         } catch (error) {
-            showError('No connection. Check your network and try again.');
+            showError('host-error', 'No connection. Check your network and try again.');
             button.disabled = false;
         } finally {
             busy = false;
         }
     }
 
-    // New requests arrive live: any attendance change on this event reloads the lists.
+    // ---------- Sheets ----------
+
+    let returnFocus = null;
+    function openSheet(id) {
+        returnFocus = document.activeElement;
+        $(id).classList.remove('hidden');
+    }
+    function closeSheet(id) {
+        $(id).classList.add('hidden');
+        if (returnFocus && document.contains(returnFocus)) returnFocus.focus();
+        returnFocus = null;
+    }
+    ['edit-sheet', 'cancel-sheet'].forEach((id) => {
+        $(id).addEventListener('click', (e) => {
+            if (e.target === $(id) || e.target.closest('[data-close]')) closeSheet(id);
+        });
+    });
+    document.addEventListener('keydown', (e) => {
+        if (e.key !== 'Escape') return;
+        ['edit-sheet', 'cancel-sheet'].forEach((id) => { if (!$(id).classList.contains('hidden')) closeSheet(id); });
+    });
+
+    function wireScope(groupId) {
+        const group = $(groupId);
+        group.addEventListener('click', (e) => {
+            const b = e.target.closest('[role="radio"]');
+            if (!b) return;
+            group.querySelectorAll('[role="radio"]').forEach(x => x.setAttribute('aria-checked', String(x === b)));
+        });
+        return () => group.querySelector('[aria-checked="true"]').dataset.scope;
+    }
+    const editScope = wireScope('edit-scope');
+    const cancelScope = wireScope('cancel-scope');
+    function resetScope(groupId) {
+        $(groupId).querySelectorAll('[role="radio"]').forEach(x => x.setAttribute('aria-checked', String(x.dataset.scope === 'this')));
+    }
+
+    function openEdit() {
+        editFields.set(view.event.form);
+        editFields.clearErrors();
+        showError('edit-error', '');
+        $('edit-scope-field').hidden = !view.series;
+        resetScope('edit-scope');
+        openSheet('edit-sheet');
+        setTimeout(() => editFields.focus(), 60);
+    }
+
+    async function saveEdit(e) {
+        e.preventDefault();
+        showError('edit-error', '');
+        if (!editFields.check()) return;
+        const save = $('edit-save');
+        const text = save.querySelector('.text');
+        save.disabled = true;
+        text.textContent = 'Saving…';
+        try {
+            const { ok, result } = await send('', 'PUT', { ...editFields.value(), scope: view.series ? editScope() : 'this' });
+            if (!ok) {
+                if (!(result.field && editFields.showError(result.field, result.message))) {
+                    showError('edit-error', result.message || 'That did not go through. Try again.');
+                }
+                return;
+            }
+            closeSheet('edit-sheet');
+        } catch (error) {
+            showError('edit-error', 'No connection. Check your network and try again.');
+        } finally {
+            save.disabled = false;
+            text.textContent = 'Save';
+        }
+    }
+
+    function openCancel() {
+        $('cancel-when').textContent = `${view.event.title}, ${whenText(view.event)}`;
+        $('cancel-scope-field').hidden = !view.series;
+        resetScope('cancel-scope');
+        showError('cancel-error', '');
+        openSheet('cancel-sheet');
+    }
+
+    async function confirmCancel() {
+        const button = $('cancel-confirm');
+        button.disabled = true;
+        try {
+            const { ok, result } = await send('/cancel', 'POST', { scope: view.series ? cancelScope() : 'this' });
+            if (!ok) {
+                showError('cancel-error', result.message || 'That did not go through. Try again.');
+                return;
+            }
+            closeSheet('cancel-sheet');
+        } catch (error) {
+            showError('cancel-error', 'No connection. Check your network and try again.');
+        } finally {
+            button.disabled = false;
+        }
+    }
+
+    async function restore() {
+        const button = $('restore-btn');
+        button.disabled = true;
+        showError('host-error', '');
+        try {
+            const { ok, result } = await send('/restore', 'POST');
+            if (!ok) showError('host-error', result.message || 'That did not go through. Try again.');
+        } catch (error) {
+            showError('host-error', 'No connection. Check your network and try again.');
+        } finally {
+            button.disabled = false;
+        }
+    }
+
+    async function sharePage() {
+        const outcome = await DeviceLinks.share({
+            title: `Manage ${view.event.title}`,
+            text: `Help me host ${view.event.title} on Lilai. This link lets you edit it and manage who comes:`,
+            url: pageUrl
+        });
+        const status = $('share-status');
+        const message = {
+            shared: '',
+            copied: 'Link copied. Anyone you send it to can manage this event.',
+            failed: `Copy this link: ${pageUrl}`
+        }[outcome] || '';
+        status.textContent = message;
+        status.hidden = !message;
+    }
+
+    // New requests and the Google copy's progress arrive live; any change to this event reloads.
     function listen() {
         const ws = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}`);
         ws.onmessage = (message) => {
             try {
                 const data = JSON.parse(message.data);
-                if (data.type === 'attendance_update' && view && data.payload.eventId === view.event.id && !busy) load();
+                if (!view || busy) return;
+                const id = view.event.id;
+                const about = data.payload && (data.payload.eventId === id || data.payload.id === id
+                    || (Array.isArray(data.payload.ids) && data.payload.ids.includes(id)));
+                if (about) load();
             } catch (_) { /* not ours */ }
         };
         ws.onclose = () => setTimeout(listen, 5000);
     }
 
     async function init() {
-        document.getElementById('settings-form').addEventListener('submit', saveSettings);
-        limitInput.addEventListener('input', markDirty);
-        document.querySelectorAll('.ev-settings .ev-step').forEach(b => b.addEventListener('click', () => {
-            const current = parseInt(limitInput.value, 10);
-            const base = Number.isFinite(current) ? current : Math.max(view ? view.event.attendingCount : 0, 1) - Number(b.dataset.step);
-            limitInput.value = String(Math.min(500, Math.max(1, base + Number(b.dataset.step))));
-            markDirty();
-        }));
-        document.getElementById('host-event').addEventListener('click', (e) => {
-            const button = e.target.closest('button[data-decision]');
-            if (button) decide(button);
+        $('host-event').addEventListener('click', (e) => {
+            const decision = e.target.closest('button[data-decision]');
+            if (decision) return decide(decision);
+            const chip = e.target.closest('.ev-date-chip');
+            if (chip) {
+                selectedId = chip.dataset.event;
+                history.replaceState(null, '', `${location.pathname}?event=${encodeURIComponent(selectedId)}`);
+                load();
+            }
         });
+        $('edit-btn').addEventListener('click', openEdit);
+        $('edit-form').addEventListener('submit', saveEdit);
+        $('cancel-btn').addEventListener('click', openCancel);
+        $('cancel-confirm').addEventListener('click', confirmCancel);
+        $('restore-btn').addEventListener('click', restore);
+        $('share-btn').addEventListener('click', sharePage);
         try {
             const config = await (await fetch('/api/config')).json();
             calendars = (config.calendars || []).filter(c => c.enabled).map(c => {

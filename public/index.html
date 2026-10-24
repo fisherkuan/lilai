@@ -55,13 +55,18 @@
         <div class="rail-head">
             <h2 class="rail-title" id="rail-title">Upcoming</h2>
             <p class="rail-range" id="rail-range"></p>
-            <div class="view-switch" role="radiogroup" aria-label="Show events as">
-                <button type="button" class="view-btn" role="radio" aria-checked="true" data-view="cards" aria-label="Cards" title="Cards">
-                    <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="7" rx="2"/><rect x="4" y="13" width="16" height="7" rx="2"/></svg>
+            <div class="rail-tools">
+                <button type="button" class="new-event-btn" data-make-event aria-label="Create an event" title="Create an event">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
                 </button>
-                <button type="button" class="view-btn" role="radio" aria-checked="false" data-view="rows" aria-label="Rows" title="Rows">
-                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
-                </button>
+                <div class="view-switch" role="radiogroup" aria-label="Show events as">
+                    <button type="button" class="view-btn" role="radio" aria-checked="true" data-view="cards" aria-label="Cards" title="Cards">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="7" rx="2"/><rect x="4" y="13" width="16" height="7" rx="2"/></svg>
+                    </button>
+                    <button type="button" class="view-btn" role="radio" aria-checked="false" data-view="rows" aria-label="Rows" title="Rows">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+                    </button>
+                </div>
             </div>
         </div>
         <div id="rail-container"></div>
@@ -96,9 +101,13 @@
     <aside class="sidebar" aria-label="Calendar links and support">
         <section class="side-block" aria-labelledby="side-cal-title">
             <h2 class="side-title" id="side-cal-title">Add to the calendar</h2>
-            <a href="https://calendar.google.com/calendar/u/0/r/eventedit" target="_blank" rel="noopener noreferrer" class="btn btn-line" id="create-event-btn">Create an event</a>
-            <p class="side-note" id="create-event-note">Only members of the <a href="#" id="join-group-link" target="_blank" rel="noopener noreferrer">Leuven Taiwanese group</a> can add events. Subscribe in your own calendar app:</p>
+            <button type="button" class="btn btn-line" id="create-event-btn" data-make-event>Create an event</button>
+            <p class="side-note">Every event here is also in the group's Google calendars. Subscribe in your own calendar app:</p>
             <div class="subscribe-list" id="add-to-calendar-dropdown"></div>
+            <div class="ev-hosted" id="hosted-list" hidden>
+                <h3 class="side-subtitle">You manage</h3>
+                <ul class="ev-hosted-list" id="hosted-items"></ul>
+            </div>
         </section>
 
         <section class="side-block" aria-labelledby="side-support-title">
@@ -172,6 +181,45 @@
     </div>
 </div>
 
+<!-- Make an event: a sheet that slides in (js/make-event.js, js/event-form.js) -->
+<div id="event-sheet" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="event-sheet-title">
+    <div class="sheet">
+        <div class="sheet-head">
+            <h3 class="sheet-title" id="event-sheet-title">Make an event</h3>
+            <button type="button" class="icon-btn" data-close aria-label="Close">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
+            </button>
+        </div>
+        <form id="event-sheet-form" novalidate>
+            <div id="event-form-fields"></div>
+            <p class="field-error ev-form-error" id="event-form-error" role="alert" hidden></p>
+            <div class="sheet-actions">
+                <button type="submit" class="btn btn-solid" id="event-submit"><span class="text">Make event</span></button>
+                <button type="button" class="text-btn" data-close>Cancel</button>
+            </div>
+        </form>
+        <section class="ev-done" id="event-made" hidden tabindex="-1" aria-labelledby="event-made-title">
+            <p class="ev-done-title" id="event-made-title"></p>
+            <p class="ev-done-when" id="event-made-when"></p>
+            <div class="ev-hostlink">
+                <p class="ev-label">Management link</p>
+                <p class="ev-hint">Edit it, cancel it and see who is coming there. Anyone with the link can manage the event, so share it only with people who host with you.</p>
+                <code class="ev-hostlink-url" id="event-made-url"></code>
+                <div class="ev-hostlink-actions">
+                    <button type="button" class="text-btn" id="event-made-copy">Copy link</button>
+                    <button type="button" class="text-btn" id="event-made-share" hidden>Share</button>
+                </div>
+                <p class="ev-hint" id="event-made-emailed" hidden></p>
+            </div>
+            <p class="ev-hint" id="event-made-publish"></p>
+            <div class="sheet-actions">
+                <a class="btn btn-solid" id="event-made-open" href="#">Open management page</a>
+                <button type="button" class="text-btn" data-close>Done</button>
+            </div>
+        </section>
+    </div>
+</div>
+
 <footer class="colophon">
     <p>Built by Fisher Kuan</p>
 </footer>
@@ -181,7 +229,10 @@
 
 <script src="/js/date-rail.js"></script>
 <script src="/js/event-links.js"></script>
+<script src="/js/event-form.js"></script>
 <script src="/js/pull-to-refresh.js"></script>
 <script src="app.js"></script>
+<script src="/js/device-links.js"></script>
+<script src="/js/make-event.js"></script>
 </body>
 </html>

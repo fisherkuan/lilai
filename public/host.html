@@ -5,8 +5,8 @@
     <!-- Apply a saved theme before first paint; the switch itself is js/theme.js. -->
     <script>try{var t=localStorage.getItem("lilaiTheme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}</script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Host page — Lilai</title>
-    <meta name="description" content="Your event and who asked to join.">
+    <title>Manage event — Lilai</title>
+    <meta name="description" content="Edit your event, cancel it, and see who is coming.">
     <meta name="robots" content="noindex">
     <meta name="referrer" content="no-referrer">
     <meta name="theme-color" content="#efefea" media="(prefers-color-scheme: light)">
@@ -42,15 +42,35 @@
     </nav>
 </header>
 
-<main class="ev-page" id="host">
-    <p class="ev-eyebrow">Host page</p>
+<main class="ev-page" id="manage">
+    <p class="ev-eyebrow">Manage event</p>
     <p class="state-line" id="host-state">Loading…</p>
 
     <article class="ev-hosted-event" id="host-event" hidden>
+        <p class="ev-cancelled" id="host-cancelled" hidden>Cancelled. It is off Home and out of Google Calendar.</p>
         <h1 class="ev-host-title" id="host-title"></h1>
         <p class="ev-host-when" id="host-when"></p>
         <p class="ev-host-where" id="host-where" hidden></p>
-        <p class="ev-host-mode" id="host-mode"></p>
+        <div id="host-links"></div>
+        <p class="ev-host-meta" id="host-meta"></p>
+        <p class="ev-publish" id="host-publish" role="status"></p>
+
+        <section class="ev-series" id="series" hidden aria-labelledby="series-title">
+            <div class="section-head">
+                <h2 class="section-title" id="series-title">Repeats</h2>
+                <span class="section-meta" id="series-count"></span>
+            </div>
+            <p class="ev-series-rule" id="series-rule"></p>
+            <div class="ev-series-dates" id="series-dates" role="group" aria-label="Dates in this series"></div>
+        </section>
+
+        <div class="ev-manage-actions">
+            <button type="button" class="btn btn-solid" id="edit-btn">Edit</button>
+            <button type="button" class="btn btn-solid" id="restore-btn" hidden>Restore</button>
+            <button type="button" class="btn btn-line" id="share-btn">Share this page</button>
+            <button type="button" class="text-btn" id="cancel-btn">Cancel event</button>
+        </div>
+        <p class="ev-hint" id="share-status" role="status" hidden></p>
 
         <div class="ev-tally" aria-live="polite">
             <span class="ev-tally-num" id="tally-num">0</span>
@@ -83,40 +103,63 @@
             <ul class="ev-request-list" id="declined-list"></ul>
         </section>
 
-        <section class="ev-requests ev-settings" aria-labelledby="settings-title">
-            <div class="section-head">
-                <h2 class="section-title" id="settings-title">Places and links</h2>
-            </div>
-            <form id="settings-form" novalidate>
-                <div class="field ev-field-first">
-                    <label for="set-limit">Places <span class="ev-optional">empty for no limit</span></label>
-                    <div class="ev-limit">
-                        <button type="button" class="ev-step" data-step="-1" aria-label="One place fewer">−</button>
-                        <input type="number" id="set-limit" class="input ev-number" min="1" max="500" inputmode="numeric" placeholder="—">
-                        <button type="button" class="ev-step" data-step="1" aria-label="One place more">+</button>
-                    </div>
-                </div>
-                <div class="field">
-                    <span class="ev-label" id="set-links-label">Links</span>
-                    <div id="set-links" role="group" aria-labelledby="set-links-label"></div>
-                </div>
-                <p class="field-error" id="settings-error" role="alert" hidden></p>
-                <div class="ev-actions ev-actions-tight">
-                    <button type="submit" class="btn btn-solid" id="settings-save" disabled><span class="text">Save</span></button>
-                    <p class="ev-hint ev-saved" id="settings-saved" role="status" hidden>Saved.</p>
-                </div>
-            </form>
-        </section>
-
-        <p class="ev-host-foot">
-            Anyone with this link can manage the event. Change the title, time, place or description in Google Calendar; Lilai picks it up within five minutes.
-        </p>
+        <p class="ev-host-foot" id="host-foot"></p>
         <p class="ev-done-links">
-            <a class="text-link" id="host-google" href="#" target="_blank" rel="noopener noreferrer" hidden>Open in Google Calendar</a>
             <a class="text-link" id="host-home" href="/">Show on Home</a>
+            <a class="text-link" id="host-google" href="#" target="_blank" rel="noopener noreferrer" hidden>Open the Google Calendar copy</a>
         </p>
     </article>
 </main>
+
+<!-- Edit: the same form as Make an event (js/event-form.js) -->
+<div id="edit-sheet" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="edit-sheet-title">
+    <div class="sheet">
+        <div class="sheet-head">
+            <h3 class="sheet-title" id="edit-sheet-title">Edit event</h3>
+            <button type="button" class="icon-btn" data-close aria-label="Close"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+        </div>
+        <form id="edit-form" novalidate>
+            <div id="edit-fields"></div>
+            <div class="field" id="edit-scope-field" hidden>
+                <span class="ev-label" id="edit-scope-label">Change</span>
+                <div class="ev-segment" id="edit-scope" role="radiogroup" aria-labelledby="edit-scope-label">
+                    <button type="button" class="ev-seg" role="radio" aria-checked="true" data-scope="this">This date</button>
+                    <button type="button" class="ev-seg" role="radio" aria-checked="false" data-scope="later">This and later dates</button>
+                </div>
+                <p class="ev-hint">Later dates keep their own day and take the new times and everything else.</p>
+            </div>
+            <p class="field-error ev-form-error" id="edit-error" role="alert" hidden></p>
+            <div class="sheet-actions">
+                <button type="submit" class="btn btn-solid" id="edit-save"><span class="text">Save</span></button>
+                <button type="button" class="text-btn" data-close>Cancel</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Cancel the event -->
+<div id="cancel-sheet" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="cancel-sheet-title">
+    <div class="sheet">
+        <div class="sheet-head">
+            <h3 class="sheet-title" id="cancel-sheet-title">Cancel this event?</h3>
+            <button type="button" class="icon-btn" data-close aria-label="Close"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+        </div>
+        <p class="sheet-when" id="cancel-when"></p>
+        <p class="sheet-desc">It leaves Home and Google Calendar. Everyone who joined stays on its list, so Restore brings it back as it was.</p>
+        <div class="field" id="cancel-scope-field" hidden>
+            <span class="ev-label" id="cancel-scope-label">Cancel</span>
+            <div class="ev-segment" id="cancel-scope" role="radiogroup" aria-labelledby="cancel-scope-label">
+                <button type="button" class="ev-seg" role="radio" aria-checked="true" data-scope="this">Only this date</button>
+                <button type="button" class="ev-seg" role="radio" aria-checked="false" data-scope="later">This and later dates</button>
+            </div>
+        </div>
+        <p class="field-error" id="cancel-error" role="alert" hidden></p>
+        <div class="sheet-actions">
+            <button type="button" class="btn btn-solid" id="cancel-confirm"><span class="text">Cancel event</span></button>
+            <button type="button" class="text-btn" data-close>Keep it</button>
+        </div>
+    </div>
+</div>
 
 <footer class="colophon">
     <p>Built by Fisher Kuan</p>
@@ -125,6 +168,8 @@
 <script src="/js/feedback.js"></script>
 <script src="/js/sheet.js"></script>
 <script src="/js/event-links.js"></script>
+<script src="/js/event-form.js"></script>
+<script src="/js/device-links.js"></script>
 <script src="/js/host.js"></script>
 </body>
 </html>

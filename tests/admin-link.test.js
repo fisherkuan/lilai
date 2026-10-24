@@ -78,7 +78,7 @@ test('?admin=1 reveals the link in both navs and remembers the device', () => {
     const links = runSetup(ctx);
     assert.strictEqual(links.length, 2);
     links.forEach(link => {
-        assert.strictEqual(link.href, '/admin/events');
+        assert.strictEqual(link.href, '/admin/bookings');
         assert.strictEqual(link.textContent, 'Admin');
     });
     assert.strictEqual(ctx.store.get('lilaiOrganizer'), '1');
