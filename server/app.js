@@ -22,6 +22,7 @@ const hosting = require('./event-hosting');
 const { createPublisher } = require('./calendar-publish');
 const { importCalendar, createImportSchema, importedCalendarIds } = require('./calendar-import');
 const access = require('./calendar-access');
+const activity = require('./event-activity');
 const { sanitizeHtmlText } = require('./html-text');
 const { mergeContact, sendAfterForEdit } = require('./booking-edit');
 const {
@@ -324,6 +325,8 @@ async function initializeDatabase() {
         }
 
         await hosting.createHostingSchema(client);
+        const activitySeeded = await activity.createActivitySchema(client);
+        if (activitySeeded > 0) console.log(`[activity] event log started from ${activitySeeded} RSVPs on file.`);
         await createImportSchema(client);
         await access.createCalendarAccessSchema(client);
         await createBookingSchema(client);
@@ -809,6 +812,7 @@ app.post('/api/rsvp', async (req, res) => {
                 'INSERT INTO rsvps (id, event_id, attendee_name, attendance, timestamp) VALUES ($1, $2, $3, $4, $5)',
                 [uuidv4(), eventId, validatedName, hosting.STATUS.PENDING, new Date()]
             );
+            await activity.logActivity(client, eventId, 'asked', { name: validatedName });
             pending = true;
         } else if (action === 'add') {
             if (event.attendance_limit !== null) {
@@ -823,11 +827,13 @@ app.post('/api/rsvp', async (req, res) => {
                 'INSERT INTO rsvps (id, event_id, attendee_name, attendance, timestamp) VALUES ($1, $2, $3, $4, $5)',
                 [uuidv4(), eventId, validatedName, 'yes', new Date()]
             );
+            await activity.logActivity(client, eventId, 'joined', { name: validatedName });
         } else if (action === 'remove') {
-            await client.query(
+            const gone = await client.query(
                 'DELETE FROM rsvps WHERE id IN (SELECT id FROM rsvps WHERE event_id = $1 AND attendee_name = $2 AND attendance = $3 LIMIT 1)',
                 [eventId, validatedName, 'yes']
             );
+            if (gone.rowCount > 0) await activity.logActivity(client, eventId, 'left', { name: validatedName });
         }
 
         // After action, fetch updated attendance data and broadcast
@@ -927,11 +933,13 @@ app.post('/api/events', async (req, res) => {
                 [...eventFieldParams(id, input, occurrence.start, occurrence.end),
                     calendar.id, input.hostName, input.hostEmail, googleId, seriesId]
             );
+            await activity.logActivity(client, id, 'created', { name: input.hostName });
             if (input.hostJoins) {
                 await client.query(
                     'INSERT INTO rsvps (id, event_id, attendee_name, attendance, timestamp) VALUES ($1, $2, $3, $4, NOW())',
                     [uuidv4(), id, input.hostName, hosting.STATUS.YES]
                 );
+                await activity.logActivity(client, id, 'joined', { name: input.hostName });
             }
         }
         await client.query(
@@ -1041,6 +1049,7 @@ async function hostView(event) {
             form: hosting.formValues(event)
         },
         requests: requests.rows.map(r => ({ id: r.id, name: r.attendee_name, status: r.attendance, at: r.timestamp })),
+        activity: await activity.listActivity(pool, event.id),
         series
     };
 }
@@ -1097,6 +1106,13 @@ app.get('/api/host/:token', async (req, res) => {
     res.set('Cache-Control', 'no-store').json(await hostView(event));
 });
 
+// One 'edited' row naming the fields that changed; an edit that changed nothing logs nothing.
+async function logEdit(client, before) {
+    const after = (await client.query('SELECT * FROM events WHERE id = $1', [before.id])).rows[0];
+    const fields = activity.changedFields(hosting.formValues(before), hosting.formValues(after));
+    if (fields.length) await activity.logActivity(client, before.id, 'edited', { detail: fields.join(', ') });
+}
+
 // Edit. On a repeating event, scope 'later' gives the same changes to every later date still
 // on, each keeping its own day.
 app.put('/api/host/:token/events/:eventId', async (req, res) => {
@@ -1104,6 +1120,7 @@ app.put('/api/host/:token/events/:eventId', async (req, res) => {
         const edit = hosting.validateEvent(req.body, { mode: 'edit', current: event });
         await client.query(`UPDATE events SET ${EVENT_FIELDS_SQL}, ${NEEDS_PUSH_SQL} WHERE id = $1`,
             eventFieldParams(event.id, edit, edit.start, edit.end));
+        await logEdit(client, event);
         const changed = [event.id];
         if (edit.scope === 'later' && event.series_id) {
             const later = await client.query(
@@ -1119,6 +1136,7 @@ app.put('/api/host/:token/events/:eventId', async (req, res) => {
                 }
                 await client.query(`UPDATE events SET ${EVENT_FIELDS_SQL}, ${NEEDS_PUSH_SQL} WHERE id = $1`,
                     eventFieldParams(row.id, edit, times.start, times.end));
+                await logEdit(client, row);
                 changed.push(row.id);
             }
         }
@@ -1141,6 +1159,7 @@ app.post('/api/host/:token/events/:eventId/cancel', async (req, res) => {
              RETURNING id`,
             [event.id, later ? event.series_id : null, event.date]
         );
+        for (const row of done.rows) await activity.logActivity(client, row.id, 'cancelled');
         return done.rows.map(r => r.id).concat(event.cancelled_at ? [event.id] : []);
     });
     if (!result) return;
@@ -1153,6 +1172,7 @@ app.post('/api/host/:token/events/:eventId/restore', async (req, res) => {
     const result = await withLinkedEvent(req, res, async (client, event) => {
         if (!event.cancelled_at) return [event.id];
         await client.query(`UPDATE events SET cancelled_at = NULL, ${NEEDS_PUSH_SQL} WHERE id = $1`, [event.id]);
+        await activity.logActivity(client, event.id, 'restored');
         return [event.id];
     });
     if (!result) return;
@@ -1169,7 +1189,7 @@ app.post('/api/host/:token/events/:eventId/requests/:rsvpId', async (req, res) =
         return res.status(400).json({ success: false, message: 'Decision must be accept, decline or undo.' });
     }
     const result = await withLinkedEvent(req, res, async (client, event) => {
-        const found = await client.query('SELECT attendance FROM rsvps WHERE id = $1 AND event_id = $2', [req.params.rsvpId, event.id]);
+        const found = await client.query('SELECT attendance, attendee_name FROM rsvps WHERE id = $1 AND event_id = $2', [req.params.rsvpId, event.id]);
         if (!found.rows[0]) {
             res.status(404).json({ success: false, message: 'That request is gone. Its owner may have withdrawn it.' });
             return null;
@@ -1185,6 +1205,8 @@ app.post('/api/host/:token/events/:eventId/requests/:rsvpId', async (req, res) =
             }
         }
         await client.query('UPDATE rsvps SET attendance = $1 WHERE id = $2', [status, req.params.rsvpId]);
+        const kind = activity.decisionKind(found.rows[0].attendance, status);
+        if (kind) await activity.logActivity(client, event.id, kind, { name: found.rows[0].attendee_name });
         return [event.id];
     });
     if (!result) return;

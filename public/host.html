@@ -42,10 +42,11 @@
     </nav>
 </header>
 
-<main class="ev-page" id="manage">
+<main class="ev-page ev-manage" id="manage">
     <p class="ev-eyebrow">Manage event</p>
     <p class="state-line" id="host-state">Loading…</p>
 
+    <div class="ev-manage-grid">
     <article class="ev-hosted-event" id="host-event" hidden>
         <p class="ev-cancelled" id="host-cancelled" hidden>Cancelled. It is off Home and out of Google Calendar.</p>
         <h1 class="ev-host-title" id="host-title"></h1>
@@ -109,6 +110,17 @@
             <a class="text-link" id="host-google" href="#" target="_blank" rel="noopener noreferrer" hidden>Open the Google Calendar copy</a>
         </p>
     </article>
+
+    <!-- What happened, newest first. Beside the event from 1000px, under it on phones. -->
+    <aside class="ev-activity" id="activity" hidden aria-labelledby="activity-title">
+        <div class="section-head">
+            <h2 class="section-title" id="activity-title">Activity</h2>
+            <span class="section-meta" id="activity-count"></span>
+        </div>
+        <div class="ev-activity-list" id="activity-list"></div>
+        <button type="button" class="text-btn ev-activity-more" id="activity-more" hidden>Show all</button>
+    </aside>
+    </div>
 </main>
 
 <!-- Edit: the same form as Make an event (js/event-form.js) -->

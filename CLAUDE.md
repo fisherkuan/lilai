@@ -27,7 +27,7 @@ The server runs on `http://localhost:3000` by default (configurable via PORT env
 ### Database
 - PostgreSQL is used for production (connection via `DATABASE_URL` env var)
 - Database schema is auto-initialized on server startup via `initializeDatabase()` in server/app.js
-- Tables: `events`, `rsvps`, `event_series`, `event_host_links`, `calendar_keys`, `calendar_state`, `donations`, `feedback`, `booking_queue`, `booking_profiles`, `booking_series`
+- Tables: `events`, `rsvps`, `event_series`, `event_host_links`, `event_activity`, `calendar_keys`, `calendar_state`, `donations`, `feedback`, `booking_queue`, `booking_profiles`, `booking_series`
 - `rsvps.attendance` is `yes` (holds a seat), `pending` (asked to join an approval event) or `declined` (the host said no). Every count of who is coming filters on `yes`
 - Schema migrations are idempotent and run automatically on startup
 
@@ -117,6 +117,7 @@ Central configuration file with:
 - `server/google-calendar.js` - Service-account JWT sign-in and `insertEvent` / `updateEvent` / `deleteEvent` / `listEvents`, no SDK
 - `server/calendar-access.js` + `scripts/calendar-link.js` - Calendar keys (`calendar_keys`, hash only). `heroku run -a lilai-eu node scripts/calendar-link.js TSA --label "TSA admins"` prints a `/calendars/<token>` link once; `--revoke` stops the earlier ones. A key lets a device make events in a restricted calendar and mint a management link for any event in that calendar
 - Management links: `event_host_links` maps a token hash to one event or one series. Made when an event is made (emailed to the host when `hostEmail` and Resend are set) and when a calendar key holder opens Manage. No accounts, in line with the RSVP trust model; whoever has the link is a host
+- Activity: `event_activity` (`server/event-activity.js`) logs what happened to each event: made, joined, asked, left, accepted, declined, removed, readded, reasked, edited (with the fields that changed), cancelled, restored. Each row is written in the transaction of the change it records. A row names the person a change was about, never who made it. When the table is first created it is seeded from the places and requests already in `rsvps`. The management page shows it (`activity` in `GET /api/host/:token`)
 - Repeating events: a repeat rule (`server/booking-repeat.js`: every N days / weeks on chosen weekdays / months, until a date, at most 52) expands into ordinary rows sharing `series_id` (`event_series.rule`). Each date has its own RSVPs, approval queue and single Google copy. Edit and Cancel take `scope: this | later`; later dates keep their own day and take the new clock times and everything else. The rule is fixed once made
 - Cancel sets `cancelled_at` (hidden from every public read, RSVPs kept, Google copy deleted); Restore clears it
 - Approval events ("I approve each person"): Join reads "Ask to join", requests hold no seat, the card shows "N asking" and "<host> confirms each place"

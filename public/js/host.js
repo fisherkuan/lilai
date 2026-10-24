@@ -82,6 +82,71 @@
             + `<span class="ev-request-actions">${buttons}</span></li>`;
     }
 
+    // ---------- Activity ----------
+
+    // A person's name in bold, then what happened to them. Nobody signs in, so a host action
+    // reads as something that happened to the person, never as who did it.
+    const ACTIVITY_TEXT = {
+        created: () => 'Event made',
+        joined: n => `${n} joined`,
+        asked: n => `${n} asked to join`,
+        left: n => `${n} left`,
+        accepted: n => `${n} was accepted`,
+        declined: n => `${n} was declined`,
+        removed: n => `${n} was removed`,
+        readded: n => `${n} got a place back`,
+        reasked: n => `${n} is asking again`,
+        edited: (n, detail) => `Changed ${detail || 'details'}`,
+        cancelled: () => 'Event cancelled',
+        restored: () => 'Event restored'
+    };
+    // Filled: took a place. Open: lost one. Dashed: the event itself changed.
+    const ACTIVITY_MARK = {
+        joined: 'in', accepted: 'in', readded: 'in',
+        left: 'out', removed: 'out', declined: 'out',
+        asked: 'ask', reasked: 'ask'
+    };
+    const PHONE_ACTIVITY = 6;
+    let activityOpen = false;
+
+    function dayLabel(d) {
+        const day = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+        const today = new Date();
+        const diff = Math.round((new Date(today.getFullYear(), today.getMonth(), today.getDate()) - day) / 86400000);
+        if (diff === 0) return 'Today';
+        if (diff === 1) return 'Yesterday';
+        return d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+    }
+
+    function renderActivity(entries) {
+        const list = entries || [];
+        $('activity').hidden = list.length === 0;
+        $('activity-count').textContent = list.length ? String(list.length) : '';
+        const wide = window.matchMedia('(min-width: 1000px)').matches;
+        const shown = wide || activityOpen ? list : list.slice(0, PHONE_ACTIVITY);
+        let html = '';
+        let lastDay = '';
+        for (const entry of shown) {
+            const at = new Date(entry.at);
+            const label = dayLabel(at);
+            if (label !== lastDay) {
+                if (lastDay) html += '</ol>';
+                html += `<h3 class="ev-activity-day">${escapeHtml(label)}</h3><ol class="ev-activity-day-list">`;
+                lastDay = label;
+            }
+            const say = ACTIVITY_TEXT[entry.kind] || (() => entry.kind);
+            const name = entry.name ? `<strong>${escapeHtml(entry.name)}</strong>` : '';
+            const text = say(name, entry.detail ? escapeHtml(entry.detail) : '');
+            html += `<li class="ev-activity-row"><span class="ev-activity-mark" data-mark="${ACTIVITY_MARK[entry.kind] || 'event'}" aria-hidden="true"></span>`
+                + `<span class="ev-activity-text">${text}</span>`
+                + `<time class="ev-activity-time" datetime="${escapeHtml(entry.at)}">${time(at)}</time></li>`;
+        }
+        if (lastDay) html += '</ol>';
+        $('activity-list').innerHTML = html;
+        $('activity-more').hidden = wide || activityOpen || list.length <= PHONE_ACTIVITY;
+        $('activity-more').textContent = `Show all ${list.length}`;
+    }
+
     function renderSeries(series, event) {
         $('series').hidden = !series;
         if (!series) return;
@@ -130,6 +195,7 @@
         $('host-publish').dataset.state = event.publish.state;
 
         renderSeries(series, event);
+        renderActivity(view.activity);
 
         $('edit-btn').hidden = !editable;
         $('cancel-btn').hidden = !editable;
@@ -410,6 +476,8 @@
         $('cancel-btn').addEventListener('click', openCancel);
         $('cancel-confirm').addEventListener('click', confirmCancel);
         $('remove-confirm').addEventListener('click', confirmRemove);
+        $('activity-more').addEventListener('click', () => { activityOpen = true; renderActivity(view.activity); });
+        window.matchMedia('(min-width: 1000px)').addEventListener('change', () => { if (view) renderActivity(view.activity); });
         $('restore-btn').addEventListener('click', restore);
         $('share-url').textContent = pageUrl.replace(/^https?:\/\//, '');
         $('share-btn').setAttribute('aria-label', `Copy this page's link, ${pageUrl}`);

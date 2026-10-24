@@ -220,3 +220,85 @@
     line-height: 1.3;
     color: var(--ink-3);
 }
+
+/* ---------- Activity: what happened to the event ---------- */
+
+/* Phones: one more section under the request lists, newest first, the latest six. */
+.ev-activity { margin-top: var(--s6); border-top: var(--rule) solid var(--ink); }
+.ev-activity[hidden] { display: none; }
+
+.ev-activity-day {
+    margin-top: var(--s4);
+    font-size: var(--meta);
+    font-weight: 600;
+    color: var(--ink-2);
+}
+
+.ev-activity-day-list { list-style: none; margin: var(--s1) 0 0; padding: 0; }
+
+.ev-activity-row {
+    display: grid;
+    grid-template-columns: 8px minmax(0, 1fr) auto;
+    align-items: baseline;
+    column-gap: var(--s3);
+    padding: var(--s2) 0;
+    border-top: 1px solid var(--hair);
+    font-size: 15px;
+}
+.ev-activity-row:first-child { border-top: 0; }
+
+.ev-activity-text { overflow-wrap: anywhere; color: var(--ink-2); }
+.ev-activity-text strong { font-weight: 600; color: var(--ink); }
+
+.ev-activity-time {
+    font-size: var(--meta);
+    color: var(--ink-3);
+    font-variant-numeric: tabular-nums;
+}
+
+/* Square status marks, as everywhere: filled took a place, open lost one, half asked,
+   a short dash for the event itself. */
+.ev-activity-mark {
+    width: 8px;
+    height: 8px;
+    align-self: center;
+    border: 1.5px solid var(--ink);
+}
+.ev-activity-mark[data-mark="in"] { background: var(--ink); }
+.ev-activity-mark[data-mark="out"] { background: transparent; }
+.ev-activity-mark[data-mark="ask"] { background: linear-gradient(to right, var(--ink) 50%, transparent 50%); }
+.ev-activity-mark[data-mark="event"] { height: 0; border-width: 1.5px 0 0; }
+
+.ev-activity-more { margin-top: var(--s3); }
+
+/* Laptops: the page uses the app's full width. The event and its lists take the flexible
+   column; the activity sits beside it in a raised card that stays in view while the lists
+   scroll, and holds the whole history. */
+@media (min-width: 1000px) {
+    .ev-page.ev-manage { max-width: var(--page); }
+
+    .ev-manage-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 400px;
+        column-gap: var(--s8);
+        align-items: start;
+    }
+
+    .ev-activity {
+        position: sticky;
+        top: var(--s4);
+        display: flex;
+        flex-direction: column;
+        max-height: calc(100vh - var(--s6));
+        margin-top: var(--s2);
+        padding: var(--s4) var(--s5) var(--s5);
+        border-top: 0;
+        border-radius: var(--radius-card);
+        background: var(--paper-raised);
+        box-shadow: var(--shadow-raised);
+    }
+
+    .ev-activity .section-head { flex: none; }
+    .ev-activity-list { overflow-y: auto; margin-right: calc(-1 * var(--s3)); padding-right: var(--s3); }
+    .ev-activity-day:first-child { margin-top: var(--s2); }
+}
