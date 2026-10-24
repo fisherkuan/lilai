@@ -14,6 +14,27 @@
     }
 
     function pad(n) { return String(n).padStart(2, '0'); }
+
+    // Events start and end on the hour or the half hour, as courts and rooms are handed out.
+    function timeOptions() {
+        let html = '<option value="">Pick a time</option>';
+        for (let minutes = 0; minutes < 24 * 60; minutes += 30) {
+            const time = `${pad(Math.floor(minutes / 60))}:${pad(minutes % 60)}`;
+            html += `<option value="${time}">${time}</option>`;
+        }
+        return html;
+    }
+
+    // A stored time off the half-hour grid is added rather than dropped, so editing an old
+    // event cannot silently move it.
+    function setTime(select, value) {
+        if (value && ![...select.options].some(o => o.value === value)) {
+            const option = new Option(value, value);
+            const after = [...select.options].find(o => o.value && o.value > value);
+            select.insertBefore(option, after || null);
+        }
+        select.value = value || '';
+    }
     function localDate(d) { return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; }
     function shortDay(iso) {
         return new Date(`${iso}T12:00:00`).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
@@ -53,11 +74,11 @@
             <div class="ev-two">
                 <div class="ev-col">
                     <label for="${p}-start">Starts</label>
-                    <input type="time" id="${p}-start" class="input" step="300">
+                    <select id="${p}-start" class="input select ev-time">${timeOptions()}</select>
                 </div>
                 <div class="ev-col">
                     <label for="${p}-end">Ends</label>
-                    <input type="time" id="${p}-end" class="input" step="300">
+                    <select id="${p}-end" class="input select ev-time">${timeOptions()}</select>
                 </div>
             </div>
             <p class="ev-hint" data-hint="next-day" hidden>Ends the next day.</p>
@@ -218,11 +239,11 @@
         $('start').addEventListener('change', () => {
             if (!state.endTouched && /^\d{2}:\d{2}$/.test($('start').value)) {
                 const [h, m] = $('start').value.split(':').map(Number);
-                $('end').value = `${pad((h + 2) % 24)}:${pad(m)}`;
+                setTime($('end'), `${pad((h + 2) % 24)}:${pad(m)}`);
             }
             nextDayHint();
         });
-        $('end').addEventListener('input', () => { state.endTouched = true; nextDayHint(); });
+        $('end').addEventListener('change', () => { state.endTouched = true; nextDayHint(); });
         function nextDayHint() {
             const s = $('start').value;
             const e = $('end').value;
@@ -348,8 +369,8 @@
             set(values) {
                 $('title').value = values.title || '';
                 $('date').value = values.date || '';
-                $('start').value = values.start || '';
-                $('end').value = values.end || '';
+                setTime($('start'), values.start);
+                setTime($('end'), values.end);
                 state.endTouched = Boolean(values.end);
                 $('location').value = values.location || '';
                 $('description').value = values.description || '';
@@ -362,7 +383,7 @@
                 nextDayHint();
             },
             reset() {
-                container.querySelectorAll('input[type="text"], input[type="date"], input[type="time"], input[type="email"], textarea')
+                container.querySelectorAll('input[type="text"], input[type="date"], input[type="email"], textarea, select.ev-time')
                     .forEach(el => { el.value = ''; });
                 if ($('joins')) $('joins').checked = true;
                 $('limit').value = '8';

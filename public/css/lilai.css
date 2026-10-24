@@ -1213,7 +1213,7 @@ html.sheet-locked body {
 
 .ev-textarea { min-height: 112px; padding: var(--s3); resize: vertical; line-height: 1.5; }
 .ev-date { max-width: 240px; }
-.input[type="date"], .input[type="time"] { font-variant-numeric: tabular-nums; }
+.input[type="date"], .input[type="time"], .ev-time { font-variant-numeric: tabular-nums; }
 
 /* Start and end read as one pair. */
 .ev-two {
