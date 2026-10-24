@@ -1192,11 +1192,13 @@ html.sheet-locked body {
 
 .sheet-actions .btn { flex: 1 1 auto; }
 
-/* In a sheet, fields are as slim as the chips: 36px boxes and steppers, 16px text (the
-   least that stops iOS zooming in). A textarea keeps its own height. */
-.sheet .input { min-height: 36px; font-size: 16px; }
-.sheet .select { padding-right: 40px; background-position: right 10px center; background-size: 18px; }
-.sheet .ev-step { width: 36px; height: 36px; font-size: 20px; }
+/* From 640px, fields in a sheet are as slim as the chips: 36px boxes and steppers, 16px text.
+   Phones keep the 50px field. A textarea keeps its own height. */
+@media (min-width: 640px) {
+    .sheet .input { min-height: 36px; font-size: 16px; }
+    .sheet .select { padding-right: 40px; background-position: right 10px center; background-size: 18px; }
+    .sheet .ev-step { width: 36px; height: 36px; font-size: 20px; }
+}
 
 /* In a sheet, a field's label takes the label style (13px 600), as in the booking queue. */
 .sheet .field label:not(.ev-check),
@@ -1282,21 +1284,25 @@ html.sheet-locked body {
 
 .ev-seg {
     position: relative;
-    min-height: 36px;
-    padding: 0 14px;
+    min-height: 44px;
+    padding: 0 var(--s4);
     border: 0;
     border-radius: var(--radius-full);
     background: var(--fill);
     color: var(--ink);
     font: inherit;
-    font-size: 14px;
+    font-size: 15px;
     font-weight: 500;
     cursor: pointer;
     transition: background-color 140ms var(--ease), color 140ms var(--ease);
 }
 
-/* The pill draws 36px; its tap area stays 44px. */
-.ev-seg::after { content: ""; position: absolute; inset: -4px 0; }
+/* From 640px (the drawer, a mouse) the chips draw 36px; the tap area stays 44px.
+   Phones keep the 44px chip, easier under a thumb. */
+@media (min-width: 640px) {
+    .ev-seg { min-height: 36px; padding: 0 14px; font-size: 14px; }
+    .ev-seg::after { content: ""; position: absolute; inset: -4px 0; }
+}
 
 .ev-seg:hover { background: var(--stone); }
 .ev-seg[aria-checked="true"] { background: var(--ink); color: var(--paper); font-weight: 600; }
