@@ -1354,40 +1354,7 @@ html.sheet-locked body {
 .ev-day { min-width: 0; padding: 0; text-align: center; }
 .ev-day[aria-pressed="true"] { background: var(--ink); color: var(--paper); font-weight: 600; }
 .ev-day:focus-visible { outline: var(--stroke-2) solid var(--focus); outline-offset: 2px; }
-.ev-until .ev-label { margin-bottom: var(--s2); }
-
-/* Month calendar (js/month-picker.js): Day and Until. Today ringed, the picked day ink,
-   days before the earliest allowed grey. 40px days; the arrows are the stone icon buttons. */
-.mp { max-width: 360px; }
-.mp-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--s1); }
-.mp-month { font-family: var(--font-display); font-size: 20px; font-weight: 700; }
-.mp-arrow { display: grid; place-items: center; width: 36px; height: 36px; padding: 0; border: 0; border-radius: var(--radius-full); background: var(--fill); color: var(--ink); cursor: pointer; }
-.mp-arrow:hover { background: var(--stone); }
-.mp-arrow:disabled { opacity: 0.35; cursor: default; }
-.mp-arrow svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2px; }
-.mp-grid, .mp-days { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); row-gap: 2px; }
-.mp-days { grid-column: 1 / -1; }
-.mp-wd { padding: var(--s2) 0; font-size: 12px; color: var(--ink-2); text-align: center; }
-.mp-day {
-    justify-self: center;
-    width: 40px;
-    height: 40px;
-    padding: 0;
-    border: 0;
-    border-radius: var(--radius-full);
-    background: none;
-    color: var(--ink);
-    font: inherit;
-    font-size: 15px;
-    font-variant-numeric: tabular-nums;
-    cursor: pointer;
-}
-.mp-day:hover { background: var(--fill); }
-.mp-day.is-today { box-shadow: inset 0 0 0 var(--stroke-2) var(--ink); }
-.mp-day[aria-pressed="true"] { background: var(--ink); color: var(--paper-raised); font-weight: 600; }
-.mp-day:disabled { color: var(--past); background: none; cursor: default; }
-.mp-day[aria-pressed="true"]:disabled { background: var(--past); color: var(--paper-raised); }
-.mp-day:focus-visible, .mp-arrow:focus-visible { outline: var(--stroke-2) solid var(--focus); outline-offset: 2px; }
+.ev-until label { display: block; margin-bottom: var(--s2); font-size: var(--meta); color: var(--ink-2); }
 .ev-preview { margin-top: 0; }
 .ev-first { margin-top: var(--s4); }
 [data-part="calendar"]:not([hidden]) + .ev-first { margin-top: var(--s5); }
