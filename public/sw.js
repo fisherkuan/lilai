@@ -1,4 +1,4 @@
-const CACHE_NAME = 'lilai-cache-v61'; // Bumped version
+const CACHE_NAME = 'lilai-cache-v62'; // Bumped version
 const urlsToCache = [
   '/',
   '/index.html',
@@ -18,6 +18,7 @@ const urlsToCache = [
   '/js/event-form.js',
   '/js/device-links.js',
   '/js/make-event.js',
+  '/js/lost-link.js',
   '/js/pull-to-refresh.js',
   '/manifest.json',
   '/icons/icon-192x192.png',

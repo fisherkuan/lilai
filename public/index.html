@@ -108,6 +108,7 @@
                 <h3 class="side-subtitle">You manage</h3>
                 <ul class="ev-hosted-list" id="hosted-items"></ul>
             </div>
+            <button type="button" class="text-btn" data-lost-link>Lost a management link?</button>
         </section>
 
         <section class="side-block" aria-labelledby="side-support-title">
@@ -180,6 +181,47 @@
     </div>
 </div>
 
+<!-- Lost a management link: where to look, then ask the admins (js/lost-link.js) -->
+<div id="lost-link-sheet" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="lost-link-title">
+    <form class="sheet" id="lost-link-form" novalidate>
+        <div class="sheet-head">
+            <h3 class="sheet-title" id="lost-link-title">Lost a management link?</h3>
+            <button type="button" class="icon-btn" data-close aria-label="Close"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+        </div>
+        <ul class="lost-where">
+            <li>Search your email for "Lilai", if you gave an email when you made it.</li>
+            <li>Open Lilai on the phone or browser you made it on: it is under "You manage".</li>
+            <li>Ask whoever hosts with you, if you shared it.</li>
+        </ul>
+        <div id="lost-link-ask">
+            <h4 class="lost-ask-title">Ask the admins</h4>
+            <div class="field">
+                <label for="lost-event">Event</label>
+                <select id="lost-event" class="input select" required><option value="">Loading…</option></select>
+            </div>
+            <div class="field">
+                <label for="lost-name">Your name, as host</label>
+                <input type="text" id="lost-name" class="input" maxlength="100" autocomplete="name" required>
+            </div>
+            <div class="field">
+                <label for="lost-email">Email for the new link</label>
+                <input type="email" id="lost-email" class="input" autocomplete="email" inputmode="email" required>
+            </div>
+            <p class="field-error" id="lost-error" role="alert" hidden></p>
+            <div class="sheet-actions">
+                <button type="submit" class="btn btn-solid" id="lost-send"><span class="text">Send</span></button>
+                <button type="button" class="text-btn" data-close>Cancel</button>
+            </div>
+        </div>
+        <div id="lost-link-sent" hidden tabindex="-1">
+            <p class="lost-sent">Sent. An admin checks it is yours and emails you a new link.</p>
+            <div class="sheet-actions">
+                <button type="button" class="btn btn-solid" data-close>Done</button>
+            </div>
+        </div>
+    </form>
+</div>
+
 <!-- Make an event: a sheet that slides in (js/make-event.js, js/event-form.js) -->
 <div id="event-sheet" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="event-sheet-title">
     <div class="sheet">
@@ -233,5 +275,6 @@
 <script src="app.js"></script>
 <script src="/js/device-links.js"></script>
 <script src="/js/make-event.js"></script>
+<script src="/js/lost-link.js"></script>
 </body>
 </html>

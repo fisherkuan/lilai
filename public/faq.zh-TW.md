@@ -75,7 +75,7 @@ TSA 幹部可以向 [Fisher](mailto:kuanfisher@gmail.com) 索取 TSA 行事曆�
 
 ### 我弄丟活動的管理連結了，怎麼辦？
 
-在你建立活動的那支手機上，看看側欄的「You manage」。如果找不到，請聯絡 [Fisher](mailto:kuanfisher@gmail.com)；TSA 的活動也可以找 TSA 幹部。
+如果建立活動時有填 email，在信箱搜尋「Lilai」；或在你建立活動的那支手機或瀏覽器上，看看側欄的「You manage」。都找不到的話，請到首頁按 [Lost a management link?](/#lost-link)：管理員確認活動是你的之後，會用 email 寄新的連結給你。TSA 的活動也可以找 TSA 幹部。
 
 ### 我一個活動都看不到，是哪裡有問題？
 

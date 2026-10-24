@@ -1438,6 +1438,14 @@ html.sheet-locked body {
 }
 
 .ev-hosted-when { flex: none; font-size: var(--meta); color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.ev-hosted + .text-btn, .subscribe-list + .text-btn { margin-top: var(--s2); }
+
+/* Lost a management link: where to look, then the request to the admins. */
+.lost-where { list-style: none; margin: var(--s4) 0 var(--s5); padding: 0; display: grid; gap: var(--s3); }
+.lost-where li { position: relative; padding-left: var(--s5); line-height: 1.45; }
+.lost-where li::before { content: ""; position: absolute; left: 0; top: 0.55em; width: 8px; height: 8px; background: var(--ink); }
+.lost-ask-title { margin: 0 0 var(--s4); padding-top: var(--s4); border-top: var(--stroke-2) solid var(--ink); font-size: 17px; font-weight: 600; }
+.lost-sent { margin: 0 0 var(--s5); line-height: 1.45; }
 
 /* ---------- Colophon ---------- */
 

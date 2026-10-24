@@ -75,7 +75,7 @@ No. Events are made and changed in Lilai, which copies them to the group's Googl
 
 ### I lost the management link of my event. What now?
 
-Look under "You manage" in the sidebar on the phone you made it on. If it is not there, ask [Fisher](mailto:kuanfisher@gmail.com) or, for a TSA event, a TSA admin.
+Search your email for "Lilai" if you gave an email when you made the event, or look under "You manage" in the sidebar on the phone or browser you made it on. If neither works, use [Lost a management link?](/#lost-link) on Home: the admins check that the event is yours and email you a new link. For a TSA event, a TSA admin can also help.
 
 ### I can't see any events. What's wrong?
 
