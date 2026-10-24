@@ -244,6 +244,16 @@ a fade; it just carries a "catching up" label instead of a countdown.
 `~/code/sports-booking-bot` is the verified Python reference for the form protocol. It is
 a specification, never called at runtime.
 
+## Release flow
+
+Feature branches open their PRs against `staging`, never `main`. `staging` deploys to the Heroku app `lilai-staging` (`git push heroku-staging staging:main`), where several merged PRs can be tried together. When `staging` holds a complete version, a release PR merges `staging` into `main`, and `main` deploys to production (`git push heroku main`). Fixes made on `main` directly are merged back into `staging` straight after.
+
+`lilai-staging` has its own database and must never write anywhere production people see:
+- No `GOOGLE_SERVICE_ACCOUNT_JSON` while `config/app.json` lists the real calendars. Without it, events stay in staging's database and the legacy feed only reads Google
+- No `BOOKING_SUBMIT=live`, so booking requests stop short of KU Leuven (`not_sent`)
+- No `RESEND_API_KEY`, so feedback is saved and never emailed
+- `PUBLIC_URL` set to the staging address, so links point at staging
+
 ## Deployment Notes
 
 - Designed for Heroku-style deployment (Procfile present)
