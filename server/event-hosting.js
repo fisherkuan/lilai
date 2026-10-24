@@ -3,8 +3,10 @@
  * becomes, and the host's side of an approval event.
  *
  * Google Calendar still holds the event. Lilai writes it there through the API, then keeps
- * what Google has no field for on its own row: who hosts it, the host's secret link, and
- * whether the host approves each person who asks to join ("approval_required").
+ * what Google has no field for on its own row: who hosts it, the host's secret link,
+ * whether the host approves each person who asks to join ("approval_required"), the seat
+ * limit and the links. Nothing is read back out of the description: Google owns the title,
+ * time, place and description, Lilai owns the rest.
  *
  * There are no accounts. The host's page is reached by an unguessable link handed out once,
  * when the event is made; the table keeps only its SHA-256, so a database read cannot
@@ -19,6 +21,9 @@ const MAX_LOCATION = 255;
 const MAX_DESCRIPTION = 4000;
 const MAX_NAME = 100;
 const MAX_LIMIT = 500;
+const MAX_LINKS = 5;
+const MAX_LINK_LABEL = 40;
+const MAX_URL = 500;
 
 // RSVP rows carry their state in the attendance column. Only 'yes' holds a seat.
 const STATUS = { YES: 'yes', PENDING: 'pending', DECLINED: 'declined' };
@@ -72,23 +77,8 @@ function validateNewEvent(body, { calendars, now = new Date() }) {
     }
     if (start <= now) throw new EventInputError('start', 'That time has already passed.');
 
-    let limit = null;
-    const rawLimit = body?.limit;
-    if (rawLimit !== undefined && rawLimit !== null && String(rawLimit).trim() !== '') {
-        limit = Number(rawLimit);
-        if (!Number.isInteger(limit) || limit < 1 || limit > MAX_LIMIT) {
-            throw new EventInputError('limit', `A limit is a whole number from 1 to ${MAX_LIMIT}.`);
-        }
-    }
-
-    const link = String(body?.link ?? '').trim();
-    if (link) {
-        let url;
-        try { url = new URL(link); } catch (error) { url = null; }
-        if (!url || !['http:', 'https:'].includes(url.protocol) || link.length > 500) {
-            throw new EventInputError('link', 'A link starts with https://');
-        }
-    }
+    const limit = validateLimit(body?.limit);
+    const links = validateLinks(body?.links);
 
     const hostEmail = String(body?.hostEmail ?? '').trim().slice(0, 254);
     if (hostEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(hostEmail)) {
@@ -106,7 +96,7 @@ function validateNewEvent(body, { calendars, now = new Date() }) {
         end,
         location: text(body?.location, MAX_LOCATION, 'location', 'The place'),
         description: text(body?.description, MAX_DESCRIPTION, 'description', 'The description'),
-        link,
+        links,
         limit,
         approval: body?.approval === true || body?.approval === 'true',
         hostName: text(body?.hostName, MAX_NAME, 'hostName', 'Your name', { required: true }),
@@ -115,16 +105,63 @@ function validateNewEvent(body, { calendars, now = new Date() }) {
     };
 }
 
-// The description Google Calendar gets. The "link:" and "limit:" lines are the ones the
-// sync and the cards already read, so an organizer who edits the event in Google keeps
-// working the way they always have.
-function googleDescription(event) {
-    const lines = [];
-    if (event.description) lines.push(event.description);
-    if (event.link) lines.push(`link: ${event.link}`);
-    if (event.limit !== null) lines.push(`limit: ${event.limit}`);
-    if (event.approval) lines.push(`Hosted by ${event.hostName}. Ask to join in Lilai; the host confirms each place.`);
-    return lines.join('\n\n');
+// Empty, null or missing -> no limit. Anything else must be a whole number in range.
+function validateLimit(raw) {
+    if (raw === undefined || raw === null || String(raw).trim() === '') return null;
+    const limit = Number(raw);
+    if (!Number.isInteger(limit) || limit < 1 || limit > MAX_LIMIT) {
+        throw new EventInputError('limit', `A limit is a whole number from 1 to ${MAX_LIMIT}.`);
+    }
+    return limit;
+}
+
+// The event's links: [{ url, label }], label optional. Lilai holds them; nothing reads a
+// link out of the description any more. Rows with no address are dropped (an empty row
+// in the editor is not a mistake).
+function validateLinks(raw) {
+    if (raw === undefined || raw === null) return [];
+    if (!Array.isArray(raw)) throw new EventInputError('links', 'Links must be a list.');
+    const links = raw
+        .map(item => ({ url: String(item?.url ?? '').trim(), label: String(item?.label ?? '').trim() }))
+        .filter(item => item.url);
+    if (links.length > MAX_LINKS) throw new EventInputError('links', `At most ${MAX_LINKS} links.`);
+    return links.map(({ url, label }) => {
+        let parsed;
+        try { parsed = new URL(url); } catch (error) { parsed = null; }
+        if (!parsed || !['http:', 'https:'].includes(parsed.protocol) || url.length > MAX_URL) {
+            throw new EventInputError('links', `"${url.slice(0, 60)}" is not a web address. It starts with https://`);
+        }
+        if (label.length > MAX_LINK_LABEL) {
+            throw new EventInputError('links', `A link's name is at most ${MAX_LINK_LABEL} characters.`);
+        }
+        if (/<\s*script/i.test(label)) throw new EventInputError('links', 'A link name cannot contain scripts.');
+        return label ? { url: parsed.href, label } : { url: parsed.href };
+    });
+}
+
+// What a host or the admin page may change on an existing event: the limit, the links, or
+// both. Missing keys stay as they are.
+function validateEventSettings(body) {
+    const settings = {};
+    if (body && 'limit' in body) settings.limit = validateLimit(body.limit);
+    if (body && 'links' in body) settings.links = validateLinks(body.links);
+    if (Object.keys(settings).length === 0) throw new EventInputError('limit', 'Nothing to change.');
+    return settings;
+}
+
+// Before 2026-10-24 an event's link was read out of its description ("link: URL", else the
+// first address). Run once, when the links column arrives, so those events keep their link.
+function linkFromLegacyDescription(description) {
+    if (typeof description !== 'string') return null;
+    const match = description.match(/link:?\s*(https?:\/\/\S+)/i) || description.match(/https?:\/\/\S+/i);
+    if (!match) return null;
+    const raw = (match[1] || match[0]).replace(/[\s"'<>)]*$/, '');
+    try {
+        const url = new URL(raw);
+        return ['http:', 'https:'].includes(url.protocol) ? url.href : null;
+    } catch (error) {
+        return null;
+    }
 }
 
 // The events.insert body. Times go as Brussels wall times so Google keeps the zone.
@@ -132,7 +169,7 @@ function googleEventResource(event) {
     return {
         summary: event.title,
         location: event.location || undefined,
-        description: googleDescription(event) || undefined,
+        description: event.description || undefined,
         start: { dateTime: `${event.date}T${event.startTime}:00`, timeZone: BRUSSELS },
         end: { dateTime: `${event.endDate}T${event.endTime}:00`, timeZone: BRUSSELS },
         extendedProperties: { private: { lilai: '1', lilaiApproval: event.approval ? '1' : '0' } }
@@ -172,6 +209,18 @@ async function createHostingSchema(client) {
     ]) {
         await client.query(`ALTER TABLE events ADD COLUMN IF NOT EXISTS ${column}`);
     }
+
+    const hadLinks = await client.query(
+        `SELECT 1 FROM information_schema.columns WHERE table_name = 'events' AND column_name = 'links'`
+    );
+    if (hadLinks.rows.length === 0) {
+        await client.query(`ALTER TABLE events ADD COLUMN links JSONB NOT NULL DEFAULT '[]'::jsonb`);
+        const rows = await client.query('SELECT id, description FROM events WHERE description IS NOT NULL');
+        for (const row of rows.rows) {
+            const url = linkFromLegacyDescription(row.description);
+            if (url) await client.query('UPDATE events SET links = $1 WHERE id = $2', [JSON.stringify([{ url }]), row.id]);
+        }
+    }
     await client.query('CREATE UNIQUE INDEX IF NOT EXISTS idx_events_host_token ON events(host_token_hash) WHERE host_token_hash IS NOT NULL');
 }
 
@@ -208,7 +257,8 @@ async function mailHostLink({ to, title, url }, env = process.env, fetchImpl = f
 const DECISIONS = { accept: STATUS.YES, decline: STATUS.DECLINED, undo: STATUS.PENDING };
 
 module.exports = {
-    STATUS, DECISIONS, MAX_LIMIT,
-    EventInputError, validateNewEvent, googleDescription, googleEventResource,
+    STATUS, DECISIONS, MAX_LIMIT, MAX_LINKS,
+    EventInputError, validateNewEvent, validateLimit, validateLinks, validateEventSettings,
+    linkFromLegacyDescription, googleEventResource,
     newHostToken, hashHostToken, looksLikeHostToken, publicEvent, createHostingSchema, mailHostLink
 };

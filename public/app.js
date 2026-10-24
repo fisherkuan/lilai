@@ -58,62 +58,6 @@ function escapeAttribute(value) {
     return escapeHtml(value).replace(/\n/g, '&#10;');
 }
 
-function sanitizeUrl(rawUrl) {
-    if (typeof rawUrl !== 'string' || rawUrl.length === 0) return null;
-    const trimmed = rawUrl.trim().replace(/[\s"'<>)]*$/, '');
-    try {
-        const validated = new URL(trimmed);
-        if (validated.protocol === 'http:' || validated.protocol === 'https:') {
-            return validated.href;
-        }
-    } catch (error) {
-        return null;
-    }
-    return null;
-}
-
-// The "link: URL" line becomes an Event link, so the description shown drops it.
-function withoutLinkLine(value) {
-    return value.replace(/^[ \t]*link:?\s*https?:\/\/\S+[ \t]*$/gim, '').trim();
-}
-
-// The server reads a "limit: N" line as the seat limit, which the seat count already shows.
-// Only a line that holds nothing else goes, so prose that mentions a limit stays.
-function withoutLimitLine(value) {
-    return value.replace(/^[ \t]*limit:?[ \t]*\d+[ \t]*$/gim, '').replace(/\n{3,}/g, '\n\n').trim();
-}
-
-// An event made in Lilai with approval tells Google Calendar readers to ask in Lilai; the
-// card already says who confirms places, so Home drops that line.
-function withoutApprovalLine(value) {
-    return value.replace(/^[ \t]*Hosted by .+\. Ask to join in Lilai; the host confirms each place\.[ \t]*$/gim, '').trim();
-}
-
-// The description as shown: without the lines Lilai turns into the Event link, the seat count
-// and the approval note.
-function shownDescriptionOf(value) {
-    return withoutApprovalLine(withoutLimitLine(withoutLinkLine(value)));
-}
-
-function eventLinkHtml(href) {
-    return `<a class="event-link" href="${escapeAttribute(href)}" target="_blank" rel="noopener noreferrer">Event link<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 16 16 8M9 8h7v7"/></svg><span class="sr-only"> (opens in a new tab)</span></a>`;
-}
-
-function extractEventLink(value) {
-    if (typeof value !== 'string' || value.length === 0) return null;
-    const linkMatch = value.match(/link:?\s*(https?:\/\/\S+)/i);
-    if (linkMatch) {
-        const sanitized = sanitizeUrl(linkMatch[1]);
-        if (sanitized) return sanitized;
-    }
-    const fallbackMatch = value.match(/https?:\/\/\S+/i);
-    if (fallbackMatch) {
-        const sanitized = sanitizeUrl(fallbackMatch[0]);
-        if (sanitized) return sanitized;
-    }
-    return null;
-}
-
 // ---------- State ----------
 const API_BASE_URL = window.location.origin;
 const PAST_BATCH = 10;
@@ -929,11 +873,10 @@ function renderEventCard(event, { isPast, isToday, prevNames }) {
 
     const sanitizedEventId = escapeAttribute(event.id);
     const sanitizedTitle = escapeHtml(event.title);
-    const descriptionText = typeof event.description === 'string' ? event.description : '';
-    const shownDescription = shownDescriptionOf(descriptionText);
+    // The description shows as written in Google Calendar: nothing in it is read as a setting.
+    const shownDescription = typeof event.description === 'string' ? event.description.trim() : '';
     const sanitizedDescription = escapeHtml(shownDescription).replace(/\n/g, '<br>');
     const locationText = typeof event.location === 'string' ? event.location : '';
-    const eventLink = extractEventLink(descriptionText);
 
     const attendees = Array.isArray(event.attendees) ? event.attendees : [];
     const attendingCount = event.attendingCount || 0;
@@ -950,11 +893,12 @@ function renderEventCard(event, { isPast, isToday, prevNames }) {
         times += `<span aria-hidden="true">–</span><span class="sr-only"> to </span>${endDay}${escapeHtml(endStr)}`;
     }
 
-    // The title's shape already names the calendar, so the meta line is the time, the place and the link.
-    const link = eventLink ? eventLinkHtml(eventLink) : '';
+    // The title's shape already names the calendar, so the meta line is the time and the place.
+    // The event's links sit on their own row under it.
     const hostNote = event.approval_required && event.host_name ? `${escapeHtml(event.host_name)} confirms each place` : '';
-    const metaParts = [`<span class="event-time">${times}</span>`, locationText ? escapeHtml(locationText) : '', link, hostNote].filter(Boolean);
-    const meta = `<p class="event-meta">${metaParts.join('<span class="sep" aria-hidden="true"> · </span>')}</p>`;
+    const metaParts = [`<span class="event-time">${times}</span>`, locationText ? escapeHtml(locationText) : '', hostNote].filter(Boolean);
+    const meta = `<p class="event-meta">${metaParts.join('<span class="sep" aria-hidden="true"> · </span>')}</p>`
+        + EventLinks.listHtml(event.links);
 
     let names;
     if (attendees.length > 0) {
@@ -1020,6 +964,17 @@ function applyAttendance(eventId, attendees, pendingCount) {
     renderRail();
 }
 
+// Lilai's own fields changed (limit, links): patch both lists and redraw.
+function applyEventUpdate(update) {
+    if (!update || !update.id) return;
+    const { id, attendance_limit: limit, links, attendees, pendingCount } = update;
+    [currentEvents, allCalendarEvents].forEach(list => {
+        const ev = list.find(e => e.id === id);
+        if (ev) Object.assign(ev, { attendance_limit: limit, links: links || [] });
+    });
+    applyAttendance(id, attendees, pendingCount);
+}
+
 // ---------- RSVP sheets ----------
 let lastSheetTrigger = null;
 
@@ -1058,12 +1013,13 @@ function openRsvpModal(eventId) {
     rsvpModal.classList.remove('hidden');
     document.getElementById('modal-event-title').textContent = event.title;
     document.getElementById('modal-event-date').textContent = formatSheetDate(event);
-    const rawDesc = typeof event.description === 'string' ? event.description : '';
-    const desc = shownDescriptionOf(rawDesc);
-    const sheetLink = extractEventLink(rawDesc);
+    const desc = typeof event.description === 'string' ? event.description.trim() : '';
     const descEl = document.getElementById('modal-event-description');
-    descEl.innerHTML = escapeHtml(desc).replace(/\n/g, '<br>') + (sheetLink ? `${desc ? '<br>' : ''}${eventLinkHtml(sheetLink)}` : '');
-    descEl.hidden = !desc && !sheetLink;
+    descEl.innerHTML = escapeHtml(desc).replace(/\n/g, '<br>');
+    descEl.hidden = !desc;
+    const linksEl = document.getElementById('modal-event-links');
+    linksEl.innerHTML = EventLinks.listHtml(event.links);
+    linksEl.hidden = !linksEl.innerHTML;
 
     const asks = Boolean(event.approval_required);
     const approvalNote = document.getElementById('modal-approval-note');
@@ -1317,6 +1273,9 @@ function setupWebSocket() {
             if (data.type === 'attendance_update') {
                 const { eventId, attendees, pendingCount } = data.payload;
                 applyAttendance(eventId, Array.isArray(attendees) ? attendees : [], pendingCount);
+            } else if (data.type === 'event_update') {
+                // A host or the admin page changed the limit or the links.
+                applyEventUpdate(data.payload);
             } else if (data.type === 'event_created') {
                 // Someone made an event: pick it up without a pull to refresh.
                 loadEvents({ quiet: true });

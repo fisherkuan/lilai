@@ -83,8 +83,33 @@
             <ul class="ev-request-list" id="declined-list"></ul>
         </section>
 
+        <section class="ev-requests ev-settings" aria-labelledby="settings-title">
+            <div class="section-head">
+                <h2 class="section-title" id="settings-title">Places and links</h2>
+            </div>
+            <form id="settings-form" novalidate>
+                <div class="field ev-field-first">
+                    <label for="set-limit">Places <span class="ev-optional">empty for no limit</span></label>
+                    <div class="ev-limit">
+                        <button type="button" class="ev-step" data-step="-1" aria-label="One place fewer">−</button>
+                        <input type="number" id="set-limit" class="input ev-number" min="1" max="500" inputmode="numeric" placeholder="—">
+                        <button type="button" class="ev-step" data-step="1" aria-label="One place more">+</button>
+                    </div>
+                </div>
+                <div class="field">
+                    <span class="ev-label" id="set-links-label">Links</span>
+                    <div id="set-links" role="group" aria-labelledby="set-links-label"></div>
+                </div>
+                <p class="field-error" id="settings-error" role="alert" hidden></p>
+                <div class="ev-actions ev-actions-tight">
+                    <button type="submit" class="btn btn-solid" id="settings-save" disabled><span class="text">Save</span></button>
+                    <p class="ev-hint ev-saved" id="settings-saved" role="status" hidden>Saved.</p>
+                </div>
+            </form>
+        </section>
+
         <p class="ev-host-foot">
-            Anyone with this link can manage the event. Change the title, time or limit in Google Calendar; Lilai picks it up within five minutes.
+            Anyone with this link can manage the event. Change the title, time, place or description in Google Calendar; Lilai picks it up within five minutes.
         </p>
         <p class="ev-done-links">
             <a class="text-link" id="host-google" href="#" target="_blank" rel="noopener noreferrer" hidden>Open in Google Calendar</a>
@@ -99,6 +124,7 @@
 <script src="/js/theme.js"></script>
 <script src="/js/feedback.js"></script>
 <script src="/js/sheet.js"></script>
+<script src="/js/event-links.js"></script>
 <script src="/js/host.js"></script>
 </body>
 </html>

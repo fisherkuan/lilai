@@ -45,7 +45,7 @@
 <main class="admin">
     <div class="admin-head">
         <h1 class="admin-title">Events</h1>
-        <p class="admin-sub">Set attendance limits for upcoming events.</p>
+        <p class="admin-sub">Set limits and links for upcoming events.</p>
     </div>
 
     <div class="admin-grid">
@@ -55,11 +55,11 @@
             </div>
         </section>
 
-        <aside class="sidebar" aria-label="About limits">
+        <aside class="sidebar" aria-label="About limits and links">
             <section class="side-block" aria-labelledby="side-limit-title">
-                <h2 class="side-title" id="side-limit-title">How limits work</h2>
+                <h2 class="side-title" id="side-limit-title">How limits and links work</h2>
                 <p class="side-note">A limit closes Join once that many people have signed up. Leave the field empty for no limit.</p>
-                <p class="side-note">A “limit: N” line in the calendar description wins over this page. Change it in Google Calendar instead.</p>
+                <p class="side-note">Limits and links live in Lilai only. Lilai no longer reads them from the calendar description, which shows on the card as written.</p>
             </section>
         </aside>
     </div>
@@ -72,6 +72,7 @@
 <script src="/js/feedback.js"></script>
 <script src="/js/sheet.js"></script>
 
+<script src="/js/event-links.js"></script>
 <script src="/admin.js"></script>
 </body>
 </html>

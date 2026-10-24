@@ -713,6 +713,51 @@ button { font: inherit; color: inherit; }
 
 .event-link:hover { text-decoration-thickness: 2px; }
 
+/* An event's links (Lilai holds them; see js/event-links.js): a wrapping row of named links. */
+.event-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s1) var(--s4);
+    margin: var(--s2) 0 0;
+    padding: 0;
+    list-style: none;
+    font-size: var(--meta);
+}
+
+.event-links li { flex: none; max-width: 100%; }
+.event-links .event-link { min-height: 32px; overflow-wrap: anywhere; }
+.sheet-links { margin-top: var(--s3); }
+.sheet-links[hidden] { display: none; }
+
+/* The link editor: per row an address, an optional name and a remove button. On a phone
+   the name drops under the address; the remove button stays on the address line. */
+.link-rows { margin: 0; padding: 0; list-style: none; }
+
+.link-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 44px;
+    grid-template-areas: "url remove" "label .";
+    gap: var(--s2);
+    align-items: center;
+    padding-bottom: var(--s3);
+    margin-bottom: var(--s3);
+    border-bottom: 1px solid var(--hair);
+}
+
+.link-row .link-url { grid-area: url; }
+.link-row .link-label { grid-area: label; }
+.link-row .link-remove { grid-area: remove; justify-self: center; }
+
+@media (min-width: 640px) {
+    .link-row {
+        grid-template-columns: minmax(0, 3fr) minmax(0, 2fr) 44px;
+        grid-template-areas: "url label remove";
+    }
+}
+
+.link-add { min-height: 44px; }
+.link-add[hidden] { display: none; }
+
 /* Inside an event the pill steps down a size, since every event carries one. */
 .event-actions .btn {
     min-height: 40px;

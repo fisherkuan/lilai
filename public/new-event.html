@@ -101,9 +101,10 @@
         </div>
 
         <div class="field">
-            <label for="ev-link">Link <span class="ev-optional">optional</span></label>
-            <input type="url" id="ev-link" name="link" class="input" inputmode="url" autocomplete="off" placeholder="https://">
-            <p class="field-error" data-error-for="link" role="alert" hidden></p>
+            <span class="ev-label" id="links-label">Links <span class="ev-optional">optional</span></span>
+            <p class="ev-hint ev-hint-lead">A sign-up form, a map, a group chat. They show on the event's card.</p>
+            <div id="ev-links" role="group" aria-labelledby="links-label"></div>
+            <p class="field-error" data-error-for="links" role="alert" hidden></p>
         </div>
 
         <fieldset class="ev-group">
@@ -194,6 +195,7 @@
 <script src="/js/theme.js"></script>
 <script src="/js/feedback.js"></script>
 <script src="/js/sheet.js"></script>
+<script src="/js/event-links.js"></script>
 <script src="/js/new-event.js"></script>
 </body>
 </html>

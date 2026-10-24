@@ -28,7 +28,7 @@ The booking queue has a separate job: KU Leuven opens sports-court booking at mi
 
 ## Operating Context
 
-- Events come from three Google Calendars in `config/app.json`: SportsCenter, TSA, 揪團啦. An organizer sets a capacity by writing `limit: N` in the event description.
+- Events come from three Google Calendars in `config/app.json`: SportsCenter, TSA, 揪團啦. The seat limit and the event's links are set in Lilai (Make an event, the host page, admin Events), never in the description.
 - Attendance updates reach every open client in real time over WebSocket.
 - The group coordinates through the Google Group `leuven-taiwanese` (`joinGroupUrl`).
 - Hosting: Heroku, with Postgres on Supabase (free tier, US East).

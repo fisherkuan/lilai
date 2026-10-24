@@ -110,6 +110,11 @@
 
 .row-status[hidden] { display: none; }
 
+/* An event's links on the admin card: the shared editor (lilai.css) and its own Save. */
+.links-block { margin-top: var(--s5); }
+.links-title { margin-bottom: var(--s2); font-size: 15px; font-weight: 600; }
+.links-block .btn { min-height: 40px; margin-top: var(--s2); }
+
 /* ---------- Admin Events ---------- */
 
 /* The limit control inside an event card: label, number field, Save pill, Remove text button. */

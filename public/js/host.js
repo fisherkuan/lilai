@@ -13,6 +13,64 @@
     let view = null;
     let calendars = [];
     let busy = false;
+    // Unsaved edits to places or links: a live reload must not overwrite them.
+    let settingsDirty = false;
+    const limitInput = document.getElementById('set-limit');
+    const linkEditor = EventLinks.create(document.getElementById('set-links'), { onChange: markDirty });
+
+    function markDirty() {
+        settingsDirty = true;
+        document.getElementById('settings-save').disabled = false;
+        document.getElementById('settings-saved').hidden = true;
+    }
+
+    function fillSettings(event) {
+        if (settingsDirty) return;
+        limitInput.value = event.attendance_limit === null || event.attendance_limit === undefined ? '' : String(event.attendance_limit);
+        linkEditor.set(event.links || []);
+        document.getElementById('settings-save').disabled = true;
+    }
+
+    async function saveSettings(e) {
+        e.preventDefault();
+        const errorEl = document.getElementById('settings-error');
+        errorEl.hidden = true;
+        const bad = linkEditor.invalid();
+        if (bad) {
+            errorEl.textContent = 'That is not a web address. It starts with https://';
+            errorEl.hidden = false;
+            bad.focus();
+            return;
+        }
+        const save = document.getElementById('settings-save');
+        const text = save.querySelector('.text');
+        save.disabled = true;
+        text.textContent = 'Saving…';
+        try {
+            const res = await fetch(`/api/host/${encodeURIComponent(token)}/event`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ limit: limitInput.value.trim() || null, links: linkEditor.value() })
+            });
+            const result = await res.json().catch(() => ({}));
+            if (!res.ok || !result.success) {
+                errorEl.textContent = result.message || 'That did not go through. Try again.';
+                errorEl.hidden = false;
+                save.disabled = false;
+                return;
+            }
+            settingsDirty = false;
+            view = result;
+            render();
+            document.getElementById('settings-saved').hidden = false;
+        } catch (error) {
+            errorEl.textContent = 'No connection. Check your network and try again.';
+            errorEl.hidden = false;
+            save.disabled = false;
+        } finally {
+            text.textContent = 'Save';
+        }
+    }
 
     function escapeHtml(value) {
         return String(value).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -119,6 +177,8 @@
             row(r, isPast ? [] : [[approval ? 'undo' : 'accept', 'Undo']])
         ).join('');
 
+        fillSettings(event);
+
         const google = document.getElementById('host-google');
         google.hidden = !event.google_link;
         if (event.google_link) google.href = event.google_link;
@@ -184,6 +244,14 @@
     }
 
     async function init() {
+        document.getElementById('settings-form').addEventListener('submit', saveSettings);
+        limitInput.addEventListener('input', markDirty);
+        document.querySelectorAll('.ev-settings .ev-step').forEach(b => b.addEventListener('click', () => {
+            const current = parseInt(limitInput.value, 10);
+            const base = Number.isFinite(current) ? current : Math.max(view ? view.event.attendingCount : 0, 1) - Number(b.dataset.step);
+            limitInput.value = String(Math.min(500, Math.max(1, base + Number(b.dataset.step))));
+            markDirty();
+        }));
         document.getElementById('host-event').addEventListener('click', (e) => {
             const button = e.target.closest('button[data-decision]');
             if (button) decide(button);

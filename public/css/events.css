@@ -59,6 +59,7 @@
 }
 
 .ev-hint[hidden] { display: none; }
+.ev-hint-lead { margin: calc(-1 * var(--s2)) 0 var(--s3); }
 
 .ev-textarea { min-height: 112px; padding: var(--s3); resize: vertical; line-height: 1.5; }
 .ev-date { max-width: 240px; }
@@ -344,3 +345,9 @@
 .ev-page .ev-seg[aria-checked="true"] { background-color: var(--ink); }
 .ev-page .ev-choice[aria-checked="true"] { background-color: var(--paper-raised); }
 .ev-group legend { margin-bottom: var(--s1); }
+
+/* The host's settings: places and links, saved together. */
+.ev-settings .ev-field-first { margin-top: var(--s3); }
+.ev-settings .ev-limit { margin-top: 0; }
+.ev-actions-tight { margin-top: var(--s5); }
+.ev-saved { margin: 0; }

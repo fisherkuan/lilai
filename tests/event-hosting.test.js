@@ -1,7 +1,8 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const {
-    validateNewEvent, googleEventResource, googleDescription, EventInputError,
+    validateNewEvent, googleEventResource, EventInputError,
+    validateLinks, validateEventSettings, linkFromLegacyDescription,
     newHostToken, hashHostToken, looksLikeHostToken, publicEvent, mailHostLink
 } = require('../server/event-hosting');
 
@@ -50,7 +51,7 @@ test('the form refuses what it cannot make', () => {
     assert.equal(fieldOf({ ...base, end: '' }), 'end');
     assert.equal(fieldOf({ ...base, limit: '0' }), 'limit');
     assert.equal(fieldOf({ ...base, limit: '2.5' }), 'limit');
-    assert.equal(fieldOf({ ...base, link: 'javascript:alert(1)' }), 'link');
+    assert.equal(fieldOf({ ...base, links: [{ url: 'javascript:alert(1)' }] }), 'links');
     assert.equal(fieldOf({ ...base, hostName: '' }), 'hostName');
     assert.equal(fieldOf({ ...base, hostEmail: 'mei' }), 'hostEmail');
     assert.equal(fieldOf({ ...base, title: '<script>x</script>' }), 'title');
@@ -60,15 +61,42 @@ test('the nonexistent DST hour is refused, not guessed', () => {
     assert.equal(fieldOf({ ...base, date: '2027-03-28', start: '02:30', end: '04:00' }), 'start');
 });
 
-test('limit and approval reach the Google description the sync reads', () => {
-    const e = validateNewEvent({ ...base, limit: '8', approval: true, description: 'Bring a bowl', link: 'https://example.com/x' }, { calendars, now: NOW });
-    const text = googleDescription(e);
-    assert.match(text, /^Bring a bowl/);
-    assert.match(text, /^link: https:\/\/example\.com\/x$/m);
-    assert.match(text, /^limit: 8$/m);
-    assert.match(text, /Mei.*confirms each place/);
-    // The sync's own regex finds the limit.
-    assert.equal(text.match(/limit:?\s*(\d+)/i)[1], '8');
+test('Google gets the description as written: no settings lines', () => {
+    const e = validateNewEvent({ ...base, limit: '8', approval: true, description: 'Bring a bowl', links: [{ url: 'https://example.com/x' }] }, { calendars, now: NOW });
+    assert.equal(googleEventResource(e).description, 'Bring a bowl');
+    assert.equal(e.limit, 8);
+    assert.deepEqual(e.links, [{ url: 'https://example.com/x' }]);
+});
+
+test('links: empty rows drop, labels stay, bad ones are refused', () => {
+    assert.deepEqual(validateLinks(undefined), []);
+    assert.deepEqual(validateLinks([
+        { url: ' https://forms.gle/abc ', label: ' Sign-up ' },
+        { url: '', label: 'forgotten row' },
+        { url: 'https://maps.google.com/?q=Leuven' }
+    ]), [
+        { url: 'https://forms.gle/abc', label: 'Sign-up' },
+        { url: 'https://maps.google.com/?q=Leuven' }
+    ]);
+    assert.throws(() => validateLinks('https://x.be'), EventInputError);
+    assert.throws(() => validateLinks([{ url: 'ftp://x.be' }]), EventInputError);
+    assert.throws(() => validateLinks([{ url: 'https://x.be', label: 'x'.repeat(41) }]), EventInputError);
+    assert.throws(() => validateLinks(Array.from({ length: 6 }, (_, i) => ({ url: `https://x.be/${i}` }))), /At most 5/);
+});
+
+test('settings change only what is sent', () => {
+    assert.deepEqual(validateEventSettings({ limit: '' }), { limit: null });
+    assert.deepEqual(validateEventSettings({ links: [] }), { links: [] });
+    assert.deepEqual(validateEventSettings({ limit: 4, links: [{ url: 'https://a.be' }] }), { limit: 4, links: [{ url: 'https://a.be/' }] });
+    assert.throws(() => validateEventSettings({}), EventInputError);
+    assert.throws(() => validateEventSettings({ limit: -1 }), EventInputError);
+});
+
+test('the one-time migration keeps the link an old description carried', () => {
+    assert.equal(linkFromLegacyDescription('Run.\nLink: https://maps.google.com/?q=x)'), 'https://maps.google.com/?q=x');
+    assert.equal(linkFromLegacyDescription('See https://a.be/b and https://c.be'), 'https://a.be/b');
+    assert.equal(linkFromLegacyDescription('limit: 8'), null);
+    assert.equal(linkFromLegacyDescription(null), null);
 });
 
 test('the Google resource keeps the zone and marks the event as Lilai-made', () => {

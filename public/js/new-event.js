@@ -17,6 +17,7 @@
     let limited = false;
     let approval = false;
     let endTouched = false;
+    const linkEditor = EventLinks.create(document.getElementById('ev-links'));
 
     function read(key) {
         try { return localStorage.getItem(key); } catch (_) { return null; }
@@ -169,7 +170,7 @@
             end: endInput.value,
             location: document.getElementById('ev-location').value,
             description: document.getElementById('ev-description').value,
-            link: document.getElementById('ev-link').value,
+            links: linkEditor.value(),
             limit: limited ? limitInput.value : null,
             approval,
             hostName: document.getElementById('ev-host').value,
@@ -184,6 +185,8 @@
         if (!body.date || !body.start) return ['start', 'Pick a day and a start time.'];
         if (!body.end) return ['end', 'Pick an end time.'];
         if (!body.hostName.trim()) return ['hostName', 'Type your name, so people know who hosts.'];
+        const badLink = linkEditor.invalid();
+        if (badLink) return ['links', 'That is not a web address. It starts with https://', badLink];
         return null;
     }
 
@@ -192,7 +195,11 @@
         clearErrors();
         const body = payload();
         const problem = checkLocally(body);
-        if (problem) return showFieldError(...problem);
+        if (problem) {
+            showFieldError(problem[0], problem[1]);
+            if (problem[2]) problem[2].focus();
+            return;
+        }
 
         const text = submitBtn.querySelector('.text');
         submitBtn.disabled = true;
@@ -263,6 +270,7 @@
 
     function makeAnother() {
         form.reset();
+        linkEditor.set([]);
         endTouched = false;
         document.getElementById('done').hidden = true;
         form.hidden = false;

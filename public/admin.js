@@ -1,6 +1,7 @@
 const API_BASE_URL = window.location.origin;
 
 let allAdminEvents = []; // Global variable to store event data
+const linkEditors = new Map(); // event id -> EventLinks editor
 let appConfig = {};
 
 // ---------- Calendar shapes ----------
@@ -113,6 +114,10 @@ function updateEventInUI(event) {
     if (input && document.activeElement !== input) {
         input.value = event.attendance_limit || '';
     }
+    // Someone else saved links: show them, unless this card is being edited right now.
+    const editor = linkEditors.get(event.id);
+    const box = document.getElementById(`links-${event.id}`);
+    if (editor && event.links && box && !box.contains(document.activeElement)) editor.set(event.links);
 }
 
 async function loadEvents() {
@@ -180,6 +185,11 @@ function eventCardHtml(event) {
                     <button type="button" class="btn btn-line" data-action="update">Save</button>
                     <button type="button" class="text-btn" data-action="remove">Remove limit</button>
                 </div>
+                <div class="links-block">
+                    <p class="links-title" id="links-title-${id}">Links</p>
+                    <div id="links-${id}" role="group" aria-labelledby="links-title-${id}"></div>
+                    <button type="button" class="btn btn-line" data-action="save-links">Save links</button>
+                </div>
                 <p class="row-status" id="status-${id}" role="status" hidden></p>
             </div>
         </article>
@@ -196,8 +206,12 @@ function displayEvents(events) {
 
     eventsList.innerHTML = events.map(eventCardHtml).join('');
 
+    linkEditors.clear();
     eventsList.querySelectorAll('.event[data-event-id]').forEach(card => {
         const eventId = card.dataset.eventId;
+        const event = events.find(e => e.id === eventId);
+        linkEditors.set(eventId, EventLinks.create(document.getElementById(`links-${eventId}`), { links: event && event.links }));
+        card.querySelector('[data-action="save-links"]').addEventListener('click', () => saveLinks(eventId));
         card.querySelector('[data-action="update"]').addEventListener('click', () => updateAttendanceLimit(eventId));
         card.querySelector('[data-action="remove"]').addEventListener('click', () => removeAttendanceLimit(eventId));
     });
@@ -211,12 +225,32 @@ function printRowStatus(eventId, message, isError) {
     status.hidden = !message;
 }
 
-function descriptionLimitConflict(event, newLimit) {
-    if (!event || !event.description) return undefined;
-    const match = event.description.trim().match(/limit:?\s*(\d+)/i);
-    if (!match) return undefined;
-    const descriptionLimit = parseInt(match[1], 10);
-    return descriptionLimit !== newLimit ? descriptionLimit : undefined;
+async function saveLinks(eventId) {
+    const editor = linkEditors.get(eventId);
+    const bad = editor.invalid();
+    if (bad) {
+        printRowStatus(eventId, 'That is not a web address. It starts with https://', true);
+        bad.focus();
+        return;
+    }
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/events/${encodeURIComponent(eventId)}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ links: editor.value() })
+        });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok) {
+            printRowStatus(eventId, result.message || 'Error saving links.', true);
+            return;
+        }
+        editor.set(result.event.links);
+        const n = result.event.links.length;
+        printRowStatus(eventId, n ? `Saved ${n} link${n === 1 ? '' : 's'}.` : 'Links removed.', false);
+    } catch (error) {
+        console.error('Error saving links:', error);
+        printRowStatus(eventId, 'Error saving links. See console for details.', true);
+    }
 }
 
 async function updateAttendanceLimit(eventId) {
@@ -228,21 +262,14 @@ async function updateAttendanceLimit(eventId) {
         return;
     }
 
-    const currentEvent = allAdminEvents.find(event => event.id === eventId);
-    if (descriptionLimitConflict(currentEvent, newLimit) !== undefined) {
-        printRowStatus(eventId, 'Not effective — this event’s limit comes from its calendar description. Remove it there first.', true);
-        return;
-    }
-
     try {
-        const updateResponse = await fetch(`${API_BASE_URL}/api/events/${eventId}`, {
+        const updateResponse = await fetch(`${API_BASE_URL}/api/events/${encodeURIComponent(eventId)}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ attendanceLimit: newLimit })
         });
 
         if (updateResponse.ok) {
-            const updatedEvent = await updateResponse.json();
             printRowStatus(eventId, `Updated to ${newLimit ? newLimit : 'unlimited'}.`, false);
         } else {
             const error = await updateResponse.json();
@@ -255,14 +282,8 @@ async function updateAttendanceLimit(eventId) {
 }
 
 async function removeAttendanceLimit(eventId) {
-    const currentEvent = allAdminEvents.find(event => event.id === eventId);
-    if (descriptionLimitConflict(currentEvent, null) !== undefined) {
-        printRowStatus(eventId, 'Not effective — this event’s limit comes from its calendar description. Remove it there first.', true);
-        return;
-    }
-
     try {
-        const updateResponse = await fetch(`${API_BASE_URL}/api/events/${eventId}`, {
+        const updateResponse = await fetch(`${API_BASE_URL}/api/events/${encodeURIComponent(eventId)}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ attendanceLimit: null })

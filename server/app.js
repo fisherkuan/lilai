@@ -468,14 +468,6 @@ async function fetchCalendarEvents() {
                 const uidMatch = block.match(/UID:(.*)/);
                 const description = extractIcsField(block, 'DESCRIPTION');
                 const location = extractIcsField(block, 'LOCATION');
-                let attendanceLimitFromDescription = undefined; // Use undefined to signify "not specified"
-
-                if (description) {
-                    const limitMatch = description.match(/limit:?\s*(\d+)/i); // Only capture numbers
-                    if (limitMatch) {
-                        attendanceLimitFromDescription = parseInt(limitMatch[1], 10); // A number
-                    }
-                }
 
                 if (summaryMatch && dtstartMatch && uidMatch) {
                     let start = dtstartMatch[1];
@@ -509,8 +501,7 @@ async function fetchCalendarEvents() {
                         endDate: end,
                         description,
                         location,
-                        source: calendarId,
-                        attendance_limit_from_description: attendanceLimitFromDescription
+                        source: calendarId
                     });
                 }
             }
@@ -591,31 +582,14 @@ async function syncCalendarToDb({ events: calendarEvents, unreadSources }) {
     try {
         await client.query('BEGIN');
 
-        // Sync calendar events
+        // Sync calendar events. Google owns what it shows (title, time, description, place);
+        // the limit, the links and the host fields belong to Lilai and are never touched here.
         if (calendarEvents.length > 0) {
-            // Fetch existing events for comparison
-            const existingEventsResult = await client.query('SELECT id, attendance_limit FROM events');
-            const existingEventsMap = new Map(existingEventsResult.rows.map(row => [row.id, row]));
-
             // Dedupe by id (last wins, like the per-row upserts did) — a
             // repeated id in one multi-row INSERT is a Postgres error.
             const rowsById = new Map();
             for (const event of calendarEvents) {
-                let finalAttendanceLimit;
-                const existingEvent = existingEventsMap.get(event.id);
-
-                if (event.attendance_limit_from_description !== undefined) {
-                    // Limit was explicitly specified in the description (a number)
-                    finalAttendanceLimit = event.attendance_limit_from_description;
-                } else if (existingEvent) {
-                    // Preserve existing limit if event already exists
-                    finalAttendanceLimit = existingEvent.attendance_limit;
-                } else {
-                    // New event, no limit in description, so default to null (unlimited)
-                    finalAttendanceLimit = null;
-                }
-
-                rowsById.set(event.id, [event.id, event.title, event.date, event.endDate, event.description, event.location, event.source, finalAttendanceLimit]);
+                rowsById.set(event.id, [event.id, event.title, event.date, event.endDate, event.description, event.location, event.source]);
             }
 
             // One multi-row upsert — per-row statements cost a network
@@ -624,11 +598,11 @@ async function syncCalendarToDb({ events: calendarEvents, unreadSources }) {
             const placeholders = [];
             for (const row of rowsById.values()) {
                 const base = upsertParams.length;
-                placeholders.push(`($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6}, $${base + 7}, $${base + 8})`);
+                placeholders.push(`($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6}, $${base + 7})`);
                 upsertParams.push(...row);
             }
             await client.query(
-                `INSERT INTO events (id, title, date, endDate, description, location, source, attendance_limit)
+                `INSERT INTO events (id, title, date, endDate, description, location, source)
                  VALUES ${placeholders.join(', ')}
                  ON CONFLICT (id) DO UPDATE SET
                     title = EXCLUDED.title,
@@ -636,8 +610,7 @@ async function syncCalendarToDb({ events: calendarEvents, unreadSources }) {
                     endDate = EXCLUDED.endDate,
                     description = EXCLUDED.description,
                     location = EXCLUDED.location,
-                    source = EXCLUDED.source,
-                    attendance_limit = EXCLUDED.attendance_limit`,
+                    source = EXCLUDED.source`,
                 upsertParams
             );
         }
@@ -940,11 +913,12 @@ app.post('/api/events', async (req, res) => {
         await client.query(
             `INSERT INTO events (id, title, date, endDate, description, location, source, attendance_limit,
                                  approval_required, host_name, host_email, host_token_hash,
-                                 google_calendar_id, google_event_id, google_link, created_in_app_at)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, NOW())`,
-            [id, input.title, input.start, input.end, hosting.googleDescription(input) || null,
+                                 google_calendar_id, google_event_id, google_link, links, created_in_app_at)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, NOW())`,
+            [id, input.title, input.start, input.end, input.description || null,
                 input.location || null, calendar.id, input.limit, input.approval, input.hostName,
-                input.hostEmail, hosting.hashHostToken(token), calendar.id, created.id, created.htmlLink || null]
+                input.hostEmail, hosting.hashHostToken(token), calendar.id, created.id, created.htmlLink || null,
+                JSON.stringify(input.links)]
         );
         if (input.hostJoins) {
             await client.query(
@@ -1020,6 +994,30 @@ app.get('/api/host/:token', async (req, res) => {
     }
 });
 
+// The host changes the limit or the links. A limit below the people already in is allowed:
+// nobody loses a place, the event just reads full until someone leaves.
+app.put('/api/host/:token/event', async (req, res) => {
+    let settings;
+    try {
+        settings = hosting.validateEventSettings(req.body);
+    } catch (error) {
+        if (error instanceof hosting.EventInputError) {
+            return res.status(400).json({ success: false, field: error.field, message: error.message });
+        }
+        throw error;
+    }
+    const client = await pool.connect();
+    try {
+        const event = await hostedEvent(client, req.params.token);
+        if (!event) return res.status(404).json({ success: false, message: 'This host link does not open any event.' });
+        await updateEventSettings(client, event.id, settings);
+        const fresh = await hostedEvent(client, req.params.token);
+        res.json({ success: true, ...(await hostView(client, fresh)) });
+    } finally {
+        client.release();
+    }
+});
+
 // Accept, decline, or put back to waiting. Accepting respects the limit, under a row lock
 // so two quick taps cannot both take the last seat.
 app.post('/api/host/:token/requests/:rsvpId', async (req, res) => {
@@ -1063,63 +1061,48 @@ app.post('/api/host/:token/requests/:rsvpId', async (req, res) => {
     }
 });
 
-// Update event attendance limit (ONLY - other fields sync from Google Calendar)
+// Change what Lilai owns on an event: its limit and its links. Everything else comes from
+// Google Calendar. Shared by the admin page and the host page; broadcasts event_update.
+async function updateEventSettings(client, eventId, settings) {
+    const sets = [];
+    const params = [];
+    if ('limit' in settings) {
+        params.push(settings.limit);
+        sets.push(`attendance_limit = $${params.length}`);
+    }
+    if ('links' in settings) {
+        params.push(JSON.stringify(settings.links));
+        sets.push(`links = $${params.length}`);
+    }
+    params.push(eventId);
+    const result = await client.query(`UPDATE events SET ${sets.join(', ')} WHERE id = $${params.length} RETURNING *`, params);
+    if (!result.rows[0]) return null;
+    const event = { ...hosting.publicEvent(result.rows[0]), ...(await attendanceOf(client, eventId)) };
+    broadcast({ type: 'event_update', payload: event });
+    return event;
+}
+
+// Body: { attendanceLimit?, links? } (the admin page) — limit also accepted as "limit".
 app.put('/api/events/:id', async (req, res) => {
+    let settings;
+    try {
+        const body = { ...req.body };
+        if ('attendanceLimit' in body) {
+            body.limit = body.attendanceLimit;
+            delete body.attendanceLimit;
+        }
+        settings = hosting.validateEventSettings(body);
+    } catch (error) {
+        if (error instanceof hosting.EventInputError) {
+            return res.status(400).json({ success: false, field: error.field, message: error.message });
+        }
+        throw error;
+    }
     const client = await pool.connect();
     try {
-        const { id } = req.params;
-        const { attendanceLimit } = req.body;
-
-        // ONLY allow attendance_limit updates - reject attempts to modify other fields
-        const bodyKeys = Object.keys(req.body);
-        if (bodyKeys.length !== 1 || attendanceLimit === undefined) {
-            return res.status(400).json({
-                success: false,
-                message: 'Only attendanceLimit can be updated. Other event fields are synced from Google Calendar.'
-            });
-        }
-
-        // Validate attendance limit
-        const limit = attendanceLimit === null || attendanceLimit === '' ? null : parseInt(attendanceLimit, 10);
-        if (limit !== null && (isNaN(limit) || limit < 0)) {
-            return res.status(400).json({
-                success: false,
-                message: 'Attendance limit must be a positive number or null'
-            });
-        }
-
-        await client.query(
-            'UPDATE events SET attendance_limit = $1 WHERE id = $2',
-            [limit, id]
-        );
-
-        const updatedEventResult = await client.query('SELECT * FROM events WHERE id = $1', [id]);
-        const updatedEvent = updatedEventResult.rows[0];
-
-        if (!updatedEvent) {
-            return res.status(404).json({ success: false, message: 'Event not found' });
-        }
-
-        const eventRsvpsResult = await client.query(
-            'SELECT attendee_name FROM rsvps WHERE event_id = $1 AND attendance = $2',
-            [id, 'yes']
-        );
-        const attendees = eventRsvpsResult.rows.map(rsvp => rsvp.attendee_name);
-        const attendingCount = attendees.length;
-
-        broadcast({
-            type: 'event_update',
-            payload: {
-                ...hosting.publicEvent(updatedEvent),
-                attendees,
-                attendingCount
-            }
-        });
-
-        res.json({ success: true, message: 'Attendance limit updated successfully', event: hosting.publicEvent(updatedEvent) });
-    } catch (error) {
-        console.error('Error updating event:', error);
-        res.status(500).json({ success: false, message: 'Internal server error' });
+        const event = await updateEventSettings(client, req.params.id, settings);
+        if (!event) return res.status(404).json({ success: false, message: 'Event not found' });
+        res.json({ success: true, message: 'Event updated', event });
     } finally {
         client.release();
     }
