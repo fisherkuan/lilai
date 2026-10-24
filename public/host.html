@@ -69,7 +69,7 @@
             <button type="button" class="btn btn-solid" id="edit-btn">Edit</button>
             <button type="button" class="btn btn-solid" id="restore-btn" hidden>Restore</button>
             <button type="button" class="ev-copy-link" id="share-btn"><span class="ev-copy-link-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="8.5" y="8.5" width="12" height="12" rx="2"/><path d="M15.5 8.5V5.5a2 2 0 0 0-2-2h-8a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h3"/></svg></span><span class="ev-copy-link-title" id="share-title">Copy link</span><span class="ev-copy-link-url" id="share-url"></span></button>
-            <button type="button" class="text-btn" id="cancel-btn">Cancel event</button>
+            <button type="button" class="btn btn-danger" id="cancel-btn">Cancel event</button>
         </div>
         <p class="ev-hint" id="share-status" role="status" hidden></p>
 
@@ -151,13 +151,18 @@
 
 <!-- Cancel the event -->
 <div id="cancel-sheet" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="cancel-sheet-title">
-    <div class="sheet">
-        <div class="sheet-head">
-            <h3 class="sheet-title" id="cancel-sheet-title">Cancel this event?</h3>
-            <button type="button" class="icon-btn" data-close aria-label="Close"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+    <div class="sheet sheet-danger">
+        <div class="sheet-head danger-band">
+            <div class="danger-band-top"><svg class="danger-mark" viewBox="0 0 24 24" aria-hidden="true"><path class="danger-mark-sign" d="M7.03 1.5h9.94l5.53 5.53v9.94l-5.53 5.53H7.03L1.5 16.97V7.03Z"/><path class="danger-mark-bang" d="M12 6.5v7.5"/><circle class="danger-mark-dot" cx="12" cy="17.6" r="1.4"/></svg><span class="danger-kicker">Warning</span><button type="button" class="icon-btn" data-close aria-label="Close"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
+            <h3 class="sheet-title danger-title" id="cancel-sheet-title">Cancel this event?</h3>
         </div>
-        <p class="sheet-when" id="cancel-when"></p>
-        <p class="sheet-desc">It leaves Home and Google Calendar. Everyone who joined stays on its list, so Restore brings it back as it was.</p>
+        <div class="danger-stripes" aria-hidden="true"></div>
+        <p class="danger-what" id="cancel-when"></p>
+        <ul class="danger-list">
+            <li>It disappears from Home and from Google Calendar for everyone.</li>
+            <li>People who joined are not told. Let them know yourself.</li>
+            <li>Their names stay on the list, so Restore brings it back as it was.</li>
+        </ul>
         <div class="field" id="cancel-scope-field" hidden>
             <span class="ev-label" id="cancel-scope-label">Cancel</span>
             <div class="ev-segment" id="cancel-scope" role="radiogroup" aria-labelledby="cancel-scope-label">
@@ -166,22 +171,26 @@
             </div>
         </div>
         <p class="field-error" id="cancel-error" role="alert" hidden></p>
-        <div class="sheet-actions">
-            <button type="button" class="btn btn-solid" id="cancel-confirm"><span class="text">Cancel event</span></button>
+        <div class="sheet-actions danger-actions">
+            <button type="button" class="btn btn-danger" id="cancel-confirm"><span class="text">Yes, cancel event</span></button>
             <button type="button" class="text-btn" data-close>Keep it</button>
         </div>
     </div>
 </div>
-
 <div id="remove-sheet" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="remove-sheet-title">
-    <div class="sheet">
-        <div class="sheet-head">
-            <h3 class="sheet-title" id="remove-sheet-title">Remove this person?</h3>
-            <button type="button" class="icon-btn" data-close aria-label="Close"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+    <div class="sheet sheet-danger">
+        <div class="sheet-head danger-band">
+            <div class="danger-band-top"><svg class="danger-mark" viewBox="0 0 24 24" aria-hidden="true"><path class="danger-mark-sign" d="M7.03 1.5h9.94l5.53 5.53v9.94l-5.53 5.53H7.03L1.5 16.97V7.03Z"/><path class="danger-mark-bang" d="M12 6.5v7.5"/><circle class="danger-mark-dot" cx="12" cy="17.6" r="1.4"/></svg><span class="danger-kicker">Warning</span><button type="button" class="icon-btn" data-close aria-label="Close"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
+            <h3 class="sheet-title danger-title" id="remove-sheet-title">Remove this person?</h3>
         </div>
-        <p class="sheet-desc">They leave the list and their place opens up. Undo under Declined puts them back while there is room.</p>
-        <div class="sheet-actions">
-            <button type="button" class="btn btn-danger" id="remove-confirm"><span class="text">Remove</span></button>
+        <div class="danger-stripes" aria-hidden="true"></div>
+        <ul class="danger-list">
+            <li>They lose their place, and it opens up for someone else.</li>
+            <li>They are not told. Let them know yourself.</li>
+            <li>Undo under Declined puts them back while there is room.</li>
+        </ul>
+        <div class="sheet-actions danger-actions">
+            <button type="button" class="btn btn-danger" id="remove-confirm"><span class="text">Yes, remove</span></button>
             <button type="button" class="text-btn" data-close>Keep them</button>
         </div>
     </div>

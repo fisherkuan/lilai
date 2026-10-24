@@ -302,3 +302,98 @@
     .ev-activity-list { overflow-y: auto; margin-right: calc(-1 * var(--s3)); padding-right: var(--s3); }
     .ev-activity-day:first-child { margin-top: var(--s2); }
 }
+
+/* ---------- Danger sheets: Cancel event, Remove a person ----------
+   The one place red fills a ground: a full-bleed red band with a stop-sign mark and a big
+   Jost question, an ink-and-red hazard stripe under it, then what will happen in plain ink
+   and a red "Yes, …" button. Text on red is --on-danger (4.5:1 in both themes). The octagon
+   is a warning sign, not a calendar shape. */
+.sheet-danger > .sheet-grip { background: var(--red); }
+.sheet-danger > .sheet-grip::before { background: var(--on-danger); opacity: 0.5; }
+
+.danger-band {
+    display: block;
+    margin: 0 calc(-1 * var(--gutter));
+    padding: var(--s1) var(--gutter) var(--s5);
+    background: var(--red);
+    color: var(--on-danger);
+}
+
+.danger-band-top {
+    display: flex;
+    align-items: center;
+    gap: var(--s3);
+}
+
+.danger-mark { flex: none; width: 44px; height: 44px; }
+.danger-mark-sign { fill: none; stroke: var(--on-danger); stroke-width: 2px; stroke-linejoin: miter; }
+.danger-mark-bang { stroke: var(--on-danger); stroke-width: 2.5px; stroke-linecap: square; }
+.danger-mark-dot { fill: var(--on-danger); }
+
+.danger-kicker {
+    flex: 1;
+    font-size: var(--meta);
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.danger-band .icon-btn { width: 36px; height: 36px; margin: 0; background: transparent; box-shadow: inset 0 0 0 2px var(--on-danger); }
+.danger-band .icon-btn:hover { background: var(--on-danger); }
+.danger-band .icon-btn svg { stroke: var(--on-danger); }
+.danger-band .icon-btn:hover svg { stroke: var(--red); }
+
+.danger-title {
+    margin-top: var(--s4);
+    padding-top: 0;
+    font-family: var(--font-display);
+    font-size: 32px;
+    font-weight: 700;
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+    color: var(--on-danger);
+    overflow-wrap: anywhere;
+}
+
+.danger-stripes {
+    height: 10px;
+    margin: 0 calc(-1 * var(--gutter));
+    background: repeating-linear-gradient(-45deg, var(--ink) 0 7px, var(--red) 7px 14px);
+}
+
+.danger-what { margin-top: var(--s5); font-size: 16px; font-weight: 600; overflow-wrap: anywhere; }
+.danger-what:empty { display: none; }
+
+.danger-list {
+    margin: var(--s4) 0 0;
+    padding: 0;
+    list-style: none;
+    font-size: 15px;
+}
+
+.danger-list li {
+    position: relative;
+    padding: var(--s2) 0 var(--s2) var(--s5);
+    border-top: 1px solid var(--hair);
+}
+.danger-list li:first-child { border-top: 0; }
+.danger-list li::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: calc(var(--s2) + 0.45em);
+    width: 8px;
+    height: 8px;
+    background: var(--ink); /* ink, not red: a red square is the second calendar's shape */
+}
+
+.danger-actions { margin-top: var(--s6); }
+.danger-actions .btn-danger { min-height: 52px; font-size: 16px; font-weight: 700; }
+
+/* The drawer has padding on every side and no grabber: the band meets its top edge. */
+@media (min-width: 640px) {
+    .sheet.sheet-danger { padding-top: 0; }
+    .sheet-danger .danger-band { margin: 0 calc(-1 * var(--s5)); padding: var(--s5); border-top-left-radius: var(--radius-sheet); }
+    .sheet-danger .danger-stripes { margin: 0 calc(-1 * var(--s5)); }
+    .danger-title { font-size: 36px; }
+}

@@ -383,6 +383,7 @@
     function openRemove(button) {
         removing = button;
         $('remove-sheet-title').textContent = `Remove ${button.dataset.name}?`;
+        $('remove-confirm').querySelector('.text').textContent = `Yes, remove ${button.dataset.name}`;
         openSheet('remove-sheet');
         $('remove-confirm').focus();
     }
