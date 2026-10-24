@@ -119,20 +119,28 @@ function readRepeat(raw) {
  * being edited, so an event that has already started can still be corrected as long as its
  * start does not move.
  */
-// The place, required: one of the owner's places (config/app.json `places`), spelled as the
-// list spells it. An edit may keep a place the event already had, so old events stay editable.
-function validatePlace(value, places, current) {
-    const name = text(value, MAX_LOCATION, 'location', 'The place');
+// The place, required: one of the owner's places (config/app.json `places`, spelled as the
+// list spells it, with its address), or a place picked from Google Maps (it carries a
+// placeId and its address). An edit may keep the place the event already had, so old
+// events stay editable. Without Google search (allowAny) any place typed is taken.
+const PLACE_ID = /^[A-Za-z0-9_-]{10,300}$/;
+function validatePlace(body, { places, current, allowAny }) {
+    const name = text(body?.location, MAX_LOCATION, 'location', 'The place');
     if (!name) throw new EventInputError('location', 'Pick a place.');
-    if (!places || !places.length) return name;
     const fold = (t) => String(t || '').trim().toLowerCase();
-    const match = places.find(p => fold(p.name) === fold(name));
-    if (match) return match.name;
-    if (current && name === String(current.location || '').trim()) return name;
-    throw new EventInputError('location', 'Pick a place from the list.');
+    const listed = (places || []).find(p => fold(p.name) === fold(name));
+    if (listed) return { location: listed.name, locationAddress: listed.address || '', placeId: null };
+    const placeId = String(body?.placeId ?? '').trim();
+    const address = text(body?.locationAddress, MAX_LOCATION, 'location', 'The address');
+    if (PLACE_ID.test(placeId)) return { location: name, locationAddress: address, placeId };
+    if (current && name === String(current.location || '').trim()) {
+        return { location: name, locationAddress: current.location_address || '', placeId: current.place_id || null };
+    }
+    if (allowAny || !places || !places.length) return { location: name, locationAddress: address, placeId: null };
+    throw new EventInputError('location', 'Pick a place from the suggestions.');
 }
 
-function validateEvent(body, { mode = 'create', calendars = [], places = null, now = new Date(), current = null } = {}) {
+function validateEvent(body, { mode = 'create', calendars = [], places = null, allowAnyPlace = false, now = new Date(), current = null } = {}) {
     const title = text(body?.title, MAX_TITLE, 'title', 'A title', { required: true });
 
     const date = String(body?.date ?? '').trim();
@@ -159,7 +167,7 @@ function validateEvent(body, { mode = 'create', calendars = [], places = null, n
         endTime,
         start,
         end,
-        location: validatePlace(body?.location, places, current),
+        ...validatePlace(body, { places, current, allowAny: allowAnyPlace }),
         description: text(body?.description, MAX_DESCRIPTION, 'description', 'The description'),
         links: validateLinks(body?.links),
         limit: validateLimit(body?.limit),
@@ -224,6 +232,8 @@ function formValues(row) {
         start: brusselsTimeOf(start),
         end: brusselsTimeOf(end),
         location: row.location || '',
+        locationAddress: row.location_address || '',
+        placeId: row.place_id || '',
         description: row.description || '',
         links: row.links || [],
         limit: row.attendance_limit,
@@ -261,9 +271,11 @@ function googleEventResource(row, { publicUrl, places } = {}) {
         status: 'confirmed',
         extendedProperties: { private: { lilai: '1' } }
     };
-    // A place on the owner's list goes to Google with its address, so the copy opens in maps.
-    const place = row.location && (places || []).find(p => p.name === row.location && p.address);
-    if (row.location) resource.location = place ? `${place.name}, ${place.address}` : row.location;
+    // The place goes to Google with its address, so the copy opens in maps. An event saved
+    // before addresses were kept takes its address from the owner's list.
+    const address = row.location_address
+        || (row.location && (places || []).find(p => p.name === row.location)?.address);
+    if (row.location) resource.location = address ? `${row.location}, ${address}` : row.location;
     if (publicUrl && /^https?:\/\//.test(publicUrl)) resource.source = { title: 'Lilai', url: eventUrl(row.id, publicUrl) };
     return resource;
 }
@@ -370,7 +382,10 @@ async function createHostingSchema(client) {
         'next_push_at TIMESTAMPTZ',
         'cancelled_at TIMESTAMPTZ',
         'updated_at TIMESTAMPTZ',
-        'series_id UUID'
+        'series_id UUID',
+        // The place's address and Google Maps id, when it was picked from a list or Google.
+        'location_address TEXT',
+        'place_id VARCHAR(300)'
     ]) {
         await client.query(`ALTER TABLE events ADD COLUMN IF NOT EXISTS ${column}`);
     }

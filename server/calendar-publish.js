@@ -38,7 +38,7 @@ function createPublisher({ pool, googleCalendar, publicUrl, places = [], broadca
     let again = false;
 
     async function upsertCopy(row, action) {
-        const resource = googleEventResource(row, { publicUrl, places });
+        const resource = googleEventResource(row, { publicUrl, places: typeof places === 'function' ? places() : places });
         const calendarId = row.google_calendar_id;
         const eventId = row.google_event_id;
         if (action === 'insert') {

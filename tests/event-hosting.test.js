@@ -93,11 +93,28 @@ test('the place is required, and one of the owner\'s places when there is a list
     assert.equal(fieldOf({ ...edit, location: 'Somewhere new' }, { mode: 'edit', places, now: NOW, current }), 'location');
 });
 
+test('a place from Google Maps keeps its address and id; without Google any place is taken', () => {
+    const places = [{ name: 'TSH 1', address: 'Topsporthal, Tervuursevest 101, 3001 Leuven' }];
+    const withList = { mode: 'create', calendars, places, now: NOW };
+    const picked = validateEvent({ ...base, location: 'Het Moment', locationAddress: 'Bondgenotenlaan 1, Leuven', placeId: 'ChIJabcdefghijk' }, withList);
+    assert.deepEqual([picked.location, picked.locationAddress, picked.placeId], ['Het Moment', 'Bondgenotenlaan 1, Leuven', 'ChIJabcdefghijk']);
+    assert.equal(fieldOf({ ...base, location: 'Het Moment', placeId: 'x' }, withList), 'location'); // not an id
+    const listed = validateEvent({ ...base, location: 'TSH 1' }, withList);
+    assert.equal(listed.locationAddress, 'Topsporthal, Tervuursevest 101, 3001 Leuven');
+    assert.equal(validateEvent({ ...base, location: 'My kitchen' }, { ...withList, allowAnyPlace: true }).location, 'My kitchen');
+    // An edit that keeps the place keeps its address and id too.
+    const current = { date: new Date('2026-11-07T18:00:00Z'), location: 'Het Moment', location_address: 'Bondgenotenlaan 1', place_id: 'ChIJabcdefghijk' };
+    const edit = validateEvent({ title: 'Hot pot', date: '2026-11-07', start: '19:00', end: '22:00', location: 'Het Moment' }, { mode: 'edit', places, now: NOW, current });
+    assert.deepEqual([edit.locationAddress, edit.placeId], ['Bondgenotenlaan 1', 'ChIJabcdefghijk']);
+});
+
 test('the Google copy sends a listed place with its address', () => {
     const places = [{ name: 'TSH 1', address: 'Topsporthal, Tervuursevest 101, 3001 Leuven' }];
     const row = { id: 'cal-x@google.com', title: 'Badminton', date: '2026-11-07T18:00:00Z', location: 'TSH 1' };
     assert.equal(googleEventResource(row, { places }).location, 'TSH 1, Topsporthal, Tervuursevest 101, 3001 Leuven');
     assert.equal(googleEventResource({ ...row, location: 'Old hall' }, { places }).location, 'Old hall');
+    assert.equal(googleEventResource({ ...row, location: 'Het Moment', location_address: 'Bondgenotenlaan 1, Leuven' }, { places }).location,
+        'Het Moment, Bondgenotenlaan 1, Leuven');
 });
 
 test('later dates of a series take the new clock times on their own day', () => {

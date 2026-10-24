@@ -214,7 +214,7 @@
             input.addEventListener('click', () => { try { input.showPicker(); } catch (_) { /* not supported */ } });
         });
 
-        const state = { calendar: null, limited: false, approval: false, repeatOn: false, weekdays: [], endTouched: false, keptPlace: '' };
+        const state = { calendar: null, limited: false, approval: false, repeatOn: false, weekdays: [], endTouched: false, keptPlace: '', pickedPlace: null };
         const linkEditor = EventLinks.create(part('links'));
 
         // ---------- Radio groups of buttons, with arrow keys like native radios ----------
@@ -357,47 +357,94 @@
             });
         }
 
-        // ---------- Where: search the owner's places, the closest match first ----------
-        // Loaded once; js/place-search.js ranks them as the place is typed. A place not on the
-        // list cannot be picked, except the one an edited event already had (state.keptPlace).
+        // ---------- Where: the owner's places first, then Google Maps ----------
+        // The owner's list loads once and js/place-search.js ranks it as the place is typed.
+        // When the server has a Maps key, Google's suggestions follow under "Google Maps"; a
+        // place picked there keeps its address and id (state.pickedPlace). Without the key,
+        // any place typed is taken as typed. An edited event may keep the place it had.
         let placeList = [];
+        let googleOn = false;
         let placeMatches = [];
         let placeActive = -1;
+        let googleFor = '';
+        let googleResults = [];
+        let googleBusy = false;
+        let placeSession = '';
         const placeInput = $('location');
         const placeBox = $('place-list');
         const placesReady = fetch('/api/places').then(r => r.json())
-            .then(body => { placeList = body.places || []; })
+            .then(body => { placeList = body.places || []; googleOn = Boolean(body.google); })
             .catch(() => { /* the server still checks the place */ });
         const findPlace = (name) => placeList.find(pl => PlaceSearch.fold(pl.name) === PlaceSearch.fold(name));
-        function drawPlaces() {
-            placeMatches = PlaceSearch.rank(placeList, placeInput.value, 8);
-            placeActive = placeInput.value.trim() && placeMatches.length ? 0 : -1;
-            placeBox.innerHTML = placeMatches.length
-                ? placeMatches.map((pl, i) => `<li role="option" id="${p}-place-${i}" data-index="${i}" aria-selected="${i === placeActive}">`
-                    + `<span class="ev-place-name">${escapeHtml(pl.name)}</span>`
-                    + (pl.address ? `<span class="ev-place-address">${escapeHtml(pl.address)}</span>` : '') + '</li>').join('')
-                : `<li class="ev-place-none" role="presentation">No place matches. Ask the admins to add it.</li>`;
-            openPlaces(true);
+        const optionHtml = (pl, i) => `<li role="option" id="${p}-place-${i}" data-index="${i}" aria-selected="${i === placeActive}">`
+            + `<span class="ev-place-name">${escapeHtml(pl.name)}</span>`
+            + (pl.address ? `<span class="ev-place-address">${escapeHtml(pl.address)}</span>` : '') + '</li>';
+        function drawPlaces(keepActive) {
+            const q = placeInput.value.trim();
+            const listed = PlaceSearch.rank(placeList, q, q ? 5 : 8).map(pl => ({ ...pl, source: 'list' }));
+            const fromGoogle = googleOn && q.length >= 2 && googleFor === q ? googleResults : [];
+            const seen = new Set(listed.map(pl => PlaceSearch.fold(pl.name)));
+            const google = fromGoogle.filter(r => !seen.has(PlaceSearch.fold(r.name))).map(r => ({ ...r, source: 'google' }));
+            placeMatches = [...listed, ...google];
+            if (!keepActive || placeActive >= placeMatches.length) placeActive = q && placeMatches.length ? 0 : -1;
+            let html = listed.map(optionHtml).join('');
+            if (google.length) {
+                html += '<li class="ev-place-group" role="presentation">Google Maps</li>'
+                    + google.map((pl, i) => optionHtml(pl, listed.length + i)).join('');
+            }
+            if (!placeMatches.length && q) {
+                const note = !googleOn ? 'Not on the list. It is saved as typed.'
+                    : googleBusy || q.length < 2 ? 'Searching Google Maps…' : 'No place found.';
+                html = `<li class="ev-place-none" role="presentation">${note}</li>`;
+            }
+            placeBox.innerHTML = html;
+            openPlaces(Boolean(html));
         }
+        const searchGoogle = debounce(async () => {
+            const q = placeInput.value.trim();
+            if (!googleOn || q.length < 2 || q === googleFor) { googleBusy = false; return; }
+            try {
+                const res = await fetch(`/api/places/search?q=${encodeURIComponent(q)}&session=${placeSession}`);
+                const body = await res.json();
+                googleFor = q;
+                googleResults = body.results || [];
+            } catch (_) {
+                googleFor = q;
+                googleResults = [];
+            }
+            googleBusy = false;
+            if (document.activeElement === placeInput && placeInput.value.trim() === q) drawPlaces(true);
+        }, 250);
         function openPlaces(open) {
             placeBox.hidden = !open;
             placeInput.setAttribute('aria-expanded', String(open));
             markActive();
         }
         function markActive() {
-            placeBox.querySelectorAll('[role="option"]').forEach((li, i) => li.setAttribute('aria-selected', String(i === placeActive)));
+            placeBox.querySelectorAll('[role="option"]').forEach(li => li.setAttribute('aria-selected', String(Number(li.dataset.index) === placeActive)));
             const active = placeActive >= 0 ? $(`place-${placeActive}`) : null;
             if (active) { placeInput.setAttribute('aria-activedescendant', active.id); active.scrollIntoView({ block: 'nearest' }); }
             else placeInput.removeAttribute('aria-activedescendant');
         }
         function choosePlace(pl) {
             placeInput.value = pl.name;
+            state.pickedPlace = pl.source === 'google' ? { name: pl.name, address: pl.address || '', placeId: pl.placeId } : null;
+            placeSession = '';
             openPlaces(false);
             const error = container.querySelector('[data-error-for="location"]');
             if (error) { error.hidden = true; error.textContent = ''; }
         }
-        placeInput.addEventListener('focus', () => placesReady.then(() => { if (document.activeElement === placeInput) drawPlaces(); }));
-        placeInput.addEventListener('input', drawPlaces);
+        placeInput.addEventListener('focus', () => placesReady.then(() => {
+            if (document.activeElement !== placeInput) return;
+            if (!placeSession) placeSession = root.crypto?.randomUUID ? root.crypto.randomUUID() : String(Date.now());
+            drawPlaces();
+        }));
+        placeInput.addEventListener('input', () => {
+            state.pickedPlace = null;
+            googleBusy = googleOn && placeInput.value.trim().length >= 2 && placeInput.value.trim() !== googleFor;
+            drawPlaces();
+            searchGoogle();
+        });
         placeInput.addEventListener('keydown', (e) => {
             const open = !placeBox.hidden;
             if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
@@ -425,7 +472,7 @@
         placeInput.addEventListener('blur', () => {
             openPlaces(false);
             // A name typed in full takes the list's own spelling.
-            const exact = findPlace(placeInput.value);
+            const exact = !state.pickedPlace && findPlace(placeInput.value);
             if (exact) placeInput.value = exact.name;
         });
 
@@ -472,6 +519,7 @@
                 state.endTouched = Boolean(values.end);
                 $('location').value = values.location || '';
                 state.keptPlace = values.location || '';
+                state.pickedPlace = null;
                 $('description').value = values.description || '';
                 linkEditor.set(values.links || []);
                 const limited = values.limit !== null && values.limit !== undefined && values.limit !== '';
@@ -492,6 +540,7 @@
                 pick('approval', 'approval', 'false');
                 state.endTouched = false;
                 state.keptPlace = '';
+                state.pickedPlace = null;
                 if (mode === 'create') {
                     state.weekdays = [];
                     $('every').value = '1';
@@ -510,6 +559,9 @@
                     start: $('start').value,
                     end: $('end').value,
                     location: $('location').value,
+                    // Only a place picked from Google carries these; the server fills a listed one.
+                    locationAddress: state.pickedPlace?.name === $('location').value ? state.pickedPlace.address : '',
+                    placeId: state.pickedPlace?.name === $('location').value ? state.pickedPlace.placeId : '',
                     description: $('description').value,
                     links: linkEditor.value(),
                     limit: state.limited ? $('limit').value : null,
@@ -535,8 +587,8 @@
                 if (!body.end) return !showError('end', 'Pick an end time.', $('end'));
                 const place = body.location.trim();
                 if (!place) return !showError('location', 'Pick a place.');
-                if (placeList.length && !findPlace(place) && place !== state.keptPlace) {
-                    return !showError('location', 'Pick a place from the list.');
+                if (googleOn && !findPlace(place) && !body.placeId && place !== state.keptPlace) {
+                    return !showError('location', 'Pick a place from the suggestions.');
                 }
                 const badLink = linkEditor.invalid();
                 if (badLink) return !showError('links', 'That is not a web address. It starts with https://', badLink);

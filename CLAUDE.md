@@ -27,7 +27,7 @@ The server runs on `http://localhost:3000` by default (configurable via PORT env
 ### Database
 - PostgreSQL is used for production (connection via `DATABASE_URL` env var)
 - Database schema is auto-initialized on server startup via `initializeDatabase()` in server/app.js
-- Tables: `events`, `rsvps`, `event_series`, `event_host_links`, `event_activity`, `calendar_keys`, `calendar_state`, `donations`, `feedback`, `booking_queue`, `booking_profiles`, `booking_series`
+- Tables: `events`, `rsvps`, `places`, `event_series`, `event_host_links`, `event_activity`, `calendar_keys`, `calendar_state`, `donations`, `feedback`, `booking_queue`, `booking_profiles`, `booking_series`
 - `rsvps.attendance` is `yes` (holds a seat), `pending` (asked to join an approval event) or `declined` (the host said no). Every count of who is coming filters on `yes`
 - Schema migrations are idempotent and run automatically on startup
 
@@ -74,6 +74,7 @@ Vanilla JavaScript with no build step.
 **Structure:**
 - `index.html` + `app.js` - Main event listing and RSVP interface
 - `admin-donations.html` + `js/admin-donations.js` - Donation management
+- `admin-places.html` + `js/admin-places.js` - The saved places (`/admin/places`, admin key): add (with "Find on Google Maps" filling name and address), edit, reorder, remove
 - `donations.html` + `js/donation.js` - Public donation submission page
 - `faq.html` + `js/faq.js` - FAQ page
 - `bauhaus/tokens.css` - The Bauhaus kit's tokens, copied verbatim (do not edit)
@@ -83,7 +84,7 @@ Vanilla JavaScript with no build step.
 - `js/sheet.js` - Shared behaviour for every sheet (`.modal`, `.bs-root`), on every page with feedback: locks the page scroll while one is open, keeps the sheet above the iOS keyboard (`--vv-top`/`--vv-h` from `visualViewport`), and makes the grabber work on phones (drag up for full screen, down to go back or dismiss, tap to toggle; `settle` tested in `tests/sheet.test.js`). Sheets do not touch `body.style.overflow` themselves
 - `js/make-event.js` - Home's "Make an event" slide-in (`#event-sheet`), opened by any `[data-make-event]` button (the "+" by the view switch, the sidebar button) and by `/#new` or `/#new=<calendar>`. `/events/new` redirects there. After making, it shows the management link with Copy and Share. It also renders "You manage" in Home's hosting card (`renderHosted`, called again by `app.js` once events load, for the time and who is coming); a management link entry stores `eventId` and `calendar` for that
 - `js/lost-link.js` - Home's "Lost a management link?" sheet (sidebar button, `/#lost-link`, linked from the FAQ): where the link may still be, then "Ask the admins" (event, host name, email) sent through `/api/feedback` with `page: lost-link`. An admin checks the host and replies with a new link minted by a calendar key's Manage
-- `js/event-form.js` - `EventForm.create(container, { mode })`: the one form for making (`create`: calendar, repeat, host) and editing (`edit`) an event. Repeat preview from `/api/events/repeat-preview`. Where is required and searches the owner's places (`/api/places`, ranked by `js/place-search.js`)
+- `js/event-form.js` - `EventForm.create(container, { mode })`: the one form for making (`create`: calendar, repeat, host) and editing (`edit`) an event. Repeat preview from `/api/events/repeat-preview`. Where is required: the saved places first (`/api/places`, ranked by `js/place-search.js`), then Google Maps suggestions under "Google Maps" when the server has a key (`/api/places/search`). A Google pick sends `locationAddress` and `placeId`; without a key any typed place is taken
 - `js/place-search.js` - `PlaceSearch.rank(places, query)`: the owner's places, closest match first (exact, start, word start, inside, every word, then aliases and addresses; letters-in-order guesses only when nothing else matches). Ignores case, accents and spaces. Tested in `tests/place-search.test.js`
 - `js/event-links.js` - An event's links: `listHtml` draws them on cards and the RSVP sheet (name, else the site), `create` is the link editor inside the event form. Tested in `tests/event-links.test.js`
 - `js/device-links.js` - What this device holds: management links (`lilai.hostedEvents`, listed as "You manage" in Home's sidebar) and calendar keys (`lilai.calendarKeys`), plus `share()` (Web Share, else the clipboard)
@@ -105,7 +106,7 @@ Central configuration file with:
 - `events.autoFetch` - The legacy feed, for a calendar not yet imported. Harmless once every calendar is
 - `events.defaultTimeRange` - Default filter ("future", "past", "all")
 - `events.defaultCreateCalendar` - The calendar pre-selected in Make an event. Must match a `calendars[].name`
-- `places[]` - The places an event can be at (`{name, address?, aliases?}`), kept by the owner for consistent names. An event's place must be one of them (an edit may keep an older place the event already had); the name is stored, and the Google copy gets "name, address". Edit the list here and restart; there is no admin page for it
+- `places[]` - Seed only: copied into the `places` table the first time it is made. After that the list lives in the database and is edited on `/admin/places`; changing this array does nothing
 - `rsvp` - RSVP behavior settings
 - `joinGroupUrl` - Link to external group (displayed in UI)
 
@@ -117,6 +118,7 @@ Central configuration file with:
 - `server/calendar-publish.js` - Pushes rows with `managed AND version > synced_version`: insert (first copy; 409 → update), update (PUT; 404 → insert, which also brings back a copy deleted in Google), delete (cancelled; 404/410 = done). Success records the pushed version; failure stores `push_error`, `push_attempts` and `next_push_at` (30 s doubling to 6 h). 30 s tick plus `nudge()` after each change. Without credentials nothing is pushed and the management page says so
 - `server/calendar-import.js` - Once per calendar (`calendar_state`): `events.list` (all pages, `singleEvents`, two years ahead), each Google event onto `cal-<iCalUID>` (a repeating event's instances by their own id) as `managed`; the old "limit: N" / "link: URL" description lines move into their fields once; upcoming events are published once so their copies match; unmanaged rows Google no longer lists are deleted. Retried every 10 minutes on failure
 - `server/calendar-sync.js` + `fetchCalendarEvents` in `app.js` - The legacy iCal feed, only for calendars not yet imported, never touching a managed row. Remove once production has imported every calendar
+- Places: an event stores the place's name in `location`, plus `location_address` and `place_id` when it was picked from the saved list or Google Maps. `validateEvent` takes a saved place (its spelling and address), a Google pick (a `placeId`), the place an edited event already had, or, with Google search off (`allowAnyPlace`), anything typed. `server/places.js` holds the saved list (table `places`, in memory, reloaded after each change). The Google copy's location is "name, address"
 - `server/google-calendar.js` - Service-account JWT sign-in and `insertEvent` / `updateEvent` / `deleteEvent` / `listEvents`, no SDK
 - `server/calendar-access.js` + `scripts/calendar-link.js` - Calendar keys (`calendar_keys`, hash only). `heroku run -a lilai-eu node scripts/calendar-link.js TSA --label "TSA admins"` prints a `/calendars/<token>` link once; `--revoke` stops the earlier ones. A key lets a device make events in a restricted calendar and mint a management link for any event in that calendar
 - Management links: `event_host_links` maps a token hash to one event or one series. Made when an event is made (emailed to the host when `hostEmail` and Resend are set) and when a calendar key holder opens Manage. No accounts, in line with the RSVP trust model; whoever has the link is a host
@@ -149,6 +151,8 @@ Required in `.env`:
 - `FEEDBACK_EMAIL_TO` - Optional, comma-separated; overrides the default inbox `lilai@fisherkuan.com`
 - `FEEDBACK_EMAIL_FROM` - Optional. Needs a domain verified in Resend, else the default `onboarding@resend.dev` only delivers to the Resend account's own address
 - `GOOGLE_SERVICE_ACCOUNT_JSON` - A Google service account key (the JSON file, or base64 of it) that publishes events to the Google calendars and runs the one-time import. Share every calendar in `config/app.json` with its `client_email` ("Make changes to events"); the address is logged at startup. Without it events still work in Lilai and their copies wait. A value that does not parse stops startup
+- `GOOGLE_MAPS_API_KEY` - Optional. A Google Cloud API key with Places API (New) enabled; turns on Google Maps search in Where and on `/admin/places`. Each search is one billed Autocomplete request (10,000 free a month); cap the daily quota in Cloud Console so it cannot bill
+- `ADMIN_API_KEY` - The key the admin pages send for donations and places
 - `PUBLIC_URL` - Optional. Overrides `publicUrl` (local runs)
 - `PORT` - Server port (default: 3000)
 - `NODE_ENV` - Set to "production" to enable SSL for PostgreSQL
@@ -191,7 +195,9 @@ Required in `.env`:
 - `POST /api/host/:token/events/:eventId/requests/:rsvpId` - Body `{decision: accept|decline|undo}`. Accept respects the limit under a row lock (409 when full)
 - `GET /api/calendar-access/:token` - A calendar key's calendar and its upcoming events
 - `POST /api/calendar-access/:token/events/:eventId/manage` - Mints a management link for one of that calendar's events (a series gets one link for all its dates)
-- `GET /api/places` - The owner's places from `config/app.json`, in the owner's order (`{places: [{name, address, aliases}]}`); the form ranks them itself
+- `GET /api/places` - The saved places in the owner's order (`{places: [{id, name, address, aliases, placeId}], google}`); `google` says whether Google Maps search is on. The form ranks them itself
+- `GET /api/places/search?q=&session=` - Google Maps suggestions (`server/place-autocomplete.js`: Places API (New) Autocomplete, biased to Leuven, at most five, cached a day, 30 a minute per visitor). `[]` without `GOOGLE_MAPS_API_KEY`
+- `POST /api/places`, `PUT /api/places/:id`, `DELETE /api/places/:id`, `PUT /api/places/order` (`{ids}`) - The saved places' admin, behind `X-Admin-Key`. A second place with the same name (any case) is 409 on `name`. Removing a place never touches events already there
 - `POST /api/rsvp` - Submit RSVP (body: `{eventId, action: "add"|"remove", attendeeName}`). A cancelled event is not found. On an approval event, `add` asks to join: the row is `pending`, the answer carries `pending: true`, and one open request per name. Answers and the `attendance_update` broadcast carry `attendees`, `attendingCount` and `pendingCount`
 - Public event JSON never includes `host_email` or the publishing bookkeeping (`publicEvent` in `server/event-hosting.js`), and never a cancelled event
 

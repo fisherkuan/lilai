@@ -1304,6 +1304,8 @@ html.sheet-locked body {
 .ev-place-name { font-size: 15px; font-weight: 600; overflow-wrap: anywhere; }
 .ev-place-address { font-size: 13px; color: var(--ink-2); overflow-wrap: anywhere; }
 .ev-place-none { padding: var(--s2) var(--s3); font-size: 14px; color: var(--ink-2); }
+/* Google's suggestions sit under their source's name, which is also the attribution Google asks for. */
+.ev-place-group { padding: var(--s3) var(--s3) var(--s1); font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-2); }
 
 /* Start and end read as one pair. */
 .ev-two {

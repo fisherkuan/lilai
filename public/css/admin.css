@@ -128,6 +128,42 @@
     color: var(--ink-2);
 }
 
+/* ---------- Admin Places ---------- */
+
+.pl-card-title {
+    margin: 0 0 var(--s4);
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ink-2);
+}
+.pl-count { font-variant-numeric: tabular-nums; }
+.admin-form .ev-place-list { margin-top: var(--s2); }
+
+/* One hairline row per place, in the order hosts see them. */
+.pl-rows { list-style: none; margin: 0; padding: 0; }
+.pl-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--s2) var(--s3);
+    padding: var(--s3) 0;
+    border-top: 1px solid var(--hairline);
+}
+.pl-row:first-child { border-top: 0; padding-top: 0; }
+.pl-text { flex: 1 1 220px; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.pl-name { font-weight: 600; overflow-wrap: anywhere; }
+.pl-address { font-size: var(--meta); color: var(--ink-2); overflow-wrap: anywhere; }
+.pl-aliases { font-size: 13px; color: var(--ink-3); overflow-wrap: anywhere; }
+.pl-actions { display: flex; align-items: center; gap: var(--s1) var(--s3); flex-wrap: wrap; }
+.pl-actions .icon-btn:disabled { opacity: 0.3; cursor: default; background: none; }
+.pl-ask { font-weight: 600; }
+.pl-btn { min-height: 36px; padding: 0 var(--s4); font-weight: 600; }
+.pl-row.is-editing { display: block; }
+.pl-edit .field:first-child { margin-top: 0; }
+.pl-empty { padding: var(--s3) 0; color: var(--ink-2); }
+
 /* ---------- Breakpoints ---------- */
 
 @media (min-width: 640px) {

@@ -20,6 +20,8 @@ const { findStaleEventIds, looksLikeIcsFeed } = require('./calendar-sync');
 const { readServiceAccount, createGoogleCalendar } = require('./google-calendar');
 const hosting = require('./event-hosting');
 const { createPublisher } = require('./calendar-publish');
+const { createPlaceAutocomplete } = require('./place-autocomplete');
+const places = require('./places');
 const { importCalendar, createImportSchema, importedCalendarIds } = require('./calendar-import');
 const access = require('./calendar-access');
 const activity = require('./event-activity');
@@ -49,6 +51,8 @@ if (missingVars.length > 0) {
 }
 
 const app = express();
+// Heroku's router is the one proxy in front, so req.ip is the visitor (the place search's budget).
+app.set('trust proxy', 1);
 
 /*
  * Express 4 does not catch a rejected async handler: the request never answers, and Node
@@ -106,6 +110,9 @@ const pool = new Pool({
 pool.on('error', (error) => {
     console.error('Idle database connection dropped:', error.message);
 });
+
+// The saved places, held in memory (server/places.js); loaded once the schema exists.
+const placeStore = places.createPlaceStore(pool);
 
 // Read once at startup: an invalid IBAN stops the server rather than reaching a donor.
 const bankDetails = readBankDetails();
@@ -169,6 +176,9 @@ try {
 
 // Links in emails and in the Google copies point here. PUBLIC_URL overrides it (local runs).
 if (process.env.PUBLIC_URL) appConfig.publicUrl = process.env.PUBLIC_URL;
+
+// Google Maps search for the event form's Where field; off without a key.
+const placeAutocomplete = createPlaceAutocomplete({ apiKey: process.env.GOOGLE_MAPS_API_KEY || '' });
 
 // Create HTTP server
 const server = http.createServer(app);
@@ -332,6 +342,8 @@ async function initializeDatabase() {
         await createBookingSchema(client);
         await createSeriesSchema(client);
         await feedback.createFeedbackSchema(client);
+        const placesSeeded = await places.createPlacesSchema(client, appConfig.places || []);
+        if (placesSeeded) console.log(`📍 Saved ${placesSeeded} places from config/app.json`);
         const seeded = await createProfileSchema(client, uuidv4);
         if (seeded.created > 0) {
             console.log(`[bookings] address book seeded from the queue: ${seeded.created} people, ${seeded.linked} entries linked.`);
@@ -880,11 +892,11 @@ async function writableCalendars(keys) {
 }
 
 const EVENT_FIELDS_SQL = `title = $2, date = $3, endDate = $4, location = $5, description = $6, links = $7,
-    attendance_limit = $8, approval_required = $9`;
+    attendance_limit = $8, approval_required = $9, location_address = $10, place_id = $11`;
 
 function eventFieldParams(id, edit, start, end) {
     return [id, edit.title, start, end, edit.location || null, edit.description || null,
-        JSON.stringify(edit.links), edit.limit, edit.approval];
+        JSON.stringify(edit.links), edit.limit, edit.approval, edit.locationAddress || null, edit.placeId || null];
 }
 
 // A change the Google copy must follow: next version, pushed as soon as the publisher runs.
@@ -896,7 +908,7 @@ app.post('/api/events', async (req, res) => {
     const calendars = publishedCalendars();
     let input;
     try {
-        input = hosting.validateEvent(req.body, { mode: 'create', calendars: calendars.map(c => c.name), places: placeList() });
+        input = hosting.validateEvent(req.body, { mode: 'create', calendars: calendars.map(c => c.name), places: placeList(), allowAnyPlace: !placeAutocomplete.enabled });
     } catch (error) {
         if (inputError(res, error)) return;
         throw error;
@@ -926,10 +938,10 @@ app.post('/api/events', async (req, res) => {
             ids.push(id);
             await client.query(
                 `INSERT INTO events (id, title, date, endDate, location, description, links, attendance_limit,
-                                     approval_required, source, host_name, host_email,
+                                     approval_required, location_address, place_id, source, host_name, host_email,
                                      google_calendar_id, google_event_id, series_id,
                                      managed, version, synced_version, created_in_app_at, updated_at)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $10, $13, $14, TRUE, 1, 0, NOW(), NOW())`,
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $12, $15, $16, TRUE, 1, 0, NOW(), NOW())`,
                 [...eventFieldParams(id, input, occurrence.start, occurrence.end),
                     calendar.id, input.hostName, input.hostEmail, googleId, seriesId]
             );
@@ -1117,7 +1129,7 @@ async function logEdit(client, before) {
 // on, each keeping its own day.
 app.put('/api/host/:token/events/:eventId', async (req, res) => {
     const result = await withLinkedEvent(req, res, async (client, event) => {
-        const edit = hosting.validateEvent(req.body, { mode: 'edit', current: event, places: placeList() });
+        const edit = hosting.validateEvent(req.body, { mode: 'edit', current: event, places: placeList(), allowAnyPlace: !placeAutocomplete.enabled });
         await client.query(`UPDATE events SET ${EVENT_FIELDS_SQL}, ${NEEDS_PUSH_SQL} WHERE id = $1`,
             eventFieldParams(event.id, edit, edit.start, edit.end));
         await logEdit(client, event);
@@ -1262,16 +1274,62 @@ app.post('/api/calendar-access/:token/events/:eventId/manage', async (req, res) 
     res.status(201).json({ success: true, hostPath: `/host/${token}` });
 });
 
-// The places an event can be at, as the owner keeps them in config/app.json (`places`), in the
-// owner's order. The form searches them itself (js/place-search.js).
+// The saved places, in the owner's order (server/places.js, edited on /admin/places).
 function placeList() {
-    return (appConfig.places || [])
-        .filter(p => p && typeof p.name === 'string' && p.name.trim())
-        .map(p => ({ name: p.name.trim(), address: p.address || '', aliases: Array.isArray(p.aliases) ? p.aliases : [] }));
+    return placeStore.list();
 }
 
+// google: whether the form may also search Google Maps (GOOGLE_MAPS_API_KEY is set).
 app.get('/api/places', (req, res) => {
+    res.json({ places: placeList(), google: placeAutocomplete.enabled });
+});
+
+// The saved places' admin (/admin/places), behind the admin key: the list is what every
+// host is offered.
+function placeError(res, error) {
+    if (!(error instanceof places.PlaceInputError)) return false;
+    res.status(error.message.startsWith('There is already') ? 409 : 400).json({ field: error.field, message: error.message });
+    return true;
+}
+
+app.post('/api/places', requireAdminKey, async (req, res) => {
+    try {
+        res.status(201).json({ place: await placeStore.add(req.body) });
+    } catch (error) {
+        if (!placeError(res, error)) throw error;
+    }
+});
+
+app.put('/api/places/order', requireAdminKey, async (req, res) => {
+    await placeStore.reorder(req.body?.ids);
     res.json({ places: placeList() });
+});
+
+app.put('/api/places/:id', requireAdminKey, async (req, res) => {
+    try {
+        const place = await placeStore.update(Number(req.params.id), req.body);
+        if (!place) return res.status(404).json({ message: 'That place is gone.' });
+        res.json({ place });
+    } catch (error) {
+        if (!placeError(res, error)) throw error;
+    }
+});
+
+app.delete('/api/places/:id', requireAdminKey, async (req, res) => {
+    const removed = await placeStore.remove(Number(req.params.id));
+    if (!removed) return res.status(404).json({ message: 'That place is gone.' });
+    res.json({ success: true });
+});
+
+// Google Maps suggestions for what is typed, through server/place-autocomplete.js.
+app.get('/api/places/search', async (req, res) => {
+    try {
+        const results = await placeAutocomplete.search(req.query.q, { sessionToken: req.query.session, caller: req.ip });
+        res.json({ results });
+    } catch (error) {
+        console.error('[places]', error.message);
+        res.status(502).json({ results: [], error: 'Google Maps search is not answering.' });
+    }
 });
 
 // Donations API Routes
@@ -2734,6 +2792,10 @@ app.get('/calendars/:token', (req, res) => {
     res.sendFile(path.join(__dirname, '../public/calendar.html'));
 });
 
+app.get('/admin/places', (req, res) => {
+    res.sendFile(path.join(__dirname, '../public/admin-places.html'));
+});
+
 app.get('/admin/donations', (req, res) => {
     res.sendFile(path.join(__dirname, '../public/admin-donations.html'));
 });
@@ -2770,7 +2832,7 @@ const publisher = createPublisher({
     pool,
     googleCalendar,
     publicUrl: appConfig.publicUrl || null,
-    places: placeList(),
+    places: () => placeList(),
     broadcast
 });
 
@@ -2816,6 +2878,7 @@ async function initializeDatabaseWithRetry() {
     for (let attempt = 1; ; attempt++) {
         try {
             await initializeDatabase();
+            await placeStore.load();
             return;
         } catch (error) {
             if (attempt >= DB_CONNECT_ATTEMPTS) throw error;
