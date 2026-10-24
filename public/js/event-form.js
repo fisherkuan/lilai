@@ -67,7 +67,7 @@
             <p class="field-error" data-error-for="title" role="alert" hidden></p>
         </div>
         <div class="field">
-            <label for="${p}-date">Day</label>
+            <span class="ev-label" id="${p}-date-label">Day</span>
             <input type="date" id="${p}-date" class="input ev-date">
         </div>
         <div class="field">
@@ -103,7 +103,7 @@
                     ${WEEKDAYS.map(([n, name, letter]) => `<button type="button" class="ev-seg ev-day" aria-pressed="false" data-day="${n}" aria-label="${name}">${letter}</button>`).join('')}
                 </div>
                 <div class="ev-until">
-                    <label for="${p}-until">Until</label>
+                    <span class="ev-label">Until</span>
                     <input type="date" id="${p}-until" class="input ev-date">
                 </div>
                 <p class="ev-hint ev-preview" data-hint="preview" aria-live="polite"></p>
@@ -183,6 +183,12 @@
         const part = (name) => container.querySelector(`[data-part="${name}"]`);
         const hint = (name) => container.querySelector(`[data-hint="${name}"]`);
         const group = (name) => container.querySelector(`[data-group="${name}"]`);
+        // Day and Until are month calendars (js/month-picker.js); the date inputs keep the value.
+        const refreshDates = () => ['date', 'until'].forEach(n => $(n) && $(n).monthPicker && $(n).monthPicker.refresh());
+        if (window.MonthPicker) {
+            MonthPicker.attach($('date'), { label: 'Day' });
+            if ($('until')) MonthPicker.attach($('until'), { label: 'Until' });
+        }
 
         const state = { calendar: null, limited: false, approval: false, repeatOn: false, weekdays: [], endTouched: false };
         const linkEditor = EventLinks.create(part('links'));
@@ -258,6 +264,7 @@
                 const d = new Date(`${$('date').value}T12:00:00`);
                 d.setMonth(d.getMonth() + 2);
                 $('until').value = localDate(d);
+                refreshDates();
             }
             syncWeekdays();
             preview();
@@ -348,7 +355,8 @@
             el.textContent = message;
             el.hidden = false;
             const target = focusEl || el.closest('.field')?.querySelector('input, textarea, select, button');
-            if (target) target.focus();
+            if (target && target.monthPicker) target.monthPicker.focus();
+            else if (target) target.focus();
             return true;
         }
 
@@ -374,6 +382,9 @@
             set(values) {
                 $('title').value = values.title || '';
                 $('date').value = values.date || '';
+                // A start that has passed can stay, but no day can move into the past.
+                $('date').min = localDate(new Date());
+                refreshDates();
                 setTime($('start'), values.start);
                 setTime($('end'), values.end);
                 state.endTouched = Boolean(values.end);
@@ -406,6 +417,7 @@
                 }
                 nextDayHint();
                 clearErrors();
+                refreshDates();
             },
             value() {
                 const body = {
@@ -449,7 +461,7 @@
             showError,
             clearErrors,
             focus() { $('title').focus(); },
-            setMinDate() { $('date').min = localDate(new Date()); }
+            setMinDate() { $('date').min = localDate(new Date()); if ($('until')) $('until').min = $('date').min; refreshDates(); }
         };
     }
 
