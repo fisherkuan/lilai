@@ -85,7 +85,7 @@ Vanilla JavaScript with no build step.
 - `js/event-form.js` - `EventForm.create(container, { mode })`: the one form for making (`create`: calendar, repeat, host) and editing (`edit`) an event. Repeat preview from `/api/events/repeat-preview`, place suggestions from `/api/places`
 - `js/event-links.js` - An event's links: `listHtml` draws them on cards and the RSVP sheet (name, else the site), `create` is the link editor inside the event form. Tested in `tests/event-links.test.js`
 - `js/device-links.js` - What this device holds: management links (`lilai.hostedEvents`, listed as "You manage" in Home's sidebar) and calendar keys (`lilai.calendarKeys`), plus `share()` (Web Share, else the clipboard)
-- `host.html` + `js/host.js` - An event's management page (`/host/:token`): the Google copy's status, Edit (the event form in a sheet), Share this page, Cancel / Restore, the dates of a series, and who is coming or asked to join (Accept / Decline / Undo). Live over WebSocket
+- `host.html` + `js/host.js` - An event's management page (`/host/:token`): the Google copy's status, Edit (the event form in a sheet), Copy link (the page address, cut off, with a copy icon), Cancel / Restore, the dates of a series, and who is coming or asked to join (Accept / Decline / Undo). Live over WebSocket
 - `calendar.html` + `js/calendar-page.js` - A calendar key's page (`/calendars/:token`): stores the key on the device, lists the calendar's upcoming events with Manage (mints a management link), "Make a <calendar> event", Share
 - `sw.js` - Service worker for PWA support. It never caches `/host/`, `/calendars/` or their APIs: those carry secret links
 
