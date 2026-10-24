@@ -359,18 +359,20 @@
         }
     }
 
-    async function sharePage() {
-        const outcome = await DeviceLinks.share({
-            title: `Manage ${view.event.title}`,
-            text: `Help me host ${view.event.title} on Lilai. This link lets you edit it and manage who comes:`,
-            url: pageUrl
-        });
+    // Copies the page's link; the phone's share sheet would hide which link it is sending.
+    let copiedTimer = null;
+    async function copyPageLink() {
         const status = $('share-status');
-        const message = {
-            shared: '',
-            copied: 'Link copied. Anyone you send it to can manage this event.',
-            failed: `Copy this link: ${pageUrl}`
-        }[outcome] || '';
+        let message = '';
+        try {
+            await navigator.clipboard.writeText(pageUrl);
+            $('share-title').textContent = 'Copied';
+            clearTimeout(copiedTimer);
+            copiedTimer = setTimeout(() => { $('share-title').textContent = 'Copy link'; }, 2000);
+            message = 'Anyone you send it to can manage this event.';
+        } catch (_) {
+            message = `Copy this link: ${pageUrl}`;
+        }
         status.textContent = message;
         status.hidden = !message;
     }
@@ -409,7 +411,9 @@
         $('cancel-confirm').addEventListener('click', confirmCancel);
         $('remove-confirm').addEventListener('click', confirmRemove);
         $('restore-btn').addEventListener('click', restore);
-        $('share-btn').addEventListener('click', sharePage);
+        $('share-url').textContent = pageUrl.replace(/^https?:\/\//, '');
+        $('share-btn').setAttribute('aria-label', `Copy this page's link, ${pageUrl}`);
+        $('share-btn').addEventListener('click', copyPageLink);
         try {
             const config = await (await fetch('/api/config')).json();
             calendars = (config.calendars || []).filter(c => c.enabled).map(c => {

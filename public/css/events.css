@@ -130,7 +130,7 @@
 .ev-publish[data-state="retrying"],
 .ev-publish[data-state="off"] { color: var(--ink); font-weight: 500; }
 
-/* Edit is the main action; Share and Cancel sit beside it and wrap on phones. */
+/* Edit is the main action; Copy link and Cancel sit beside it and wrap on phones. */
 .ev-manage-actions {
     display: flex;
     flex-wrap: wrap;
@@ -182,3 +182,41 @@
 .ev-cal-lede { margin-top: var(--s2); font-size: 15px; color: var(--ink-2); max-width: 52ch; }
 .ev-cal-note { margin-top: var(--s4); font-size: var(--meta); font-weight: 500; }
 .ev-cal-note[hidden] { display: none; }
+
+/* The page's own link, cut off with an ellipsis, as a button that copies it. The round
+   ink-outlined icon carries no colour; the label turns to "Copied" for a moment. */
+.ev-copy-link {
+    display: inline-grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    column-gap: var(--s3);
+    max-width: min(100%, 280px);
+    min-height: 52px;
+    padding: var(--s2) var(--s4) var(--s2) var(--s3);
+    border: 0;
+    border-radius: var(--radius-card);
+    background: var(--paper-raised);
+    color: var(--ink);
+    text-align: left;
+    cursor: pointer;
+}
+.ev-copy-link:hover { background: var(--stone); }
+.ev-copy-link-icon {
+    grid-row: span 2;
+    display: grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    border: 2px solid var(--ink);
+    border-radius: var(--radius-full);
+}
+.ev-copy-link-icon svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linejoin: round; }
+.ev-copy-link-title { font-size: 15px; font-weight: 600; line-height: 1.25; }
+.ev-copy-link-url {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    font-size: 13px;
+    line-height: 1.3;
+    color: var(--ink-3);
+}
