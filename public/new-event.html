@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Apply a saved theme before first paint; the switch itself is js/theme.js. -->
+    <script>try{var t=localStorage.getItem("lilaiTheme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}</script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Make an event — Lilai</title>
+    <meta name="description" content="Make an event for the group and choose who gets a place.">
+    <meta name="theme-color" content="#efefea" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#111214" media="(prefers-color-scheme: dark)">
+    <link rel="preload" href="/bauhaus/fonts/jost-latin.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="stylesheet" href="/bauhaus/tokens.css">
+    <link rel="stylesheet" href="/css/lilai.css">
+    <link rel="stylesheet" href="/css/events.css">
+    <link rel="icon" href="/icons/favicon.ico" sizes="48x48">
+    <link rel="icon" href="/icons/favicon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+</head>
+<body>
+<svg width="0" height="0" class="shape-defs" aria-hidden="true" focusable="false">
+    <defs>
+        <symbol id="shape-circle" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10.5" vector-effect="non-scaling-stroke"/></symbol>
+        <symbol id="shape-square" viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20" vector-effect="non-scaling-stroke"/></symbol>
+        <symbol id="shape-triangle" viewBox="0 0 24 24"><path d="M12 1.8 22.6 21.6H1.4Z" vector-effect="non-scaling-stroke"/></symbol>
+        <symbol id="shape-diamond" viewBox="0 0 24 24"><path d="M12 1.5 22.5 12 12 22.5 1.5 12Z" vector-effect="non-scaling-stroke"/></symbol>
+    </defs>
+</svg>
+
+<header class="masthead">
+    <a class="wordmark" href="/" aria-label="Lilai, home">
+        <span class="wordmark-mark" aria-hidden="true">
+            <svg viewBox="88 184 336 144"><circle class="wm-circle" cx="136" cy="232" r="48"/><rect class="wm-square" x="208" y="184" width="96" height="96"/><path class="wm-triangle" d="M376 184L424 280H328Z"/><rect class="wm-base" x="88" y="304" width="336" height="24"/></svg>
+        </span>
+        <span class="wordmark-name">Lilai</span>
+    </a>
+    <nav class="app-header-links" aria-label="Site links">
+        <a href="/faq.html">FAQ</a>
+        <a href="/donate">Donate</a>
+    </nav>
+</header>
+
+<main class="ev-page" id="new-event">
+    <h1>Make an event</h1>
+    <p class="ev-lede">It goes into the group's Google Calendar and shows on Home straight away.</p>
+
+    <section class="ev-hosted" id="hosted-list" hidden aria-labelledby="hosted-title">
+        <h2 class="section-title" id="hosted-title">You host</h2>
+        <ul class="ev-hosted-list" id="hosted-items"></ul>
+    </section>
+
+    <p class="ev-notice" id="not-set-up" hidden>
+        Making events in Lilai is not set up yet.
+        <a class="text-link" id="google-fallback" href="https://calendar.google.com/calendar/render?action=TEMPLATE" target="_blank" rel="noopener noreferrer">Make it in Google Calendar</a>
+    </p>
+
+    <form class="ev-form" id="event-form" novalidate>
+        <div class="field">
+            <label for="ev-title">What</label>
+            <input type="text" id="ev-title" name="title" class="input" maxlength="120" required autocomplete="off" placeholder="Badminton at the Sportkot">
+            <p class="field-error" data-error-for="title" role="alert" hidden></p>
+        </div>
+
+        <div class="field" id="calendar-field" hidden>
+            <span class="ev-label" id="calendar-label">Calendar</span>
+            <div class="ev-segment" id="calendar-choices" role="radiogroup" aria-labelledby="calendar-label"></div>
+            <p class="field-error" data-error-for="calendar" role="alert" hidden></p>
+        </div>
+
+        <div class="field">
+            <label for="ev-date">Day</label>
+            <input type="date" id="ev-date" name="date" class="input ev-date" required>
+        </div>
+
+        <div class="field">
+            <div class="ev-two">
+                <div class="ev-col">
+                    <label for="ev-start">Starts</label>
+                    <input type="time" id="ev-start" name="start" class="input" step="300" required>
+                </div>
+                <div class="ev-col">
+                    <label for="ev-end">Ends</label>
+                    <input type="time" id="ev-end" name="end" class="input" step="300" required>
+                </div>
+            </div>
+            <p class="ev-hint" id="next-day-hint" hidden>Ends the next day.</p>
+            <p class="field-error" data-error-for="start" role="alert" hidden></p>
+            <p class="field-error" data-error-for="end" role="alert" hidden></p>
+        </div>
+
+        <div class="field">
+            <label for="ev-location">Where <span class="ev-optional">optional</span></label>
+            <input type="text" id="ev-location" name="location" class="input" maxlength="255" autocomplete="off">
+            <p class="field-error" data-error-for="location" role="alert" hidden></p>
+        </div>
+
+        <div class="field">
+            <label for="ev-description">Details <span class="ev-optional">optional</span></label>
+            <textarea id="ev-description" name="description" class="input ev-textarea" maxlength="4000" rows="4"></textarea>
+            <p class="field-error" data-error-for="description" role="alert" hidden></p>
+        </div>
+
+        <div class="field">
+            <label for="ev-link">Link <span class="ev-optional">optional</span></label>
+            <input type="url" id="ev-link" name="link" class="input" inputmode="url" autocomplete="off" placeholder="https://">
+            <p class="field-error" data-error-for="link" role="alert" hidden></p>
+        </div>
+
+        <fieldset class="ev-group">
+            <legend class="section-title">Who gets a place</legend>
+
+            <div class="field">
+                <span class="ev-label" id="places-label">Places</span>
+                <div class="ev-segment" role="radiogroup" aria-labelledby="places-label">
+                    <button type="button" class="ev-seg" role="radio" aria-checked="true" data-places="open">No limit</button>
+                    <button type="button" class="ev-seg" role="radio" aria-checked="false" data-places="limit">Limited</button>
+                </div>
+                <div class="ev-limit" id="limit-row" hidden>
+                    <button type="button" class="ev-step" data-step="-1" aria-label="One place fewer">−</button>
+                    <input type="number" id="ev-limit" name="limit" class="input ev-number" min="1" max="500" value="8" inputmode="numeric" aria-label="Number of places">
+                    <button type="button" class="ev-step" data-step="1" aria-label="One place more">+</button>
+                    <span class="ev-limit-word">places</span>
+                </div>
+                <p class="field-error" data-error-for="limit" role="alert" hidden></p>
+            </div>
+
+            <div class="field">
+                <span class="ev-label" id="approval-label">Joining</span>
+                <div class="ev-choice-list" role="radiogroup" aria-labelledby="approval-label">
+                    <button type="button" class="ev-choice" role="radio" aria-checked="true" data-approval="false">
+                        <span class="ev-choice-title">Open</span>
+                        <span class="ev-choice-note">Anyone who joins has a place, first come first served.</span>
+                    </button>
+                    <button type="button" class="ev-choice" role="radio" aria-checked="false" data-approval="true">
+                        <span class="ev-choice-title">I approve each person</span>
+                        <span class="ev-choice-note">People ask to join. You decide who gets a place on your private host page.</span>
+                    </button>
+                </div>
+            </div>
+        </fieldset>
+
+        <fieldset class="ev-group">
+            <legend class="section-title">You</legend>
+            <div class="field">
+                <label for="ev-host">Your name</label>
+                <input type="text" id="ev-host" name="hostName" class="input" maxlength="100" required autocomplete="name">
+                <p class="field-error" data-error-for="hostName" role="alert" hidden></p>
+            </div>
+            <label class="ev-check">
+                <input type="checkbox" id="ev-host-joins" checked>
+                <span>I'm coming too (takes a place)</span>
+            </label>
+            <div class="field">
+                <label for="ev-email">Email <span class="ev-optional">optional</span></label>
+                <input type="email" id="ev-email" name="hostEmail" class="input" autocomplete="email" inputmode="email">
+                <p class="ev-hint">We email you the host link, so you can open it on another device.</p>
+                <p class="field-error" data-error-for="hostEmail" role="alert" hidden></p>
+            </div>
+        </fieldset>
+
+        <p class="field-error ev-form-error" id="form-error" role="alert" hidden></p>
+        <div class="ev-actions">
+            <button type="submit" class="btn btn-solid" id="submit-btn"><span class="text">Make event</span></button>
+            <a class="text-btn" href="/">Cancel</a>
+        </div>
+    </form>
+
+    <section class="ev-done" id="done" hidden aria-labelledby="done-title" tabindex="-1">
+        <h2 class="ev-done-title" id="done-title">Event made</h2>
+        <p class="ev-done-when" id="done-when"></p>
+        <div class="ev-hostlink">
+            <p class="ev-label">Your host link</p>
+            <p class="ev-hint" id="done-hostlink-note">See who is coming here. Anyone with the link can manage the event, so keep it to yourself.</p>
+            <div class="ev-hostlink-row">
+                <code class="ev-hostlink-url" id="done-hostlink"></code>
+                <button type="button" class="text-btn" id="copy-hostlink">Copy</button>
+            </div>
+            <p class="ev-hint" id="done-emailed" hidden></p>
+        </div>
+        <div class="ev-actions">
+            <a class="btn btn-solid" id="done-open-host" href="#">Open host page</a>
+            <a class="btn btn-line" id="done-home" href="/">See it on Home</a>
+        </div>
+        <p class="ev-done-links">
+            <a class="text-link" id="done-google" href="#" target="_blank" rel="noopener noreferrer" hidden>Open in Google Calendar</a>
+            <button type="button" class="text-btn" id="make-another">Make another</button>
+        </p>
+    </section>
+</main>
+
+<footer class="colophon">
+    <p>Built by Fisher Kuan</p>
+</footer>
+<script src="/js/theme.js"></script>
+<script src="/js/feedback.js"></script>
+<script src="/js/sheet.js"></script>
+<script src="/js/new-event.js"></script>
+</body>
+</html>

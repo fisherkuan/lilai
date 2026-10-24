@@ -20,7 +20,8 @@
     "autoFetch": true,
     "defaultTimeRange": "future",
     "refreshInterval": 300000,
-    "defaultCreateCalendar": "揪團啦"
+    "defaultCreateCalendar": "揪團啦",
+    "createCalendars": ["揪團啦"]
   },
   "rsvp": {
     "allowAnonymous": false,

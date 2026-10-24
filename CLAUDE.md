@@ -11,7 +11,7 @@ When creating implementation plans, improvement analyses, or deployment guides:
 
 ## Visual design: Shape Calendar
 
-The old design system (`design-mockup.html`, `public/styles.css`) and a ligne claire comic attempt were both retired on 2026-09-27. The current world is Bauhaus form-colour grammar: each enabled calendar owns one primary shape in config order (blue circle, red square, yellow triangle), primaries appear only inside shapes, and text, rules and buttons stay black on white. `DESIGN.md` (repo root) is the visual authority; `PRODUCT.md` holds product truth. Every page loads `public/bauhaus/tokens.css` first, then `public/css/lilai.css` (lilai's additions and shared components), then its own page stylesheet in `public/css/` (`faq.css`, `donate.css`, `admin.css` for all admin pages, `booking.css`). `tokens.css` is a verbatim copy of the owner's Bauhaus kit (`~/code/bauhaus`, commit in `public/bauhaus/KIT_COMMIT`): it owns the palette, both themes, strokes, radii and Jost (`public/bauhaus/fonts/`). Never edit it here; change the kit, copy the file over and bump `KIT_COMMIT`. Lilai keeps two deliberate deviations from the kit: primaries only inside calendar shapes (no red buttons or error marks), and the system sans for everything except page titles and big numerals (dates, the balance, the clock), which keep Jost. Dark mode follows the device setting, and the footer switch (`js/theme.js`) can force Light or Dark per device. Lilai's own dark additions (`--ink-3`, `--past`, `--scrim`) live twice in `lilai.css` (the `prefers-color-scheme` block and `:root[data-theme="dark"]`); keep both in sync. Colours belong in tokens, so a new hard-coded colour needs a copy in both dark blocks. The legacy `styles.css` is deleted. The date rail (replaced the 14-day band on 2026-10-22, which had replaced the Google Calendar iframe and the month grid) is the only calendar view; do not bring the others back. The events-list filter must not affect the rail — it reads its own `allCalendarEvents` source (`/api/events?from=&to=`, the rail's 14 days only). The rail's green (`--rail-sel`, `--rail-accent`) is the owner's choice and the one colour outside a shape besides links and focus.
+The old design system (`design-mockup.html`, `public/styles.css`) and a ligne claire comic attempt were both retired on 2026-09-27. The current world is Bauhaus form-colour grammar: each enabled calendar owns one primary shape in config order (blue circle, red square, yellow triangle), primaries appear only inside shapes, and text, rules and buttons stay black on white. `DESIGN.md` (repo root) is the visual authority; `PRODUCT.md` holds product truth. Every page loads `public/bauhaus/tokens.css` first, then `public/css/lilai.css` (lilai's additions and shared components), then its own page stylesheet in `public/css/` (`faq.css`, `donate.css`, `admin.css` for all admin pages, `booking.css`, `events.css` for Make an event and the host page). `tokens.css` is a verbatim copy of the owner's Bauhaus kit (`~/code/bauhaus`, commit in `public/bauhaus/KIT_COMMIT`): it owns the palette, both themes, strokes, radii and Jost (`public/bauhaus/fonts/`). Never edit it here; change the kit, copy the file over and bump `KIT_COMMIT`. Lilai keeps two deliberate deviations from the kit: primaries only inside calendar shapes (no red buttons or error marks), and the system sans for everything except page titles and big numerals (dates, the balance, the clock), which keep Jost. Dark mode follows the device setting, and the footer switch (`js/theme.js`) can force Light or Dark per device. Lilai's own dark additions (`--ink-3`, `--past`, `--scrim`) live twice in `lilai.css` (the `prefers-color-scheme` block and `:root[data-theme="dark"]`); keep both in sync. Colours belong in tokens, so a new hard-coded colour needs a copy in both dark blocks. The legacy `styles.css` is deleted. The date rail (replaced the 14-day band on 2026-10-22, which had replaced the Google Calendar iframe and the month grid) is the only calendar view; do not bring the others back. The events-list filter must not affect the rail — it reads its own `allCalendarEvents` source (`/api/events?from=&to=`, the rail's 14 days only). The rail's green (`--rail-sel`, `--rail-accent`) is the owner's choice and the one colour outside a shape besides links and focus.
 
 ## Development Commands
 
@@ -28,6 +28,7 @@ The server runs on `http://localhost:3000` by default (configurable via PORT env
 - PostgreSQL is used for production (connection via `DATABASE_URL` env var)
 - Database schema is auto-initialized on server startup via `initializeDatabase()` in server/app.js
 - Tables: `events`, `rsvps`, `donations`, `feedback`, `booking_queue`, `booking_profiles`, `booking_series`
+- `rsvps.attendance` is `yes` (holds a seat), `pending` (asked to join an approval event) or `declined` (the host said no). Every count of who is coming filters on `yes`
 - Schema migrations are idempotent and run automatically on startup
 
 ### Testing
@@ -81,7 +82,9 @@ Vanilla JavaScript with no build step.
 - `css/faq.css`, `css/donate.css`, `css/admin.css`, `css/booking.css` - Page stylesheets, loaded after `lilai.css`
 - `js/feedback.js` - Footer "Send feedback" button and sheet, on every page with a `.colophon` (ported from splitly)
 - `js/sheet.js` - Shared behaviour for every sheet (`.modal`, `.bs-root`), on every page with feedback: locks the page scroll while one is open, keeps the sheet above the iOS keyboard (`--vv-top`/`--vv-h` from `visualViewport`), and makes the grabber work on phones (drag up for full screen, down to go back or dismiss, tap to toggle; `settle` tested in `tests/sheet.test.js`). Sheets do not touch `body.style.overflow` themselves
-- `sw.js` - Service worker for PWA support
+- `new-event.html` + `js/new-event.js` - Make an event (`/events/new`). Remembers the host links made on this device in localStorage (`lilai.hostedEvents`) and lists them as "You host"
+- `host.html` + `js/host.js` - The host page (`/host/:token`): who is coming, and on an approval event who asked, with Accept / Decline / Undo. Live over WebSocket
+- `sw.js` - Service worker for PWA support. It never caches `/host/` or `/api/host/`: those carry the secret link
 
 **Client-side features:**
 - WebSocket connection for real-time attendance updates
@@ -95,7 +98,8 @@ Central configuration file with:
 - `calendars[]` - Array of Google Calendar embed URLs with enable/disable flags
 - `events.autoFetch` - Whether to sync calendar events automatically. **Must be `true`** for the date rail and events list to populate from Google Calendar.
 - `events.defaultTimeRange` - Default filter ("future", "past", "all")
-- `events.defaultCreateCalendar` - Name of the calendar pre-selected by the "Create event" button. Must match a `calendars[].name`. The button links to `https://calendar.google.com/calendar/render?action=TEMPLATE&src=<calendar-id>`.
+- `events.createCalendars` - Names of the calendars the Make an event page may write to (each must be shared with the service account). Defaults to `[defaultCreateCalendar]`.
+- `events.defaultCreateCalendar` - The calendar pre-selected on Make an event. Must match a `calendars[].name`. When event creation is not set up (no `GOOGLE_SERVICE_ACCOUNT_JSON`), the "Create an event" button falls back to `https://calendar.google.com/calendar/render?action=TEMPLATE&src=<calendar-id>`.
 - `rsvp` - RSVP behavior settings
 - `joinGroupUrl` - Link to external group (displayed in UI)
 
@@ -108,6 +112,13 @@ Central configuration file with:
 - Events are uniquely identified by `cal-{UID}` where UID comes from iCal
 - Attendance limits can be specified in event description with "limit: N" format
 - Stale events (removed from calendar) are automatically deleted from database
+
+### Events made in Lilai
+- `server/google-calendar.js` - service-account JWT sign-in and `insertEvent` / `deleteEvent` / `eventGone`, no SDK. Reading still uses the public iCal feed
+- `server/event-hosting.js` - the create form's rules (`validateNewEvent`), the Google resource and description (with the `link:` and `limit:` lines the sync and cards already read), host tokens, the `events` columns (`approval_required`, `host_name`, `host_email`, `host_token_hash`, `google_calendar_id`, `google_event_id`, `google_link`, `created_in_app_at`)
+- The host is anyone with the host link, `/host/<32-char token>`; only its SHA-256 is stored. No accounts, in line with the RSVP trust model
+- Google's public feed can lag hours behind an API insert. A Lilai-made event missing from the feed is asked about with `eventGone` before the stale sweep may delete it (`appEventsToCheck`, `keepAppEvent` in `server/calendar-sync.js`); with no answer it is kept for a day after it was made
+- Approval events ("I approve each person"): Join reads "Ask to join", requests hold no seat, the card shows "N asking" and "<host> confirms each place"
 
 ### RSVP System
 - Actions: "add" (RSVP yes) or "remove" (cancel RSVP)
@@ -131,6 +142,7 @@ Required in `.env`:
 - `RESEND_API_KEY` - Optional. Without it feedback is saved but not emailed
 - `FEEDBACK_EMAIL_TO` - Optional, comma-separated; overrides the default inbox `lilai@fisherkuan.com`
 - `FEEDBACK_EMAIL_FROM` - Optional. Needs a domain verified in Resend, else the default `onboarding@resend.dev` only delivers to the Resend account's own address
+- `GOOGLE_SERVICE_ACCOUNT_JSON` - Optional. A Google service account key (the JSON file, or base64 of it) that turns on Make an event. Share each calendar in `events.createCalendars` with its `client_email`, "Make changes to events"; the address is logged at startup. Without it the create page says it is not set up. A value that does not parse stops startup
 - `PORT` - Server port (default: 3000)
 - `NODE_ENV` - Set to "production" to enable SSL for PostgreSQL
 
@@ -163,10 +175,13 @@ Required in `.env`:
   - `from=<ISO>&to=<ISO>` - events starting in that window; the date rail uses it.
   - `before=<ISO>&limit=N` - paginated past-events fetch, newest-first; used by the "Load earlier events" flow on the Home page (`loadOlderEvents` in `app.js`).
 - `GET /api/events/:id` - Get specific event
-- `POST /api/events` - Create event (admin)
+- `POST /api/events` - Make an event (open to anyone, like RSVP). Body `{title, calendar, date, start, end, location?, description?, link?, limit?, approval?, hostName, hostJoins?, hostEmail?}`, times as Brussels wall time; an end at or before the start is the next day. Writes to Google Calendar first, then the row `cal-<iCalUID>` with the host fields; if the row fails the Google event is deleted again. Answers `{id, date, hostPath, googleLink, emailed}` and broadcasts `event_created`. 503 when not set up, 400 `{field, message}` on bad input
+- `GET /api/host/:token` - The host page's data: the event (with host fields) and every RSVP row with its status
+- `POST /api/host/:token/requests/:rsvpId` - Body `{decision: accept|decline|undo}`. Accept respects the limit under a row lock (409 when full); undo puts a row back to `pending`
 - `PUT /api/events/:id` - Update event (admin)
 - `DELETE /api/events/:id` - Delete event (admin)
-- `POST /api/rsvp` - Submit RSVP (body: `{eventId, action: "add"|"remove", attendeeName}`)
+- `POST /api/rsvp` - Submit RSVP (body: `{eventId, action: "add"|"remove", attendeeName}`). On an approval event, `add` asks to join: the row is `pending`, the answer carries `pending: true`, and one open request per name. Answers and the `attendance_update` broadcast carry `attendees`, `attendingCount` and `pendingCount`
+- Public event JSON never includes `host_email` or `host_token_hash` (`publicEvent` in `server/event-hosting.js`)
 
 ### Donation Endpoints
 - `GET /api/donations` - Get donations with balance (query param: `limit`)

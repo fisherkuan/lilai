@@ -83,9 +83,16 @@ function withoutLimitLine(value) {
     return value.replace(/^[ \t]*limit:?[ \t]*\d+[ \t]*$/gim, '').replace(/\n{3,}/g, '\n\n').trim();
 }
 
-// The description as shown: without the lines Lilai turns into the Event link and the seat count.
+// An event made in Lilai with approval tells Google Calendar readers to ask in Lilai; the
+// card already says who confirms places, so Home drops that line.
+function withoutApprovalLine(value) {
+    return value.replace(/^[ \t]*Hosted by .+\. Ask to join in Lilai; the host confirms each place\.[ \t]*$/gim, '').trim();
+}
+
+// The description as shown: without the lines Lilai turns into the Event link, the seat count
+// and the approval note.
 function shownDescriptionOf(value) {
-    return withoutLimitLine(withoutLinkLine(value));
+    return withoutApprovalLine(withoutLimitLine(withoutLinkLine(value)));
 }
 
 function eventLinkHtml(href) {
@@ -150,7 +157,7 @@ function initializeApp() {
         setupFilterPills();
         setupEventListeners();
         setupWebSocket();
-        loadEvents();
+        loadEvents().then(pointAtLinkedEvent);
     }).catch(err => console.error('Init error:', err));
 
     // Card width changes with the viewport, so re-measure which descriptions clamp.
@@ -276,7 +283,25 @@ function setupCalendar() {
     wireCreateEventButtons();
 }
 
+// The create page links back to "/#event-<id>": scroll to that card once the list is in.
+function pointAtLinkedEvent() {
+    const match = /^#event-(.+)$/.exec(window.location.hash);
+    if (!match) return;
+    history.replaceState(null, '', window.location.pathname + window.location.search);
+    scrollToEvent(decodeURIComponent(match[1]));
+}
+
 function wireCreateEventButtons() {
+    const createBtn = document.getElementById('create-event-btn');
+    // Made in Lilai when the server can write to Google Calendar; otherwise in Google itself.
+    if (appConfig.eventCreation && appConfig.eventCreation.enabled && createBtn) {
+        createBtn.href = '/events/new';
+        createBtn.removeAttribute('target');
+        createBtn.removeAttribute('rel');
+        const note = document.getElementById('create-event-note');
+        if (note) note.textContent = 'It goes into the group calendar. Subscribe in your own calendar app:';
+        return;
+    }
     const defaultName = appConfig.events && appConfig.events.defaultCreateCalendar;
     // The documented "create event in calendar X" endpoint is render?action=TEMPLATE.
     let href = 'https://calendar.google.com/calendar/render?action=TEMPLATE';
@@ -287,7 +312,6 @@ function wireCreateEventButtons() {
             if (src) href += `&src=${encodeURIComponent(src)}`;
         }
     }
-    const createBtn = document.getElementById('create-event-btn');
     if (createBtn) createBtn.href = href;
 }
 
@@ -413,7 +437,7 @@ function renderAgenda() {
         if (!isPast) {
             action = isFull
                 ? '<button type="button" class="btn btn-line agenda-join" disabled>Full</button>'
-                : `<button type="button" class="btn btn-line agenda-join" data-event-id="${escapeAttribute(ev.id)}" aria-label="${escapeAttribute(`Join ${ev.title}`)}">Join</button>`;
+                : `<button type="button" class="btn btn-line agenda-join" data-event-id="${escapeAttribute(ev.id)}" aria-label="${escapeAttribute(`${joinLabel(ev)}: ${ev.title}`)}">${joinLabel(ev)}</button>`;
         }
         const open = ev.id === openAgendaRow;
         const revealId = `agenda-reveal-${ev.id}`;
@@ -854,11 +878,18 @@ function seatsLabel(event, { isPast }) {
     const count = event.attendingCount || 0;
     const hasLimit = event.attendance_limit !== null && event.attendance_limit !== undefined;
     const limit = hasLimit ? event.attendance_limit : null;
-    if (!hasLimit && count === 0) return '';
+    // Requests waiting on the host hold no seat, so they ride after the count.
+    const asking = !isPast && event.pendingCount > 0 ? ` · ${event.pendingCount} asking` : '';
+    if (!hasLimit && count === 0) return asking ? `0 going${asking}` : '';
     if (isPast) return `${count} went`;
-    if (hasLimit && count >= limit) return `Full · ${count} of ${limit}`;
-    if (hasLimit) return `${count} of ${limit} spots taken`;
-    return `${count} going`;
+    if (hasLimit && count >= limit) return `Full · ${count} of ${limit}${asking}`;
+    if (hasLimit) return `${count} of ${limit} spots taken${asking}`;
+    return `${count} going${asking}`;
+}
+
+// On an approval event, Join asks the host instead of taking a seat.
+function joinLabel(event) {
+    return event.approval_required ? 'Ask to join' : 'Join';
 }
 
 // Seats: one slot per place, drawn only for a small limited event. With no limit, or more
@@ -921,7 +952,8 @@ function renderEventCard(event, { isPast, isToday, prevNames }) {
 
     // The title's shape already names the calendar, so the meta line is the time, the place and the link.
     const link = eventLink ? eventLinkHtml(eventLink) : '';
-    const metaParts = [`<span class="event-time">${times}</span>`, locationText ? escapeHtml(locationText) : '', link].filter(Boolean);
+    const hostNote = event.approval_required && event.host_name ? `${escapeHtml(event.host_name)} confirms each place` : '';
+    const metaParts = [`<span class="event-time">${times}</span>`, locationText ? escapeHtml(locationText) : '', link, hostNote].filter(Boolean);
     const meta = `<p class="event-meta">${metaParts.join('<span class="sep" aria-hidden="true"> · </span>')}</p>`;
 
     let names;
@@ -939,7 +971,7 @@ function renderEventCard(event, { isPast, isToday, prevNames }) {
         // Every event carries the same weight: no lead event, no solid Join.
         const join = isFull
             ? '<button type="button" class="btn btn-line" disabled>Full</button>'
-            : `<button type="button" class="btn btn-line rsvp-trigger-add" data-event-id="${sanitizedEventId}">Join</button>`;
+            : `<button type="button" class="btn btn-line rsvp-trigger-add" data-event-id="${sanitizedEventId}">${joinLabel(event)}</button>`;
         const remove = attendingCount > 0
             ? `<button type="button" class="text-btn rsvp-trigger-remove" data-event-id="${sanitizedEventId}">Remove a name</button>`
             : '';
@@ -973,7 +1005,7 @@ function renderEventCard(event, { isPast, isToday, prevNames }) {
 }
 
 // One place to apply a new attendee list, whether it came from our own RSVP or a broadcast.
-function applyAttendance(eventId, attendees) {
+function applyAttendance(eventId, attendees, pendingCount) {
     if (!Array.isArray(attendees)) return; // an older server answered without a list; the broadcast still brings it
     const count = attendees.length;
     [currentEvents, allCalendarEvents].forEach(list => {
@@ -981,6 +1013,7 @@ function applyAttendance(eventId, attendees) {
         if (ev) {
             ev.attendees = attendees.slice();
             ev.attendingCount = count;
+            if (typeof pendingCount === 'number') ev.pendingCount = pendingCount;
         }
     });
     displayEvents();
@@ -1032,6 +1065,15 @@ function openRsvpModal(eventId) {
     descEl.innerHTML = escapeHtml(desc).replace(/\n/g, '<br>') + (sheetLink ? `${desc ? '<br>' : ''}${eventLinkHtml(sheetLink)}` : '');
     descEl.hidden = !desc && !sheetLink;
 
+    const asks = Boolean(event.approval_required);
+    const approvalNote = document.getElementById('modal-approval-note');
+    approvalNote.textContent = asks
+        ? `${event.host_name || 'The host'} confirms each place. Your name shows under who is coming once they accept.`
+        : '';
+    approvalNote.hidden = !asks;
+    document.querySelector('.rsvp-add-btn .text').textContent = asks ? 'Ask to join' : 'Confirm';
+    setRsvpSent(false);
+
     // Pre-fill the remembered name and select it, so overtyping is a single action.
     const nameInput = document.getElementById('attendee-name');
     const remembered = getRememberedName();
@@ -1048,6 +1090,18 @@ function openRsvpModal(eventId) {
 function restoreSheetFocus() {
     if (lastSheetTrigger && document.contains(lastSheetTrigger)) lastSheetTrigger.focus();
     lastSheetTrigger = null;
+}
+
+// After a request to an approval event, the sheet says so instead of closing: no name prints.
+function setRsvpSent(sent, name = '') {
+    document.getElementById('rsvp-form-part').hidden = sent;
+    const done = document.getElementById('rsvp-sent');
+    done.hidden = !sent;
+    if (sent) {
+        document.getElementById('rsvp-sent-text').textContent =
+            `${name} is on the host's list. Your name shows under who is coming once they accept.`;
+        document.getElementById('rsvp-sent-done').focus();
+    }
 }
 
 function closeRsvpModal() {
@@ -1105,7 +1159,7 @@ function submitRsvp(action) {
     const textEl = submitBtn.querySelector('.text');
     const originalText = textEl.textContent;
     submitBtn.disabled = true;
-    textEl.textContent = 'Joining…';
+    textEl.textContent = event.approval_required ? 'Asking…' : 'Joining…';
 
     fetch(`${API_BASE_URL}/api/rsvp`, {
         method: 'POST',
@@ -1119,11 +1173,16 @@ function submitRsvp(action) {
         if (result.success) {
             if (navigator.vibrate) navigator.vibrate(30);
             rememberName(attendeeName);
+            if (result.pending) {
+                setRsvpSent(true, attendeeName);
+                applyAttendance(event.id, result.attendees, result.pendingCount);
+                return;
+            }
             closeRsvpModal();
             // No toast: the name printing into the list is the confirmation.
             // Apply the server's list, never a patch of ours: the broadcast often lands
             // first, and adding the name again would show it twice.
-            applyAttendance(event.id, result.attendees);
+            applyAttendance(event.id, result.attendees, result.pendingCount);
         } else {
             showFieldError('rsvp-error', result.message || 'That did not go through. Try again.');
         }
@@ -1159,7 +1218,7 @@ function submitRemoveRsvp() {
             closeRemoveRsvpModal();
             // The server's list, not ours minus one name: when the broadcast lands first,
             // subtracting again would hide a second person with the same name.
-            applyAttendance(event.id, result.attendees);
+            applyAttendance(event.id, result.attendees, result.pendingCount);
         } else {
             showFieldError('remove-error', result.message || 'That did not go through. Try again.');
         }
@@ -1256,8 +1315,12 @@ function setupWebSocket() {
         try {
             const data = JSON.parse(message.data);
             if (data.type === 'attendance_update') {
-                const { eventId, attendees } = data.payload;
-                applyAttendance(eventId, Array.isArray(attendees) ? attendees : []);
+                const { eventId, attendees, pendingCount } = data.payload;
+                applyAttendance(eventId, Array.isArray(attendees) ? attendees : [], pendingCount);
+            } else if (data.type === 'event_created') {
+                // Someone made an event: pick it up without a pull to refresh.
+                loadEvents({ quiet: true });
+                loadAllCalendarEvents();
             }
         } catch (err) {
             console.error('WebSocket message error:', err);

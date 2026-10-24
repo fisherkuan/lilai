@@ -11,7 +11,7 @@ Installable as a PWA (`public/manifest.json`, `public/sw.js`). Most members open
 ## Users
 
 - **Community members** of the Leuven Taiwanese group. They open Lilai on their phones to see upcoming meetups and RSVP by typing their name.
-- **Organizers** create and edit events in Google Calendar (the 揪團啦 calendar needs membership of the Leuven Taiwanese Google Group). Lilai reads those events; organizers do not author events inside Lilai.
+- **Organizers** make events in Lilai (`/events/new`, from 2026-10-24), which writes them into the group's Google Calendar through the API, or still in Google Calendar directly. They edit in Google Calendar. A host can choose a seat limit and whether they approve each person; their host page is reached by a secret link, not an account.
 - **The owner and a few trusted people** use the admin pages (`/admin`, donations, booking queue). These pages are unlinked, not protected. The booking queue submits KU Leuven sports-court requests for this small group only.
 
 ## Product Purpose
@@ -23,7 +23,7 @@ The booking queue has a separate job: KU Leuven opens sports-court booking at mi
 ## Positioning
 
 - No login anywhere. RSVP is a typed name. Anyone can cancel anyone's RSVP. This trust model is deliberate: friction costs this community more than abuse would.
-- Google Calendar stays the place where events are made. Lilai adds RSVP, attendance limits, live attendance counts and a 14-day view on top of the group's existing calendars.
+- Google Calendar stays the place where events live. Lilai can make them there, and adds RSVP, attendance limits, host approval, live attendance counts and a 14-day view on top of the group's existing calendars.
 - The booking queue does a timed submission that the KU Leuven form cannot do by itself.
 
 ## Operating Context
@@ -36,12 +36,12 @@ The booking queue has a separate job: KU Leuven opens sports-court booking at mi
 
 ## Capabilities and Constraints
 
-- Surfaces: Home (14-day band, events list, RSVP), FAQ, Donate, admin Events, admin Donations, admin Booking queue and booking detail.
+- Surfaces: Home (14-day band, events list, RSVP), Make an event, the host page, FAQ, Donate, admin Events, admin Donations, admin Booking queue and booking detail.
 - Vanilla HTML/CSS/JS with no build step. Express server in `server/app.js`.
 - The events-list filter must never affect the calendar grid. The grid reads its own `/api/events?timeRange=all` source.
 - Live booking submission runs only when `BOOKING_SUBMIT=live`. Otherwise a row ends as `not_sent`, and the board must never say "Request sent" for it.
 - A request whose outcome cannot be read becomes `unconfirmed` and is never retried automatically.
-- Do not add auth, identity checks or per-user gates to RSVP, attendance limits or the booking queue. Convenience that gates nothing (for example remembering a name in `localStorage`) is welcome.
+- Do not add auth, identity checks or per-user gates to RSVP, attendance limits or the booking queue. Host approval is the host's choice per event, not a gate Lilai adds; the host page is a capability link. Convenience that gates nothing (for example remembering a name in `localStorage`) is welcome.
 
 ## Brand Commitments
 
@@ -59,8 +59,8 @@ The booking queue has a separate job: KU Leuven opens sports-court booking at mi
 
 ## Product Principles
 
-1. Fewest steps to RSVP. Never ask for more than a name.
+1. Fewest steps to RSVP. Never ask for more than a name, also when asking a host to join.
 2. Trust over control. Leave the open write paths open.
 3. Say exactly what happened. A status shows what the system did, never what it hoped to do.
-4. Google Calendar owns events. Lilai adds attendance on top and does not compete with it.
+4. Google Calendar owns events. Lilai makes them there and adds attendance on top; it keeps no event Google does not have.
 5. Phone first. The typical visit is a quick check on a phone.

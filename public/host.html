@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Apply a saved theme before first paint; the switch itself is js/theme.js. -->
+    <script>try{var t=localStorage.getItem("lilaiTheme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}</script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Host page — Lilai</title>
+    <meta name="description" content="Your event and who asked to join.">
+    <meta name="robots" content="noindex">
+    <meta name="referrer" content="no-referrer">
+    <meta name="theme-color" content="#efefea" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#111214" media="(prefers-color-scheme: dark)">
+    <link rel="preload" href="/bauhaus/fonts/jost-latin.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="stylesheet" href="/bauhaus/tokens.css">
+    <link rel="stylesheet" href="/css/lilai.css">
+    <link rel="stylesheet" href="/css/events.css">
+    <link rel="icon" href="/icons/favicon.ico" sizes="48x48">
+    <link rel="icon" href="/icons/favicon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+</head>
+<body>
+<svg width="0" height="0" class="shape-defs" aria-hidden="true" focusable="false">
+    <defs>
+        <symbol id="shape-circle" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10.5" vector-effect="non-scaling-stroke"/></symbol>
+        <symbol id="shape-square" viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20" vector-effect="non-scaling-stroke"/></symbol>
+        <symbol id="shape-triangle" viewBox="0 0 24 24"><path d="M12 1.8 22.6 21.6H1.4Z" vector-effect="non-scaling-stroke"/></symbol>
+        <symbol id="shape-diamond" viewBox="0 0 24 24"><path d="M12 1.5 22.5 12 12 22.5 1.5 12Z" vector-effect="non-scaling-stroke"/></symbol>
+    </defs>
+</svg>
+
+<header class="masthead">
+    <a class="wordmark" href="/" aria-label="Lilai, home">
+        <span class="wordmark-mark" aria-hidden="true">
+            <svg viewBox="88 184 336 144"><circle class="wm-circle" cx="136" cy="232" r="48"/><rect class="wm-square" x="208" y="184" width="96" height="96"/><path class="wm-triangle" d="M376 184L424 280H328Z"/><rect class="wm-base" x="88" y="304" width="336" height="24"/></svg>
+        </span>
+        <span class="wordmark-name">Lilai</span>
+    </a>
+    <nav class="app-header-links" aria-label="Site links">
+        <a href="/faq.html">FAQ</a>
+        <a href="/donate">Donate</a>
+    </nav>
+</header>
+
+<main class="ev-page" id="host">
+    <p class="ev-eyebrow">Host page</p>
+    <p class="state-line" id="host-state">Loading…</p>
+
+    <article class="ev-hosted-event" id="host-event" hidden>
+        <h1 class="ev-host-title" id="host-title"></h1>
+        <p class="ev-host-when" id="host-when"></p>
+        <p class="ev-host-where" id="host-where" hidden></p>
+        <p class="ev-host-mode" id="host-mode"></p>
+
+        <div class="ev-tally" aria-live="polite">
+            <span class="ev-tally-num" id="tally-num">0</span>
+            <span class="ev-tally-label" id="tally-label">coming</span>
+        </div>
+
+        <p class="field-error" id="host-error" role="alert" hidden></p>
+
+        <section class="ev-requests" id="waiting-section" hidden aria-labelledby="waiting-title">
+            <div class="section-head">
+                <h2 class="section-title" id="waiting-title">Asking to join</h2>
+                <span class="section-meta" id="waiting-count"></span>
+            </div>
+            <ul class="ev-request-list" id="waiting-list"></ul>
+        </section>
+
+        <section class="ev-requests" aria-labelledby="coming-title">
+            <div class="section-head">
+                <h2 class="section-title" id="coming-title">Coming</h2>
+                <span class="section-meta" id="coming-count"></span>
+            </div>
+            <ul class="ev-request-list" id="coming-list"></ul>
+        </section>
+
+        <section class="ev-requests" id="declined-section" hidden aria-labelledby="declined-title">
+            <div class="section-head">
+                <h2 class="section-title" id="declined-title">Declined</h2>
+                <span class="section-meta" id="declined-count"></span>
+            </div>
+            <ul class="ev-request-list" id="declined-list"></ul>
+        </section>
+
+        <p class="ev-host-foot">
+            Anyone with this link can manage the event. Change the title, time or limit in Google Calendar; Lilai picks it up within five minutes.
+        </p>
+        <p class="ev-done-links">
+            <a class="text-link" id="host-google" href="#" target="_blank" rel="noopener noreferrer" hidden>Open in Google Calendar</a>
+            <a class="text-link" id="host-home" href="/">Show on Home</a>
+        </p>
+    </article>
+</main>
+
+<footer class="colophon">
+    <p>Built by Fisher Kuan</p>
+</footer>
+<script src="/js/theme.js"></script>
+<script src="/js/feedback.js"></script>
+<script src="/js/sheet.js"></script>
+<script src="/js/host.js"></script>
+</body>
+</html>

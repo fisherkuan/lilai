@@ -1035,6 +1035,11 @@ html.sheet-locked body {
 
 .sheet-desc[hidden] { display: none; }
 
+/* An approval event's sheet names who decides; once asked, the sheet says it was sent. */
+.sheet-approval { color: var(--ink); }
+.sheet-sent { margin-top: var(--s5); }
+.sheet-sent-title { font-size: 17px; font-weight: 600; }
+
 .field { margin-top: var(--s5); }
 
 /* 12px clears the focus ring (2px outline, 2px offset) with room to spare. */

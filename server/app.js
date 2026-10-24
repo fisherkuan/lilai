@@ -16,7 +16,9 @@ const { bookingSettings, sampleSendAfter, graceDeadline } = require('./booking-s
 const { createBookingSchema } = require('./booking-schema');
 const { BookingFormClient, readFormOptions } = require('./booking-form');
 const { createScheduler } = require('./booking-scheduler');
-const { findStaleEventIds, looksLikeIcsFeed } = require('./calendar-sync');
+const { findStaleEventIds, appEventsToCheck, keepAppEvent, looksLikeIcsFeed } = require('./calendar-sync');
+const { readServiceAccount, createGoogleCalendar } = require('./google-calendar');
+const hosting = require('./event-hosting');
 const { mergeContact, sendAfterForEdit } = require('./booking-edit');
 const {
     expandRepeat, validateRule, describeRule, RepeatError, UNITS, MAX_EVERY, MAX_OCCURRENCES
@@ -102,6 +104,15 @@ pool.on('error', (error) => {
 
 // Read once at startup: an invalid IBAN stops the server rather than reaching a donor.
 const bankDetails = readBankDetails();
+
+// Event creation writes through the Google Calendar API as a service account. Without
+// GOOGLE_SERVICE_ACCOUNT_JSON the create page says it is not set up; a key that is set but
+// unreadable stops startup.
+const serviceAccount = readServiceAccount();
+const googleCalendar = serviceAccount ? createGoogleCalendar(serviceAccount) : null;
+if (googleCalendar) {
+    console.log(`Event creation on: share calendars with ${googleCalendar.clientEmail}`);
+}
 
 // Admin authentication middleware
 function requireAdminKey(req, res, next) {
@@ -346,6 +357,7 @@ async function initializeDatabase() {
             console.log('Note: created_by column removal attempted (may not exist):', error.message);
         }
 
+        await hosting.createHostingSchema(client);
         await createBookingSchema(client);
         await createSeriesSchema(client);
         await feedback.createFeedbackSchema(client);
@@ -389,6 +401,29 @@ function refreshCalendar() {
     return calendarCache.refreshing;
 }
 
+// The calendar id inside a configured embed, iCal or calendar URL, or null.
+function calendarIdOf(calendarUrl) {
+    let match = null;
+    if (calendarUrl.includes('src=')) {
+        match = calendarUrl.match(/src=([^&]+)/);
+    } else if (calendarUrl.includes('calendar.google.com/calendar/ical/')) {
+        match = calendarUrl.match(/ical\/([^\/]+)\//);
+    } else {
+        match = calendarUrl.match(/calendar\/([^\/?&]+)/);
+    }
+    return match ? decodeURIComponent(match[1]) : null;
+}
+
+// The calendars the create page offers: events.createCalendars, else the default one.
+function creatableCalendars() {
+    const names = appConfig.events?.createCalendars
+        || (appConfig.events?.defaultCreateCalendar ? [appConfig.events.defaultCreateCalendar] : []);
+    return (appConfig.calendars || [])
+        .filter(c => c.enabled && names.includes(c.name))
+        .map(c => ({ name: c.name, id: calendarIdOf(c.url) }))
+        .filter(c => c.id);
+}
+
 // Function to fetch events from Google Calendar
 async function fetchCalendarEvents() {
     if (!appConfig.calendars || appConfig.calendars.length === 0) {
@@ -402,17 +437,7 @@ async function fetchCalendarEvents() {
             continue;
         }
         const calendarUrl = calendarEntry.url;
-        let calendarId = null;
-        if (calendarUrl.includes('src=')) {
-            const match = calendarUrl.match(/src=([^&]+)/);
-            if (match) calendarId = decodeURIComponent(match[1]);
-        } else if (calendarUrl.includes('calendar.google.com/calendar/ical/')) {
-            const match = calendarUrl.match(/ical\/([^\/]+)\//);
-            if (match) calendarId = decodeURIComponent(match[1]);
-        } else {
-            const match = calendarUrl.match(/calendar\/([^\/?&]+)/);
-            if (match) calendarId = decodeURIComponent(match[1]);
-        }
+        const calendarId = calendarIdOf(calendarUrl);
 
         if (!calendarId) {
             console.warn(`Could not extract calendar ID from URL: ${calendarUrl}`);
@@ -503,7 +528,10 @@ async function fetchCalendarEvents() {
 // Get configuration
 app.get('/api/config', (req, res) => {
     try {
-        res.json(appConfig);
+        res.json({
+            ...appConfig,
+            eventCreation: { enabled: Boolean(googleCalendar), calendars: creatableCalendars().map(c => c.name) }
+        });
     } catch (error) {
         console.error('Error fetching config:', error);
         res.status(500).json({ error: 'Failed to fetch configuration' });
@@ -548,6 +576,17 @@ app.get('/api/donation-qr.svg', async (req, res) => {
 // Write one calendar snapshot to the DB: upsert every event, delete the ones the feed dropped.
 // A calendar in unreadSources failed to load, so none of its events count as dropped.
 async function syncCalendarToDb({ events: calendarEvents, unreadSources }) {
+    // Events Lilai made that the feed does not show yet: ask Google before the transaction,
+    // so no network call holds it open.
+    const keepIds = new Set();
+    const appRows = await pool.query(
+        'SELECT id, source, google_calendar_id, google_event_id, created_in_app_at FROM events WHERE google_event_id IS NOT NULL'
+    );
+    for (const row of appEventsToCheck(appRows.rows, calendarEvents, unreadSources)) {
+        const gone = googleCalendar ? await googleCalendar.eventGone(row.google_calendar_id, row.google_event_id) : null;
+        if (keepAppEvent(gone, row.created_in_app_at)) keepIds.add(row.id);
+    }
+
     const client = await pool.connect();
     try {
         await client.query('BEGIN');
@@ -605,7 +644,7 @@ async function syncCalendarToDb({ events: calendarEvents, unreadSources }) {
 
         // Remove deleted calendar events
         const dbEventsResult = await client.query('SELECT id, source FROM events WHERE source IS NOT NULL');
-        const staleEventIds = findStaleEventIds(dbEventsResult.rows, calendarEvents, unreadSources);
+        const staleEventIds = findStaleEventIds(dbEventsResult.rows, calendarEvents, unreadSources, keepIds);
 
         if (staleEventIds.length > 0) {
             await client.query(`DELETE FROM events WHERE id = ANY($1::varchar[])`, [staleEventIds]);
@@ -696,15 +735,16 @@ app.get('/api/events', async (req, res) => {
             SELECT
                 e.*,
                 COALESCE(r.attendingCount, 0) as "attendingCount",
-                r.attendees
+                r.attendees,
+                COALESCE(r.pendingCount, 0) as "pendingCount"
             FROM events e
             LEFT JOIN (
                 SELECT
                     event_id,
-                    COUNT(*) as attendingCount,
-                    array_agg(attendee_name) as attendees
+                    COUNT(*) FILTER (WHERE attendance = 'yes') as attendingCount,
+                    array_agg(attendee_name ORDER BY timestamp) FILTER (WHERE attendance = 'yes') as attendees,
+                    COUNT(*) FILTER (WHERE attendance = 'pending') as pendingCount
                 FROM rsvps
-                WHERE attendance = 'yes'
                 GROUP BY event_id
             ) r ON e.id = r.event_id
             ${whereClause}
@@ -713,8 +753,9 @@ app.get('/api/events', async (req, res) => {
         `, params);
 
         const eventsWithAttendance = eventsResult.rows.map(event => ({
-            ...event,
+            ...hosting.publicEvent(event),
             attendingCount: parseInt(event.attendingCount, 10),
+            pendingCount: parseInt(event.pendingCount, 10),
             attendees: event.attendees || []
         }));
 
@@ -739,7 +780,7 @@ app.get('/api/events/:id', async (req, res) => {
             return res.status(404).json({ error: 'Event not found' });
         }
 
-        res.json(event);
+        res.json(hosting.publicEvent(event));
     } catch (error) {
         console.error('Error fetching event:', error);
         res.status(500).json({ error: 'Failed to fetch event' });
@@ -748,7 +789,25 @@ app.get('/api/events/:id', async (req, res) => {
     }
 });
 
-// Submit RSVP
+// Who holds a seat, and how many requests wait for the host. One shape for the RSVP answer,
+// the broadcast and the host page.
+async function attendanceOf(client, eventId) {
+    const result = await client.query(
+        `SELECT attendee_name, attendance FROM rsvps
+         WHERE event_id = $1 AND attendance IN ('yes', 'pending') ORDER BY timestamp`,
+        [eventId]
+    );
+    const attendees = result.rows.filter(r => r.attendance === hosting.STATUS.YES).map(r => r.attendee_name);
+    return {
+        eventId,
+        attendingCount: attendees.length,
+        attendees,
+        pendingCount: result.rows.length - attendees.length
+    };
+}
+
+// Submit RSVP. On an event whose host approves each person, "add" asks to join: the name
+// waits as 'pending' and takes no seat until the host accepts it.
 app.post('/api/rsvp', async (req, res) => {
     const client = await pool.connect();
     try {
@@ -762,23 +821,43 @@ app.post('/api/rsvp', async (req, res) => {
             return res.status(400).json({ success: false, message: 'Invalid action. Must be "add" or "remove"' });
         }
 
+        const validatedName = validateAttendeeName(attendeeName);
+        if (!validatedName) {
+            return res.status(400).json({
+                success: false,
+                message: action === 'add'
+                    ? 'Invalid attendee name. Name must be 1-100 characters and contain no scripts.'
+                    : 'Invalid attendee name'
+            });
+        }
+
         const eventResult = await client.query('SELECT * FROM events WHERE id = $1', [eventId]);
         if (eventResult.rows.length === 0) {
             return res.status(404).json({ success: false, message: 'Event not found' });
         }
 
         const event = eventResult.rows[0];
+        let pending = false;
 
-        if (action === 'add') {
-            // Validate attendee name
-            const validatedName = validateAttendeeName(attendeeName);
-            if (!validatedName) {
-                return res.status(400).json({
-                    success: false,
-                    message: 'Invalid attendee name. Name must be 1-100 characters and contain no scripts.'
-                });
+        if (action === 'add' && event.approval_required) {
+            // One open request per name: asking twice would only show the host a duplicate.
+            const existing = await client.query(
+                `SELECT attendance FROM rsvps WHERE event_id = $1 AND attendee_name = $2
+                 AND attendance IN ('yes', 'pending') LIMIT 1`,
+                [eventId, validatedName]
+            );
+            if (existing.rows[0]?.attendance === hosting.STATUS.YES) {
+                return res.status(400).json({ success: false, message: `${validatedName} already has a place.` });
             }
-
+            if (existing.rows[0]) {
+                return res.status(400).json({ success: false, message: `${validatedName} has already asked. The host decides.` });
+            }
+            await client.query(
+                'INSERT INTO rsvps (id, event_id, attendee_name, attendance, timestamp) VALUES ($1, $2, $3, $4, $5)',
+                [uuidv4(), eventId, validatedName, hosting.STATUS.PENDING, new Date()]
+            );
+            pending = true;
+        } else if (action === 'add') {
             if (event.attendance_limit !== null) {
                 const rsvpsResult = await client.query('SELECT COUNT(*) FROM rsvps WHERE event_id = $1 AND attendance = $2', [eventId, 'yes']);
                 const attendingCount = parseInt(rsvpsResult.rows[0].count, 10);
@@ -787,26 +866,11 @@ app.post('/api/rsvp', async (req, res) => {
                 }
             }
 
-            const newRsvp = {
-                id: uuidv4(),
-                eventId,
-                attendance: 'yes',
-                attendeeName: validatedName,
-                timestamp: new Date()
-            };
             await client.query(
                 'INSERT INTO rsvps (id, event_id, attendee_name, attendance, timestamp) VALUES ($1, $2, $3, $4, $5)',
-                [newRsvp.id, newRsvp.eventId, newRsvp.attendeeName, newRsvp.attendance, newRsvp.timestamp]
+                [uuidv4(), eventId, validatedName, 'yes', new Date()]
             );
         } else if (action === 'remove') {
-            // Validate attendee name
-            const validatedName = validateAttendeeName(attendeeName);
-            if (!validatedName) {
-                return res.status(400).json({
-                    success: false,
-                    message: 'Invalid attendee name'
-                });
-            }
             await client.query(
                 'DELETE FROM rsvps WHERE id IN (SELECT id FROM rsvps WHERE event_id = $1 AND attendee_name = $2 AND attendance = $3 LIMIT 1)',
                 [eventId, validatedName, 'yes']
@@ -814,26 +878,18 @@ app.post('/api/rsvp', async (req, res) => {
         }
 
         // After action, fetch updated attendance data and broadcast
-        const eventRsvpsResult = await client.query('SELECT attendee_name FROM rsvps WHERE event_id = $1 AND attendance = $2', [eventId, 'yes']);
-        const attendees = eventRsvpsResult.rows.map(rsvp => rsvp.attendee_name);
-        const attendingCount = attendees.length;
-
-        broadcast({
-            type: 'attendance_update',
-            payload: {
-                eventId,
-                attendingCount,
-                attendees
-            }
-        });
+        const attendance = await attendanceOf(client, eventId);
+        broadcast({ type: 'attendance_update', payload: attendance });
 
         // The list goes back in the response too. The broadcast above usually reaches the
         // caller first, so a client that patched its own copy would apply the change twice.
         res.json({
             success: true,
-            message: `RSVP ${action === 'add' ? 'added' : 'removed'} successfully`,
-            attendingCount,
-            attendees
+            pending,
+            message: pending
+                ? 'Request sent. The host decides.'
+                : `RSVP ${action === 'add' ? 'added' : 'removed'} successfully`,
+            ...attendance
         });
     } catch (error) {
         console.error('Error submitting RSVP:', error);
@@ -843,7 +899,169 @@ app.post('/api/rsvp', async (req, res) => {
     }
 });
 
-// POST /api/events endpoint removed - events are managed via Google Calendar sync
+// Make an event: write it to Google Calendar, then keep Lilai's side of it (host, link,
+// approval) on the row the sync will match by iCal UID. Open to anyone, like RSVP.
+app.post('/api/events', async (req, res) => {
+    if (!googleCalendar) {
+        return res.status(503).json({ success: false, code: 'not_set_up', message: 'Making events in Lilai is not set up yet.' });
+    }
+
+    const calendars = creatableCalendars();
+    let input;
+    try {
+        input = hosting.validateNewEvent(req.body, { calendars: calendars.map(c => c.name) });
+    } catch (error) {
+        if (error instanceof hosting.EventInputError) {
+            return res.status(400).json({ success: false, field: error.field, message: error.message });
+        }
+        throw error;
+    }
+    const calendar = calendars.find(c => c.name === input.calendar);
+
+    let created;
+    try {
+        created = await googleCalendar.insertEvent(calendar.id, hosting.googleEventResource(input));
+    } catch (error) {
+        console.error('Google Calendar insert failed:', error.message);
+        const noAccess = error.status === 403 || error.status === 404;
+        return res.status(502).json({
+            success: false,
+            message: noAccess
+                ? `Lilai cannot write to ${calendar.name} yet. Its owner needs to share it with ${googleCalendar.clientEmail} ("Make changes to events").`
+                : 'Google Calendar did not take the event. Nothing was made; try again.'
+        });
+    }
+
+    const id = `cal-${created.iCalUID}`;
+    const token = hosting.newHostToken();
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+        await client.query(
+            `INSERT INTO events (id, title, date, endDate, description, location, source, attendance_limit,
+                                 approval_required, host_name, host_email, host_token_hash,
+                                 google_calendar_id, google_event_id, google_link, created_in_app_at)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, NOW())`,
+            [id, input.title, input.start, input.end, hosting.googleDescription(input) || null,
+                input.location || null, calendar.id, input.limit, input.approval, input.hostName,
+                input.hostEmail, hosting.hashHostToken(token), calendar.id, created.id, created.htmlLink || null]
+        );
+        if (input.hostJoins) {
+            await client.query(
+                'INSERT INTO rsvps (id, event_id, attendee_name, attendance, timestamp) VALUES ($1, $2, $3, $4, NOW())',
+                [uuidv4(), id, input.hostName, hosting.STATUS.YES]
+            );
+        }
+        await client.query('COMMIT');
+    } catch (error) {
+        try { await client.query('ROLLBACK'); } catch (rollbackError) { /* connection gone */ }
+        console.error('Saving a new event failed:', error);
+        // Take it back out of Google, so trying again does not leave a twin behind.
+        let undone = false;
+        try {
+            await googleCalendar.deleteEvent(calendar.id, created.id);
+            undone = true;
+        } catch (deleteError) {
+            console.error('Could not remove the half-made event from Google:', deleteError.message);
+        }
+        return res.status(500).json({
+            success: false,
+            message: undone
+                ? 'Lilai could not save the event, so it was taken back out of Google Calendar. Try again.'
+                : 'Lilai could not save the event, but it is in Google Calendar. Delete it there before trying again.'
+        });
+    } finally {
+        client.release();
+    }
+
+    const hostPath = `/host/${token}`;
+    const origin = `${req.get('x-forwarded-proto') || req.protocol}://${req.get('host')}`;
+    const emailed = input.hostEmail
+        ? await hosting.mailHostLink({ to: input.hostEmail, title: input.title, url: origin + hostPath }).catch((error) => {
+            console.error('Host link mail failed:', error.message);
+            return false;
+        })
+        : false;
+
+    broadcast({ type: 'event_created', payload: { id } });
+    res.status(201).json({ success: true, id, date: input.start.toISOString(), hostPath, googleLink: created.htmlLink || null, emailed });
+});
+
+// The host's page: their event and everyone who asked, by the secret link's hash.
+async function hostedEvent(client, token, { lock = false } = {}) {
+    if (!hosting.looksLikeHostToken(token)) return null;
+    const result = await client.query(
+        `SELECT * FROM events WHERE host_token_hash = $1${lock ? ' FOR UPDATE' : ''}`,
+        [hosting.hashHostToken(token)]
+    );
+    return result.rows[0] || null;
+}
+
+async function hostView(client, event) {
+    const requests = await client.query(
+        'SELECT id, attendee_name, attendance, timestamp FROM rsvps WHERE event_id = $1 ORDER BY timestamp',
+        [event.id]
+    );
+    const { host_token_hash: _hash, ...rest } = event;
+    return {
+        event: { ...rest, ...(await attendanceOf(client, event.id)) },
+        requests: requests.rows.map(r => ({ id: r.id, name: r.attendee_name, status: r.attendance, at: r.timestamp }))
+    };
+}
+
+app.get('/api/host/:token', async (req, res) => {
+    const client = await pool.connect();
+    try {
+        const event = await hostedEvent(client, req.params.token);
+        if (!event) return res.status(404).json({ success: false, message: 'This host link does not open any event.' });
+        res.set('Cache-Control', 'no-store').json({ success: true, ...(await hostView(client, event)) });
+    } finally {
+        client.release();
+    }
+});
+
+// Accept, decline, or put back to waiting. Accepting respects the limit, under a row lock
+// so two quick taps cannot both take the last seat.
+app.post('/api/host/:token/requests/:rsvpId', async (req, res) => {
+    const status = hosting.DECISIONS[req.body?.decision];
+    if (!status) {
+        return res.status(400).json({ success: false, message: 'Decision must be accept, decline or undo.' });
+    }
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+        const event = await hostedEvent(client, req.params.token, { lock: true });
+        if (!event) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({ success: false, message: 'This host link does not open any event.' });
+        }
+        const found = await client.query('SELECT attendance FROM rsvps WHERE id = $1 AND event_id = $2', [req.params.rsvpId, event.id]);
+        if (!found.rows[0]) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({ success: false, message: 'That request is gone. Its owner may have withdrawn it.' });
+        }
+        if (status === hosting.STATUS.YES && found.rows[0].attendance !== hosting.STATUS.YES && event.attendance_limit !== null) {
+            const taken = await client.query('SELECT COUNT(*) FROM rsvps WHERE event_id = $1 AND attendance = $2', [event.id, hosting.STATUS.YES]);
+            if (parseInt(taken.rows[0].count, 10) >= event.attendance_limit) {
+                await client.query('ROLLBACK');
+                return res.status(409).json({
+                    success: false,
+                    message: `All ${event.attendance_limit} places are taken. Free one first, or raise the limit in Google Calendar.`
+                });
+            }
+        }
+        await client.query('UPDATE rsvps SET attendance = $1 WHERE id = $2', [status, req.params.rsvpId]);
+        await client.query('COMMIT');
+
+        broadcast({ type: 'attendance_update', payload: await attendanceOf(client, event.id) });
+        res.json({ success: true, ...(await hostView(client, event)) });
+    } catch (error) {
+        try { await client.query('ROLLBACK'); } catch (rollbackError) { /* connection gone */ }
+        throw error;
+    } finally {
+        client.release();
+    }
+});
 
 // Update event attendance limit (ONLY - other fields sync from Google Calendar)
 app.put('/api/events/:id', async (req, res) => {
@@ -892,13 +1110,13 @@ app.put('/api/events/:id', async (req, res) => {
         broadcast({
             type: 'event_update',
             payload: {
-                ...updatedEvent,
+                ...hosting.publicEvent(updatedEvent),
                 attendees,
                 attendingCount
             }
         });
 
-        res.json({ success: true, message: 'Attendance limit updated successfully', event: updatedEvent });
+        res.json({ success: true, message: 'Attendance limit updated successfully', event: hosting.publicEvent(updatedEvent) });
     } catch (error) {
         console.error('Error updating event:', error);
         res.status(500).json({ success: false, message: 'Internal server error' });
@@ -2353,6 +2571,16 @@ app.get('/admin/bookings', (req, res) => {
 
 app.get('/admin/bookings/:id', (req, res) => {
     res.sendFile(path.join(__dirname, '../public/admin-booking-detail.html'));
+});
+
+app.get('/events/new', (req, res) => {
+    res.sendFile(path.join(__dirname, '../public/new-event.html'));
+});
+
+// The host link's token stays out of logs and other sites' Referer headers.
+app.get('/host/:token', (req, res) => {
+    res.set('Referrer-Policy', 'no-referrer').set('Cache-Control', 'no-store');
+    res.sendFile(path.join(__dirname, '../public/host.html'));
 });
 
 app.get('/admin/donations', (req, res) => {

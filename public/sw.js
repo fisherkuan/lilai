@@ -1,4 +1,4 @@
-const CACHE_NAME = 'lilai-cache-v50'; // Bumped version
+const CACHE_NAME = 'lilai-cache-v51'; // Bumped version
 const urlsToCache = [
   '/',
   '/index.html',
@@ -71,7 +71,13 @@ self.addEventListener('activate', event => {
 function isOurCode(url) {
     return url.origin === self.location.origin
         && (/\.(?:js|css|html|md)$/.test(url.pathname) || url.pathname === '/'
-            || url.pathname.startsWith('/api/'));
+            || url.pathname === '/events/new' || url.pathname.startsWith('/api/'));
+}
+
+// A host page's address and answers carry its secret link: never into Cache Storage.
+function isHostTraffic(url) {
+    return url.origin === self.location.origin
+        && (url.pathname.startsWith('/host/') || url.pathname.startsWith('/api/host/'));
 }
 
 self.addEventListener('fetch', (event) => {
@@ -79,6 +85,8 @@ self.addEventListener('fetch', (event) => {
     if (event.request.method !== 'GET' || !event.request.url.startsWith('http')) {
         return;
     }
+
+    if (isHostTraffic(new URL(event.request.url))) return;
 
     if (isOurCode(new URL(event.request.url))) {
         event.respondWith(

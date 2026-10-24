@@ -97,7 +97,7 @@
         <section class="side-block" aria-labelledby="side-cal-title">
             <h2 class="side-title" id="side-cal-title">Add to the calendar</h2>
             <a href="https://calendar.google.com/calendar/u/0/r/eventedit" target="_blank" rel="noopener noreferrer" class="btn btn-line" id="create-event-btn">Create an event</a>
-            <p class="side-note">Only members of the <a href="#" id="join-group-link" target="_blank" rel="noopener noreferrer">Leuven Taiwanese group</a> can add events. Subscribe in your own calendar app:</p>
+            <p class="side-note" id="create-event-note">Only members of the <a href="#" id="join-group-link" target="_blank" rel="noopener noreferrer">Leuven Taiwanese group</a> can add events. Subscribe in your own calendar app:</p>
             <div class="subscribe-list" id="add-to-calendar-dropdown"></div>
         </section>
 
@@ -124,17 +124,27 @@
         </div>
         <p class="sheet-when" id="modal-event-date">Event date</p>
         <p class="sheet-desc" id="modal-event-description"></p>
-        <div class="field">
-            <div class="field-label-row">
-                <label for="attendee-name">Your name</label>
-                <button type="button" id="forget-name-btn" class="text-btn" hidden>Not you?</button>
+        <div id="rsvp-form-part">
+            <p class="sheet-desc sheet-approval" id="modal-approval-note" hidden></p>
+            <div class="field">
+                <div class="field-label-row">
+                    <label for="attendee-name">Your name</label>
+                    <button type="button" id="forget-name-btn" class="text-btn" hidden>Not you?</button>
+                </div>
+                <input type="text" id="attendee-name" class="input" autocomplete="name" enterkeyhint="done">
+                <p class="field-error" id="rsvp-error" role="alert" hidden></p>
             </div>
-            <input type="text" id="attendee-name" class="input" autocomplete="name" enterkeyhint="done">
-            <p class="field-error" id="rsvp-error" role="alert" hidden></p>
+            <div class="sheet-actions">
+                <button type="button" class="btn btn-solid rsvp-add-btn" onclick="submitRsvp('add')"><span class="text">Confirm</span></button>
+                <button type="button" class="text-btn" onclick="closeRsvpModal()">Cancel</button>
+            </div>
         </div>
-        <div class="sheet-actions">
-            <button type="button" class="btn btn-solid rsvp-add-btn" onclick="submitRsvp('add')"><span class="text">Confirm</span></button>
-            <button type="button" class="text-btn" onclick="closeRsvpModal()">Cancel</button>
+        <div class="sheet-sent" id="rsvp-sent" hidden>
+            <p class="sheet-sent-title">Request sent</p>
+            <p class="sheet-desc" id="rsvp-sent-text"></p>
+            <div class="sheet-actions">
+                <button type="button" class="btn btn-solid" id="rsvp-sent-done" onclick="closeRsvpModal()">Done</button>
+            </div>
         </div>
     </div>
 </div>
