@@ -1209,7 +1209,8 @@ html.sheet-locked body {
 }
 
 .ev-hint[hidden] { display: none; }
-.ev-hint-lead { margin: calc(-1 * var(--s2)) 0 var(--s3); }
+/* A caveat the reader must act on: ink, heavier, with a rule. Never red (primaries live in shapes). */
+.ev-warn { color: var(--ink); font-weight: 600; border-left: var(--stroke-2) solid var(--ink); padding-left: var(--s3); }
 
 .ev-textarea { min-height: 112px; padding: var(--s3); resize: vertical; line-height: 1.5; }
 .ev-date { max-width: 240px; }

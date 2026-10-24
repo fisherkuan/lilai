@@ -118,14 +118,17 @@
         document.getElementById('event-made-url').textContent = url;
         document.getElementById('event-made-open').href = result.hostPath;
         document.getElementById('event-made-share').hidden = !navigator.share;
+        const email = body.hostEmail.trim();
         const emailed = document.getElementById('event-made-emailed');
-        emailed.hidden = !body.hostEmail.trim();
-        emailed.textContent = result.emailed
-            ? `We emailed it to ${body.hostEmail.trim()}.`
-            : 'We could not email it. Copy it now; this device also keeps it under "You manage".';
-        document.getElementById('event-made-publish').textContent = result.publishing
-            ? 'Lilai is adding it to Google Calendar for subscribers now.'
-            : 'It is in Lilai. Google Calendar subscribers will see it once publishing is set up.';
+        emailed.textContent = !email
+            ? 'No email given. This link is the only way back to this event. Copy it now.'
+            : result.emailed ? `Emailed to ${email}.` : 'Could not email it. Copy it now.';
+        emailed.classList.toggle('ev-warn', !email || !result.emailed);
+        emailed.hidden = false;
+        // Only the caveat: a working publish needs no line.
+        const publish = document.getElementById('event-made-publish');
+        publish.hidden = result.publishing;
+        publish.textContent = 'Not in Google Calendar yet: publishing is not set up.';
         made.hidden = false;
         made.focus();
     }

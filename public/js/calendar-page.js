@@ -50,8 +50,8 @@
         document.title = `${calendar.name} — Calendar access — Lilai`;
         $('cal-title').textContent = calendar.name;
         $('cal-lede').textContent = calendar.restricted
-            ? `Only ${calendar.name}'s admins can add events to it. This device is one of them now: "Make an event" on Home offers ${calendar.name}.`
-            : `Anyone can add events to ${calendar.name}. This link also lets you manage every one of them.`;
+            ? `Only admins can add ${calendar.name} events. This device is one now.`
+            : `This link manages every ${calendar.name} event.`;
         $('cal-make').href = `/#new=${encodeURIComponent(calendar.name)}`;
         $('cal-make').textContent = `Make a ${calendar.name} event`;
         $('cal-not-imported').hidden = calendar.imported;

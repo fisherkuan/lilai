@@ -102,7 +102,7 @@
         <section class="side-block" aria-labelledby="side-cal-title">
             <h2 class="side-title" id="side-cal-title">Add to the calendar</h2>
             <button type="button" class="btn btn-line" id="create-event-btn" data-make-event>Create an event</button>
-            <p class="side-note">Every event here is also in the group's Google calendars. Subscribe in your own calendar app:</p>
+            <p class="side-note">Subscribe in your calendar app:</p>
             <div class="subscribe-list" id="add-to-calendar-dropdown"></div>
             <div class="ev-hosted" id="hosted-list" hidden>
                 <h3 class="side-subtitle">You manage</h3>
@@ -112,7 +112,6 @@
 
         <section class="side-block" aria-labelledby="side-support-title">
             <h2 class="side-title" id="side-support-title">Keep this running</h2>
-            <p class="side-note">Hosting this app costs money. Donations go directly to operating expenses.</p>
             <a href="/donate" class="text-link">Donate</a>
         </section>
     </aside>
@@ -203,7 +202,7 @@
             <p class="ev-done-when" id="event-made-when"></p>
             <div class="ev-hostlink">
                 <p class="ev-label">Management link</p>
-                <p class="ev-hint">Edit it, cancel it and see who is coming there. Anyone with the link can manage the event, so share it only with people who host with you.</p>
+                <p class="ev-hint">Anyone with this link can manage the event.</p>
                 <code class="ev-hostlink-url" id="event-made-url"></code>
                 <div class="ev-hostlink-actions">
                     <button type="button" class="text-btn" id="event-made-copy">Copy link</button>
@@ -211,7 +210,7 @@
                 </div>
                 <p class="ev-hint" id="event-made-emailed" hidden></p>
             </div>
-            <p class="ev-hint" id="event-made-publish"></p>
+            <p class="ev-hint" id="event-made-publish" hidden></p>
             <div class="sheet-actions">
                 <a class="btn btn-solid" id="event-made-open" href="#">Open management page</a>
                 <button type="button" class="text-btn" data-close>Done</button>

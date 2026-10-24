@@ -123,7 +123,6 @@
         </div>
         <div class="field">
             <span class="ev-label" id="${p}-links-label">Links <span class="ev-optional">optional</span></span>
-            <p class="ev-hint ev-hint-lead">A sign-up form, a map, a group chat. They show on the event's card.</p>
             <div data-part="links" role="group" aria-labelledby="${p}-links-label"></div>
             <p class="field-error" data-error-for="links" role="alert" hidden></p>
         </div>
@@ -147,11 +146,11 @@
                 <div class="ev-choice-list" data-group="approval" role="radiogroup" aria-labelledby="${p}-approval-label">
                     <button type="button" class="ev-choice" role="radio" aria-checked="true" data-approval="false">
                         <span class="ev-choice-title">Open</span>
-                        <span class="ev-choice-note">Anyone who joins has a place, first come first served.</span>
+                        <span class="ev-choice-note">First come, first served.</span>
                     </button>
                     <button type="button" class="ev-choice" role="radio" aria-checked="false" data-approval="true">
                         <span class="ev-choice-title">I approve each person</span>
-                        <span class="ev-choice-note">People ask to join. You decide who gets a place on the event's management page.</span>
+                        <span class="ev-choice-note">You accept each request on the management page.</span>
                     </button>
                 </div>
             </div>
@@ -171,7 +170,7 @@
             <div class="field">
                 <label for="${p}-email">Email <span class="ev-optional">optional</span></label>
                 <input type="email" id="${p}-email" class="input" autocomplete="email" inputmode="email">
-                <p class="ev-hint">We email you the management link, so you can open it on another device.</p>
+                <p class="ev-hint">Your way back to this event if you lose the link.</p>
                 <p class="field-error" data-error-for="hostEmail" role="alert" hidden></p>
             </div>
         </fieldset>` : ''}`;

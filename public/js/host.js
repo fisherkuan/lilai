@@ -224,8 +224,8 @@
         $('declined-list').innerHTML = declined.map(r => row(r, act ? [[approval ? 'undo' : 'accept', 'Undo']] : [])).join('');
 
         $('host-foot').textContent = series
-            ? 'Anyone with this page\'s link can manage every date of this event. Share it only with people who host with you.'
-            : 'Anyone with this page\'s link can manage the event. Share it only with people who host with you.';
+            ? 'Anyone with this link can manage every date of this event.'
+            : 'Anyone with this link can manage the event.';
         $('host-google').hidden = !event.google_link || event.cancelled;
         if (event.google_link) $('host-google').href = event.google_link;
         $('host-home').hidden = event.cancelled;
@@ -436,7 +436,6 @@
             $('share-title').textContent = 'Copied';
             clearTimeout(copiedTimer);
             copiedTimer = setTimeout(() => { $('share-title').textContent = 'Copy link'; }, 2000);
-            message = 'Anyone you send it to can manage this event.';
         } catch (_) {
             message = `Copy this link: ${pageUrl}`;
         }
