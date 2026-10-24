@@ -73,8 +73,8 @@
     // ---------- Drawing ----------
 
     function row(request, actions) {
-        const buttons = actions.map(([decision, label, solid]) =>
-            `<button type="button" class="btn ${solid ? 'btn-solid' : 'btn-line'}" data-id="${escapeHtml(request.id)}" data-decision="${decision}" aria-label="${escapeHtml(`${label}: ${request.name}`)}">${label}</button>`
+        const buttons = actions.map(([decision, label, style = 'line']) =>
+            `<button type="button" class="btn btn-${style}" data-id="${escapeHtml(request.id)}" data-name="${escapeHtml(request.name)}" data-decision="${decision}"${style === 'danger' ? ' data-confirm' : ''} aria-label="${escapeHtml(`${label}: ${request.name}`)}">${label}</button>`
         ).join('');
         return `<li class="ev-request${request.status === 'declined' ? ' is-declined' : ''}">`
             + `<span class="ev-request-who"><span class="ev-request-name">${escapeHtml(request.name)}</span>`
@@ -144,12 +144,12 @@
         $('waiting-section').hidden = !approval && waiting.length === 0;
         $('waiting-count').textContent = waiting.length ? String(waiting.length) : '';
         $('waiting-list').innerHTML = waiting.length
-            ? waiting.map(r => row(r, !act ? [] : full ? [['decline', 'Decline']] : [['accept', 'Accept', true], ['decline', 'Decline']])).join('')
+            ? waiting.map(r => row(r, !act ? [] : full ? [['decline', 'Decline']] : [['accept', 'Accept', 'solid'], ['decline', 'Decline']])).join('')
             : '<li class="ev-empty">No one is waiting.</li>';
 
         $('coming-count').textContent = coming.length ? String(coming.length) : '';
         $('coming-list').innerHTML = coming.length
-            ? coming.map(r => row(r, act ? [['decline', 'Remove']] : [])).join('')
+            ? coming.map(r => row(r, act ? [['decline', 'Remove', 'danger']] : [])).join('')
             : '<li class="ev-empty">No one yet.</li>';
 
         // A declined name can come back: to the queue on an approval event, else straight in.
@@ -244,14 +244,14 @@
         if (returnFocus && document.contains(returnFocus)) returnFocus.focus();
         returnFocus = null;
     }
-    ['edit-sheet', 'cancel-sheet'].forEach((id) => {
+    ['edit-sheet', 'cancel-sheet', 'remove-sheet'].forEach((id) => {
         $(id).addEventListener('click', (e) => {
             if (e.target === $(id) || e.target.closest('[data-close]')) closeSheet(id);
         });
     });
     document.addEventListener('keydown', (e) => {
         if (e.key !== 'Escape') return;
-        ['edit-sheet', 'cancel-sheet'].forEach((id) => { if (!$(id).classList.contains('hidden')) closeSheet(id); });
+        ['edit-sheet', 'cancel-sheet', 'remove-sheet'].forEach((id) => { if (!$(id).classList.contains('hidden')) closeSheet(id); });
     });
 
     function wireScope(groupId) {
@@ -310,6 +310,22 @@
         resetScope('cancel-scope');
         showError('cancel-error', '');
         openSheet('cancel-sheet');
+    }
+
+    // Removing someone who joined asks first: it takes their place away.
+    let removing = null;
+    function openRemove(button) {
+        removing = button;
+        $('remove-sheet-title').textContent = `Remove ${button.dataset.name}?`;
+        openSheet('remove-sheet');
+        $('remove-confirm').focus();
+    }
+
+    async function confirmRemove() {
+        const button = removing;
+        removing = null;
+        closeSheet('remove-sheet');
+        if (button && document.contains(button)) await decide(button);
     }
 
     async function confirmCancel() {
@@ -378,6 +394,7 @@
     async function init() {
         $('host-event').addEventListener('click', (e) => {
             const decision = e.target.closest('button[data-decision]');
+            if (decision && decision.hasAttribute('data-confirm')) return openRemove(decision);
             if (decision) return decide(decision);
             const chip = e.target.closest('.ev-date-chip');
             if (chip) {
@@ -390,6 +407,7 @@
         $('edit-form').addEventListener('submit', saveEdit);
         $('cancel-btn').addEventListener('click', openCancel);
         $('cancel-confirm').addEventListener('click', confirmCancel);
+        $('remove-confirm').addEventListener('click', confirmRemove);
         $('restore-btn').addEventListener('click', restore);
         $('share-btn').addEventListener('click', sharePage);
         try {

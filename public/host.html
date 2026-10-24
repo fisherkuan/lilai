@@ -161,6 +161,20 @@
     </div>
 </div>
 
+<div id="remove-sheet" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="remove-sheet-title">
+    <div class="sheet">
+        <div class="sheet-head">
+            <h3 class="sheet-title" id="remove-sheet-title">Remove this person?</h3>
+            <button type="button" class="icon-btn" data-close aria-label="Close"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+        </div>
+        <p class="sheet-desc">They leave the list and their place opens up. Undo under Declined puts them back while there is room.</p>
+        <div class="sheet-actions">
+            <button type="button" class="btn btn-danger" id="remove-confirm"><span class="text">Remove</span></button>
+            <button type="button" class="text-btn" data-close>Keep them</button>
+        </div>
+    </div>
+</div>
+
 <footer class="colophon">
     <p>Built by Fisher Kuan</p>
 </footer>

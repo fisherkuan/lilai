@@ -15,6 +15,8 @@
     --ink-3: #62625c;
     --past: #a9a9a2;
     --scrim: rgba(22, 22, 22, 0.4);
+    /* Text on a red destructive button: white in light (4.7:1 on --red), paper in dark (5.3:1). */
+    --on-danger: #ffffff;
     /* Lilai's own link colour, an azure kept apart from the kit's ultramarine, which in
        light mode is the first calendar's circle. Outbound links only; focus stays the kit's. */
     --link: #0b57d0;
@@ -58,6 +60,8 @@
         --ink-3: #8f9095;
         --past: #55565b;
         --scrim: rgba(0, 0, 0, 0.4);
+    --on-danger: #111214;
+        --on-danger: #111214;
         --link: #8ab4f8;
         --ground: var(--paper);
         --rail-sel: #2f7d58;
@@ -918,6 +922,10 @@ button { font: inherit; color: inherit; }
 
 .btn-line { background: var(--fill); color: var(--ink); }
 .btn-line:hover { background: var(--stone); color: var(--ink); }
+
+/* The one red outside a calendar shape: an action that takes something away from a person (owner, 2026-10-24). */
+.btn-danger { background: var(--red); color: var(--on-danger); }
+.btn-danger:hover { background: var(--red); color: var(--on-danger); filter: brightness(0.92); }
 
 .btn:disabled,
 .btn[disabled] {
