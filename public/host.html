@@ -125,14 +125,14 @@
 
 <!-- Edit: the same form as Make an event (js/event-form.js) -->
 <div id="edit-sheet" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="edit-sheet-title">
-    <div class="sheet">
+    <div class="sheet sheet-cards">
         <div class="sheet-head">
             <h3 class="sheet-title" id="edit-sheet-title">Edit event</h3>
             <button type="button" class="icon-btn" data-close aria-label="Close"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
         </div>
         <form id="edit-form" novalidate>
             <div id="edit-fields"></div>
-            <div class="field" id="edit-scope-field" hidden>
+            <div class="field ev-card" id="edit-scope-field" hidden>
                 <span class="ev-label" id="edit-scope-label">Change</span>
                 <div class="ev-segment" id="edit-scope" role="radiogroup" aria-labelledby="edit-scope-label">
                     <button type="button" class="ev-seg" role="radio" aria-checked="true" data-scope="this">This date</button>

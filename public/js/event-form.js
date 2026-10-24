@@ -52,82 +52,97 @@
         return `<button type="button" class="ev-seg" role="radio" aria-checked="${checked}" data-${attr}="${escapeHtml(value)}">${escapeHtml(label)}</button>`;
     }
 
+    // A date field that reads yyyy/mm/dd: our text, with the native input invisible on top.
+    function dateBox(id) {
+        return `<div class="ev-datebox"><span class="input ev-date-show is-empty" aria-hidden="true">yyyy/mm/dd</span>`
+            + `<input type="date" id="${id}" class="ev-date-native"></div>`;
+    }
+
     function markup(p, mode) {
         const create = mode === 'create';
         return `
-        ${create ? `
-        <div class="field ev-first" data-part="calendar" hidden>
-            <span class="ev-label" id="${p}-cal-label">Calendar</span>
-            <div class="ev-cals" data-group="calendar" role="radiogroup" aria-labelledby="${p}-cal-label"></div>
-            <p class="field-error" data-error-for="calendar" role="alert" hidden></p>
-        </div>` : ''}
-        <div class="field ev-first">
-            <label for="${p}-title">What</label>
-            <input type="text" id="${p}-title" class="input" maxlength="120" autocomplete="off" placeholder="Badminton at the Sportkot">
-            <p class="field-error" data-error-for="title" role="alert" hidden></p>
-        </div>
-        <div class="field">
-            <label for="${p}-date">Day</label>
-            <input type="date" id="${p}-date" class="input ev-date">
-        </div>
-        <div class="field">
-            <div class="ev-two">
-                <div class="ev-col">
-                    <label for="${p}-start">Starts</label>
-                    <select id="${p}-start" class="input select ev-time">${timeOptions()}</select>
-                </div>
-                <div class="ev-col">
-                    <label for="${p}-end">Ends</label>
-                    <select id="${p}-end" class="input select ev-time">${timeOptions()}</select>
-                </div>
+        <section class="ev-card" aria-labelledby="${p}-c-what">
+            <h3 class="ev-card-title" id="${p}-c-what">What</h3>
+            ${create ? `
+            <div class="field" data-part="calendar" hidden>
+                <span class="ev-label" id="${p}-cal-label">Calendar</span>
+                <div class="ev-cals" data-group="calendar" role="radiogroup" aria-labelledby="${p}-cal-label"></div>
+                <p class="field-error" data-error-for="calendar" role="alert" hidden></p>
+            </div>` : ''}
+            <div class="field">
+                <label for="${p}-title">Title</label>
+                <input type="text" id="${p}-title" class="input" maxlength="120" autocomplete="off" placeholder="Badminton at the Sportkot">
+                <p class="field-error" data-error-for="title" role="alert" hidden></p>
             </div>
-            <p class="ev-hint" data-hint="next-day" hidden>Ends the next day.</p>
-            <p class="field-error" data-error-for="start" role="alert" hidden></p>
-            <p class="field-error" data-error-for="end" role="alert" hidden></p>
-        </div>
-        ${create ? `
-        <div class="field" data-part="repeat">
-            <span class="ev-label" id="${p}-rep-label">Repeats</span>
-            <div class="ev-segment" data-group="repeat" role="radiogroup" aria-labelledby="${p}-rep-label">
-                ${radio('off', 'Once', true, 'repeat')}${radio('on', 'Repeats', false, 'repeat')}
+        </section>
+        <section class="ev-card" aria-labelledby="${p}-c-when">
+            <h3 class="ev-card-title" id="${p}-c-when">When and where</h3>
+            <div class="field">
+                <label for="${p}-date">Day</label>
+                ${dateBox(`${p}-date`)}
             </div>
-            <div class="ev-repeat" data-hint="repeat-body" hidden>
-                <div class="ev-every">
-                    <span class="ev-every-word">Every</span>
-                    <input type="number" id="${p}-every" class="input ev-number" min="1" max="12" value="1" inputmode="numeric" aria-label="Every how many">
-                    <select id="${p}-unit" class="input select ev-unit" aria-label="Days, weeks or months">
-                        ${UNITS.map(u => `<option value="${u}"${u === 'week' ? ' selected' : ''}>${u}</option>`).join('')}
-                    </select>
+            <div class="field">
+                <div class="ev-two">
+                    <div class="ev-col">
+                        <label for="${p}-start">Starts</label>
+                        <select id="${p}-start" class="input select ev-time">${timeOptions()}</select>
+                    </div>
+                    <div class="ev-col">
+                        <label for="${p}-end">Ends</label>
+                        <select id="${p}-end" class="input select ev-time">${timeOptions()}</select>
+                    </div>
                 </div>
-                <div class="ev-days" data-hint="weekdays" role="group" aria-label="On these days">
-                    ${WEEKDAYS.map(([n, name, letter]) => `<button type="button" class="ev-seg ev-day" aria-pressed="false" data-day="${n}" aria-label="${name}">${letter}</button>`).join('')}
-                </div>
-                <div class="ev-until">
-                    <label for="${p}-until">Until</label>
-                    <input type="date" id="${p}-until" class="input ev-date">
-                </div>
-                <p class="ev-hint ev-preview" data-hint="preview" aria-live="polite"></p>
+                <p class="ev-hint" data-hint="next-day" hidden>Ends the next day.</p>
+                <p class="field-error" data-error-for="start" role="alert" hidden></p>
+                <p class="field-error" data-error-for="end" role="alert" hidden></p>
             </div>
-            <p class="field-error" data-error-for="repeat" role="alert" hidden></p>
-        </div>` : ''}
-        <div class="field">
-            <label for="${p}-location">Where <span class="ev-optional">optional</span></label>
-            <input type="text" id="${p}-location" class="input" maxlength="255" autocomplete="off" list="${p}-places">
-            <datalist id="${p}-places"></datalist>
-            <p class="field-error" data-error-for="location" role="alert" hidden></p>
-        </div>
-        <div class="field">
-            <label for="${p}-description">Details <span class="ev-optional">optional</span></label>
-            <textarea id="${p}-description" class="input ev-textarea" maxlength="4000" rows="4"></textarea>
-            <p class="field-error" data-error-for="description" role="alert" hidden></p>
-        </div>
-        <div class="field">
-            <span class="ev-label" id="${p}-links-label">Links <span class="ev-optional">optional</span></span>
-            <div data-part="links" role="group" aria-labelledby="${p}-links-label"></div>
-            <p class="field-error" data-error-for="links" role="alert" hidden></p>
-        </div>
-        <fieldset class="ev-group">
-            <legend class="section-title">Who gets a place</legend>
+            ${create ? `
+            <div class="field" data-part="repeat">
+                <span class="ev-label" id="${p}-rep-label">Repeats</span>
+                <div class="ev-segment" data-group="repeat" role="radiogroup" aria-labelledby="${p}-rep-label">
+                    ${radio('off', 'Once', true, 'repeat')}${radio('on', 'Repeats', false, 'repeat')}
+                </div>
+                <div class="ev-repeat" data-hint="repeat-body" hidden>
+                    <div class="ev-every">
+                        <span class="ev-every-word">Every</span>
+                        <input type="number" id="${p}-every" class="input ev-number" min="1" max="12" value="1" inputmode="numeric" aria-label="Every how many">
+                        <select id="${p}-unit" class="input select ev-unit" aria-label="Days, weeks or months">
+                            ${UNITS.map(u => `<option value="${u}"${u === 'week' ? ' selected' : ''}>${u}</option>`).join('')}
+                        </select>
+                    </div>
+                    <div class="ev-days" data-hint="weekdays" role="group" aria-label="On these days">
+                        ${WEEKDAYS.map(([n, name, letter]) => `<button type="button" class="ev-seg ev-day" aria-pressed="false" data-day="${n}" aria-label="${name}">${letter}</button>`).join('')}
+                    </div>
+                    <div class="ev-until">
+                        <label for="${p}-until">Until</label>
+                        ${dateBox(`${p}-until`)}
+                    </div>
+                    <p class="ev-hint ev-preview" data-hint="preview" aria-live="polite"></p>
+                </div>
+                <p class="field-error" data-error-for="repeat" role="alert" hidden></p>
+            </div>` : ''}
+            <div class="field">
+                <label for="${p}-location">Where <span class="ev-optional">optional</span></label>
+                <input type="text" id="${p}-location" class="input" maxlength="255" autocomplete="off" list="${p}-places">
+                <datalist id="${p}-places"></datalist>
+                <p class="field-error" data-error-for="location" role="alert" hidden></p>
+            </div>
+        </section>
+        <section class="ev-card" aria-labelledby="${p}-c-more">
+            <h3 class="ev-card-title" id="${p}-c-more">Details and links</h3>
+            <div class="field">
+                <label for="${p}-description">Details <span class="ev-optional">optional</span></label>
+                <textarea id="${p}-description" class="input ev-textarea" maxlength="4000" rows="4"></textarea>
+                <p class="field-error" data-error-for="description" role="alert" hidden></p>
+            </div>
+            <div class="field">
+                <span class="ev-label" id="${p}-links-label">Links <span class="ev-optional">optional</span></span>
+                <div data-part="links" role="group" aria-labelledby="${p}-links-label"></div>
+                <p class="field-error" data-error-for="links" role="alert" hidden></p>
+            </div>
+        </section>
+        <section class="ev-card" aria-labelledby="${p}-c-who">
+            <h3 class="ev-card-title" id="${p}-c-who">Who gets a place</h3>
             <div class="field">
                 <span class="ev-label" id="${p}-places-label">Places</span>
                 <div class="ev-segment" data-group="places" role="radiogroup" aria-labelledby="${p}-places-label">
@@ -154,10 +169,10 @@
                     </button>
                 </div>
             </div>
-        </fieldset>
+        </section>
         ${create ? `
-        <fieldset class="ev-group" data-part="you">
-            <legend class="section-title">You</legend>
+        <section class="ev-card" data-part="you" aria-labelledby="${p}-c-you">
+            <h3 class="ev-card-title" id="${p}-c-you">You</h3>
             <div class="field">
                 <label for="${p}-host">Your name</label>
                 <input type="text" id="${p}-host" class="input" maxlength="100" autocomplete="name">
@@ -173,7 +188,7 @@
                 <p class="ev-hint">Your way back to this event if you lose the link.</p>
                 <p class="field-error" data-error-for="hostEmail" role="alert" hidden></p>
             </div>
-        </fieldset>` : ''}`;
+        </section>` : ''}`;
     }
 
     function create(container, { mode = 'create' } = {}) {
@@ -183,6 +198,18 @@
         const part = (name) => container.querySelector(`[data-part="${name}"]`);
         const hint = (name) => container.querySelector(`[data-hint="${name}"]`);
         const group = (name) => container.querySelector(`[data-group="${name}"]`);
+        // Copies each date input's value into its yyyy/mm/dd text. Call after setting one from code.
+        const showDates = () => container.querySelectorAll('.ev-date-native').forEach((input) => {
+            const show = input.previousElementSibling;
+            show.textContent = input.value ? input.value.replaceAll('-', '/') : 'yyyy/mm/dd';
+            show.classList.toggle('is-empty', !input.value);
+        });
+        container.querySelectorAll('.ev-date-native').forEach((input) => {
+            input.addEventListener('input', showDates);
+            input.addEventListener('change', showDates);
+            // A laptop browser opens its calendar only from the icon; open it from anywhere.
+            input.addEventListener('click', () => { try { input.showPicker(); } catch (_) { /* not supported */ } });
+        });
 
         const state = { calendar: null, limited: false, approval: false, repeatOn: false, weekdays: [], endTouched: false };
         const linkEditor = EventLinks.create(part('links'));
@@ -258,6 +285,7 @@
                 const d = new Date(`${$('date').value}T12:00:00`);
                 d.setMonth(d.getMonth() + 2);
                 $('until').value = localDate(d);
+                showDates();
             }
             syncWeekdays();
             preview();
@@ -374,6 +402,7 @@
             set(values) {
                 $('title').value = values.title || '';
                 $('date').value = values.date || '';
+                showDates();
                 setTime($('start'), values.start);
                 setTime($('end'), values.end);
                 state.endTouched = Boolean(values.end);
@@ -406,6 +435,7 @@
                 }
                 nextDayHint();
                 clearErrors();
+                showDates();
             },
             value() {
                 const body = {

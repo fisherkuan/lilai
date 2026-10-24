@@ -1205,23 +1205,38 @@ html.sheet-locked body {
 .sheet .ev-label { font-size: 13px; font-weight: 600; line-height: 18px; margin-bottom: var(--s2); }
 
 /* Make an event: a Jost title over a full-width ink rule, and Make event pinned at the foot. */
-.sheet-make .sheet-head {
-    margin: 0 calc(-1 * var(--sheet-pad));
-    padding: 0 var(--sheet-pad) var(--s4);
-    border-bottom: var(--rule) solid var(--ink);
-}
+.sheet-make .sheet-head { padding-bottom: var(--s2); }
 .sheet-make .sheet-head .icon-btn { margin: var(--s3) 0 0; }
 .sheet-make .sheet-title { padding-top: var(--s2); font-family: var(--font-display); font-size: 32px; font-weight: 700; line-height: 1.05; }
-#event-sheet-form .sheet-actions {
+#event-sheet-form .sheet-actions,
+#edit-form .sheet-actions {
     position: sticky;
     bottom: calc(-1 * (var(--s5) + env(safe-area-inset-bottom)));
     z-index: 1;
     margin: var(--s5) calc(-1 * var(--sheet-pad)) 0;
     padding: var(--s3) var(--sheet-pad) calc(var(--s3) + var(--s5) + env(safe-area-inset-bottom));
     margin-bottom: calc(-1 * (var(--s5) + env(safe-area-inset-bottom)));
-    border-top: var(--rule) solid var(--ink);
+    border-top: 1px solid var(--hair);
     background: var(--paper-raised);
 }
+
+/* Grouped cards (owner, 2026-10-25): the event sheets turn grey and each part of the form is
+   a raised card under a small uppercase title, like iPhone Settings. No ink rules. */
+.sheet-cards { background: var(--paper); }
+.sheet-cards .sheet-grip,
+.sheet-cards #event-sheet-form .sheet-actions,
+.sheet-cards #edit-form .sheet-actions { background: var(--paper); }
+.ev-card {
+    display: grid;
+    gap: var(--s4);
+    margin-top: var(--s3);
+    padding: var(--s4);
+    border-radius: var(--radius-card);
+    background: var(--paper-raised);
+}
+.ev-card > .field, .ev-card > .ev-check { margin-top: 0; }
+.ev-card > [hidden] { display: none; }
+.ev-card-title { margin: 0 0 calc(-1 * var(--s1)); font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-2); }
 
 /* ---------- Event form ----------
    Make an event (Home's sheet) and Edit (the management page's sheet) share one form,
@@ -1250,8 +1265,15 @@ html.sheet-locked body {
 .ev-warn { color: var(--ink); font-weight: 600; border-left: var(--stroke-2) solid var(--ink); padding-left: var(--s3); }
 
 .ev-textarea { min-height: 112px; padding: var(--s3); resize: vertical; line-height: 1.5; }
-.ev-date { max-width: 240px; }
 .input[type="date"], .input[type="time"], .ev-time { font-variant-numeric: tabular-nums; }
+
+/* Day and Until read yyyy/mm/dd whatever the device's language (owner, 2026-10-25). The
+   phone's own date input lies invisible over the text, so a tap still opens its picker. */
+.ev-datebox { position: relative; max-width: 240px; }
+.ev-date-show { display: flex; align-items: center; pointer-events: none; font-variant-numeric: tabular-nums; }
+.ev-date-show.is-empty { color: var(--ink-3); }
+.ev-datebox .ev-date-native { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; font-size: 16px; cursor: pointer; }
+.ev-datebox:focus-within .ev-date-show { outline: var(--stroke-2) solid var(--focus); outline-offset: 2px; }
 
 /* Start and end read as one pair. */
 .ev-two {
@@ -1263,17 +1285,6 @@ html.sheet-locked body {
 
 .ev-col { min-width: 0; }
 
-/* A group opens on a full ink rule, like the sections on Home. */
-.ev-group {
-    margin: var(--s7) 0 0;
-    padding: var(--s3) 0 0;
-    border: 0;
-    border-top: var(--rule) solid var(--ink);
-}
-
-.ev-group legend { float: left; width: 100%; padding: 0; }
-.ev-group legend + * { clear: both; }
-.ev-group legend { margin-bottom: var(--s1); }
 
 /* Separate pills; the filled one is the answer (the booking sheet's segment). */
 .ev-segment {
