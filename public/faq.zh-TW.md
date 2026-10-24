@@ -8,7 +8,7 @@
 
 ### 我要怎麼建立活動？
 
-點「Upcoming」旁邊的「+」，或側欄的「Create an event」。填好活動內容、時間和地點（地點從清單裡選；清單裡沒有的話，請 [Fisher](mailto:kuanfisher@gmail.com) 加上去），再選誰可以參加：所有人、限定名額，或只有你核准的人。活動也可以重複，例如每週四一直到學期結束。SportsCenter 和揪團啦所有人都可以建立活動；TSA 的活動只有 TSA 幹部可以建立。
+點「Upcoming」旁邊的「+」，或側欄的「Create an event」。填好活動內容、時間和地點（地點從清單裡選；清單裡沒有的話，請 [Fisher](mailto:lilai@fisherkuan.com) 加上去），再選誰可以參加：所有人、限定名額，或只有你核准的人。活動也可以重複，例如每週四一直到學期結束。SportsCenter 和揪團啦所有人都可以建立活動；TSA 的活動只有 TSA 幹部可以建立。
 
 建立完成後，Lilai 會給你這個活動的管理連結。請保留它：之後修改、取消活動，或核准、婉拒想參加的人，都要用這個連結。也可以把它分享給一起主辦的人。這支手機也會把它記在側欄的「You manage」裡。
 
@@ -67,7 +67,7 @@
 | TSA | 所有人 | TSA 幹部，用 TSA 行事曆連結 | 主辦人，或 TSA 幹部 |
 | 揪團啦 | 所有人 | 所有人，在 Lilai 建立 | 主辦人，用活動的管理連結 |
 
-TSA 幹部可以向 [Fisher](mailto:kuanfisher@gmail.com) 索取 TSA 行事曆連結。在手機上打開它之後，那支手機就可以建立 TSA 活動，並管理所有 TSA 活動。
+TSA 幹部可以向 [Fisher](mailto:lilai@fisherkuan.com) 索取 TSA 行事曆連結。在手機上打開它之後，那支手機就可以建立 TSA 活動，並管理所有 TSA 活動。
 
 ### 我還能在 Google 行事曆裡新增或修改活動嗎？
 
@@ -96,7 +96,7 @@ TSA 幹部可以向 [Fisher](mailto:kuanfisher@gmail.com) 索取 TSA 行事曆�
 ### App 出問題了，我可以找誰？
 
 - 先看過這份 FAQ，大部分問題這裡都有答案
-- 寄信給 [Fisher](mailto:kuanfisher@gmail.com)，說明你做了什麼、實際看到什麼。附上截圖會很有幫助
+- 寄信給 [Fisher](mailto:lilai@fisherkuan.com)，說明你做了什麼、實際看到什麼。附上截圖會很有幫助
 
 ### 這個 App 是誰在維護？
 
