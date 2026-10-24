@@ -1192,6 +1192,12 @@ html.sheet-locked body {
 
 .sheet-actions .btn { flex: 1 1 auto; }
 
+/* In a sheet, fields are as slim as the chips: 36px boxes and steppers, 16px text (the
+   least that stops iOS zooming in). A textarea keeps its own height. */
+.sheet .input { min-height: 36px; font-size: 16px; }
+.sheet .select { padding-right: 40px; background-position: right 10px center; background-size: 18px; }
+.sheet .ev-step { width: 36px; height: 36px; font-size: 20px; }
+
 /* In a sheet, a field's label takes the label style (13px 600), as in the booking queue. */
 .sheet .field label:not(.ev-check),
 .sheet .ev-label { font-size: 13px; font-weight: 600; line-height: 18px; margin-bottom: var(--s2); }
