@@ -119,7 +119,20 @@ function readRepeat(raw) {
  * being edited, so an event that has already started can still be corrected as long as its
  * start does not move.
  */
-function validateEvent(body, { mode = 'create', calendars = [], now = new Date(), current = null } = {}) {
+// The place, required: one of the owner's places (config/app.json `places`), spelled as the
+// list spells it. An edit may keep a place the event already had, so old events stay editable.
+function validatePlace(value, places, current) {
+    const name = text(value, MAX_LOCATION, 'location', 'The place');
+    if (!name) throw new EventInputError('location', 'Pick a place.');
+    if (!places || !places.length) return name;
+    const fold = (t) => String(t || '').trim().toLowerCase();
+    const match = places.find(p => fold(p.name) === fold(name));
+    if (match) return match.name;
+    if (current && name === String(current.location || '').trim()) return name;
+    throw new EventInputError('location', 'Pick a place from the list.');
+}
+
+function validateEvent(body, { mode = 'create', calendars = [], places = null, now = new Date(), current = null } = {}) {
     const title = text(body?.title, MAX_TITLE, 'title', 'A title', { required: true });
 
     const date = String(body?.date ?? '').trim();
@@ -146,7 +159,7 @@ function validateEvent(body, { mode = 'create', calendars = [], now = new Date()
         endTime,
         start,
         end,
-        location: text(body?.location, MAX_LOCATION, 'location', 'The place'),
+        location: validatePlace(body?.location, places, current),
         description: text(body?.description, MAX_DESCRIPTION, 'description', 'The description'),
         links: validateLinks(body?.links),
         limit: validateLimit(body?.limit),
@@ -236,7 +249,7 @@ function eventUrl(id, publicUrl) {
     return `${String(publicUrl || '').replace(/\/+$/, '')}/#event-${encodeURIComponent(id)}`;
 }
 
-function googleEventResource(row, { publicUrl } = {}) {
+function googleEventResource(row, { publicUrl, places } = {}) {
     const start = new Date(row.date);
     const endRaw = row.enddate || row.endDate;
     const end = endRaw && new Date(endRaw) > start ? new Date(endRaw) : new Date(start.getTime() + 2 * 3600000);
@@ -248,7 +261,9 @@ function googleEventResource(row, { publicUrl } = {}) {
         status: 'confirmed',
         extendedProperties: { private: { lilai: '1' } }
     };
-    if (row.location) resource.location = row.location;
+    // A place on the owner's list goes to Google with its address, so the copy opens in maps.
+    const place = row.location && (places || []).find(p => p.name === row.location && p.address);
+    if (row.location) resource.location = place ? `${place.name}, ${place.address}` : row.location;
     if (publicUrl && /^https?:\/\//.test(publicUrl)) resource.source = { title: 'Lilai', url: eventUrl(row.id, publicUrl) };
     return resource;
 }

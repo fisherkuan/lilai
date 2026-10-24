@@ -8,7 +8,7 @@ No, login is not required for any operation in the webapp, including viewing cal
 
 ### How do I make an event?
 
-Tap "+" next to "Upcoming", or "Create an event" in the sidebar. Fill in what, when and where, and choose who gets a place: anyone, up to a number of places, or only the people you approve. An event can repeat, for example every Thursday until the end of term. Anyone can make an event in SportsCenter and 揪團啦; TSA events are for TSA's admins.
+Tap "+" next to "Upcoming", or "Create an event" in the sidebar. Fill in what, when and where (pick the place from the list; if yours is missing, ask [Fisher](mailto:kuanfisher@gmail.com) to add it), and choose who gets a place: anyone, up to a number of places, or only the people you approve. An event can repeat, for example every Thursday until the end of term. Anyone can make an event in SportsCenter and 揪團啦; TSA events are for TSA's admins.
 
 When the event is made, Lilai gives you its management link. Keep it: it is how you edit or cancel the event, and how you accept or decline people who ask to join. Share it with anyone who hosts with you. This device also remembers it under "You manage".
 

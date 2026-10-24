@@ -896,7 +896,7 @@ app.post('/api/events', async (req, res) => {
     const calendars = publishedCalendars();
     let input;
     try {
-        input = hosting.validateEvent(req.body, { mode: 'create', calendars: calendars.map(c => c.name) });
+        input = hosting.validateEvent(req.body, { mode: 'create', calendars: calendars.map(c => c.name), places: placeList() });
     } catch (error) {
         if (inputError(res, error)) return;
         throw error;
@@ -1117,7 +1117,7 @@ async function logEdit(client, before) {
 // on, each keeping its own day.
 app.put('/api/host/:token/events/:eventId', async (req, res) => {
     const result = await withLinkedEvent(req, res, async (client, event) => {
-        const edit = hosting.validateEvent(req.body, { mode: 'edit', current: event });
+        const edit = hosting.validateEvent(req.body, { mode: 'edit', current: event, places: placeList() });
         await client.query(`UPDATE events SET ${EVENT_FIELDS_SQL}, ${NEEDS_PUSH_SQL} WHERE id = $1`,
             eventFieldParams(event.id, edit, edit.start, edit.end));
         await logEdit(client, event);
@@ -1262,18 +1262,16 @@ app.post('/api/calendar-access/:token/events/:eventId/manage', async (req, res) 
     res.status(201).json({ success: true, hostPath: `/host/${token}` });
 });
 
-// Places used before, for the place field's suggestions: the group meets in a handful of
-// venues, so most events start from one of them.
-app.get('/api/places', async (req, res) => {
-    const q = String(req.query.q || '').trim().slice(0, 60);
-    const pattern = `%${q.replace(/[\\%_]/g, c => `\\${c}`)}%`;
-    const result = await pool.query(
-        `SELECT location AS name FROM events
-         WHERE location IS NOT NULL AND location <> '' AND cancelled_at IS NULL AND location ILIKE $1
-         GROUP BY location ORDER BY COUNT(*) DESC, MAX(date) DESC LIMIT 8`,
-        [pattern]
-    );
-    res.json({ places: result.rows.map(r => r.name) });
+// The places an event can be at, as the owner keeps them in config/app.json (`places`), in the
+// owner's order. The form searches them itself (js/place-search.js).
+function placeList() {
+    return (appConfig.places || [])
+        .filter(p => p && typeof p.name === 'string' && p.name.trim())
+        .map(p => ({ name: p.name.trim(), address: p.address || '', aliases: Array.isArray(p.aliases) ? p.aliases : [] }));
+}
+
+app.get('/api/places', (req, res) => {
+    res.json({ places: placeList() });
 });
 
 // Donations API Routes
@@ -2772,6 +2770,7 @@ const publisher = createPublisher({
     pool,
     googleCalendar,
     publicUrl: appConfig.publicUrl || null,
+    places: placeList(),
     broadcast
 });
 

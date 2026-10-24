@@ -1275,6 +1275,36 @@ html.sheet-locked body {
 .ev-datebox .ev-date-native { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; font-size: 16px; cursor: pointer; }
 .ev-datebox:focus-within .ev-date-show { outline: var(--stroke-2) solid var(--focus); outline-offset: 2px; }
 
+/* Where: a search over the owner's places, best match first (js/place-search.js). The list
+   sits in the flow under the field, so the sheet's own scroll and the iOS keyboard never
+   clip it. */
+.ev-place-list {
+    list-style: none;
+    margin: var(--s2) 0 0;
+    padding: var(--s1);
+    border: 1px solid var(--hairline);
+    border-radius: var(--radius-control);
+    background: var(--paper);
+    max-height: 288px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}
+.ev-place-list [role="option"] {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 2px;
+    min-height: 44px;
+    padding: var(--s2) var(--s3);
+    border-radius: 8px;
+    cursor: pointer;
+}
+.ev-place-list [aria-selected="true"] { background: var(--fill); }
+@media (hover: hover) { .ev-place-list [role="option"]:hover { background: var(--fill); } }
+.ev-place-name { font-size: 15px; font-weight: 600; overflow-wrap: anywhere; }
+.ev-place-address { font-size: 13px; color: var(--ink-2); overflow-wrap: anywhere; }
+.ev-place-none { padding: var(--s2) var(--s3); font-size: 14px; color: var(--ink-2); }
+
 /* Start and end read as one pair. */
 .ev-two {
     display: grid;

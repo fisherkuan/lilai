@@ -32,13 +32,13 @@ function pushAction(row) {
     return Number(row.synced_version) === 0 ? 'insert' : 'update';
 }
 
-function createPublisher({ pool, googleCalendar, publicUrl, broadcast = () => {}, intervalMs = 30000 }) {
+function createPublisher({ pool, googleCalendar, publicUrl, places = [], broadcast = () => {}, intervalMs = 30000 }) {
     let timer = null;
     let running = false;
     let again = false;
 
     async function upsertCopy(row, action) {
-        const resource = googleEventResource(row, { publicUrl });
+        const resource = googleEventResource(row, { publicUrl, places });
         const calendarId = row.google_calendar_id;
         const eventId = row.google_event_id;
         if (action === 'insert') {

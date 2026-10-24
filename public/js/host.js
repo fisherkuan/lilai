@@ -437,7 +437,7 @@
             await navigator.clipboard.writeText(pageUrl);
             $('share-title').textContent = 'Copied';
             clearTimeout(copiedTimer);
-            copiedTimer = setTimeout(() => { $('share-title').textContent = 'Copy link'; }, 2000);
+            copiedTimer = setTimeout(() => { $('share-title').textContent = 'Copy management link'; }, 2000);
         } catch (_) {
             message = `Copy this link: ${pageUrl}`;
         }

@@ -122,9 +122,12 @@
                 <p class="field-error" data-error-for="repeat" role="alert" hidden></p>
             </div>` : ''}
             <div class="field">
-                <label for="${p}-location">Where <span class="ev-optional">optional</span></label>
-                <input type="text" id="${p}-location" class="input" maxlength="255" autocomplete="off" list="${p}-places">
-                <datalist id="${p}-places"></datalist>
+                <label for="${p}-location">Where</label>
+                <div class="ev-place">
+                    <input type="text" id="${p}-location" class="input" maxlength="255" autocomplete="off" spellcheck="false"
+                        placeholder="Search places" role="combobox" aria-expanded="false" aria-autocomplete="list" aria-controls="${p}-place-list">
+                    <ul class="ev-place-list" id="${p}-place-list" role="listbox" aria-label="Places" hidden></ul>
+                </div>
                 <p class="field-error" data-error-for="location" role="alert" hidden></p>
             </div>
         </section>
@@ -211,7 +214,7 @@
             input.addEventListener('click', () => { try { input.showPicker(); } catch (_) { /* not supported */ } });
         });
 
-        const state = { calendar: null, limited: false, approval: false, repeatOn: false, weekdays: [], endTouched: false };
+        const state = { calendar: null, limited: false, approval: false, repeatOn: false, weekdays: [], endTouched: false, keptPlace: '' };
         const linkEditor = EventLinks.create(part('links'));
 
         // ---------- Radio groups of buttons, with arrow keys like native radios ----------
@@ -354,16 +357,77 @@
             });
         }
 
-        // ---------- Places used before, as the place is typed ----------
-        const places = debounce(async () => {
-            try {
-                const res = await fetch(`/api/places?q=${encodeURIComponent($('location').value)}`);
-                const body = await res.json();
-                $('places').innerHTML = (body.places || []).map(name => `<option value="${escapeHtml(name)}"></option>`).join('');
-            } catch (_) { /* suggestions are a convenience */ }
-        }, 150);
-        $('location').addEventListener('focus', places);
-        $('location').addEventListener('input', places);
+        // ---------- Where: search the owner's places, the closest match first ----------
+        // Loaded once; js/place-search.js ranks them as the place is typed. A place not on the
+        // list cannot be picked, except the one an edited event already had (state.keptPlace).
+        let placeList = [];
+        let placeMatches = [];
+        let placeActive = -1;
+        const placeInput = $('location');
+        const placeBox = $('place-list');
+        const placesReady = fetch('/api/places').then(r => r.json())
+            .then(body => { placeList = body.places || []; })
+            .catch(() => { /* the server still checks the place */ });
+        const findPlace = (name) => placeList.find(pl => PlaceSearch.fold(pl.name) === PlaceSearch.fold(name));
+        function drawPlaces() {
+            placeMatches = PlaceSearch.rank(placeList, placeInput.value, 8);
+            placeActive = placeInput.value.trim() && placeMatches.length ? 0 : -1;
+            placeBox.innerHTML = placeMatches.length
+                ? placeMatches.map((pl, i) => `<li role="option" id="${p}-place-${i}" data-index="${i}" aria-selected="${i === placeActive}">`
+                    + `<span class="ev-place-name">${escapeHtml(pl.name)}</span>`
+                    + (pl.address ? `<span class="ev-place-address">${escapeHtml(pl.address)}</span>` : '') + '</li>').join('')
+                : `<li class="ev-place-none" role="presentation">No place matches. Ask the admins to add it.</li>`;
+            openPlaces(true);
+        }
+        function openPlaces(open) {
+            placeBox.hidden = !open;
+            placeInput.setAttribute('aria-expanded', String(open));
+            markActive();
+        }
+        function markActive() {
+            placeBox.querySelectorAll('[role="option"]').forEach((li, i) => li.setAttribute('aria-selected', String(i === placeActive)));
+            const active = placeActive >= 0 ? $(`place-${placeActive}`) : null;
+            if (active) { placeInput.setAttribute('aria-activedescendant', active.id); active.scrollIntoView({ block: 'nearest' }); }
+            else placeInput.removeAttribute('aria-activedescendant');
+        }
+        function choosePlace(pl) {
+            placeInput.value = pl.name;
+            openPlaces(false);
+            const error = container.querySelector('[data-error-for="location"]');
+            if (error) { error.hidden = true; error.textContent = ''; }
+        }
+        placeInput.addEventListener('focus', () => placesReady.then(() => { if (document.activeElement === placeInput) drawPlaces(); }));
+        placeInput.addEventListener('input', drawPlaces);
+        placeInput.addEventListener('keydown', (e) => {
+            const open = !placeBox.hidden;
+            if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+                e.preventDefault();
+                if (!open) return drawPlaces();
+                if (!placeMatches.length) return;
+                const step = e.key === 'ArrowDown' ? 1 : -1;
+                placeActive = (placeActive + step + placeMatches.length) % placeMatches.length;
+                markActive();
+            } else if (e.key === 'Enter' && open && placeActive >= 0) {
+                e.preventDefault();
+                choosePlace(placeMatches[placeActive]);
+            } else if (e.key === 'Escape' && open) {
+                e.preventDefault();
+                e.stopPropagation();
+                openPlaces(false);
+            }
+        });
+        // pointerdown keeps the focus in the field, so the tap lands before the list closes.
+        placeBox.addEventListener('pointerdown', (e) => e.preventDefault());
+        placeBox.addEventListener('click', (e) => {
+            const li = e.target.closest('[role="option"]');
+            if (li) choosePlace(placeMatches[Number(li.dataset.index)]);
+        });
+        placeInput.addEventListener('blur', () => {
+            openPlaces(false);
+            // A name typed in full takes the list's own spelling.
+            const exact = findPlace(placeInput.value);
+            if (exact) placeInput.value = exact.name;
+        });
 
         // ---------- Errors ----------
         function clearErrors() {
@@ -407,6 +471,7 @@
                 setTime($('end'), values.end);
                 state.endTouched = Boolean(values.end);
                 $('location').value = values.location || '';
+                state.keptPlace = values.location || '';
                 $('description').value = values.description || '';
                 linkEditor.set(values.links || []);
                 const limited = values.limit !== null && values.limit !== undefined && values.limit !== '';
@@ -426,6 +491,7 @@
                 state.approval = false;
                 pick('approval', 'approval', 'false');
                 state.endTouched = false;
+                state.keptPlace = '';
                 if (mode === 'create') {
                     state.weekdays = [];
                     $('every').value = '1';
@@ -467,6 +533,11 @@
                 if (!body.title.trim()) return !showError('title', 'Give it a title.');
                 if (!body.date || !body.start) return !showError('start', 'Pick a day and a start time.', $(body.date ? 'start' : 'date'));
                 if (!body.end) return !showError('end', 'Pick an end time.', $('end'));
+                const place = body.location.trim();
+                if (!place) return !showError('location', 'Pick a place.');
+                if (placeList.length && !findPlace(place) && place !== state.keptPlace) {
+                    return !showError('location', 'Pick a place from the list.');
+                }
                 const badLink = linkEditor.invalid();
                 if (badLink) return !showError('links', 'That is not a web address. It starts with https://', badLink);
                 if (mode === 'create') {

@@ -14,6 +14,7 @@ const base = {
     date: '2026-11-07',
     start: '19:00',
     end: '22:00',
+    location: 'Optimist',
     hostName: 'Mei'
 };
 const make = (body) => validateEvent(body, { mode: 'create', calendars, now: NOW });
@@ -72,11 +73,31 @@ test('the form refuses what it cannot make', () => {
 
 test('an edit may keep a start that has passed, but not move one into the past', () => {
     const current = { date: new Date('2026-10-24T08:00:00Z') }; // 10:00 Brussels, two hours ago
-    const edit = { title: 'Brunch', date: '2026-10-24', start: '10:00', end: '12:00', scope: 'later' };
+    const edit = { title: 'Brunch', date: '2026-10-24', start: '10:00', end: '12:00', location: 'Optimist', scope: 'later' };
     const e = validateEvent(edit, { mode: 'edit', now: NOW, current });
     assert.equal(e.scope, 'later');
     assert.equal(e.calendar, undefined);
     assert.equal(fieldOf({ ...edit, start: '09:00' }, { mode: 'edit', now: NOW, current }), 'start');
+});
+
+test('the place is required, and one of the owner\'s places when there is a list', () => {
+    const places = [{ name: 'TSH 1', address: 'Topsporthal, Tervuursevest 101, 3001 Leuven' }, { name: 'Optimist' }];
+    const withList = { mode: 'create', calendars, places, now: NOW };
+    assert.equal(fieldOf({ ...base, location: ' ' }), 'location');
+    assert.equal(fieldOf({ ...base, location: 'My kitchen' }, withList), 'location');
+    assert.equal(validateEvent({ ...base, location: 'tsh 1' }, withList).location, 'TSH 1'); // the list's spelling
+    // An edit keeps an old place the event already had, but cannot move to a new one off the list.
+    const current = { date: new Date('2026-11-07T18:00:00Z'), location: 'Gymnasium\nTervuursevest 101' };
+    const edit = { title: 'Hot pot', date: '2026-11-07', start: '19:00', end: '22:00', location: current.location };
+    assert.equal(validateEvent(edit, { mode: 'edit', places, now: NOW, current }).location, current.location);
+    assert.equal(fieldOf({ ...edit, location: 'Somewhere new' }, { mode: 'edit', places, now: NOW, current }), 'location');
+});
+
+test('the Google copy sends a listed place with its address', () => {
+    const places = [{ name: 'TSH 1', address: 'Topsporthal, Tervuursevest 101, 3001 Leuven' }];
+    const row = { id: 'cal-x@google.com', title: 'Badminton', date: '2026-11-07T18:00:00Z', location: 'TSH 1' };
+    assert.equal(googleEventResource(row, { places }).location, 'TSH 1, Topsporthal, Tervuursevest 101, 3001 Leuven');
+    assert.equal(googleEventResource({ ...row, location: 'Old hall' }, { places }).location, 'Old hall');
 });
 
 test('later dates of a series take the new clock times on their own day', () => {

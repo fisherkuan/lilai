@@ -83,10 +83,11 @@ Vanilla JavaScript with no build step.
 - `js/sheet.js` - Shared behaviour for every sheet (`.modal`, `.bs-root`), on every page with feedback: locks the page scroll while one is open, keeps the sheet above the iOS keyboard (`--vv-top`/`--vv-h` from `visualViewport`), and makes the grabber work on phones (drag up for full screen, down to go back or dismiss, tap to toggle; `settle` tested in `tests/sheet.test.js`). Sheets do not touch `body.style.overflow` themselves
 - `js/make-event.js` - Home's "Make an event" slide-in (`#event-sheet`), opened by any `[data-make-event]` button (the "+" by the view switch, the sidebar button) and by `/#new` or `/#new=<calendar>`. `/events/new` redirects there. After making, it shows the management link with Copy and Share. It also renders "You manage" in Home's hosting card (`renderHosted`, called again by `app.js` once events load, for the time and who is coming); a management link entry stores `eventId` and `calendar` for that
 - `js/lost-link.js` - Home's "Lost a management link?" sheet (sidebar button, `/#lost-link`, linked from the FAQ): where the link may still be, then "Ask the admins" (event, host name, email) sent through `/api/feedback` with `page: lost-link`. An admin checks the host and replies with a new link minted by a calendar key's Manage
-- `js/event-form.js` - `EventForm.create(container, { mode })`: the one form for making (`create`: calendar, repeat, host) and editing (`edit`) an event. Repeat preview from `/api/events/repeat-preview`, place suggestions from `/api/places`
+- `js/event-form.js` - `EventForm.create(container, { mode })`: the one form for making (`create`: calendar, repeat, host) and editing (`edit`) an event. Repeat preview from `/api/events/repeat-preview`. Where is required and searches the owner's places (`/api/places`, ranked by `js/place-search.js`)
+- `js/place-search.js` - `PlaceSearch.rank(places, query)`: the owner's places, closest match first (exact, start, word start, inside, every word, then aliases and addresses; letters-in-order guesses only when nothing else matches). Ignores case, accents and spaces. Tested in `tests/place-search.test.js`
 - `js/event-links.js` - An event's links: `listHtml` draws them on cards and the RSVP sheet (name, else the site), `create` is the link editor inside the event form. Tested in `tests/event-links.test.js`
 - `js/device-links.js` - What this device holds: management links (`lilai.hostedEvents`, listed as "You manage" in Home's sidebar) and calendar keys (`lilai.calendarKeys`), plus `share()` (Web Share, else the clipboard)
-- `host.html` + `js/host.js` - An event's management page (`/host/:token`): the Google copy's status, Edit (the event form in a sheet), Copy link (the page address, cut off, with a copy icon), Cancel / Restore, the dates of a series, and who is coming or asked to join (Accept / Decline / Undo). Live over WebSocket
+- `host.html` + `js/host.js` - An event's management page (`/host/:token`): the Google copy's status, Edit (the event form in a sheet), Copy management link (the page address, cut off, with a copy icon), Cancel / Restore, the dates of a series, and who is coming or asked to join (Accept / Decline / Undo). Live over WebSocket
 - `calendar.html` + `js/calendar-page.js` - A calendar key's page (`/calendars/:token`): stores the key on the device, lists the calendar's upcoming events with Manage (mints a management link), "Make a <calendar> event", Share
 - `sw.js` - Service worker for PWA support. It never caches `/host/`, `/calendars/` or their APIs: those carry secret links
 
@@ -104,6 +105,7 @@ Central configuration file with:
 - `events.autoFetch` - The legacy feed, for a calendar not yet imported. Harmless once every calendar is
 - `events.defaultTimeRange` - Default filter ("future", "past", "all")
 - `events.defaultCreateCalendar` - The calendar pre-selected in Make an event. Must match a `calendars[].name`
+- `places[]` - The places an event can be at (`{name, address?, aliases?}`), kept by the owner for consistent names. An event's place must be one of them (an edit may keep an older place the event already had); the name is stored, and the Google copy gets "name, address". Edit the list here and restart; there is no admin page for it
 - `rsvp` - RSVP behavior settings
 - `joinGroupUrl` - Link to external group (displayed in UI)
 
@@ -189,7 +191,7 @@ Required in `.env`:
 - `POST /api/host/:token/events/:eventId/requests/:rsvpId` - Body `{decision: accept|decline|undo}`. Accept respects the limit under a row lock (409 when full)
 - `GET /api/calendar-access/:token` - A calendar key's calendar and its upcoming events
 - `POST /api/calendar-access/:token/events/:eventId/manage` - Mints a management link for one of that calendar's events (a series gets one link for all its dates)
-- `GET /api/places?q=` - Places used before, most used first (the place field's suggestions)
+- `GET /api/places` - The owner's places from `config/app.json`, in the owner's order (`{places: [{name, address, aliases}]}`); the form ranks them itself
 - `POST /api/rsvp` - Submit RSVP (body: `{eventId, action: "add"|"remove", attendeeName}`). A cancelled event is not found. On an approval event, `add` asks to join: the row is `pending`, the answer carries `pending: true`, and one open request per name. Answers and the `attendance_update` broadcast carry `attendees`, `attendingCount` and `pendingCount`
 - Public event JSON never includes `host_email` or the publishing bookkeeping (`publicEvent` in `server/event-hosting.js`), and never a cancelled event
 
