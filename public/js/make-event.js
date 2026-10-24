@@ -120,11 +120,9 @@
         document.getElementById('event-made-share').hidden = !navigator.share;
         const email = body.hostEmail.trim();
         const emailed = document.getElementById('event-made-emailed');
-        emailed.textContent = !email
-            ? 'No email given. This link is the only way back to this event. Copy it now.'
-            : result.emailed ? `Emailed to ${email}.` : 'Could not email it. Copy it now.';
-        emailed.classList.toggle('ev-warn', !email || !result.emailed);
-        emailed.hidden = false;
+        emailed.textContent = result.emailed ? `Emailed to ${email}.` : 'Could not email it. Copy it now.';
+        emailed.classList.toggle('ev-warn', !result.emailed);
+        emailed.hidden = !email;
         // Only the caveat: a working publish needs no line.
         const publish = document.getElementById('event-made-publish');
         publish.hidden = result.publishing;

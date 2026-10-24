@@ -440,7 +440,7 @@ One easing, `cubic-bezier(0.16, 1, 0.3, 1)`, drives every movement. Shapes scale
 ## Do's and Don'ts
 
 ### Do:
-- **Do** let the design explain itself (owner, 2026-10-24). Labels, layout and state carry the meaning; a hint line is added only for a caveat or something a person could not see coming: who gets told, what cannot be undone, what a link unlocks, where a default comes from. No line restates what a label, heading or button already says, and no line explains how a feature works when using it shows that. A caveat the person must act on (no email given, a failed email) is `.ev-warn`: ink, 600, a 2px ink rule at its left, never red.
+- **Do** let the design explain itself (owner, 2026-10-24). Labels, layout and state carry the meaning; a hint line is added only for a caveat or something a person could not see coming: who gets told, what cannot be undone, what a link unlocks, where a default comes from. No line restates what a label, heading or button already says, and no line explains how a feature works when using it shows that. A caveat the person must act on (a failed email) is `.ev-warn`: ink, 600, a 2px ink rule at its left, never red.
 - **Do** take colours, strokes, radii and Jost from the kit's `tokens.css`, and change them in `~/code/bauhaus` first.
 - **Do** give each calendar its shape in config order (circle/blue, square/red, triangle/yellow) and the ink diamond to the fourth and later calendars and unsourced events.
 - **Do** draw every shape with a flat fill and a 1.5px ink contour.
