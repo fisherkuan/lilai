@@ -27,7 +27,7 @@ The server runs on `http://localhost:3000` by default (configurable via PORT env
 ### Database
 - PostgreSQL is used for production (connection via `DATABASE_URL` env var)
 - Database schema is auto-initialized on server startup via `initializeDatabase()` in server/app.js
-- Tables: `events`, `rsvps`, `places`, `admin_codes`, `admin_sessions`, `event_series`, `event_host_links`, `event_activity`, `calendar_keys`, `calendar_state`, `donations`, `feedback`, `booking_queue`, `booking_profiles`, `booking_series`
+- Tables: `events`, `rsvps`, `places`, `admin_codes`, `admin_sessions`, `event_series`, `event_host_links`, `event_activity`, `calendar_keys`, `calendar_state`, `donations`, `feedback`, `booking_queue`, `booking_profiles`, `booking_series`, `contacts`, `contact_tokens`, `device_sessions`
 - `rsvps.attendance` is `yes` (holds a seat), `pending` (asked to join an approval event) or `declined` (the host said no). Every count of who is coming filters on `yes`
 - Schema migrations are idempotent and run automatically on startup
 
@@ -92,7 +92,8 @@ Vanilla JavaScript with no build step.
 - `js/device-links.js` - What this device holds: management links (`lilai.hostedEvents`, listed as "You manage" in Home's sidebar) and calendar keys (`lilai.calendarKeys`), plus `share()` (Web Share, else the clipboard)
 - `host.html` + `js/host.js` - An event's management page (`/host/:token`): the Google copy's status, Edit (the event form in a sheet), Copy management link (the page address, cut off, with a copy icon), Cancel / Restore, the dates of a series, and who is coming or asked to join (Accept / Decline / Undo). Live over WebSocket
 - `calendar.html` + `js/calendar-page.js` - A calendar key's page (`/calendars/:token`): stores the key on the device, lists the calendar's upcoming events with Manage (mints a management link), "Make a <calendar> event", Share
-- `sw.js` - Service worker for PWA support. It never caches `/host/`, `/calendars/` or their APIs: those carry secret links
+- `me.html` + `js/me.js` - Find my events (`/me`, linked from Home's sidebar and the lost-link sheet): type an email, open the emailed link (`/me/signin/<token>`, one tap, because mail scanners open links), and this device lists the events that address hosts and joined. Manage mints a management link and keeps it under "You manage"; Sign out; Delete my email
+- `sw.js` - Service worker for PWA support. It never caches `/host/`, `/calendars/`, `/me` or their APIs: those carry secret links or a person's events
 
 **Client-side features:**
 - WebSocket connection for real-time attendance updates
@@ -124,6 +125,7 @@ Central configuration file with:
 - `server/google-calendar.js` - Service-account JWT sign-in and `insertEvent` / `updateEvent` / `deleteEvent` / `listEvents`, no SDK
 - `server/calendar-access.js` + `scripts/calendar-link.js` - Calendar keys (`calendar_keys`, hash only). `heroku run -a lilai-eu node scripts/calendar-link.js TSA --label "TSA admins"` prints a `/calendars/<token>` link once; `--revoke` stops the earlier ones. A key lets a device make events in a restricted calendar and mint a management link for any event in that calendar
 - Management links: `event_host_links` maps a token hash to one event or one series. Made when an event is made (emailed to the host when `hostEmail` and Resend are set) and when a calendar key holder opens Manage. No accounts, in line with the RSVP trust model; whoever has the link is a host
+- Find my events (`server/contacts.js`, #55 phase 1): an address that made an event (`events.host_email`, any case) or was confirmed before gets a sign-in link (30 minutes, once, 3 an hour per address, 20 an hour per network; the answer is the same for every address). Opening it confirms the address in `contacts` and sets the `lilai_session` cookie (90 days, `device_sessions`, hashes only). `rsvps.contact_email` exists for phase 2's "Email me about changes" and is already listed under "You joined". Delete my email clears the address from events and RSVPs and ends its sessions; names stay. Design: `.plans/VERIFIED_CONTACT_plan.md`
 - Activity: `event_activity` (`server/event-activity.js`) logs what happened to each event: made, joined, asked, left, accepted, declined, removed, readded, reasked, edited (with the fields that changed), cancelled, restored. Each row is written in the transaction of the change it records. A row names the person a change was about, never who made it. When the table is first created it is seeded from the places and requests already in `rsvps`. The management page shows it (`activity` in `GET /api/host/:token`)
 - Repeating events: a repeat rule (`server/booking-repeat.js`: every N days / weeks on chosen weekdays / months, until a date, at most 52) expands into ordinary rows sharing `series_id` (`event_series.rule`). Each date has its own RSVPs, approval queue and single Google copy. Edit and Cancel take `scope: this | later`; later dates keep their own day and take the new clock times and everything else. The rule is fixed once made
 - Cancel sets `cancelled_at` (hidden from every public read, RSVPs kept, Google copy deleted); Restore clears it
@@ -152,6 +154,7 @@ Required in `.env`:
 - `RESEND_API_KEY` - Optional. Without it feedback is saved but not emailed
 - `FEEDBACK_EMAIL_TO` - Optional, comma-separated; overrides the default inbox `lilai@fisherkuan.com`
 - `FEEDBACK_EMAIL_FROM` - Optional. Needs a domain verified in Resend, else the default `onboarding@resend.dev` only delivers to the Resend account's own address
+- `NOTIFY_EMAIL_FROM` - Optional. Sender of Find my events sign-in links; falls back to `FEEDBACK_EMAIL_FROM`. Without `RESEND_API_KEY` the page answers 503
 - `GOOGLE_SERVICE_ACCOUNT_JSON` - A Google service account key (the JSON file, or base64 of it) that publishes events to the Google calendars and runs the one-time import. Share every calendar in `config/app.json` with its `client_email` ("Make changes to events"); the address is logged at startup. Without it events still work in Lilai and their copies wait. A value that does not parse stops startup
 - `GOOGLE_MAPS_API_KEY` - Optional. A Google Cloud API key with Places API (New) enabled; turns on Google Maps search in Where and on `/admin/places`. The key may be restricted to the website `lilai.fisherkuan.com` ("Websites" in Cloud Console): the server sends `publicUrl` as Referer. A local run with `PUBLIC_URL=localhost` is then refused, so test search against production's address or with an unrestricted key. Each search is one billed Autocomplete request (10,000 free a month); cap the daily quota in Cloud Console so it cannot bill
 - `ADMIN_EMAILS` - Optional, comma-separated. Who may sign in to the admin (default `lilai@fisherkuan.com`). Taking an address off ends its sessions
@@ -203,6 +206,14 @@ Required in `.env`:
 - `POST /api/places`, `PUT /api/places/:id`, `DELETE /api/places/:id`, `PUT /api/places/order` (`{ids}`) - The saved places' admin, behind `X-Admin-Key`. A second place with the same name (any case) is 409 on `name`. Removing a place never touches events already there
 - `POST /api/rsvp` - Submit RSVP (body: `{eventId, action: "add"|"remove", attendeeName}`). A cancelled event is not found. On an approval event, `add` asks to join: the row is `pending`, the answer carries `pending: true`, and one open request per name. Answers and the `attendance_update` broadcast carry `attendees`, `attendingCount` and `pendingCount`
 - Public event JSON never includes `host_email` or the publishing bookkeeping (`publicEvent` in `server/event-hosting.js`), and never a cancelled event
+
+### Find my events Endpoints
+`server/contacts.js`.
+- `POST /api/me/link` - Body `{email}`. Mails a sign-in link to a known address; the same `{success}` for any address. 400 bad address, 429 too many tries from one network, 503 without email
+- `POST /api/me/session` - Body `{token}`. Redeems the link once and sets `lilai_session`; 401 when used or expired
+- `GET /api/me` - `{email, upcoming, past, joined}` (a series shows once, with `count`), or 401
+- `POST /api/me/events/:eventId/manage` - A fresh management link (`created_via = 'email'`) for an event the address hosts; 404 otherwise
+- `DELETE /api/me/session` - Sign out this device. `DELETE /api/me` - Delete my email
 
 ### Donation Endpoints
 - `GET /api/donations` - Get donations with balance (query param: `limit`)

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'lilai-cache-v73'; // Bumped version
+const CACHE_NAME = 'lilai-cache-v74'; // Bumped version
 const urlsToCache = [
   '/',
   '/index.html',
@@ -80,10 +80,11 @@ function isOurCode(url) {
             || url.pathname.startsWith('/api/'));
 }
 
-// Management and calendar pages, and their answers, carry a secret link: never into Cache Storage.
+// Management, calendar and Find my events pages, and their answers, carry a secret link or a
+// person's events: never into Cache Storage.
 function isHostTraffic(url) {
     return url.origin === self.location.origin
-        && ['/host/', '/api/host/', '/calendars/', '/api/calendar-access/'].some(p => url.pathname.startsWith(p));
+        && ['/host/', '/api/host/', '/calendars/', '/api/calendar-access/', '/me', '/api/me'].some(p => url.pathname.startsWith(p));
 }
 
 self.addEventListener('fetch', (event) => {

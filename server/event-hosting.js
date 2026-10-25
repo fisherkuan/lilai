@@ -461,7 +461,9 @@ async function mailHostLink({ to, title, url, count = 1 }, env = process.env, fe
                 'Edit it, cancel it, and see who is coming here:',
                 url,
                 '',
-                'Anyone with this link can manage the event. Share it only with people who host with you.'
+                'Anyone with this link can manage the event. Share it only with people who host with you.',
+                '',
+                `Lost it? Open ${new URL('/me', url).href} and type this email address.`
             ].join('\n')
         })
     });

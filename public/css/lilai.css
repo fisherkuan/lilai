@@ -1543,7 +1543,8 @@ html.sheet-locked body {
 .side-create { gap: var(--s2); }
 .side-create-plus { font-size: 20px; line-height: 1; margin-top: -2px; }
 .side-host .ev-hosted { margin-top: var(--s5); }
-.side-lost { margin-top: var(--s3); }
+.side-lost { display: flex; width: fit-content; margin-top: var(--s3); }
+.side-lost + .side-lost { margin-top: 0; }
 .hosted-rows { list-style: none; margin: var(--s2) 0 0; padding: 0; border-top: var(--rule) solid var(--ink); }
 .hosted-rows li + li { border-top: 1px solid var(--hair); }
 .hosted-row {

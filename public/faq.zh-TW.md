@@ -75,7 +75,11 @@ TSA 幹部可以向 [Fisher](mailto:lilai@fisherkuan.com) 索取 TSA 行事曆�
 
 ### 我弄丟活動的管理連結了，怎麼辦？
 
-如果建立活動時有填 email，在信箱搜尋「Lilai」；或在你建立活動的那支手機或瀏覽器上，看看側欄的「You manage」。都找不到的話，請到首頁按 [Lost a management link?](/#lost-link)：管理員確認活動是你的之後，會用 email 寄新的連結給你。TSA 的活動也可以找 TSA 幹部。
+如果建立活動時有填 email，請到 [Find my events](/me)：輸入那個 email，打開 Lilai 寄給你的連結，用這個 email 建立的活動都會列出來，每個都有 Manage 按鈕。也可以在你建立活動的那支手機或瀏覽器上，看看側欄的「You manage」。都找不到的話，請到首頁按 [Lost a management link?](/#lost-link)：管理員確認活動是你的之後，會用 email 寄新的連結給你。TSA 的活動也可以找 TSA 幹部。
+
+### Lilai 會怎麼保存我的 email？
+
+只保存你給的。建立活動時填了 email，Lilai 會把它跟那個活動存在一起，把管理連結寄到這個信箱，並讓你之後用 [Find my events](/me) 找回你的活動。其他人都看不到它：報名的人看不到，其他主辦人也看不到。Lilai 不會寄其他信給你，登入連結只能用一次，30 分鐘內有效。在 Find my events 按「Delete my email」，就會把它從所有活動移除，並登出所有裝置；你的活動和名字會保留。
 
 ### 我一個活動都看不到，是哪裡有問題？
 
