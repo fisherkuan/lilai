@@ -40,13 +40,13 @@ function mailFrom(env) {
     return env.NOTIFY_EMAIL_FROM || env.FEEDBACK_EMAIL_FROM || 'Lilai <onboarding@resend.dev>';
 }
 
-function buildSignInMail(to, url, env = process.env, { purpose = 'events' } = {}) {
+function buildSignInMail(to, url, env = process.env, { purpose = 'signin' } = {}) {
     return {
         from: mailFrom(env),
         to: [to],
         subject: 'Your Lilai sign-in link',
         text: [
-            purpose === 'chat' ? 'Open this link to post in an event chat on Lilai:' : 'Open this link to see the events you host on Lilai:',
+            purpose === 'chat' ? 'Open this link to post in an event chat on Lilai:' : 'Open this link to sign in to Lilai:',
             url,
             '',
             'It works once, for 30 minutes, on the device you open it on.',
@@ -133,26 +133,13 @@ function createContacts({ pool, env = process.env, fetchImpl = fetch, now = () =
         return true;
     }
 
-    // An address may sign in when it made an event or was confirmed before (and not deleted).
-    async function knownAddress(email) {
-        const result = await pool.query(
-            `SELECT EXISTS (SELECT 1 FROM events WHERE lower(host_email) = $1)
-                 OR EXISTS (SELECT 1 FROM contacts WHERE email = $1 AND verified_at IS NOT NULL AND deleted_at IS NULL) AS known`,
-            [email]
-        );
-        return result.rows[0].known;
-    }
-
     /*
-     * Mails a sign-in link to a known address. The answer is the same for every address, so
-     * the form never tells whose address made an event. Throws a { status, message } error
-     * only for what does not depend on the address: a bad address, too many tries from one
-     * network, or a server without email.
-     *
-     * An event chat signs in any address (`anyAddress`): posting is open to anyone who proves
-     * an email, and `next` takes them back to the thread they came from.
+     * Mails a sign-in link to any address: opening it proves the address, which is all a
+     * session needs. Throws a { status, message } error for a bad address, too many tries from
+     * one network, or a server without email. `next` takes the person back where they came
+     * from (an event's chat).
      */
-    async function requestSignIn(emailInput, { ip, baseUrl, anyAddress = false, next = '' }) {
+    async function requestSignIn(emailInput, { ip, baseUrl, next = '' }) {
         const email = normalEmail(emailInput);
         if (!looksLikeEmail(email)) throw Object.assign(new Error('That email address does not look right.'), { status: 400, field: 'email' });
         if (!env.RESEND_API_KEY) {
@@ -162,13 +149,13 @@ function createContacts({ pool, env = process.env, fetchImpl = fetch, now = () =
         if (!ipAllowed(ip || 'unknown')) {
             throw Object.assign(new Error('Too many tries from this network. Try again in an hour.'), { status: 429 });
         }
-        if (!anyAddress && !(await knownAddress(email))) return;
         const sent = await pool.query(
             'SELECT COUNT(*)::int AS n FROM contact_tokens WHERE email = $1 AND created_at > $2',
             [email, new Date(now().getTime() - HOUR_MS)]
         );
         if (sent.rows[0].n >= LINKS_PER_HOUR) return;
 
+        const back = safeNext(next);
         const token = hosting.newToken();
         await pool.query(
             'INSERT INTO contact_tokens (token_hash, email, purpose, created_at, expires_at) VALUES ($1, $2, $3, $4, $5)',
@@ -177,7 +164,7 @@ function createContacts({ pool, env = process.env, fetchImpl = fetch, now = () =
         const res = await fetchImpl('https://api.resend.com/emails', {
             method: 'POST',
             headers: { Authorization: `Bearer ${env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify(buildSignInMail(email, signInUrl(baseUrl, token, safeNext(next)), env, { purpose: anyAddress ? 'chat' : 'events' }))
+            body: JSON.stringify(buildSignInMail(email, signInUrl(baseUrl, token, back), env, { purpose: back.startsWith('/#chat-') ? 'chat' : 'signin' }))
         });
         if (!res.ok) console.error('[contacts] sign-in mail', res.status, await res.text());
     }

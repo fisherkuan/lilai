@@ -1345,7 +1345,7 @@ app.post('/api/events/:id/messages/signin', chatRoute(async (req, res) => {
     const eventId = String(req.params.id);
     try {
         await contacts.requestSignIn(req.body?.email, {
-            ip: req.ip, baseUrl: publicUrl(req), anyAddress: true, next: `/#chat-${encodeURIComponent(eventId)}`
+            ip: req.ip, baseUrl: publicUrl(req), next: `/#chat-${encodeURIComponent(eventId)}`
         });
     } catch (error) {
         if (!error.status) throw error;

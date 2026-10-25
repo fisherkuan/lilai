@@ -89,7 +89,7 @@
             const { ok, result } = await api('/api/me/link', { method: 'POST', body: JSON.stringify({ email: typed }) });
             if (!ok) return showError('me-error', result.message || 'That did not go through. Try again.');
             $('me-form').hidden = true;
-            $('me-sent-text').textContent = `If ${typed} is on Lilai, a link is on its way. It works once, for 30 minutes.`;
+            $('me-sent-text').textContent = `A link is on its way to ${typed}. It works once, for 30 minutes.`;
             $('me-sent').hidden = false;
             $('me-sent').focus();
         } catch (_) {
@@ -185,7 +185,7 @@
         $('me-upcoming-count').textContent = data.upcoming.length ? String(data.upcoming.length) : '';
         $('me-upcoming').innerHTML = data.upcoming.length
             ? data.upcoming.map(e => row(e)).join('')
-            : '<li class="ev-empty">No upcoming events made with this email.</li>';
+            : '<li class="ev-empty">No events made with this email yet.</li>';
         $('me-joined-block').hidden = !data.joined.length;
         $('me-joined').innerHTML = data.joined
             .map(e => row(e, { manage: false, note: e.attendance === 'pending' ? ' · you asked to join' : e.attendance === 'waiting' ? ' · on the waiting list' : '' })).join('');
