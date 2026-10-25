@@ -97,7 +97,7 @@
                 return;
             }
             try { localStorage.setItem(NAME_KEY, body.hostName.trim()); } catch (_) { /* private mode */ }
-            DeviceLinks.rememberHosted({ hostPath: result.hostPath, eventId: result.id, calendar: body.calendar, title: body.title.trim(), date: result.date, count: result.count });
+            DeviceLinks.rememberHosted({ hostPath: result.hostPath, eventId: result.id, calendar: body.calendar, title: body.title.trim(), date: result.date, count: result.count, hasEmail: Boolean(body.hostEmail.trim()) });
             renderHosted();
             showMade(body, result);
         } catch (_) {
@@ -168,6 +168,23 @@
     // "You manage" in the sidebar: events whose management link this device holds, soonest
     // first, each as a day block like Home's cards. Home's loaded events add the clock range and
     // who is coming; app.js calls this again once they are in.
+    // Entries saved before hasEmail existed ask their management page once.
+    const checking = new Set();
+    function checkEmails(list) {
+        for (const e of list) {
+            if (e.hasEmail !== undefined || checking.has(e.hostPath)) continue;
+            checking.add(e.hostPath);
+            fetch(`/api${e.hostPath}`, { cache: 'no-store' })
+                .then(res => (res.ok ? res.json() : null))
+                .then(data => {
+                    if (!data || !data.event) return;
+                    DeviceLinks.updateHosted(e.hostPath, { hasEmail: Boolean(data.event.host_email) });
+                    renderHosted();
+                })
+                .catch(() => {});
+        }
+    }
+
     function renderHosted() {
         const box = document.getElementById('hosted-list');
         if (!box) return;
@@ -189,9 +206,14 @@
             return `<li><a class="hosted-row" href="${escapeHtml(e.hostPath)}">`
                 + `<span class="hosted-day"><b>${d.getDate()}</b><span>${d.toLocaleDateString('en-GB', { weekday: 'short' })}</span></span>`
                 + `<span class="hosted-main"><span class="hosted-title">${shapeMark(shapeFor(e.calendar))}<span>${escapeHtml(live ? live.title : e.title)}</span></span>`
-                + `<span class="hosted-meta">${escapeHtml(meta.join(' · '))}</span></span>`
+                + `<span class="hosted-meta">${escapeHtml(meta.join(' · '))}</span>`
+                + (e.hasEmail === false
+                    ? '<span class="hosted-local" title="No email on this event. If this browser forgets it, the management link is the only way back in.">Only on this device</span>'
+                    : '')
+                + '</span>'
                 + '<svg class="hosted-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></a></li>';
         }).join('');
+        checkEmails(list);
     }
     window.renderHosted = renderHosted;
 

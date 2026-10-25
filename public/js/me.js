@@ -9,6 +9,7 @@
     const parts = location.pathname.split('/').filter(Boolean);
     const signinToken = parts[1] === 'signin' ? decodeURIComponent(parts[2] || '') : '';
     let email = '';
+    let hostedIds = [];
 
     function escapeHtml(value) {
         return String(value).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -119,6 +120,7 @@
 
     function render(data) {
         email = data.email;
+        hostedIds = [...data.upcoming, ...data.past].map(e => e.id);
         $('me-who').textContent = `Signed in as ${email}`;
         $('me-upcoming-count').textContent = data.upcoming.length ? String(data.upcoming.length) : '';
         $('me-upcoming').innerHTML = data.upcoming.length
@@ -159,7 +161,7 @@
             if (status === 401) return showAsk();
             if (!ok) throw new Error(result.message || 'That did not go through. Try again.');
             const name = button.closest('.ev-request').querySelector('.ev-request-name').textContent;
-            DeviceLinks.rememberHosted({ hostPath: result.hostPath, eventId: id, title: name, date: new Date().toISOString() });
+            DeviceLinks.rememberHosted({ hostPath: result.hostPath, eventId: id, title: name, date: new Date().toISOString(), hasEmail: true });
             location.href = result.hostPath;
         } catch (error) {
             showError('me-list-error', error.message);
@@ -185,6 +187,9 @@
         try {
             const { ok, result } = await api('/api/me', { method: 'DELETE' });
             if (!ok) throw new Error(result.message || 'That did not go through. Try again.');
+            // This device's links to those events are now the only way back in.
+            DeviceLinks.hosted().filter(h => hostedIds.includes(h.eventId))
+                .forEach(h => DeviceLinks.updateHosted(h.hostPath, { hasEmail: false }));
             showAsk();
             $('me-form').hidden = true;
             $('me-sent-text').textContent = `Deleted. Lilai no longer has ${email}.`;

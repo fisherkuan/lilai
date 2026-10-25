@@ -31,10 +31,16 @@
         return Array.isArray(list) ? list.filter(e => e && typeof e.hostPath === 'string') : [];
     }
 
-    // entry: { hostPath, eventId?, calendar?, title, date, count? }. The newest first; one entry per link.
+    // entry: { hostPath, eventId?, calendar?, title, date, count?, hasEmail? }. hasEmail false: the
+    // event has no host email, so this device's copy of the link is the only way back in. The newest first; one entry per link.
     function rememberHosted(entry) {
         const list = [entry, ...hosted().filter(e => e.hostPath !== entry.hostPath)].slice(0, MAX_HOSTED);
         write(HOSTED_KEY, list);
+    }
+
+    // Changes one entry in place, keeping its position.
+    function updateHosted(hostPath, patch) {
+        write(HOSTED_KEY, hosted().map(e => (e.hostPath === hostPath ? { ...e, ...patch } : e)));
     }
 
     function forgetHosted(hostPath) {
@@ -69,5 +75,5 @@
         }
     }
 
-    root.DeviceLinks = { hosted, rememberHosted, forgetHosted, calendarKeys, rememberCalendarKey, share };
+    root.DeviceLinks = { hosted, rememberHosted, updateHosted, forgetHosted, calendarKeys, rememberCalendarKey, share };
 })(window);

@@ -242,7 +242,8 @@
             calendar: event.calendar ? event.calendar.name : null,
             title: event.title,
             date: next ? next.date : event.date,
-            count: series ? series.dates.length : 1
+            count: series ? series.dates.length : 1,
+            hasEmail: Boolean(event.host_email)
         });
     }
 

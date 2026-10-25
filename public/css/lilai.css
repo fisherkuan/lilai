@@ -1565,6 +1565,8 @@ html.sheet-locked body {
 .hosted-title span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .hosted-title .shape { flex: none; font-size: 12px; }
 .hosted-meta { font-size: var(--meta); color: var(--ink-2); font-variant-numeric: tabular-nums; }
+/* No email on the event: the link lives only in this browser. Words, no colour (DESIGN.md). */
+.hosted-local { width: fit-content; margin-top: 2px; padding: 0 6px; border: 1px solid var(--ink-3); border-radius: var(--radius-control); font-size: 12px; font-weight: 500; line-height: 18px; color: var(--ink-2); }
 .hosted-chev { width: 18px; height: 18px; fill: none; stroke: var(--ink-2); stroke-width: 2px; }
 
 /* Lost a management link: where to look, then the request to the admins. */
