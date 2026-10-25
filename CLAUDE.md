@@ -27,7 +27,7 @@ The server runs on `http://localhost:3000` by default (configurable via PORT env
 ### Database
 - PostgreSQL is used for production (connection via `DATABASE_URL` env var)
 - Database schema is auto-initialized on server startup via `initializeDatabase()` in server/app.js
-- Tables: `events`, `rsvps`, `places`, `admin_codes`, `admin_sessions`, `event_series`, `event_host_links`, `event_activity`, `calendar_keys`, `calendar_state`, `donations`, `feedback`, `booking_queue`, `booking_profiles`, `booking_series`, `contacts`, `contact_tokens`, `device_sessions`
+- Tables: `events`, `rsvps`, `places`, `admin_codes`, `admin_sessions`, `event_series`, `event_host_links`, `event_activity`, `calendar_keys`, `calendar_state`, `donations`, `feedback`, `booking_queue`, `booking_profiles`, `booking_series`, `contacts`, `contact_tokens`, `device_sessions`, `event_messages`, `event_message_likes`
 - `rsvps.attendance` is `yes` (holds a seat), `pending` (asked to join an approval event) or `declined` (the host said no). Every count of who is coming filters on `yes`
 - Schema migrations are idempotent and run automatically on startup
 
@@ -92,7 +92,8 @@ Vanilla JavaScript with no build step.
 - `host.html` + `js/host.js` - An event's management page (`/host/:token`): the Google copy's status, Edit (the event form in a sheet), Copy management link (the page address, cut off, with a copy icon), Cancel / Restore, the dates of a series, and who is coming or asked to join (Accept / Decline / Undo). Live over WebSocket
 - `calendar.html` + `js/calendar-page.js` - A calendar key's page (`/calendars/:token`): stores the key on the device, lists the calendar's upcoming events with Manage (mints a management link), "Make a <calendar> event", Share
 - `me.html` + `js/me.js` - Find my events (`/me`, linked from Home's sidebar; `/#lost-link` redirects there): type an email, open the emailed link (`/me/signin/<token>`, one tap, because mail scanners open links), and this device lists the events that address hosts and joined. Manage mints a management link and keeps it under "You manage"; Sign out; Delete my email
-- `sw.js` - Service worker for PWA support. It never caches `/host/`, `/calendars/`, `/me` or their APIs: those carry secret links or a person's events
+- `js/event-chat.js` - Chat in an event (#56): the chat button on every card (past ones too, with its count) opens a slide-in thread (`#chat-sheet`) of bubbles, mine in ink on the right. Anyone reads and likes (a like belongs to a device key, `lilai.likerKey`); posting needs the Find my events session, so the panel asks for an email first and the emailed link lands back on `/#chat-<id>`. The author edits or deletes their own messages; live over `event_message`. `stampText`, `groupStarts` tested in `tests/event-chat.test.js`
+- `sw.js` - Service worker for PWA support. It never caches `/host/`, `/calendars/`, `/me`, their APIs or an event's messages: those carry secret links, a person's events or who is signed in
 
 **Client-side features:**
 - WebSocket connection for real-time attendance updates
@@ -131,6 +132,12 @@ Central configuration file with:
 - Cancel sets `cancelled_at` (hidden from every public read, RSVPs kept, Google copy deleted); Restore clears it
 - Approval events ("I approve each person"): Join reads "Ask to join", requests hold no seat, the card shows "N asking" and "<host> confirms each place"
 
+### Chat in an event
+- `server/event-chat.js` - One thread per event (`event_messages`, `event_message_likes`). Posting needs a signed-in email (`lilai_session`), so a name in the thread is backed by an address; the address is never sent to anyone, and a message carries a Host mark only when its address is the event's `host_email`. The name is typed once and kept per address (`contacts.chat_name`). Any address may ask for a chat sign-in link (`requestSignIn(..., { anyAddress, next })`); Find my events itself still mails only known addresses
+- The author edits or deletes their own message; the host removes any from the management page. Likes are open to anyone, one per device key, stored as a hash. Limits: 10 posts a minute per address, 30 per network, 120 likes a minute per network
+- Messages are deleted 180 days after their event (checked every six hours). Delete my email keeps the messages under their name and takes the address off them, so nobody can change them any more
+- Readable by anyone, approval events included, like the guest list
+
 ### RSVP System
 - Actions: "add" (RSVP yes) or "remove" (cancel RSVP)
 - Attendee name is required for both actions
@@ -143,6 +150,7 @@ WebSocket server runs on same HTTP server as Express. Broadcast messages:
 - `attendance_update` - Sent when an RSVP or a host decision changes who is coming (eventId, attendingCount, attendees, pendingCount)
 - `event_created`, `event_update`, `event_cancelled` - `{ ids }` of events made, edited or restored, cancelled; Home reloads its lists
 - `event_published` - `{ id }` after the publisher tried an event's Google copy; its management page reloads the status
+- `event_message` - `{ action: posted|edited|deleted|liked, eventId, message?, id?, likes?, count? }`. An open thread reloads (likes only update the count); cards update their chat count
 
 Clients connect via WebSocket and listen for these messages to update UI without refresh.
 
@@ -206,6 +214,15 @@ Required in `.env`:
 - `POST /api/places`, `PUT /api/places/:id`, `DELETE /api/places/:id`, `PUT /api/places/order` (`{ids}`) - The saved places' admin, behind `X-Admin-Key`. A second place with the same name (any case) is 409 on `name`. Removing a place never touches events already there
 - `POST /api/rsvp` - Submit RSVP (body: `{eventId, action: "add"|"remove", attendeeName}`). A cancelled event is not found. On an approval event, `add` asks to join: the row is `pending`, the answer carries `pending: true`, and one open request per name. Answers and the `attendance_update` broadcast carry `attendees`, `attendingCount` and `pendingCount`
 - Public event JSON never includes `host_email` or the publishing bookkeeping (`publicEvent` in `server/event-hosting.js`), and never a cancelled event
+
+### Chat Endpoints
+`server/event-chat.js`. 404 for a missing or cancelled event.
+- `GET /api/events/:id/messages?liker=<device key>` - `{messages: [{id, name, body, at, editedAt, likes, liked, host, mine}], me: {email, name, host} | null}`
+- `POST /api/events/:id/messages` - Body `{body, name}`, signed in (401 otherwise); 429 over the limit
+- `PUT /api/events/:id/messages/:messageId` - Body `{body}`; `DELETE` the same path. The author only (403)
+- `POST /api/events/:id/messages/:messageId/like` - Body `{liker, like: true|false}`; open to anyone
+- `POST /api/events/:id/messages/signin` - Body `{email}`. Mails a sign-in link to any address, back to `/#chat-<id>`
+- `DELETE /api/host/:token/events/:eventId/messages/:messageId` - The host removes a message; answers the management page's view, which lists the thread as `messages`
 
 ### Find my events Endpoints
 `server/contacts.js`.

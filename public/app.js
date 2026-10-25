@@ -882,7 +882,14 @@ function renderEventCard(event, { isPast, isToday, prevNames }) {
         names = `<p class="names-empty">${isPast ? 'No one signed up.' : 'No one yet. Be the first.'}</p>`;
     }
 
-    let actions = '';
+    // The chat sits on every card, past ones too: a thread outlives its event (js/event-chat.js).
+    const messageCount = event.messageCount || 0;
+    const chatLabel = messageCount ? `Chat, ${messageCount} ${messageCount === 1 ? 'message' : 'messages'}` : 'Chat';
+    const chat = `<button type="button" class="chat-trigger" data-event-id="${sanitizedEventId}" aria-label="${chatLabel}" title="Chat">`
+        + '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5h16v10.5H10l-4.5 3.5V16H4Z"/></svg>'
+        + `<span class="chat-count">${messageCount || ''}</span></button>`;
+
+    let actions = `<div class="event-actions">${chat}</div>`;
     if (!isPast) {
         // Every event carries the same weight: no lead event, no solid Join.
         const join = isFull
@@ -891,7 +898,7 @@ function renderEventCard(event, { isPast, isToday, prevNames }) {
         const remove = attendingCount > 0
             ? `<button type="button" class="text-btn rsvp-trigger-remove" data-event-id="${sanitizedEventId}">Remove a name</button>`
             : '';
-        actions = `<div class="event-actions">${join}${remove}</div>`;
+        actions = `<div class="event-actions">${join}${remove}${chat}</div>`;
     }
 
     const classes = ['event', `tone-${st.tone}`];
@@ -1234,6 +1241,8 @@ function setupWebSocket() {
             if (data.type === 'attendance_update') {
                 const { eventId, attendees, pendingCount } = data.payload;
                 applyAttendance(eventId, Array.isArray(attendees) ? attendees : [], pendingCount);
+            } else if (data.type === 'event_message') {
+                if (typeof EventChat !== 'undefined') EventChat.onBroadcast(data.payload);
             } else if (['event_created', 'event_update', 'event_cancelled'].includes(data.type)) {
                 // An event was made, edited or cancelled: pick it up without a pull to refresh.
                 loadEvents({ quiet: true });

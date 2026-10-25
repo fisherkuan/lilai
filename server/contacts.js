@@ -26,17 +26,27 @@ function sessionCookie(token, { secure, maxAgeMs = SESSION_MS }) {
     return `${COOKIE}=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${Math.floor(maxAgeMs / 1000)}${secure ? '; Secure' : ''}`;
 }
 
+// Where a chat sign-in link lands afterwards: a path on Lilai, never another site.
+function safeNext(next) {
+    const text = String(next || '');
+    return /^\/(?![\/\\])/.test(text) ? text.slice(0, 300) : '';
+}
+
+function signInUrl(baseUrl, token, next) {
+    return `${baseUrl}/me/signin/${token}${next ? `?next=${encodeURIComponent(next)}` : ''}`;
+}
+
 function mailFrom(env) {
     return env.NOTIFY_EMAIL_FROM || env.FEEDBACK_EMAIL_FROM || 'Lilai <onboarding@resend.dev>';
 }
 
-function buildSignInMail(to, url, env = process.env) {
+function buildSignInMail(to, url, env = process.env, { purpose = 'events' } = {}) {
     return {
         from: mailFrom(env),
         to: [to],
         subject: 'Your Lilai sign-in link',
         text: [
-            'Open this link to see the events you host on Lilai:',
+            purpose === 'chat' ? 'Open this link to post in an event chat on Lilai:' : 'Open this link to see the events you host on Lilai:',
             url,
             '',
             'It works once, for 30 minutes, on the device you open it on.',
@@ -135,8 +145,11 @@ function createContacts({ pool, env = process.env, fetchImpl = fetch, now = () =
      * the form never tells whose address made an event. Throws a { status, message } error
      * only for what does not depend on the address: a bad address, too many tries from one
      * network, or a server without email.
+     *
+     * An event chat signs in any address (`anyAddress`): posting is open to anyone who proves
+     * an email, and `next` takes them back to the thread they came from.
      */
-    async function requestSignIn(emailInput, { ip, baseUrl }) {
+    async function requestSignIn(emailInput, { ip, baseUrl, anyAddress = false, next = '' }) {
         const email = normalEmail(emailInput);
         if (!looksLikeEmail(email)) throw Object.assign(new Error('That email address does not look right.'), { status: 400, field: 'email' });
         if (!env.RESEND_API_KEY) {
@@ -146,7 +159,7 @@ function createContacts({ pool, env = process.env, fetchImpl = fetch, now = () =
         if (!ipAllowed(ip || 'unknown')) {
             throw Object.assign(new Error('Too many tries from this network. Try again in an hour.'), { status: 429 });
         }
-        if (!(await knownAddress(email))) return;
+        if (!anyAddress && !(await knownAddress(email))) return;
         const sent = await pool.query(
             'SELECT COUNT(*)::int AS n FROM contact_tokens WHERE email = $1 AND created_at > $2',
             [email, new Date(now().getTime() - HOUR_MS)]
@@ -161,7 +174,7 @@ function createContacts({ pool, env = process.env, fetchImpl = fetch, now = () =
         const res = await fetchImpl('https://api.resend.com/emails', {
             method: 'POST',
             headers: { Authorization: `Bearer ${env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify(buildSignInMail(email, `${baseUrl}/me/signin/${token}`, env))
+            body: JSON.stringify(buildSignInMail(email, signInUrl(baseUrl, token, safeNext(next)), env, { purpose: anyAddress ? 'chat' : 'events' }))
         });
         if (!res.ok) console.error('[contacts] sign-in mail', res.status, await res.text());
     }
@@ -301,5 +314,5 @@ function createContacts({ pool, env = process.env, fetchImpl = fetch, now = () =
 }
 
 module.exports = {
-    COOKIE, normalEmail, sessionCookie, buildSignInMail, collapseSeries, createContactsSchema, createContacts
+    COOKIE, normalEmail, sessionCookie, buildSignInMail, signInUrl, safeNext, collapseSeries, createContactsSchema, createContacts
 };

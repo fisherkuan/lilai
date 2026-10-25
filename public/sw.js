@@ -1,4 +1,4 @@
-const CACHE_NAME = 'lilai-cache-v75'; // Bumped version
+const CACHE_NAME = 'lilai-cache-v76'; // Bumped version
 const urlsToCache = [
   '/',
   '/index.html',
@@ -17,6 +17,7 @@ const urlsToCache = [
   '/js/event-links.js',
   '/js/event-form.js',
   '/js/device-links.js',
+  '/js/event-chat.js',
   '/js/place-search.js',
   '/js/make-event.js',
   '/js/pull-to-refresh.js',
@@ -80,10 +81,11 @@ function isOurCode(url) {
 }
 
 // Management, calendar and Find my events pages, and their answers, carry a secret link or a
-// person's events: never into Cache Storage.
+// person's events: never into Cache Storage. Nor does an event's chat, which says who is signed in.
 function isHostTraffic(url) {
     return url.origin === self.location.origin
-        && ['/host/', '/api/host/', '/calendars/', '/api/calendar-access/', '/me', '/api/me'].some(p => url.pathname.startsWith(p));
+        && (['/host/', '/api/host/', '/calendars/', '/api/calendar-access/', '/me', '/api/me'].some(p => url.pathname.startsWith(p))
+            || /^\/api\/events\/[^/]+\/messages/.test(url.pathname));
 }
 
 self.addEventListener('fetch', (event) => {
