@@ -7,7 +7,7 @@ Meetups and who is coming. Lilai keeps the events in its own database and publis
 - **Events made in Lilai**: one-off or repeating, with a seat limit, links, and an optional "I approve each person" mode
 - **A management page per event**, reached by its own link: edit, cancel, accept or decline requests, share with co-hosts
 - **Published Google calendars**: every change is copied to the calendar's read-only Google copy
-- **Calendar keys**: a restricted calendar (TSA) takes a key link to add events to
+- **Restricted calendars**: only signed-in addresses on a calendar's allow list (`CALENDAR_WRITERS`) add events to it (TSA)
 - **Live attendance** over WebSocket, a 14-day date rail, and an installable PWA
 - Bank-transfer donations, and a queue that books KU Leuven sports courts when the booking window opens
 
@@ -78,7 +78,7 @@ Lilai publishes each calendar in `config/app.json` to Google; it never reads eve
 1. Create a Google Cloud service account with the Calendar API enabled and download its JSON key.
 2. Set the key as `GOOGLE_SERVICE_ACCOUNT_JSON` (the JSON itself or base64 of it).
 3. Share each calendar with the service account's email, "Make changes to events". The server logs the address at startup.
-4. List the calendars in `config/app.json` by their embed URL (`calendars[]`, in shape order). Mark one `"restricted": true` to require a calendar key to add events to it, and mint a key with `node scripts/calendar-link.js <calendar>`.
+4. List the calendars in `config/app.json` by their embed URL (`calendars[]`, in shape order). Mark one `"restricted": true` so only the addresses in `CALENDAR_WRITERS` (`TSA=a@x.be,b@y.be`) and `ADMIN_EMAILS` add events to it. A key from `node scripts/calendar-link.js <calendar>` opens the management page of any of its events.
 5. Start the server. Each calendar is imported once from Google; after that, make the Google calendars read-only for everyone but the service account.
 
 Without the key, events still work in Lilai and reach Google once it is set. See `CLAUDE.md` for the details.

@@ -413,8 +413,8 @@ function calendarIdOf(calendarUrl) {
     return match ? decodeURIComponent(match[1]) : null;
 }
 
-// Every enabled calendar, as Lilai publishes it. A restricted one takes a calendar key to
-// write to (calendar-access.js).
+// Every enabled calendar, as Lilai publishes it. A restricted one takes an email on its allow
+// list to write to (calendar-access.js).
 function publishedCalendars() {
     return (appConfig.calendars || [])
         .filter(c => c.enabled)
@@ -911,13 +911,6 @@ function inputError(res, error) {
     return false;
 }
 
-// The calendars a request may write to: the open ones, and each restricted one that a calendar
-// key sent with it opens.
-async function writableCalendars(keys) {
-    const opened = await access.calendarsForKeys(pool, keys);
-    return publishedCalendars().filter(c => !c.restricted || opened.has(c.name));
-}
-
 const EVENT_FIELDS_SQL = `title = $2, date = $3, endDate = $4, location = $5, description = $6, links = $7,
     attendance_limit = $8, approval_required = $9, location_address = $10, place_id = $11`;
 
@@ -930,7 +923,7 @@ function eventFieldParams(id, edit, start, end) {
 const NEEDS_PUSH_SQL = 'version = version + 1, updated_at = NOW(), push_attempts = 0, push_error = NULL, next_push_at = NULL';
 
 // Make an event, or a repeating one (one row per date, one series). Open to anyone signed in;
-// the host email is the signed-in one, never typed. A restricted calendar takes one of its keys.
+// the host email is the signed-in one, never typed. A restricted calendar takes an email on its list.
 app.post('/api/events', async (req, res) => {
     const signedIn = await contacts.emailOf(req);
     if (!signedIn) return res.status(401).json({ success: false, field: 'hostEmail', message: 'Sign in to make an event.' });
@@ -943,12 +936,11 @@ app.post('/api/events', async (req, res) => {
         throw error;
     }
     const calendar = calendars.find(c => c.name === input.calendar);
-    const writable = await writableCalendars(req.body?.calendarKeys);
-    if (!writable.some(c => c.name === calendar.name)) {
+    if (!access.writableCalendars(calendars, signedIn).some(c => c.name === calendar.name)) {
         return res.status(403).json({
             success: false,
             field: 'calendar',
-            message: `Only ${calendar.name}'s admins can add events to it. Open your ${calendar.name} calendar link on this device first.`
+            message: `Only ${calendar.name}'s admins can add events to it. Sign in with an address on its list.`
         });
     }
 
@@ -2955,7 +2947,13 @@ app.get('/api/me', async (req, res) => {
     const email = await contacts.emailOf(req);
     res.set('Cache-Control', 'no-store');
     if (!email) return res.status(401).json({ success: false, message: 'Not signed in.' });
-    res.json({ success: true, ...(await contacts.profileOf(email)), chatMessages: await chat.countBy(email), ...(await contacts.eventsOf(email)) });
+    res.json({
+        success: true,
+        ...(await contacts.profileOf(email)),
+        chatMessages: await chat.countBy(email),
+        writableCalendars: access.writableCalendars(publishedCalendars(), email).map(c => c.name),
+        ...(await contacts.eventsOf(email))
+    });
 });
 
 // The name a signed-in device fills in for RSVPs and new events (js/me.js).
