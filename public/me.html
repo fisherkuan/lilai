@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <!-- Apply a saved theme before first paint; the switch itself is js/theme.js. -->
-    <script>try{var t=localStorage.getItem("lilaiTheme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}</script>
+    <script>var t="light";try{if(localStorage.getItem("lilaiTheme")==="dark")t="dark"}catch(e){}document.documentElement.dataset.theme=t</script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sign in — Lilai</title>
     <meta name="description" content="Find the events you host on Lilai with your email.">
@@ -132,6 +132,18 @@
             <ul class="me-rows" id="me-past"></ul>
         </section>
         <p class="field-error" id="me-list-error" role="alert" hidden></p>
+
+        <section class="me-card" aria-labelledby="me-display-title">
+            <h2 class="me-card-title" id="me-display-title">Display</h2>
+            <div class="me-setting">
+                <span class="me-setting-name" id="me-dark-label">Dark</span>
+                <button type="button" class="ios-switch" role="switch" aria-checked="false" aria-labelledby="me-dark-label" id="me-dark"></button>
+            </div>
+            <div class="me-setting">
+                <span class="me-setting-name" id="me-icons-label">Header icons</span>
+                <button type="button" class="ios-switch" role="switch" aria-checked="false" aria-labelledby="me-icons-label" id="me-icons"></button>
+            </div>
+        </section>
 
         <section class="me-card me-account" aria-label="This device and your email">
             <button type="button" class="me-account-row" id="me-signout">Sign out of this device</button>

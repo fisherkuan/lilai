@@ -1,48 +1,45 @@
 /*
- * Footer theme switch: Auto, Light or Dark. Auto follows the device and is the default;
- * Light and Dark set data-theme on <html>, which the token blocks in lilai.css read.
+ * Footer theme switch: Light or Dark. Light is the default whatever the device uses (owner,
+ * 2026-10-25: no Auto); the choice sets data-theme on <html>, which the token blocks read.
  *
  * The saved choice is applied before first paint by a one-line script in each page's
  * <head>, so no page flashes the wrong theme; this file only draws the switch and saves.
- * The choice is per device (localStorage), like the remembered RSVP name.
+ * The choice is per device (localStorage), like the remembered RSVP name. Profile's Display
+ * card sets it too (window.LilaiTheme); every switch on the page follows 'lilai:theme'.
  */
 (() => {
     'use strict';
 
     const KEY = 'lilaiTheme';
-    const CHOICES = [['auto', 'Auto'], ['light', 'Light'], ['dark', 'Dark']];
+    const CHOICES = [['light', 'Light'], ['dark', 'Dark']];
     const BAR = { light: '#efefea', dark: '#111214' };
 
     function saved() {
         try {
-            const v = localStorage.getItem(KEY);
-            return v === 'light' || v === 'dark' ? v : 'auto';
+            return localStorage.getItem(KEY) === 'dark' ? 'dark' : 'light';
         } catch (_) {
-            return 'auto';
+            return 'light';
         }
     }
 
-    // The browser bar colour follows the device through its media attributes. A manual
-    // choice overrides both, so the bar matches the page rather than the phone.
+    // The browser bar matches the page, not the phone, so both theme-color metas take it.
     function paintBar(choice) {
-        document.querySelectorAll('meta[name="theme-color"]').forEach(meta => {
-            const media = meta.getAttribute('media') || '';
-            const own = media.includes('dark') ? BAR.dark : BAR.light;
-            meta.setAttribute('content', choice === 'auto' ? own : BAR[choice]);
-        });
+        document.querySelectorAll('meta[name="theme-color"]').forEach(meta => meta.setAttribute('content', BAR[choice]));
     }
 
     function apply(choice) {
-        if (choice === 'auto') delete document.documentElement.dataset.theme;
-        else document.documentElement.dataset.theme = choice;
+        document.documentElement.dataset.theme = choice;
         try {
-            if (choice === 'auto') localStorage.removeItem(KEY);
-            else localStorage.setItem(KEY, choice);
+            if (choice === 'dark') localStorage.setItem(KEY, choice);
+            else localStorage.removeItem(KEY);
         } catch (_) {
             /* private browsing: the choice holds for this page view only */
         }
         paintBar(choice);
+        document.dispatchEvent(new CustomEvent('lilai:theme', { detail: choice }));
     }
+
+    window.LilaiTheme = { get: saved, set: apply, choices: CHOICES };
 
     function render() {
         const footer = document.querySelector('.colophon');
@@ -58,10 +55,8 @@
 
         const buttons = [...group.querySelectorAll('.theme-btn')];
         const mark = choice => buttons.forEach(b => b.setAttribute('aria-pressed', String(b.dataset.themeChoice === choice)));
-        buttons.forEach(b => b.addEventListener('click', () => {
-            apply(b.dataset.themeChoice);
-            mark(b.dataset.themeChoice);
-        }));
+        buttons.forEach(b => b.addEventListener('click', () => apply(b.dataset.themeChoice)));
+        document.addEventListener('lilai:theme', e => mark(e.detail));
         const current = saved();
         mark(current);
         paintBar(current);

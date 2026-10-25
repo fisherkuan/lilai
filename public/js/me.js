@@ -349,6 +349,29 @@
         a.hidden = false;
     });
 
+    // Display: the footer's choices as iOS switches, on this device only. Dark picks Dark or
+    // Light (the default); Header icons is the sprites (off: short words). Each follows the
+    // footer through the page events js/theme.js and js/sprites.js send.
+    function setSwitch(button, on) {
+        button.setAttribute('aria-checked', String(on));
+    }
+    if (window.LilaiTheme && $('me-dark')) {
+        const showTheme = choice => setSwitch($('me-dark'), choice === 'dark');
+        $('me-dark').addEventListener('click', () => {
+            window.LilaiTheme.set($('me-dark').getAttribute('aria-checked') === 'true' ? 'light' : 'dark');
+        });
+        document.addEventListener('lilai:theme', e => showTheme(e.detail));
+        showTheme(window.LilaiTheme.get());
+    }
+    if (window.Sprites && $('me-icons')) {
+        const showIcons = mode => setSwitch($('me-icons'), mode === 'icons');
+        $('me-icons').addEventListener('click', () => {
+            window.Sprites.setMode($('me-icons').getAttribute('aria-checked') === 'true' ? 'text' : 'icons');
+        });
+        document.addEventListener('lilai:header', e => showIcons(e.detail));
+        showIcons(window.Sprites.mode());
+    }
+
     $('me-form').addEventListener('submit', sendLink);
     $('me-name-form').addEventListener('submit', saveName);
     $('me-other').addEventListener('click', () => {

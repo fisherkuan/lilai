@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <!-- Apply a saved theme before first paint; the switch itself is js/theme.js. -->
-    <script>try{var t=localStorage.getItem("lilaiTheme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}</script>
+    <script>var t="light";try{if(localStorage.getItem("lilaiTheme")==="dark")t="dark"}catch(e){}document.documentElement.dataset.theme=t</script>
     <meta name="theme-color" content="#efefea" media="(prefers-color-scheme: light)">
     <meta name="theme-color" content="#111214" media="(prefers-color-scheme: dark)">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
