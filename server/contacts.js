@@ -245,7 +245,7 @@ function createContacts({ pool, env = process.env, fetchImpl = fetch, now = () =
     async function signOut(req, res) {
         const token = parseCookies(req.headers.cookie)[COOKIE];
         if (hosting.looksLikeToken(token)) await pool.query('DELETE FROM device_sessions WHERE token_hash = $1', [hosting.hashToken(token)]);
-        res.set('Set-Cookie', sessionCookie('', { secure, maxAgeMs: 0 }));
+        res.append('Set-Cookie', sessionCookie('', { secure, maxAgeMs: 0 }));
     }
 
     // What a signed-in device fills in: { email, name }.

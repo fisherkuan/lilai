@@ -123,7 +123,7 @@ pool.on('error', (error) => {
 const placeStore = places.createPlaceStore(pool);
 
 // Admin sign-in by emailed code (server/admin-auth.js), for Donations and Places.
-const adminAuth = adminAuthLib.createAdminAuth({ pool });
+const adminAuth = adminAuthLib.createAdminAuth({ pool, emailOf: (req) => contacts.emailOf(req) });
 
 // Chat in an event (server/event-chat.js): anyone reads and likes, a signed-in email posts.
 const chat = chatLib.createEventChat({ pool });
@@ -3011,8 +3011,10 @@ app.get('/api/admin/session', async (req, res) => {
     res.set('Cache-Control', 'no-store').json({ email });
 });
 
+// Sign out of the admin, and of this device's /me session, which would let it straight back in.
 app.delete('/api/admin/session', async (req, res) => {
     await adminAuth.signOut(req, res);
+    await contacts.signOut(req, res);
     res.json({ success: true });
 });
 
