@@ -450,41 +450,10 @@ async function createHostingSchema(client) {
     await client.query('CREATE INDEX IF NOT EXISTS idx_events_push ON events(next_push_at) WHERE managed AND version > synced_version');
 }
 
-// Emails the host their link through Resend, the same sender as feedback. Without
-// RESEND_API_KEY it does nothing. Returns whether an email went out.
-async function mailHostLink({ to, title, url, count = 1 }, env = process.env, fetchImpl = fetch) {
-    const key = env.RESEND_API_KEY;
-    if (!key) return false;
-    const res = await fetchImpl('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            from: env.FEEDBACK_EMAIL_FROM || 'Lilai <onboarding@resend.dev>',
-            to: [to],
-            subject: `[Lilai] Manage your event: ${title.slice(0, 60)}`,
-            text: [
-                count > 1 ? `You made "${title}" in Lilai, on ${count} dates.` : `You made "${title}" in Lilai.`,
-                '',
-                'Edit it, cancel it, and see who is coming here:',
-                url,
-                '',
-                'Anyone with this link can manage the event. Share it only with people who host with you.',
-                '',
-                `Lost it? Open ${new URL('/me', url).href} and type this email address.`
-            ].join('\n')
-        })
-    });
-    if (!res.ok) {
-        console.error('host link mail', res.status, await res.text());
-        return false;
-    }
-    return true;
-}
-
 module.exports = {
     STATUS, DECISIONS, SCOPES, MAX_LIMIT, MAX_LINKS, MAX_OCCURRENCES,
     EventInputError, validateEvent, validateLimit, validateLinks, timesOn, laterTimes, formValues,
     googleDescription, googleEventResource, newGoogleEventId, eventIdForGoogleId,
     convertLegacyDescription, linkFromLegacyDescription,
-    newToken, hashToken, looksLikeToken, publicEvent, publishState, createHostingSchema, mailHostLink
+    newToken, hashToken, looksLikeToken, publicEvent, publishState, createHostingSchema
 };
