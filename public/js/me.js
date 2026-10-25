@@ -89,7 +89,7 @@
             const { ok, result } = await api('/api/me/link', { method: 'POST', body: JSON.stringify({ email: typed }) });
             if (!ok) return showError('me-error', result.message || 'That did not go through. Try again.');
             $('me-form').hidden = true;
-            $('me-sent-text').textContent = `A link is on its way to ${typed}. It works once, for 30 minutes.`;
+            $('me-sent-text').textContent = `A link is on its way to ${typed}. It works for 30 minutes.`;
             $('me-sent').hidden = false;
             $('me-sent').focus();
         } catch (_) {
@@ -102,18 +102,21 @@
 
     // ---------- The emailed link ----------
 
-    // A tap, not on load: mail scanners open links, and the link works only once.
+    // Straight away, on load. The link works any number of times for its 30 minutes, so a mail
+    // scanner that opened it first has not used it up.
+    function redeemFailed(message, retry) {
+        showOnly('me-redeem');
+        showError('me-redeem-error', message);
+        $('me-redeem-btn').textContent = retry ? 'Try again' : 'Email me a new link';
+        $('me-redeem-btn').dataset.retry = retry ? '1' : '';
+        $('me-redeem-btn').disabled = false;
+    }
+
     async function redeem() {
-        const button = $('me-redeem-btn');
-        button.disabled = true;
-        showError('me-redeem-error', '');
+        showState('Signing you in…');
         try {
             const { ok, result } = await api('/api/me/session', { method: 'POST', body: JSON.stringify({ token: signinToken }) });
-            if (!ok) {
-                showError('me-redeem-error', result.message || 'That did not go through. Try again.');
-                button.disabled = false;
-                return;
-            }
+            if (!ok) return redeemFailed(result.message || 'That did not go through.', false);
             // The header's "My events" link, even when this goes straight back to a chat.
             AccountLink.remember(result.email);
             // The email's one name is asked here, once, not in each chat.
@@ -125,8 +128,7 @@
             }
             await goOn();
         } catch (_) {
-            showError('me-redeem-error', 'No connection. Check your network and try again.');
-            button.disabled = false;
+            redeemFailed('No connection. Check your network.', true);
         }
     }
 
@@ -310,7 +312,12 @@
         $('me-email').value = '';
         $('me-email').focus();
     });
-    $('me-redeem-btn').addEventListener('click', redeem);
+    $('me-redeem-btn').addEventListener('click', (e) => {
+        if (e.currentTarget.dataset.retry) return redeem();
+        history.replaceState(null, '', '/me');
+        showAsk();
+        $('me-email').focus();
+    });
     document.querySelector('#me-list').addEventListener('click', (e) => {
         const button = e.target.closest('[data-manage]');
         if (button) manage(button);
@@ -320,14 +327,6 @@
     $('me-delete-no').addEventListener('click', () => { $('me-delete-confirm').hidden = true; });
     $('me-delete-yes').addEventListener('click', deleteEmail);
 
-    if (signinToken) {
-        if (next.startsWith('/#new')) {
-            $('me-redeem-lede').textContent = 'Then you can make your event from this phone or browser.';
-            $('me-redeem-btn').textContent = 'Sign in and make the event';
-        } else if (next.startsWith('/#chat-')) {
-            $('me-redeem-lede').textContent = 'Then you can post in the event chat from this phone or browser.';
-            $('me-redeem-btn').textContent = 'Sign in and go to the chat';
-        }
-        showOnly('me-redeem');
-    } else load();
+    if (signinToken) redeem();
+    else load();
 })();

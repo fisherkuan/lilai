@@ -79,7 +79,7 @@ No. Events are made and changed in Lilai, which copies them to the group's Googl
 
 ### What does Lilai keep about my email?
 
-The email you make an event with. Lilai keeps it with that event, sends the management link to it, and lets you find your events again when you [sign in](/me). Nobody else sees it: not attendees, and not other hosts. Lilai sends nothing else to it, and the sign-in link works once, for 30 minutes. Once signed in, "Delete my email" takes it off every event and signs out every device; your events and your name stay. If you sign in to post in an event's chat, Lilai keeps that email the same way: your messages show only your name.
+The email you make an event with. Lilai keeps it with that event, sends the management link to it, and lets you find your events again when you [sign in](/me). Nobody else sees it: not attendees, and not other hosts. Lilai sends nothing else to it, and the sign-in link works for 30 minutes. Once signed in, "Delete my email" takes it off every event and signs out every device; your events and your name stay. If you sign in to post in an event's chat, Lilai keeps that email the same way: your messages show only your name.
 
 ### I can't see any events. What's wrong?
 

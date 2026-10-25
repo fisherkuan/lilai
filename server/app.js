@@ -2936,7 +2936,7 @@ app.post('/api/me/link', async (req, res) => {
 
 app.post('/api/me/session', async (req, res) => {
     const signedIn = await contacts.redeem(req.body?.token, req.get('user-agent'));
-    if (!signedIn) return res.status(401).json({ success: false, message: 'This link has been used or has run out. Ask for a new one.' });
+    if (!signedIn) return res.status(401).json({ success: false, message: 'This link has run out. Ask for a new one.' });
     contacts.signIn(res, signedIn.session);
     // Without a name yet, the page asks for one before going on (js/me.js).
     res.json({ success: true, ...(await contacts.profileOf(signedIn.email)) });

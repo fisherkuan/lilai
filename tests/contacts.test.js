@@ -20,11 +20,11 @@ test('the session cookie is HttpOnly and Lax for 90 days, Secure in production',
     assert.doesNotMatch(sessionCookie('abc', { secure: false }), /Secure/);
 });
 
-test('the sign-in mail carries the link and says it works once', () => {
+test('the sign-in mail carries the link and says how long it works', () => {
     const mail = buildSignInMail('a@b.be', 'https://lilai.test/me/signin/x', { NOTIFY_EMAIL_FROM: 'Lilai <hi@lilai.test>' });
     assert.equal(mail.from, 'Lilai <hi@lilai.test>');
     assert.match(mail.text, /https:\/\/lilai\.test\/me\/signin\/x/);
-    assert.match(mail.text, /once, for 30 minutes/);
+    assert.match(mail.text, /works for 30 minutes/);
 });
 
 test('a series shows once, as its next date still on', () => {
@@ -90,7 +90,12 @@ test('a host signs in by email, finds their events, manages one, and deletes the
 
         const signedIn = await contacts.redeem(token, 'test');
         assert.equal(signedIn.email, 'ann@lilai.test');
-        assert.equal(await contacts.redeem(token, 'test'), null); // a link works once
+        // A mail scanner may have opened the link first: it still works, as a new session, until it runs out.
+        const twice = await contacts.redeem(token, 'test');
+        assert.equal(twice.email, 'ann@lilai.test');
+        assert.notEqual(twice.session, signedIn.session);
+        await pool.query("UPDATE contact_tokens SET expires_at = NOW() - interval '1 second'");
+        assert.equal(await contacts.redeem(token, 'test'), null);
         const verified = await pool.query('SELECT verified_at FROM contacts WHERE email = $1', ['ann@lilai.test']);
         assert.ok(verified.rows[0].verified_at);
         // Signing in takes the name from the address's events; the person can change or clear it.

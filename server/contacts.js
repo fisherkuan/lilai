@@ -1,6 +1,6 @@
-// Sign-in: one optional email, proven by a link, is a person's way back to the events
-// they host. Type an address on /me; if it made an event (events.host_email) or was confirmed
-// before, Resend mails a sign-in link that works once for 30 minutes. Opening it signs that
+// Sign-in: one email, proven by a link, is a person's way back to the events they host and
+// what they post under. Type an address on /me and Resend mails a sign-in link that works for
+// 30 minutes. Opening it signs that
 // device in (cookie lilai_session, 90 days) and confirms the address. The signed-in device
 // lists the address's events and mints fresh management links on request. "Delete my email"
 // takes the address off every row and ends its sessions; names and RSVPs stay.
@@ -49,7 +49,7 @@ function buildSignInMail(to, url, env = process.env, { purpose = 'signin' } = {}
             purpose === 'chat' ? 'Open this link to post in an event chat on Lilai:' : 'Open this link to sign in to Lilai:',
             url,
             '',
-            'It works once, for 30 minutes, on the device you open it on.',
+            'It works for 30 minutes and signs in the device you open it on.',
             'If you did not ask for it, ignore this email.'
         ].join('\n')
     };
@@ -169,16 +169,16 @@ function createContacts({ pool, env = process.env, fetchImpl = fetch, now = () =
         if (!res.ok) console.error('[contacts] sign-in mail', res.status, await res.text());
     }
 
-    // A sign-in link -> a new device session token, else null. A link works once. Opening it
-    // proves the address, so the contact is confirmed (and brought back if it was deleted).
+    // A sign-in link -> a new device session token, else null. A link works any number of
+    // times until it runs out (30 minutes): mail scanners open links first. Opening it proves the address, so the contact is confirmed (and brought back if it was deleted).
     async function redeem(tokenInput, userAgent) {
         if (!hosting.looksLikeToken(tokenInput)) return null;
         const client = await pool.connect();
         try {
             await client.query('BEGIN');
             const used = await client.query(
-                `UPDATE contact_tokens SET used_at = $2
-                 WHERE token_hash = $1 AND used_at IS NULL AND expires_at > $2 RETURNING email`,
+                `UPDATE contact_tokens SET used_at = COALESCE(used_at, $2)
+                 WHERE token_hash = $1 AND expires_at > $2 RETURNING email`,
                 [hosting.hashToken(tokenInput), now()]
             );
             const email = used.rows[0]?.email;
