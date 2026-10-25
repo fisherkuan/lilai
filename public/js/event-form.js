@@ -213,6 +213,9 @@
             input.addEventListener('click', () => { try { input.showPicker(); } catch (_) { /* not supported */ } });
         });
 
+        // Starts and Ends scroll as a wheel instead of a list of 48 times (js/time-wheel.js).
+        if (root.TimeWheel) { TimeWheel.attach($('start')); TimeWheel.attach($('end')); }
+
         const state = { calendar: null, limited: false, approval: false, repeatOn: false, weekdays: [], weekdaysTouched: false, endTouched: false, keptPlace: '', pickedPlace: null };
         const linkEditor = EventLinks.create(part('links'));
 
@@ -524,7 +527,7 @@
             if (!el) return false;
             el.textContent = message;
             el.hidden = false;
-            const target = focusEl || el.closest('.field')?.querySelector('input, textarea, select, button');
+            const target = focusEl || el.closest('.field')?.querySelector('input:not([hidden]), textarea, select:not([hidden]), button');
             if (target) target.focus();
             return true;
         }

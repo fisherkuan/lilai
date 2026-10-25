@@ -1276,6 +1276,67 @@ html.sheet-locked body {
 .ev-card > [hidden] { display: none; }
 .ev-card-title { margin: 0 0 calc(-1 * var(--s1)); font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-2); }
 
+/* ---------- Time wheel (js/time-wheel.js) ----------
+   A time field opens two snapping columns, hours and minutes, under it (owner, 2026-10-25).
+   The middle row, on a raised band, is the time; rows fade out above and below. */
+.tw-button { width: 100%; text-align: left; cursor: pointer; font-variant-numeric: tabular-nums; }
+.tw-button.is-empty { color: var(--ink-3); }
+.tw-button[aria-expanded="true"] { outline: var(--stroke-2) solid var(--focus); outline-offset: 2px; }
+.tw-panel {
+    display: grid;
+    gap: var(--s2);
+    margin-top: var(--s2);
+    padding: var(--s2);
+    border-radius: var(--radius-control);
+    background: var(--fill);
+    /* Scrolled into view, it clears the sheet's pinned Make event bar. */
+    scroll-margin-bottom: 96px;
+}
+.tw-cols { position: relative; display: flex; align-items: center; justify-content: center; gap: var(--s1); }
+.tw-band {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 40px;
+    height: 40px;
+    border-radius: 10px;
+    background: var(--paper-raised);
+    box-shadow: var(--shadow-raised);
+    pointer-events: none;
+}
+.tw-col {
+    position: relative;
+    width: 56px;
+    height: 120px;
+    padding: 40px 0;
+    overflow-y: auto;
+    scroll-snap-type: y mandatory;
+    overscroll-behavior: contain;
+    scrollbar-width: none;
+    -webkit-mask-image: linear-gradient(transparent, #000 35%, #000 65%, transparent);
+    mask-image: linear-gradient(transparent, #000 35%, #000 65%, transparent);
+    box-sizing: border-box;
+    outline: none;
+}
+.tw-col::-webkit-scrollbar { display: none; }
+.tw-col:focus-visible { box-shadow: inset 0 0 0 var(--stroke-2) var(--focus); border-radius: 10px; }
+.tw-cell {
+    display: grid;
+    place-items: center;
+    height: 40px;
+    scroll-snap-align: center;
+    font-family: var(--font-display);
+    font-size: 20px;
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+    color: var(--ink-3);
+    cursor: pointer;
+    user-select: none;
+}
+.tw-cell[aria-selected="true"] { color: var(--ink); font-weight: 700; }
+.tw-colon { position: relative; font-family: var(--font-display); font-size: 20px; font-weight: 700; }
+.tw-done { min-height: 40px; }
+
 /* ---------- Event form ----------
    Make an event (Home's sheet) and Edit (the management page's sheet) share one form,
    js/event-form.js. */

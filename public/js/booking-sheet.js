@@ -384,7 +384,7 @@
          * A stored value outside the list is added rather than dropped, so editing an old
          * entry cannot silently move its time.
          */
-        const timeInput = (value, onset) => {
+        const timeInput = (value, onset, name, fallback = '18:00') => {
             const times = [];
             for (let minutes = 6 * 60; minutes <= 23 * 60 + 30; minutes += 30) {
                 times.push(`${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`);
@@ -392,23 +392,25 @@
             if (value && !times.includes(value)) times.push(value);
             times.sort();
 
-            const select = h('select', { class: 'bs-time-input' }, [
+            const select = h('select', { class: 'bs-time-input', 'aria-label': name }, [
                 h('option', { value: '', text: 'Pick a time' }),
                 ...times.map((time) => h('option', { value: time, text: time }))
             ]);
             select.value = value || '';
             select.addEventListener('change', () => { onset(select.value || null); render(); });
+            // A wheel instead of a list (js/time-wheel.js); it needs the select in the page.
+            if (window.TimeWheel) requestAnimationFrame(() => { if (select.isConnected) window.TimeWheel.attach(select, { fallback: value || fallback }); });
             return select;
         };
 
         const starts = timeInput(draft.startPreferred, (value) => {
             draft.startPreferred = value;
             if (value && draft.startAlternative === value) draft.startAlternative = null;
-        });
+        }, 'First choice start');
 
         const alternatives = timeInput(draft.startAlternative, (value) => {
             draft.startAlternative = value;
-        });
+        }, 'Start if that is taken', addHours(draft.startPreferred || '18:00', 1));
 
         /*
          * The one sentence that has to land: both fields are starts.
