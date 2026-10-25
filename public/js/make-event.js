@@ -63,22 +63,69 @@
         return res.json();
     }
 
-    // An event is tied to the signed-in email, so the sheet asks for a sign-in first.
+    // An event is tied to the signed-in email, so the sheet asks for a sign-in first: an
+    // emailed code, typed here (js/signin-code.js). A code sent in the last 30 minutes goes
+    // straight to its field, even after iOS reloaded the app.
     function showSignIn() {
         AccountLink.remember('');
         form.hidden = true;
         made.hidden = true;
         signin.hidden = false;
+        const waiting = SignInCode.pending();
+        if (waiting) return showCodeField(waiting);
         document.getElementById('event-signin-fields').hidden = false;
-        document.getElementById('event-signin-sent').hidden = true;
-        document.getElementById('event-signin-send').hidden = false;
+        document.getElementById('event-signin-code').hidden = true;
+        document.querySelector('#event-signin-send .text').textContent = 'Email me a code';
         const input = document.getElementById('event-signin-email');
         if (!input.value) input.value = remembered(EMAIL_KEY);
         setTimeout(() => input.focus(), 60);
     }
 
+    function showCodeField(email) {
+        document.getElementById('event-signin-email').value = email;
+        document.getElementById('event-signin-fields').hidden = true;
+        document.getElementById('event-signin-sent').textContent = `Type the code sent to ${email}. It works for 30 minutes. The link in the same email works too.`;
+        const input = document.getElementById('event-code');
+        input.value = '';
+        document.getElementById('event-code-error').hidden = true;
+        document.getElementById('event-signin-code').hidden = false;
+        document.querySelector('#event-signin-send .text').textContent = 'Sign in';
+        setTimeout(() => input.focus(), 60);
+    }
+
+    async function signInWithCode() {
+        const input = document.getElementById('event-code');
+        const error = document.getElementById('event-code-error');
+        const button = document.getElementById('event-signin-send');
+        error.hidden = true;
+        if (!SignInCode.isCode(input.value)) {
+            error.textContent = 'Type the six digits from the email.';
+            error.hidden = false;
+            return;
+        }
+        if (button.disabled) return;
+        button.disabled = true;
+        try {
+            const { ok, result } = await SignInCode.redeem(document.getElementById('event-signin-email').value.trim(), input.value);
+            if (!ok) {
+                error.textContent = result.message || 'That did not go through. Try again.';
+                error.hidden = false;
+                return;
+            }
+            const back = returnFocus;
+            await open(wanted);
+            returnFocus = back;
+        } catch (_) {
+            error.textContent = 'No connection. Check your network and try again.';
+            error.hidden = false;
+        } finally {
+            button.disabled = false;
+        }
+    }
+
     async function sendSignIn(e) {
         e.preventDefault();
+        if (!document.getElementById('event-signin-code').hidden) return signInWithCode();
         const input = document.getElementById('event-signin-email');
         const error = document.getElementById('event-signin-error');
         const button = document.getElementById('event-signin-send');
@@ -102,11 +149,8 @@
                 error.hidden = false;
                 return;
             }
-            document.getElementById('event-signin-fields').hidden = true;
-            button.hidden = true;
-            const sent = document.getElementById('event-signin-sent');
-            sent.textContent = `A link is on its way to ${email}. Open it on this device within 30 minutes; it brings you back here.`;
-            sent.hidden = false;
+            SignInCode.remember(email, 'new');
+            showCodeField(email);
         } catch (_) {
             error.textContent = 'No connection. Check your network and try again.';
             error.hidden = false;
@@ -311,9 +355,13 @@
     window.renderHosted = renderHosted;
 
     // /#new or /#new=<calendar>: open the sheet, then drop the hash so a reload does not reopen it.
+    // /#new, or a code asked for here in the last 30 minutes (iOS reloaded the app meanwhile).
     function openFromHash() {
         const match = /^#new(?:=(.+))?$/.exec(location.hash);
-        if (!match) return;
+        if (!match) {
+            if (!location.hash && SignInCode.pendingWhere() === 'new') open();
+            return;
+        }
         history.replaceState(null, '', location.pathname + location.search);
         open(match[1] ? decodeURIComponent(match[1]) : null);
     }
@@ -327,6 +375,13 @@
     });
     form.addEventListener('submit', submit);
     signin.addEventListener('submit', sendSignIn);
+    document.getElementById('event-code').addEventListener('input', (e) => {
+        if (SignInCode.isCode(e.target.value)) signInWithCode();
+    });
+    document.getElementById('event-signin-other').addEventListener('click', () => {
+        SignInCode.clear();
+        showSignIn();
+    });
     document.getElementById('event-made-copy').addEventListener('click', (e) => shareMade(e.currentTarget, 'copy'));
     document.getElementById('event-made-share').addEventListener('click', (e) => shareMade(e.currentTarget, 'share'));
     window.addEventListener('hashchange', openFromHash);
