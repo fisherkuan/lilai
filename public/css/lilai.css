@@ -11,7 +11,8 @@
     --wash: var(--stone);
     --rule: var(--stroke-2);
 
-    /* Lilai additions: a fainter ink for ticks and captions, the drained past outline, the scrim. */
+    /* Lilai additions: a fainter ink for ticks and captions, the drained past outline, and a light
+       scrim tinted with ink (the dark blocks restore the kit's black 40%). The kit owns --ground. */
     --ink-3: #62625c;
     --past: #a9a9a2;
     --scrim: rgba(22, 22, 22, 0.4);
@@ -21,8 +22,6 @@
        light mode is the first calendar's circle. Outbound links only; focus stays the kit's. */
     --link: #0b57d0;
 
-    /* The lifted page: a grey ground under raised cards (dark keeps paper, so cards sit lighter). */
-    --ground: var(--fill);
     /* The date rail's green: the selected day and the agenda accent. Owner's choice, 2026-10-22. */
     --rail-sel: #1f5c43;
     --on-rail-sel: #fafaf7;
@@ -57,7 +56,6 @@
     --gutter: 16px;
     --page: 1180px;
 
-    color-scheme: light;
     accent-color: var(--ink);
     scrollbar-color: var(--ink) transparent;
 }
@@ -68,11 +66,9 @@
     :root:not([data-theme="light"]) {
         --ink-3: #8f9095;
         --past: #55565b;
-        --scrim: rgba(0, 0, 0, 0.4);
-    --on-danger: #111214;
+        --scrim: #00000066;
         --on-danger: #111214;
         --link: #8ab4f8;
-        --ground: var(--paper);
         --rail-sel: #2f7d58;
         --on-rail-sel: #ffffff;
         --rail-accent: #5cbf8c;
@@ -83,8 +79,7 @@
         --on-chat-mine: #ffffff;
         --chat-mine-glow: 0 2px 8px rgb(0 0 0 / 0.4);
         --chat-liked: #5cbf8c;
-        color-scheme: dark;
-    }
+        }
     :root:not([data-theme="light"]) .select {
         background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23f2f2ee' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
     }
@@ -93,9 +88,8 @@
 :root[data-theme="dark"] {
     --ink-3: #8f9095;
     --past: #55565b;
-    --scrim: rgba(0, 0, 0, 0.4);
+    --scrim: #00000066;
     --link: #8ab4f8;
-    --ground: var(--paper);
     --rail-sel: #2f7d58;
     --on-rail-sel: #ffffff;
     --rail-accent: #5cbf8c;
@@ -106,7 +100,6 @@
     --on-chat-mine: #ffffff;
     --chat-mine-glow: 0 2px 8px rgb(0 0 0 / 0.4);
     --chat-liked: #5cbf8c;
-    color-scheme: dark;
 }
 :root[data-theme="dark"] .select {
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23f2f2ee' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
