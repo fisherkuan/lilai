@@ -6,7 +6,8 @@
  * Each sprite is rows of palette letters ('.' is empty); `Sprites.svg(name)` turns one into an
  * inline SVG of 1x1 squares, one path per colour. The colours are fixed: a sprite looks the
  * same in both themes, like the calendar shapes. The links keep their word as aria-label and
- * title, so a screen reader and a long press still name them.
+ * title, so a screen reader and a long press still name them. A footer switch trades the
+ * sprites for short words on this device (lilai.headerStyle).
  */
 (function (root) {
     'use strict';
@@ -80,15 +81,40 @@
             + '</svg>';
     }
 
-    // A header link becomes its sprite; its word moves to aria-label and title.
-    function iconize(link, name, label) {
-        if (!link) return;
+    // The header shows sprites or short words, the device's choice (footer "Header: Icons · Text").
+    const MODE_KEY = 'lilai.headerStyle';
+    function mode() {
+        try { return root.localStorage.getItem(MODE_KEY) === 'text' ? 'text' : 'icons'; } catch (_) { return 'icons'; }
+    }
+
+    // Draw one header link (or the bug button) as its sprite or its short word. The full word
+    // stays as aria-label either way, and as the tooltip under a sprite.
+    function draw(link) {
+        const { sprite, label, short } = link.dataset;
+        const now = mode();
         link.setAttribute('aria-label', label);
-        link.title = label;
-        if (link.dataset.sprite === name) return;
-        link.dataset.sprite = name;
-        link.classList.add('hdr-icon');
-        link.innerHTML = svg(name);
+        if (link.dataset.drawn === `${sprite}:${now}`) return;
+        link.dataset.drawn = `${sprite}:${now}`;
+        link.classList.toggle('hdr-icon', now === 'icons');
+        link.classList.toggle('hdr-text', now === 'text');
+        if (now === 'icons') {
+            link.title = label;
+            link.innerHTML = svg(sprite);
+        } else {
+            link.removeAttribute('title');
+            link.textContent = short;
+        }
+    }
+
+    function iconize(link, name, label, short = label) {
+        if (!link) return;
+        Object.assign(link.dataset, { sprite: name, label, short });
+        draw(link);
+    }
+
+    function setMode(next) {
+        try { root.localStorage.setItem(MODE_KEY, next); } catch (_) { /* private mode: this page only */ }
+        document.querySelectorAll('[data-sprite]').forEach(draw);
     }
 
     function decorate() {
@@ -98,6 +124,26 @@
         });
     }
 
+    // Footer: "Header  Icons  Text", beside the theme switch and styled like it.
+    function renderSwitch() {
+        const footer = document.querySelector('.colophon');
+        if (!footer || !document.querySelector('.masthead')) return;
+        const group = document.createElement('div');
+        group.className = 'theme-switch';
+        group.setAttribute('role', 'group');
+        group.setAttribute('aria-label', 'Header');
+        group.innerHTML = '<span class="theme-switch-label">Header</span>'
+            + [['icons', 'Icons'], ['text', 'Text']].map(([value, text]) =>
+                `<button type="button" class="theme-btn" data-header-choice="${value}" aria-pressed="false">${text}</button>`).join('');
+        footer.appendChild(group);
+        const buttons = [...group.querySelectorAll('button')];
+        const mark = () => buttons.forEach(b => b.setAttribute('aria-pressed', String(b.dataset.headerChoice === mode())));
+        buttons.forEach(b => b.addEventListener('click', () => { setMode(b.dataset.headerChoice); mark(); }));
+        mark();
+    }
+
     decorate();
-    root.Sprites = { svg, iconize };
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', renderSwitch);
+    else renderSwitch();
+    root.Sprites = { svg, iconize, setMode };
 })(window);

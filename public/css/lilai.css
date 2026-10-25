@@ -313,6 +313,41 @@ button { font: inherit; color: inherit; }
 .masthead:has(.hdr-icon) .app-header-links { gap: var(--s2); }
 .masthead > .hdr-icon:last-child,
 .masthead > .app-header-links:last-child > .hdr-icon:last-child { margin-right: -6px; }
+/* The header as short words instead (footer "Header: Text"): Bug, FAQ, Donate, Sign in or
+   Profile, Admin, all on one line; on a phone the shapes alone stand for Lilai. */
+.masthead .hdr-text {
+    display: inline-flex;
+    align-items: center;
+    width: auto;
+    height: auto;
+    min-height: 44px;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: none;
+    font: inherit;
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--ink);
+    text-decoration: none;
+    white-space: nowrap;
+    cursor: pointer;
+}
+.masthead .hdr-text:hover { background: none; text-decoration: underline; }
+.masthead .hdr-text[aria-current="page"] {
+    text-decoration: underline;
+    text-decoration-thickness: 2px;
+    text-underline-offset: 3px;
+}
+.masthead:has(.hdr-text), .masthead:has(.hdr-text) .app-header-links { gap: var(--s4); }
+@media (max-width: 479px) {
+    .masthead:has(.hdr-text) .wordmark-name { display: none; }
+    .masthead:has(.hdr-text), .masthead:has(.hdr-text) .app-header-links { gap: var(--s3); }
+}
+@media (max-width: 359px) {
+    .masthead:has(.hdr-text), .masthead:has(.hdr-text) .app-header-links { gap: 10px; }
+    .masthead .hdr-text { font-size: 14px; }
+}
 /* A 320px phone cannot fit five sprites beside the wordmark: with Admin there, the shapes
    alone stand for Lilai (they still link home and keep its name for screen readers). */
 @media (max-width: 359px) {

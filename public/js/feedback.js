@@ -201,8 +201,8 @@
             bug.className = 'icon-btn report-bug';
             bug.setAttribute('aria-label', 'Report a bug');
             bug.title = 'Report a bug';
-            bug.innerHTML = window.Sprites ? window.Sprites.svg('goomba') : BUG_ICON;
-            bug.classList.toggle('hdr-icon', Boolean(window.Sprites));
+            if (window.Sprites) window.Sprites.iconize(bug, 'goomba', 'Report a bug', 'Bug');
+            else bug.innerHTML = BUG_ICON;
             bug.addEventListener('click', open);
             // First after the wordmark, ahead of the links (owner, 2026-10-25).
             masthead.insertBefore(bug, masthead.querySelector('.app-header-links') || masthead.querySelector('[data-admin-link]'));
