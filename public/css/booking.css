@@ -717,19 +717,7 @@
     font-variant-numeric: tabular-nums;
 }
 
-.bs-bars {
-    display: flex;
-    align-self: center;
-    gap: var(--s1);
-}
-
-.bs-bar {
-    width: 20px;
-    height: 3px;
-    background: var(--hair);
-}
-
-.bs-bar.done { background: var(--ink); }
+.bs-step:empty { display: none; }
 
 .bs-close { flex: none; margin: -2px -10px 0 0; }
 
@@ -742,7 +730,7 @@
     padding: var(--s4) var(--gutter) var(--s5);
 }
 
-/* The body scrolls; its children never shrink, or the confirm table loses its last rows. */
+/* The body scrolls; its children never shrink, or the last cards lose their rows. */
 .bs-body > * { flex: none; }
 
 .bs-footer {
@@ -965,19 +953,6 @@ select.bs-unit { flex: none; width: 150px; max-width: none; }
 
 .bq-pip.used { background: var(--ink); }
 
-/* Who it is for, on the confirm screen. */
-.bs-person {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--s3);
-    min-height: 44px;
-}
-
-.bs-person-who { min-width: 0; }
-.bs-person-name { font-size: 16px; font-weight: 600; }
-.bs-person-contact { font-size: var(--meta); color: var(--ink-2); overflow-wrap: anywhere; }
-
 .bs-person-add {
     min-height: 48px;
     padding: 0 var(--s5);
@@ -992,33 +967,6 @@ select.bs-unit { flex: none; width: 150px; max-width: none; }
 }
 
 .bs-person-add:hover { background: var(--stone); }
-
-/* What we will submit: label and value on one line, between two ink rules. */
-.bs-table-head {
-    padding: 0 0 var(--s2);
-    font-size: 16px;
-    font-weight: 600;
-}
-
-.bs-table-row {
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: var(--s4);
-    padding: var(--s2) 0;
-    border-top: 1px solid var(--hair);
-    font-size: 15px;
-}
-
-.bs-table-label { flex: none; font-size: var(--meta); color: var(--ink-2); }
-
-.bs-table-value {
-    min-width: 0;
-    font-weight: 500;
-    text-align: right;
-    font-variant-numeric: tabular-nums;
-    overflow-wrap: anywhere;
-}
 
 /* Quota reached, and what a partly landed repeat left out: a heavy rule, then the rows. */
 .bs-full {
@@ -1311,8 +1259,6 @@ select.bs-unit { flex: none; width: 150px; max-width: none; }
     .bd-title,
     .bq-page .bd-title { font-size: 30px; }
 }
-
-.bs-table + .bs-block { padding-top: 0; border-top: 0; }
 
 /* Dark: the two data-URI icons carry their stroke colour inline, so they need a light copy. */
 @media (prefers-color-scheme: dark) {

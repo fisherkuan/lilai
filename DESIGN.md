@@ -360,7 +360,7 @@ Soft, sentence case, outlined or filled in ink, as in the kit. Hover swaps fills
 
 ### Buttons
 - **Shape:** a pill, 2px ink outline, 44px tall, 24px side padding, button style (15px 600, sentence case).
-- **Solid:** ink ground, paper label. The one main action of a form or sheet: Confirm, Add entry, Queue a slot, Next. It stays ink; only a destructive confirm (Remove, Yes, cancel event) is red (see Deviations).
+- **Solid:** ink ground, paper label. The one main action of a form or sheet: Confirm, Add entry, Queue a slot, Put it in the queue. It stays ink; only a destructive confirm (Remove, Yes, cancel event) is red (see Deviations).
 - **Line:** clear ground, ink label, ink outline. Join on every event, and secondary calls such as "Create an event" and "Pay by card". A page of solid Joins read as a column of black blocks (removed 2026-10-02).
 - **Event buttons:** inside an event the button steps down to 40px tall with 16px side padding, since every event carries one.
 - **Hover:** the fills swap. Solid turns paper with an ink label; line turns ink with a paper label. 140ms on the system ease.
@@ -379,7 +379,7 @@ An event is a 16px rounded box with a 2px ink outline on paper-raised. See The E
 ### Inputs / Fields
 - **Style:** a filled field: 50px tall, `fill` ground, a transparent 2px border, 12px corners, 17px text, ink-faint placeholder. Labels sit 8px above the field in the label style, in ink-muted. The select adds a 2px ink chevron at the right.
 - **Focus:** a 2px focus-blue outline offset 2px outside the border.
-- **Booking sheet: grouped cards.** As in Make an event (owner, 2026-10-25): the sheet is grey, the header and footer lose their ink rules (a 1px hairline above the footer), and each step's parts are raised cards: Booking for, Sport and day; Times, Repeat, Players and court; Booking for, What we will submit, Queuing is not booking. "What happens next" and the full-week notice are cards too. Its dates read yyyy/mm/dd the same way.
+- **Booking sheet: one page of grouped cards.** As in Make an event (owner, 2026-10-25): one scrolling page, no steps, no step bars and no confirm screen. The sheet is grey, the header and footer lose their ink rules (a 1px hairline above the footer), and the raised cards run Booking for (with the masked email and phone), Sport and day, Times, Repeat, Players and court, then What happens next. The one button stays live; a tap with something missing names it in the error line instead. The full-week notice is a card too. Its dates read yyyy/mm/dd the same way.
 - **Choice chips:** the booking sheet's exclusive answers (segments, weekday chips) are separate 44px pill chips with an 8px gap (4px for the seven weekdays), a 2px ink outline on paper-raised, and 15px 500 text. Hover and the chosen state both fill ink with a paper label; chosen sets the text at 600. From 640px, where the sheet is a drawer, the event form's chips (Once | Repeats, No limit | Limited) are slimmer: 36px drawn on a filled ground, 14px side padding, 14px text, with the tap area kept at 44px; fields in a sheet match them (36px boxes with 16px text, 36px − / + steppers; a textarea keeps its height). Phones keep 44px chips and 50px fields, easier under a thumb (owner, 2026-10-25).
 - **Error:** a 14px 500 ink line below the field, led by an 8px ink square. The kit's red mark is not used (see Deviations).
 

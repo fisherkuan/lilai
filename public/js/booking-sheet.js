@@ -1,10 +1,10 @@
 /*
- * Queue a slot — a three-step bottom sheet (artboards 1e-1h).
+ * Queue a slot — one scrolling sheet of grouped cards, as in Make an event (owner,
+ * 2026-10-25; it was three steps until then).
  *
- * Eleven form fields become three screens. The quiet ones (players, indoor, facility,
- * remarks) sit at the foot of step 2, filled in from last time. The
- * second start time is the only field with its own bordered box: it is a different
- * START, not an end time, and it is the field people get wrong.
+ * Who, sport and day; times; repeat; players and court, then what happens next. The quiet
+ * fields (players, indoor, facility, remarks) are filled in from last time. The second
+ * start time is the field people get wrong: it is a different START, not an end time.
  *
  * The quota is counted on the NAME, so the name is asked first. That resolves the tally
  * before anyone fills in ten other fields, rather than after.
@@ -105,7 +105,7 @@
     async function refreshPreview() {
         if (!draft.repeatOn || !draft.playDate || !draft.repeatUntil) {
             preview = null;
-            return renderStep();
+            return render();
         }
         // Answers can land out of order while someone clicks through weekdays; only the
         // newest one is allowed to paint.
@@ -120,7 +120,7 @@
             if (token !== previewToken) return;
             preview = { dates: [], message: 'Could not work out those dates.' };
         }
-        renderStep();
+        render();
     }
 
     function addHours(time, hours) {
@@ -163,7 +163,7 @@
 
     async function refreshQuota() {
         quota = null;
-        if (!draft.name || !draft.playDate) return renderStep();
+        if (!draft.name || !draft.playDate) return render();
         try {
             // While editing, neither the entry nor the schedule is competition for its own slot.
             const mine = draft.editingId ? `&excludeId=${encodeURIComponent(draft.editingId)}`
@@ -174,7 +174,7 @@
             const data = await response.json();
             if (data.success) quota = data;
         } catch (error) { /* leave the strip generic */ }
-        renderStep();
+        render();
     }
 
     /*
@@ -220,13 +220,13 @@
     async function addPerson() {
         const saved = await window.bookingPeople.openEditor(null);
         if (saved) pickPerson(saved);
-        else renderStep();
+        else render();
     }
 
     /*
      * The people manager, opened from inside the sheet.
      *
-     * It owns its own layer and does not report when it closes, so the step is repainted
+     * It owns its own layer and does not report when it closes, so the sheet is repainted
      * when that layer leaves the DOM — a person added in there has to appear in the select
      * that sent you to it, and a person deleted in there must not stay picked.
      */
@@ -235,7 +235,7 @@
         await window.bookingPeople.openManager();
         const roots = document.querySelectorAll('.bs-root');
         const layer = roots.length > before ? roots[roots.length - 1] : null;
-        if (!layer) return renderStep();
+        if (!layer) return render();
         const watch = new MutationObserver(() => {
             if (layer.isConnected) return;
             watch.disconnect();
@@ -244,7 +244,7 @@
                 draft.name = '';
                 quota = null;
             }
-            renderStep();
+            render();
         });
         watch.observe(document.body, { childList: true });
     }
@@ -257,7 +257,7 @@
      * between two spellings of one person's address. The contact details are a promise kept
      * on the next screen, not a thing to pick between here.
      */
-    // Grouped cards (owner, 2026-10-25): each part of a step is a raised card on the grey
+    // Grouped cards (owner, 2026-10-25): each part of the page is a raised card on the grey
     // sheet, under a small uppercase title when it needs one.
     function card(title, parts) {
         const kept = parts.filter(Boolean);
@@ -307,6 +307,7 @@
             ...people.map((person) => h('option', { value: person.id, text: person.name }))
         ]);
         select.value = draft.profileId || '';
+        const picked = draft.profileId ? window.bookingPeople.byId(draft.profileId) : null;
         select.addEventListener('change', () => {
             const person = window.bookingPeople.byId(select.value);
             if (person) pickPerson(person);
@@ -316,11 +317,14 @@
             head,
             select,
             quotaStrip(),
-            h('p', { class: 'bs-note', text: 'Email and phone come with the name — never asked for twice.' })
+            // The privacy sentence sits under the contact details it is about.
+            h('p', { class: 'bs-note', text: picked
+                ? `${picked.emailMasked} · ${picked.phoneMasked}. They go on KU Leuven\u2019s form and nowhere else; the board shows only the name.`
+                : 'Email and phone come with the name, never asked for twice.' })
         ]);
     }
 
-    function stepOne() {
+    function whoAndDay() {
         // One date input, no shortcuts. A shortcut that guesses wrong costs more than the
         // two seconds a picker takes, and the calendar already knows which dates are legal.
         const picker = h('input', {
@@ -344,7 +348,7 @@
             value: draft.sport || '',
             'aria-label': 'Sport'
         });
-        // Re-rendering the step on every keystroke would take the caret with it. Only the
+        // Re-rendering the page on every keystroke would take the caret with it. Only the
         // footer reads this field, so only the footer is refreshed while typing.
         sport.addEventListener('input', () => { draft.sport = sport.value.trim(); renderFooter(); });
 
@@ -364,40 +368,12 @@
             ])])
         ];
 
-        if (draft.playDate && openingLabel(draft.playDate).open) {
-            const opening = openingLabel(draft.playDate);
-            body.push(h('div', { class: 'bs-block' }, [
-                h('div', { class: 'bs-block-title', text: 'What happens next' }),
-                h('p', { class: 'bs-block-lead' }, [
-                    'The form for ',
-                    h('strong', { text: prettyDate(draft.playDate) }),
-                    ' opened ',
-                    h('strong', { text: opening.text }),
-                    '.'
-                ]),
-                h('p', { class: 'bs-note', text: 'The request goes out as soon as you queue it. A late request often gets a worse court than one sent at midnight.' })
-            ]));
-        } else if (draft.playDate) {
-            const opening = openingLabel(draft.playDate);
-            body.push(h('div', { class: 'bs-block' }, [
-                h('div', { class: 'bs-block-title', text: 'What happens next' }),
-                h('p', { class: 'bs-block-lead' }, [
-                    'The form for ',
-                    h('strong', { text: prettyDate(draft.playDate) }),
-                    ' opens ',
-                    h('strong', { text: opening.text }),
-                    opening.suffix
-                ]),
-                h('p', { class: 'bs-note', text: 'This slot sits in the queue until then, and goes out in the first minute.' })
-            ]));
-        }
-
         return body;
     }
 
-    function stepTwo() {
+    function timesAndCourt() {
         const duration = segment(DURATIONS, draft.durationHours,
-            (value) => { draft.durationHours = value; renderStep(); },
+            (value) => { draft.durationHours = value; render(); },
             (value) => (value === 1 ? '1 hr' : `${value} hrs`));
 
         /*
@@ -421,7 +397,7 @@
                 ...times.map((time) => h('option', { value: time, text: time }))
             ]);
             select.value = value || '';
-            select.addEventListener('change', () => { onset(select.value || null); renderStep(); });
+            select.addEventListener('change', () => { onset(select.value || null); render(); });
             return select;
         };
 
@@ -500,7 +476,7 @@
             draft.editingSeriesId ? null : segment([false, true], draft.repeatOn, (value) => {
                 draft.repeatOn = value;
                 if (!value) preview = null;
-                renderStep();
+                render();
                 if (value) refreshPreview();
             }, (value) => value ? 'Repeat' : 'Just once')
         ];
@@ -514,7 +490,7 @@
         every.addEventListener('change', () => {
             const value = Number(every.value);
             draft.repeatEvery = Number.isInteger(value) && value >= 1 ? value : 1;
-            renderStep();
+            render();
             refreshPreview();
         });
 
@@ -523,7 +499,7 @@
         unit.value = draft.repeatUnit;
         unit.addEventListener('change', () => {
             draft.repeatUnit = unit.value;
-            renderStep();
+            render();
             refreshPreview();
         });
 
@@ -544,11 +520,11 @@
                         draft.repeatWeekdays = draft.repeatWeekdays.includes(day)
                             ? draft.repeatWeekdays.filter((picked) => picked !== day)
                             : [...draft.repeatWeekdays, day].sort((a, b) => a - b);
-                        renderStep();
+                        render();
                         refreshPreview();
                     }
                 }))),
-                // The two-a-week limit is already said by the tally on step 1 and by the
+                // The two-a-week limit is already said by the tally under the name and by the
                 // preview below; a third copy here was the one nobody read.
                 draft.repeatWeekdays.length === 0
                     ? h('p', { class: 'bs-note', text: `Nothing chosen means the day the first booking falls on${draft.playDate ? ` — ${prettyDate(draft.playDate).split(' ')[0]}` : ''}.` })
@@ -564,7 +540,7 @@
         });
         until.addEventListener('change', () => {
             draft.repeatUntil = until.value;
-            renderStep();
+            render();
             refreshPreview();
         });
         parts.push(h('div', { class: 'bs-field' }, [
@@ -584,62 +560,23 @@
         return h('div', { class: 'bs-field' }, parts);
     }
 
-    function stepThree() {
-        const person = draft.profileId ? window.bookingPeople.byId(draft.profileId) : null;
-
-        const rows = [
-            ['Sport', draft.sport],
-            ['Day', prettyDate(draft.playDate)],
-            ['Start', `${draft.startPreferred}, else ${draft.startAlternative}`],
-            ['Duration', draft.durationHours === 1 ? '1 hr' : `${draft.durationHours} hrs`],
-            ['Players', String(draft.players)],
-            ['Where', `${draft.indoorOutdoor}${draft.facility ? ` · ${draft.facility === 'Andere / Other' ? draft.otherFacility : draft.facility}` : ''}`],
-            [draft.repeatOn ? 'First goes out' : 'Goes out', openingLabel(draft.playDate).open ? 'Now, when you queue it' : openingLabel(draft.playDate).text]
-        ];
-        if (draft.repeatOn && preview && preview.dates.length > 0) {
-            const dates = preview.dates;
-            rows.splice(2, 0, ['Repeat',
-                `${dates.length} bookings · ${preview.summary} · to ${prettyDate(dates[dates.length - 1])}`]);
-        }
-
-        /*
-         * No contact fields. The email and phone come from the person picked in step 1, so
-         * this step confirms who rather than asking a third time. An older entry whose
-         * person has since been removed keeps the details it was queued with; the server
-         * holds them and this step says so.
-         *
-         * One way back, not two. "Not them?" and "Change their email or phone" were both
-         * on this screen; editing contact details is what Manage people is for, and it is
-         * one tap further from a confirm screen than it should be.
-         */
-        const firstName = String(draft.name || '').trim().split(/\s+/)[0] || 'them';
-
+    /*
+     * What happens next, at the foot of the page: when the request goes out and who answers.
+     * Queuing is not booking, so the card says KU Leuven decides.
+     */
+    function whatNext() {
+        const firstName = String(draft.name || '').trim().split(/\s+/)[0] || 'the person booking';
+        const opening = draft.playDate ? openingLabel(draft.playDate) : null;
+        const lead = !opening ? null
+            : h('p', { class: 'bs-block-lead' }, opening.open
+                ? ['The form for ', h('strong', { text: prettyDate(draft.playDate) }), ' opened ', h('strong', { text: opening.text }), '. The request goes out as soon as you queue it.']
+                : ['The form for ', h('strong', { text: prettyDate(draft.playDate) }), ' opens ', h('strong', { text: opening.text }), opening.suffix, '. The slot waits here and goes out in the first minute.']);
         return [
-            card(null, [h('div', { class: 'bs-field' }, [
-                h('label', { class: 'bs-label', text: 'Booking for' }),
-                h('div', { class: 'bs-person' }, [
-                    h('div', { class: 'bs-person-who' }, [
-                        h('div', { class: 'bs-person-name', text: draft.name }),
-                        h('div', { class: 'bs-person-contact', text: person
-                            ? `${person.emailMasked} · ${person.phoneMasked}`
-                            : 'Contact details kept with this entry' })
-                    ]),
-                    h('button', { type: 'button', class: 'text-btn', text: 'Change', onclick: () => goTo(1) })
-                ]),
-                // The privacy sentence sits under the contact details it is about.
-                h('p', { class: 'bs-note', text: 'The email and phone go on KU Leuven\u2019s form and nowhere else — the board shows only the name.' })
-            ])]),
-            card(null, [h('div', { class: 'bs-table' }, [
-                h('div', { class: 'bs-table-head', text: 'What we will submit' }),
-                ...rows.map(([label, value]) => h('div', { class: 'bs-table-row' }, [
-                    h('span', { class: 'bs-table-label', text: label }),
-                    h('span', { class: 'bs-table-value', text: value })
-                ]))
-            ])]),
             h('div', { class: 'bs-block' }, [
-                h('div', { class: 'bs-block-title', text: 'Queuing is not booking.' }),
-                h('p', { class: 'bs-block-note', text: `We submit the request ${openingLabel(draft.playDate).open ? 'right away' : 'at midnight'}. KU Leuven decides, and emails ${firstName} directly — usually within a day or two.` })
-            ]),
+                h('div', { class: 'bs-block-title', text: 'What happens next' }),
+                lead,
+                h('p', { class: 'bs-block-note', text: `KU Leuven decides, and emails ${firstName} directly, usually within a day or two. A sent request is not a booked court.` })
+            ].filter(Boolean)),
             // The only fine print left, and it stays readable: 12px muted grey on white is
             // 2.5:1, which is not a colour this sentence may be set in.
             h('p', { class: 'bs-note', text: 'A valid KU Leuven sports card is required to book. We do not check it and never could — that is between the player and KU Leuven.' })
@@ -689,20 +626,19 @@
         }
         if (!data.success) return setError(data.message);
         await refreshQuota();
-        goTo(1);
     }
 
     // --- Everything else ----------------------------------------------------------------
 
     /*
-     * Players, indoor or outdoor, facility and remarks, laid out in step 2 itself.
+     * Players, indoor or outdoor, facility and remarks, laid out on the page itself.
      *
      * They used to fold into a one-line summary with a Change button that opened a second
      * sheet over the first. That hid the player count, the one of the four that has to be
      * true, behind a tap, and a sheet on top of a sheet was a place people lost their way.
      * They still carry over from last time, so most bookings never touch them.
      *
-     * The typed fields write to the draft as you type and never repaint the step, which
+     * The typed fields write to the draft as you type and never repaint the page, which
      * would take the caret with it. Only the choices that change what is shown repaint.
      */
     function detailFields() {
@@ -717,7 +653,7 @@
             ...options.facilities.map((name) => h('option', { value: name, text: name }))
         ]);
         facility.value = draft.facility || '';
-        facility.addEventListener('change', () => { draft.facility = facility.value; renderStep(); });
+        facility.addEventListener('change', () => { draft.facility = facility.value; render(); });
 
         const other = h('input', { type: 'text', class: 'bs-input', placeholder: 'Which court or hall?', value: draft.otherFacility || '' });
         other.addEventListener('input', () => { draft.otherFacility = other.value.trim(); });
@@ -736,7 +672,7 @@
                 h('label', { class: 'bs-label', text: 'Indoor or outdoor' }),
                 pillGroup(['Indoor', 'Outdoor'], draft.indoorOutdoor, (value) => {
                     draft.indoorOutdoor = value;
-                    renderStep();
+                    render();
                 })
             ]),
             h('div', { class: 'bs-field' }, [h('label', { class: 'bs-label', text: 'Facility' }), facility]),
@@ -749,14 +685,11 @@
 
     // --- Shell ---------------------------------------------------------------------------
 
-    const STEP_TITLES = ['who, sport, day', 'times', 'confirm'];
-
     /*
      * Which of the three things the sheet is doing, said once and never overwritten.
      *
-     * The title turns into "Badminton · Sun 4 Oct" from step 2 onwards, so it cannot carry
-     * the mode; without this banner, editing an existing slot and creating a new one look
-     * identical from the second screen on, and the difference matters — one of them
+     * The title says what the sheet does, but not which slot; without this banner, editing an
+     * existing slot and copying one look alike, and the difference matters — one of them
      * changes a slot someone is already counting on.
      */
     const MODE_TAG = {
@@ -765,25 +698,18 @@
         edit: 'Editing'
     };
 
-    function canAdvance() {
-        if (quota && quota.remaining === 0) return false;
-        if (draft.step === 1) return Boolean(draft.profileId && draft.sport && draft.playDate);
-        if (draft.step === 2) {
-            // A repeat may not advance on a preview that has not answered, or that refused:
-            // the count on the button has to be a number the server agreed to.
-            if (draft.repeatOn && (!preview || preview.dates.length === 0)) return false;
-            return Boolean(draft.startPreferred && draft.startAlternative);
-        }
-        // An edit whose person has since been removed carries no profile — one entry's or a
-        // whole schedule's. The server keeps the contact details it already has, so there is
-        // nothing left to ask.
-        return Boolean(draft.profileId || draft.editingId || draft.editingSeriesId);
-    }
-
-    function goTo(step) {
-        draft.step = step;
-        setError(null);
-        renderStep();
+    /*
+     * What still stops the queue, in page order, or null. The button stays live and says
+     * this on a tap: a grey button at the foot of a long page would not say why.
+     */
+    function missing() {
+        if (!draft.profileId) return 'Choose who the booking is for.';
+        if (!draft.sport) return 'Type the sport.';
+        if (!draft.playDate) return 'Pick the day you want to play.';
+        if (!draft.startPreferred || !draft.startAlternative) return 'Pick both start times.';
+        // The count on the button has to be a number the server agreed to.
+        if (draft.repeatOn && (!preview || preview.dates.length === 0)) return 'Pick when the repeat ends, and wait for its dates.';
+        return null;
     }
 
     function setError(message) {
@@ -804,48 +730,35 @@
             footer.append(h('button', { type: 'button', class: 'btn btn-line bs-wide', text: 'Leave it for now', onclick: close }));
             return;
         }
-        if (draft.step > 1) {
-            footer.append(h('button', { type: 'button', class: 'btn btn-line', text: 'Back', onclick: () => goTo(draft.step - 1) }));
-        }
         const count = draft.repeatOn && preview ? preview.dates.length : 1;
-        const last = draft.editingId ? 'Save changes'
+        const label = draft.editingId ? 'Save changes'
             : draft.editingSeriesId ? 'Save the schedule'
                 : count > 1 ? `Queue all ${count}` : 'Put it in the queue';
-        const label = draft.step === 1 ? 'Next — times' : draft.step === 2 ? 'Next — confirm' : last;
-        const next = h('button', {
-            type: 'button',
-            class: 'btn btn-solid bs-next',
-            text: label,
-            onclick: () => (draft.step === 3 ? submit() : goTo(draft.step + 1))
-        });
-        next.disabled = !canAdvance();
-        footer.append(next);
+        footer.append(h('button', { type: 'button', class: 'btn btn-solid bs-next', text: label, onclick: submit }));
     }
 
-    function renderStep() {
+    function render() {
         if (!root) return;
         const full = quota && quota.remaining === 0;
 
+        // Every choice repaints the page, so keep the reader where they were.
         const body = root.querySelector('.bs-body');
+        const scroll = body.scrollTop;
         body.textContent = '';
-        const step = full ? stepFull() : draft.step === 1 ? stepOne() : draft.step === 2 ? stepTwo() : stepThree();
-        for (const part of step) { if (part) body.append(part); }
+        const parts = full ? stepFull() : [...whoAndDay(), ...timesAndCourt(), ...whatNext()];
+        for (const part of parts) { if (part) body.append(part); }
+        body.scrollTop = scroll;
 
-        root.querySelector('.bs-step').textContent = full
-            ? 'That week is full'
-            : `Step ${draft.step} of 3 · ${STEP_TITLES[draft.step - 1]}`;
-        root.querySelector('.bs-title').textContent = draft.sport && draft.playDate && draft.step > 1
-            ? `${draft.sport} · ${prettyDate(draft.playDate)}`
-            : sheetTitle();
-
-        const bars = root.querySelectorAll('.bs-bar');
-        bars.forEach((bar, index) => bar.classList.toggle('done', !full && index < draft.step));
+        root.querySelector('.bs-step').textContent = full ? 'That week is full' : '';
+        root.querySelector('.bs-title').textContent = sheetTitle();
 
         renderFooter();
         setError(draft.error);
     }
 
     async function submit() {
+        const gap = missing();
+        if (gap) return setError(gap);
         setError(null);
         const next = root.querySelector('.bs-next');
         next.disabled = true;
@@ -895,7 +808,7 @@
             if (!data.success) {
                 if (data.reason === 'quota_reached') {
                     quota = data.quota;
-                    return renderStep();
+                    return render();
                 }
                 if (data.reason === 'nothing_queued') {
                     return showOutcome([], data.skipped || []);
@@ -979,10 +892,10 @@
             if (last) { draft.profileId = last.id; draft.name = last.name; }
         }
         // A schedule opens with its rule already on, so its preview is owed from the start:
-        // step 2 will not advance on a count the server has not agreed to.
+        // the sheet will not queue on a count the server has not agreed to.
         if (draft.repeatOn) refreshPreview();
         if (draft.profileId && draft.playDate) return refreshQuota();
-        renderStep();
+        render();
     }
 
     /*
@@ -1010,7 +923,6 @@
             : entry && entry.playDate >= isoDate(earliestPlayDate()) ? entry.playDate : '';
 
         draft = entry ? {
-            step: 1,
             mode: series ? 'series' : duplicate ? 'duplicate' : 'edit',
             source: series ? series.summary : `${entry.sport} · ${prettyDate(entry.playDate)}`,
             // A schedule edit changes the rule and every occurrence still waiting under it;
@@ -1019,7 +931,7 @@
             editingSeriesId: series ? series.id : null,
             name: entry.name,
             // Both an edit and a duplicate start from the person the entry was booked for.
-            // If that person has since been removed, step 1 asks for a new one.
+            // If that person has since been removed, the sheet asks for a new one.
             profileId: entry.profileId || null,
             sport: series ? series.sport : entry.sport,
             /*
@@ -1045,7 +957,6 @@
             repeatUntil: series ? series.until : '',
             error: null
         } : {
-            step: 1,
             mode: 'create',
             source: null,
             editingId: null,
@@ -1084,9 +995,8 @@
                 h('header', { class: 'bs-head' }, [
                     h('div', {}, [
                         h('div', { class: 'bs-title', text: sheetTitle() }),
-                        h('div', { class: 'bs-step', text: `Step 1 of 3 · ${STEP_TITLES[0]}` })
+                        h('div', { class: 'bs-step' })
                     ]),
-                    h('div', { class: 'bs-bars' }, [1, 2, 3].map(() => h('span', { class: 'bs-bar' }))),
                     h('button', { type: 'button', class: 'bs-close icon-btn', 'aria-label': 'Close', html: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>', onclick: close })
                 ]),
                 h('div', { class: 'bs-body' }),
@@ -1096,7 +1006,7 @@
         ]);
 
         document.body.append(root);
-        renderStep();
+        render();
         loadReference();
     }
 
