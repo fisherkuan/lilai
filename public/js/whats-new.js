@@ -45,7 +45,7 @@
         {
             image: 'signin.jpg',
             en: ['Sign in once', 'An event belongs to your email. Lilai emails you a sign-in link; open it on this phone and you land back in the form. This device stays signed in for 90 days.'],
-            'zh-TW': ['先登入一次', '活動會綁定你的 email。Lilai 會寄登入連結給你，在這支手機上打開，就會回到建立活動的表單。這台裝置會保持登入 90 天。']
+            'zh-TW': ['先登入一次', '建立活動會綁定你的 email。Lilai 會寄登入連結給你，在這支手機上打開，就會回到建立活動的表單。這台裝置會保持登入 90 天。']
         },
         {
             video: 'make-fill',
