@@ -186,6 +186,7 @@
 .me-form[hidden] { display: none; }
 #me-sent .text-btn { margin-top: var(--s2); }
 .me-back { display: inline-flex; margin-top: var(--s2); }
+#me-ask .me-back { margin-bottom: var(--s3); }
 #me-sent[hidden], #me-delete-confirm[hidden] { display: none; }
 
 /* The profile (owner, 2026-10-25): who you are on top, then grouped cards as in Make an event,

@@ -11,6 +11,8 @@
     // A link asked for from an event's chat goes back to that thread once signed in.
     const nextRaw = new URLSearchParams(location.search).get('next') || '';
     const next = /^\/(?![\/\\])/.test(nextRaw) ? nextRaw : '';
+    const backText = next.startsWith('/#chat-') ? 'Back to the chat'
+        : next.startsWith('/#new') ? 'Back to your event' : '';
     let email = '';
     // The keys Home's RSVP sheet and Make an event fill in from (app.js, js/make-event.js).
     const NAME_KEY = 'lilai.attendeeName';
@@ -87,7 +89,7 @@
         button.disabled = true;
         text.textContent = 'Sending…';
         try {
-            const { ok, result } = await api('/api/me/link', { method: 'POST', body: JSON.stringify({ email: typed }) });
+            const { ok, result } = await api('/api/me/link', { method: 'POST', body: JSON.stringify(next ? { email: typed, next } : { email: typed }) });
             if (!ok) return showError('me-error', result.message || 'That did not go through. Try again.');
             $('me-form').hidden = true;
             $('me-sent-text').textContent = `A link is on its way to ${typed}. It works for 30 minutes.`;
@@ -281,8 +283,8 @@
             savedName = result.name;
             renderIdentity(result.name);
             store(NAME_KEY, result.name);
-            // Came from a chat to set the name: back to it.
-            if (next.startsWith('/#chat-') && result.name) {
+            // Came from a chat or Make an event to set the name: back to it.
+            if (backText && result.name) {
                 location.replace(next);
                 return;
             }
@@ -339,10 +341,13 @@
     $('me-name').addEventListener('input', nameHint);
     $('me-first-name-form').addEventListener('submit', saveFirstName);
     $('me-first-name-skip').addEventListener('click', goOn);
-    if (next.startsWith('/#chat-')) {
-        $('me-back').href = next;
-        $('me-back').hidden = false;
-    }
+    // Back where /me was opened from: the chat, or Make an event (its Change link).
+    document.querySelectorAll('[data-me-back]').forEach((a) => {
+        if (!backText) return;
+        a.href = next;
+        a.textContent = backText;
+        a.hidden = false;
+    });
 
     $('me-form').addEventListener('submit', sendLink);
     $('me-name-form').addEventListener('submit', saveName);

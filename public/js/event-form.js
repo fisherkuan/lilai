@@ -178,7 +178,7 @@
             <h3 class="ev-card-title" id="${p}-c-you">You</h3>
             <div class="field">
                 <p class="ev-label">Email</p>
-                <p class="ev-signed-as"><span id="${p}-email"></span> <a class="text-link" href="/me">Change</a></p>
+                <p class="ev-signed-as"><span id="${p}-email"></span> <a class="text-link" href="/me?next=%2F%23new" data-change-email>Change</a></p>
                 <p class="field-error" data-error-for="hostEmail" role="alert" hidden></p>
             </div>
             <label class="ev-check">

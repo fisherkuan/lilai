@@ -15,6 +15,11 @@
     let config = null;
     let returnFocus = null;
     let wanted = null; // the calendar asked for, kept through a sign-in
+    // What was typed, kept while Change takes the host to /me and back to /#new. In
+    // localStorage, because a sign-in link with another email often opens in a new tab; it
+    // lasts as long as that link (30 minutes).
+    const DRAFT_KEY = 'lilai.eventDraft';
+    const DRAFT_MS = 30 * 60 * 1000;
 
     function remembered(key) {
         try { return localStorage.getItem(key) || ''; } catch (_) { return ''; }
@@ -131,12 +136,35 @@
                 document.getElementById('event-form-fields').dataset.named = '1';
             }
             await loadConfig();
-            fields.setCalendars(writableCalendars().map(c => ({ ...c, shape: shapeFor(c.name) })), preferredCalendar || config.events?.defaultCreateCalendar);
+            const draft = takeDraft();
+            fields.setCalendars(writableCalendars().map(c => ({ ...c, shape: shapeFor(c.name) })), (draft && draft.calendar) || preferredCalendar || config.events?.defaultCreateCalendar);
+            if (draft) {
+                fields.set(draft);
+                if (draft.hostName) fields.setHostName(draft.hostName);
+            }
         } catch (_) {
             showFormError('Could not reach Lilai. Check your network and try again.');
         }
         setTimeout(() => fields.focus(), 60);
     }
+
+    function takeDraft() {
+        try {
+            const raw = localStorage.getItem(DRAFT_KEY);
+            localStorage.removeItem(DRAFT_KEY);
+            const draft = raw ? JSON.parse(raw) : null;
+            return draft && Date.now() - draft.at < DRAFT_MS ? draft : null;
+        } catch (_) { return null; }
+    }
+
+    // Change (the email) leaves for /me; keep the form so Back finds it as it was.
+    document.getElementById('event-form-fields').addEventListener('click', (e) => {
+        if (!e.target.closest('[data-change-email]')) return;
+        try {
+            const { hostEmail, ...draft } = fields.value();
+            localStorage.setItem(DRAFT_KEY, JSON.stringify({ ...draft, at: Date.now() }));
+        } catch (_) { /* private mode: the form starts empty */ }
+    });
 
     function close() {
         sheet.classList.add('hidden');
