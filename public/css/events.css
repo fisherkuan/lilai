@@ -187,6 +187,9 @@
 #me-sent .text-btn { margin-top: var(--s2); }
 .me-name { margin-top: var(--s4); }
 .me-back { margin-top: var(--s2); }
+.me-email { margin-top: var(--s4); }
+.me-email .ev-label { font-size: 17px; font-weight: 600; color: var(--ink); }
+.me-email p:last-child { margin: 0; overflow-wrap: anywhere; }
 .me-name .field { margin-top: 0; }
 .me-name-row { display: flex; gap: var(--s3); align-items: center; }
 .me-name-row .input { flex: 1 1 auto; min-width: 0; }

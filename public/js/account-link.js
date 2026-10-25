@@ -1,5 +1,5 @@
 // The header's account link on every public page: "Sign in" (the sign-in page, /me), or
-// "My events" once this device has signed in there. [data-signed-out] links (Home's sidebar
+// "Profile" once this device has signed in there (the same page shows the profile). [data-signed-out] links (Home's sidebar
 // "Sign in") show only before then. The session cookie is HttpOnly, so
 // js/me.js keeps a note of it in lilai.signedIn; a stale note only changes the label.
 (function (root) {
@@ -14,7 +14,7 @@
     function refresh() {
         const yes = signedIn();
         document.querySelectorAll('[data-account-link]').forEach((a) => {
-            a.textContent = yes ? 'My events' : 'Sign in';
+            a.textContent = yes ? 'Profile' : 'Sign in';
         });
         document.querySelectorAll('[data-signed-out]').forEach((a) => { a.hidden = yes; });
     }

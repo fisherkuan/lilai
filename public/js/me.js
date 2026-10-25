@@ -1,4 +1,4 @@
-// The sign-in page (/me, the header's Sign in or My events): type an email, open the emailed link (/me/signin/<token>), and this
+// Sign in and profile (/me, the header's Sign in or Profile): type an email, open the emailed link (/me/signin/<token>), and this
 // device lists the events that address hosts. Manage mints a fresh management link and keeps
 // it under "You manage" (js/device-links.js). Sign out ends this device's session; Delete my
 // email takes the address off every event and signs out every device.
@@ -71,6 +71,7 @@
 
     function showAsk() {
         AccountLink.remember('');
+        document.title = 'Sign in — Lilai';
         showOnly('me-ask');
         $('me-form').hidden = false;
         $('me-sent').hidden = true;
@@ -117,7 +118,7 @@
         try {
             const { ok, result } = await api('/api/me/session', { method: 'POST', body: JSON.stringify({ token: signinToken }) });
             if (!ok) return redeemFailed(result.message || 'That did not go through.', false);
-            // The header's "My events" link, even when this goes straight back to a chat.
+            // The header's "Profile" link, even when this goes straight back to a chat.
             AccountLink.remember(result.email);
             // The email's one name is asked here, once, not in each chat.
             if (!result.name) {
@@ -176,7 +177,8 @@
     function render(data) {
         email = data.email;
         AccountLink.remember(email);
-        $('me-who').textContent = `Signed in as ${email}`;
+        $('me-who').textContent = email;
+        document.title = 'Profile — Lilai';
         $('me-name').value = data.name || '';
         savedName = data.name || '';
         chatMessages = data.chatMessages || 0;
