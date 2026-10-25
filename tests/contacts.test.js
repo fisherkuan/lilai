@@ -20,11 +20,11 @@ test('the session cookie is HttpOnly and Lax for 90 days, Secure in production',
     assert.doesNotMatch(sessionCookie('abc', { secure: false }), /Secure/);
 });
 
-test('the sign-in mail carries the link and says it works once', () => {
+test('the sign-in mail carries the link and says how long it works', () => {
     const mail = buildSignInMail('a@b.be', 'https://lilai.test/me/signin/x', { NOTIFY_EMAIL_FROM: 'Lilai <hi@lilai.test>' });
     assert.equal(mail.from, 'Lilai <hi@lilai.test>');
     assert.match(mail.text, /https:\/\/lilai\.test\/me\/signin\/x/);
-    assert.match(mail.text, /once, for 30 minutes/);
+    assert.match(mail.text, /works for 30 minutes/);
 });
 
 test('a series shows once, as its next date still on', () => {
@@ -76,9 +76,11 @@ test('a host signs in by email, finds their events, manages one, and deletes the
         const contacts = createContacts({ pool, env: { RESEND_API_KEY: 'k' }, fetchImpl });
         const ask = (email, ip = '1.1.1.1') => contacts.requestSignIn(email, { ip, baseUrl: 'https://lilai.test' });
 
-        // An address that made nothing gets the same answer and no mail.
+        // Any address gets a link: opening it proves the address.
         await ask('stranger@lilai.test');
-        assert.equal(mails.length, 0);
+        assert.deepEqual(mails.map(m => m.to), [['stranger@lilai.test']]);
+        assert.match(mails[0].text, /sign in to Lilai/);
+        mails.length = 0;
         await assert.rejects(ask('not an email'), { status: 400 });
 
         await ask(' ANN@lilai.test ');
@@ -88,7 +90,12 @@ test('a host signs in by email, finds their events, manages one, and deletes the
 
         const signedIn = await contacts.redeem(token, 'test');
         assert.equal(signedIn.email, 'ann@lilai.test');
-        assert.equal(await contacts.redeem(token, 'test'), null); // a link works once
+        // A mail scanner may have opened the link first: it still works, as a new session, until it runs out.
+        const twice = await contacts.redeem(token, 'test');
+        assert.equal(twice.email, 'ann@lilai.test');
+        assert.notEqual(twice.session, signedIn.session);
+        await pool.query("UPDATE contact_tokens SET expires_at = NOW() - interval '1 second'");
+        assert.equal(await contacts.redeem(token, 'test'), null);
         const verified = await pool.query('SELECT verified_at FROM contacts WHERE email = $1', ['ann@lilai.test']);
         assert.ok(verified.rows[0].verified_at);
         // Signing in takes the name from the address's events; the person can change or clear it.
@@ -123,10 +130,13 @@ test('a host signs in by email, finds their events, manages one, and deletes the
             (SELECT contact_email FROM rsvps WHERE id = 'r1') AS rsvp`);
         assert.deepEqual(left.rows[0], { host: null, name: 'Ann', rsvp: null });
         assert.equal((await contacts.profileOf('ann@lilai.test')).name, ''); // the name goes with the email
-        // Deleted, the address no longer gets a link.
+        // Deleted, the address can still sign in again, with no events and no name.
         await pool.query('DELETE FROM contact_tokens');
         await ask('ann@lilai.test');
-        assert.equal(mails.length, 3);
+        assert.equal(mails.length, 4);
+        const again = await contacts.redeem(mails[3].text.match(/\/me\/signin\/([A-Za-z0-9_-]{32})/)[1], 'test');
+        assert.equal(again.email, 'ann@lilai.test');
+        assert.deepEqual((await contacts.eventsOf('ann@lilai.test')).upcoming, []);
     } finally {
         await pool.end();
     }

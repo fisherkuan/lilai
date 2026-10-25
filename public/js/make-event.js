@@ -9,10 +9,12 @@
     const sheet = document.getElementById('event-sheet');
     const form = document.getElementById('event-sheet-form');
     const made = document.getElementById('event-made');
+    const signin = document.getElementById('event-signin');
     const submitBtn = document.getElementById('event-submit');
     const fields = EventForm.create(document.getElementById('event-form-fields'), { mode: 'create' });
     let config = null;
     let returnFocus = null;
+    let wanted = null; // the calendar asked for, kept through a sign-in
 
     function remembered(key) {
         try { return localStorage.getItem(key) || ''; } catch (_) { return ''; }
@@ -47,22 +49,87 @@
         el.hidden = !message;
     }
 
+    // The signed-in email and its name, else null. The session cookie is HttpOnly.
+    async function whoAmI() {
+        const res = await fetch('/api/me', { cache: 'no-store' });
+        if (res.status === 401) return null;
+        if (!res.ok) throw new Error('me');
+        return res.json();
+    }
+
+    // An event is tied to the signed-in email, so the sheet asks for a sign-in first.
+    function showSignIn() {
+        AccountLink.remember('');
+        form.hidden = true;
+        made.hidden = true;
+        signin.hidden = false;
+        document.getElementById('event-signin-fields').hidden = false;
+        document.getElementById('event-signin-sent').hidden = true;
+        document.getElementById('event-signin-send').hidden = false;
+        const input = document.getElementById('event-signin-email');
+        if (!input.value) input.value = remembered(EMAIL_KEY);
+        setTimeout(() => input.focus(), 60);
+    }
+
+    async function sendSignIn(e) {
+        e.preventDefault();
+        const input = document.getElementById('event-signin-email');
+        const error = document.getElementById('event-signin-error');
+        const button = document.getElementById('event-signin-send');
+        const email = input.value.trim();
+        error.hidden = true;
+        if (!email) {
+            error.textContent = 'Type your email.';
+            error.hidden = false;
+            return;
+        }
+        button.disabled = true;
+        try {
+            const res = await fetch('/api/me/link', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, next: wanted ? `/#new=${encodeURIComponent(wanted)}` : '/#new' })
+            });
+            const result = await res.json().catch(() => ({}));
+            if (!res.ok || !result.success) {
+                error.textContent = result.message || 'That did not go through. Try again.';
+                error.hidden = false;
+                return;
+            }
+            document.getElementById('event-signin-fields').hidden = true;
+            button.hidden = true;
+            const sent = document.getElementById('event-signin-sent');
+            sent.textContent = `A link is on its way to ${email}. Open it on this device within 30 minutes; it brings you back here.`;
+            sent.hidden = false;
+        } catch (_) {
+            error.textContent = 'No connection. Check your network and try again.';
+            error.hidden = false;
+        } finally {
+            button.disabled = false;
+        }
+    }
+
     async function open(preferredCalendar) {
         returnFocus = document.activeElement;
+        wanted = preferredCalendar || null;
         sheet.classList.remove('hidden');
         if (!made.hidden) {
             // The last one is made; start a fresh form.
             made.hidden = true;
-            form.hidden = false;
             fields.reset();
         }
+        signin.hidden = true;
+        form.hidden = false;
         fields.setMinDate();
-        if (!document.getElementById('event-form-fields').dataset.named) {
-            fields.setHostName(remembered(NAME_KEY));
-            fields.setHostEmail(remembered(EMAIL_KEY));
-            document.getElementById('event-form-fields').dataset.named = '1';
-        }
         try {
+            const me = await whoAmI();
+            if (!me) return showSignIn();
+            AccountLink.remember(me.email);
+            fields.setHostEmail(me.email);
+            if (!document.getElementById('event-form-fields').dataset.named) {
+                fields.setHostName(remembered(NAME_KEY) || me.name);
+                document.getElementById('event-form-fields').dataset.named = '1';
+            }
             await loadConfig();
             fields.setCalendars(writableCalendars().map(c => ({ ...c, shape: shapeFor(c.name) })), preferredCalendar || config.events?.defaultCreateCalendar);
         } catch (_) {
@@ -92,6 +159,7 @@
                 body: JSON.stringify(body)
             });
             const result = await res.json().catch(() => ({}));
+            if (res.status === 401) return showSignIn();
             if (!res.ok || !result.success) {
                 if (!(result.field && fields.showError(result.field, result.message))) {
                     showFormError(result.message || 'That did not go through. Try again.');
@@ -100,7 +168,6 @@
             }
             try {
                 if (body.hostName.trim()) localStorage.setItem(NAME_KEY, body.hostName.trim());
-                localStorage.setItem(EMAIL_KEY, body.hostEmail.trim());
             } catch (_) { /* private mode */ }
             DeviceLinks.rememberHosted({ hostPath: result.hostPath, eventId: result.id, calendar: body.calendar, title: body.title.trim(), date: result.date, count: result.count });
             renderHosted();
@@ -215,6 +282,7 @@
         if (e.key === 'Escape' && !sheet.classList.contains('hidden')) close();
     });
     form.addEventListener('submit', submit);
+    signin.addEventListener('submit', sendSignIn);
     document.getElementById('event-made-copy').addEventListener('click', (e) => shareMade(e.currentTarget, 'copy'));
     document.getElementById('event-made-share').addEventListener('click', (e) => shareMade(e.currentTarget, 'share'));
     window.addEventListener('hashchange', openFromHash);
