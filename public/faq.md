@@ -75,7 +75,11 @@ No. Events are made and changed in Lilai, which copies them to the group's Googl
 
 ### I lost the management link of my event. What now?
 
-Search your email for "Lilai" if you gave an email when you made the event, or look under "You manage" in the sidebar on the phone or browser you made it on. If neither works, use [Lost a management link?](/#lost-link) on Home: the admins check that the event is yours and email you a new link. For a TSA event, a TSA admin can also help.
+If you gave an email when you made the event, use [Find my events](/me): type that email, open the link Lilai sends you, and every event you made with it is listed with a Manage button. You can also look under "You manage" in the sidebar on the phone or browser you made it on. If neither works, use [Lost a management link?](/#lost-link) on Home: the admins check that the event is yours and email you a new link. For a TSA event, a TSA admin can also help.
+
+### What does Lilai keep about my email?
+
+Only what you give. If you type an email when you make an event, Lilai keeps it with that event, sends the management link to it, and lets you find your events again with [Find my events](/me). Nobody else sees it: not attendees, and not other hosts. Lilai sends nothing else to it, and the sign-in link works once, for 30 minutes. On Find my events, "Delete my email" takes it off every event and signs out every device; your events and your name stay.
 
 ### I can't see any events. What's wrong?
 

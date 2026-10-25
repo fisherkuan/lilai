@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Apply a saved theme before first paint; the switch itself is js/theme.js. -->
+    <script>try{var t=localStorage.getItem("lilaiTheme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}</script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Find my events — Lilai</title>
+    <meta name="description" content="Find the events you host on Lilai with your email.">
+    <meta name="robots" content="noindex">
+    <meta name="referrer" content="no-referrer">
+    <meta name="theme-color" content="#efefea" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#111214" media="(prefers-color-scheme: dark)">
+    <link rel="preload" href="/bauhaus/fonts/jost-latin.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="stylesheet" href="/bauhaus/tokens.css">
+    <link rel="stylesheet" href="/css/lilai.css">
+    <link rel="stylesheet" href="/css/events.css">
+    <link rel="icon" href="/icons/favicon.ico" sizes="48x48">
+    <link rel="icon" href="/icons/favicon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+</head>
+<body>
+<header class="masthead">
+    <a class="wordmark" href="/" aria-label="Lilai, home">
+        <span class="wordmark-mark" aria-hidden="true">
+            <svg viewBox="88 184 336 144"><circle class="wm-circle" cx="136" cy="232" r="48"/><rect class="wm-square" x="208" y="184" width="96" height="96"/><path class="wm-triangle" d="M376 184L424 280H328Z"/><rect class="wm-base" x="88" y="304" width="336" height="24"/></svg>
+        </span>
+        <span class="wordmark-name">Lilai</span>
+    </a>
+    <nav class="app-header-links" aria-label="Site links">
+        <a href="/faq.html">FAQ</a>
+        <a href="/donate">Donate</a>
+    </nav>
+</header>
+
+<main class="ev-page" id="me">
+    <p class="state-line" id="me-state">Loading…</p>
+
+    <!-- Not signed in: ask for the email -->
+    <section id="me-ask" hidden>
+        <h1>Find my events</h1>
+        <p class="ev-lede">Type the email you gave when you made an event. Lilai emails you a link that signs this device in.</p>
+        <form id="me-form" class="me-form" novalidate>
+            <div class="field">
+                <label for="me-email">Email</label>
+                <input type="email" id="me-email" class="input" autocomplete="email" inputmode="email" required>
+                <p class="field-error" id="me-error" role="alert" hidden></p>
+            </div>
+            <div class="sheet-actions">
+                <button type="submit" class="btn btn-solid" id="me-send"><span class="text">Email me a link</span></button>
+            </div>
+        </form>
+        <div id="me-sent" class="ev-notice" hidden tabindex="-1">
+            <p id="me-sent-text"></p>
+            <button type="button" class="text-btn" id="me-other">Use another email</button>
+        </div>
+    </section>
+
+    <!-- The emailed link: one tap signs this device in -->
+    <section id="me-redeem" hidden>
+        <h1>Sign in on this device</h1>
+        <p class="ev-lede">Your events then show here on this phone or browser.</p>
+        <div class="ev-manage-actions">
+            <button type="button" class="btn btn-solid" id="me-redeem-btn">Show my events</button>
+        </div>
+        <p class="field-error" id="me-redeem-error" role="alert" hidden></p>
+    </section>
+
+    <!-- Signed in -->
+    <article id="me-list" hidden>
+        <p class="ev-eyebrow" id="me-who"></p>
+        <h1>Your events</h1>
+
+        <section class="ev-requests" aria-labelledby="me-upcoming-title">
+            <div class="section-head">
+                <h2 class="section-title" id="me-upcoming-title">You host</h2>
+                <span class="section-meta" id="me-upcoming-count"></span>
+            </div>
+            <ul class="ev-request-list" id="me-upcoming"></ul>
+        </section>
+
+        <section class="ev-requests" aria-labelledby="me-joined-title" id="me-joined-block" hidden>
+            <div class="section-head">
+                <h2 class="section-title" id="me-joined-title">You joined</h2>
+            </div>
+            <ul class="ev-request-list" id="me-joined"></ul>
+        </section>
+
+        <section class="ev-requests" aria-labelledby="me-past-title" id="me-past-block" hidden>
+            <div class="section-head">
+                <h2 class="section-title" id="me-past-title">Past</h2>
+            </div>
+            <ul class="ev-request-list" id="me-past"></ul>
+        </section>
+        <p class="field-error" id="me-list-error" role="alert" hidden></p>
+
+        <div class="ev-manage-actions">
+            <button type="button" class="btn btn-line" id="me-signout">Sign out</button>
+            <button type="button" class="text-btn" id="me-delete">Delete my email</button>
+        </div>
+        <div id="me-delete-confirm" class="ev-notice" hidden tabindex="-1">
+            <p id="me-delete-text"></p>
+            <div class="ev-manage-actions">
+                <button type="button" class="btn btn-solid" id="me-delete-yes">Delete my email</button>
+                <button type="button" class="text-btn" id="me-delete-no">Keep it</button>
+            </div>
+        </div>
+    </article>
+</main>
+
+<footer class="colophon">
+    <p>Built by Fisher Kuan</p>
+</footer>
+<script src="/js/theme.js"></script>
+<script src="/js/feedback.js"></script>
+<script src="/js/sheet.js"></script>
+<script src="/js/device-links.js"></script>
+<script src="/js/me.js"></script>
+</body>
+</html>

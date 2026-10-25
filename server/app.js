@@ -23,6 +23,7 @@ const { createPublisher } = require('./calendar-publish');
 const { createPlaceAutocomplete } = require('./place-autocomplete');
 const places = require('./places');
 const adminAuthLib = require('./admin-auth');
+const contactsLib = require('./contacts');
 const { importCalendar, createImportSchema, importedCalendarIds } = require('./calendar-import');
 const access = require('./calendar-access');
 const activity = require('./event-activity');
@@ -121,6 +122,9 @@ const placeStore = places.createPlaceStore(pool);
 
 // Admin sign-in by emailed code (server/admin-auth.js), for Donations and Places.
 const adminAuth = adminAuthLib.createAdminAuth({ pool });
+
+// Find my events: a sign-in link by email, then a device session (server/contacts.js).
+const contacts = contactsLib.createContacts({ pool });
 
 // Read once at startup: an invalid IBAN stops the server rather than reaching a donor.
 const bankDetails = readBankDetails();
@@ -336,6 +340,7 @@ async function initializeDatabase() {
         await createSeriesSchema(client);
         await feedback.createFeedbackSchema(client);
         await adminAuthLib.createAdminAuthSchema(client);
+        await contactsLib.createContactsSchema(client);
         const placesSeeded = await places.createPlacesSchema(client, appConfig.places || []);
         if (placesSeeded) console.log(`📍 Saved ${placesSeeded} places from config/app.json`);
         const seeded = await createProfileSchema(client, uuidv4);
@@ -2784,6 +2789,59 @@ app.get('/host/:token', (req, res) => {
 app.get('/calendars/:token', (req, res) => {
     res.set('Referrer-Policy', 'no-referrer').set('Cache-Control', 'no-store');
     res.sendFile(path.join(__dirname, '../public/calendar.html'));
+});
+
+// Find my events: the page asks for an email, and the emailed link signs this device in.
+// The link carries its token in the path, so it gets the management page's headers.
+app.get(['/me', '/me/signin/:token'], (req, res) => {
+    res.set('Referrer-Policy', 'no-referrer').set('Cache-Control', 'no-store');
+    res.sendFile(path.join(__dirname, '../public/me.html'));
+});
+
+app.post('/api/me/link', async (req, res) => {
+    try {
+        await contacts.requestSignIn(req.body?.email, { ip: req.ip, baseUrl: publicUrl(req) });
+    } catch (error) {
+        if (!error.status) throw error;
+        return res.status(error.status).json({ success: false, field: error.field, message: error.message });
+    }
+    res.json({ success: true });
+});
+
+app.post('/api/me/session', async (req, res) => {
+    const signedIn = await contacts.redeem(req.body?.token, req.get('user-agent'));
+    if (!signedIn) return res.status(401).json({ success: false, message: 'This link has been used or has run out. Ask for a new one.' });
+    contacts.signIn(res, signedIn.session);
+    res.json({ success: true, email: signedIn.email });
+});
+
+app.delete('/api/me/session', async (req, res) => {
+    await contacts.signOut(req, res);
+    res.json({ success: true });
+});
+
+app.get('/api/me', async (req, res) => {
+    const email = await contacts.emailOf(req);
+    res.set('Cache-Control', 'no-store');
+    if (!email) return res.status(401).json({ success: false, message: 'Not signed in.' });
+    res.json({ success: true, email, ...(await contacts.eventsOf(email)) });
+});
+
+app.post('/api/me/events/:eventId/manage', async (req, res) => {
+    const email = await contacts.emailOf(req);
+    if (!email) return res.status(401).json({ success: false, message: 'Sign in again.' });
+    const hostPath = await contacts.manageLink(email, req.params.eventId);
+    if (!hostPath) return res.status(404).json({ success: false, message: 'That event is not one of yours.' });
+    res.status(201).json({ success: true, hostPath });
+});
+
+// Delete my email: the address leaves every event and RSVP, and every device signs out.
+app.delete('/api/me', async (req, res) => {
+    const email = await contacts.emailOf(req);
+    if (!email) return res.status(401).json({ success: false, message: 'Sign in again.' });
+    await contacts.forget(email);
+    await contacts.signOut(req, res);
+    res.json({ success: true });
 });
 
 // Admin sign-in: a code to an address on ADMIN_EMAILS, then a 30-day cookie.
