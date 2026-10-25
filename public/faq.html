@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <!-- Apply a saved theme before first paint; the switch itself is js/theme.js. -->
-    <script>try{var t=localStorage.getItem("lilaiTheme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}</script>
+    <script>var t="light";try{if(localStorage.getItem("lilaiTheme")==="dark")t="dark"}catch(e){}document.documentElement.dataset.theme=t</script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>FAQ — Lilai</title>
     <meta name="description" content="Frequently asked questions about the Lilai web app.">
@@ -35,8 +35,9 @@
         <span class="wordmark-name">Lilai</span>
     </a>
     <nav class="app-header-links" aria-label="Site links">
-        <a href="faq.html" aria-current="page">FAQ</a>
-        <a href="/donate">Donate</a>
+        <a href="faq.html" data-hdr="faq" aria-current="page">FAQ</a>
+        <a href="/donate" data-hdr="donate">Donate</a>
+        <a href="/me" data-account-link>Sign in</a>
     </nav>
 </header>
 
@@ -62,6 +63,8 @@
     <p>Built by Fisher Kuan</p>
 </footer>
 <script src="/js/theme.js"></script>
+<script src="/js/sprites.js"></script>
+<script src="/js/account-link.js"></script>
 <script src="/js/feedback.js"></script>
 <script src="/js/sheet.js"></script>
 

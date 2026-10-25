@@ -6,9 +6,11 @@
 
 No, login is not required for any operation in the webapp, including viewing calendars and RSVPing to events.
 
-### Do I need to join the Leuven Taiwanese group?
+### How do I make an event?
 
-Only if you want to create or edit events on the 揪團啦 calendar. For viewing events and RSVPing, no group membership is needed.
+Tap "+" next to "Upcoming", or "Create an event" in the sidebar. Fill in what, when and where (search a saved place or anything on Google Maps), and choose who gets a place: anyone, up to a number of places, or only the people you approve. An event can repeat, for example every Thursday until the end of term. Anyone can make an event in SportsCenter and 揪團啦; TSA events are for TSA's admins.
+
+First you sign in with your email; the event is kept with it. Lilai asks for your name only if you are coming too. When the event is made, Lilai gives you its management link. Copy or share it: it is how you edit or cancel the event, and how you accept or decline people who ask to join. Share it with anyone who hosts with you. This device also remembers it under "You manage", and [Profile](/me) gives you a fresh one on any device.
 
 ### Can I install this app on my phone?
 
@@ -33,7 +35,7 @@ Your name then appears in the event's list of names. This device remembers your 
 
 ### Can I change or cancel my RSVP?
 
-Yes. Tap "Remove a name" under the event, pick your name from the list, then tap "Remove".
+Yes. Tap the leave icon (an arrow out of a door) under the event, pick your name from the list, tap "Remove", then tap "Remove" with your name to confirm.
 
 ### Can multiple people use the same name to RSVP?
 
@@ -59,26 +61,31 @@ Your name and RSVP status are visible to anyone viewing the event. This helps co
 
 ### What rights do I have for each calendar?
 
-| Calendar                      | Read     | Create/Edit                                 | Ask for editor rights                                               |
-| ----------------------------- | -------- | ------------------------------------------- | ----------------------------------------------------------------- |
-| Taiwanese Leuven SportsCenter | Everyone | Limited to event organizers                 | Contact [Fisher](mailto:kuanfisher@gmail.com) or existing editors                                |
-| TSA                           | Everyone | Limited to TSA managers                     | Contact [Fisher](mailto:kuanfisher@gmail.com) or TSA managers                                    |
-| 揪團啦                           | Everyone | Everyone who joins [Leuven Taiwanese](https://groups.google.com/g/leuven-taiwanese/) group | Auto-approved |
+| Calendar | See events | Make events | Edit an event |
+| --- | --- | --- | --- |
+| SportsCenter | Everyone | Everyone, in Lilai | Its host, with the event's management link |
+| TSA | Everyone | TSA's admins, with the TSA calendar link | Its host, or TSA's admins |
+| 揪團啦 | Everyone | Everyone, in Lilai | Its host, with the event's management link |
 
-### If I edit an event or move it to my other calendar, will it take effect on other people's calendar view?
+TSA's admins get the TSA calendar link from [Fisher](mailto:lilai@fisherkuan.com). Opening it on a phone lets that phone add TSA events and manage every TSA event.
 
-Yes, any change on the public calendar applies globally. All viewers will see the updated event details.
+### Can I still add or edit events in Google Calendar?
 
-### Why can't I see the "join" button for Leuven Taiwanese group?
+No. Events are made and changed in Lilai, which copies them to the group's Google calendars. The Google calendars are read-only copies for subscribing; a change made there directly would be overwritten.
 
-You need to sign in to your Google account first. Once signed in, the join button will appear.
+### I lost the management link of my event. What now?
+
+[Sign in](/me) with the email you made the event with, open the link Lilai sends you, and every event you made with it is listed with a Manage button. For a TSA event, a TSA admin can also help.
+
+### What does Lilai keep about my email?
+
+The email you make an event with. Lilai keeps it with that event and lets you find your events again when you [sign in](/me). Nobody else sees it: not attendees, and not other hosts. Lilai sends it only the sign-in links you ask for, and each works for 30 minutes. Once signed in, "Delete my email" takes it off every event and signs out every device; your events and your name stay. If you sign in to post in an event's chat, Lilai keeps that email the same way: your messages show only your name.
 
 ### I can't see any events. What's wrong?
 
 - Check that you picked the right tab above the list: "Upcoming" or "All"
 - Check the calendar shapes below the tabs: a calendar you switched off is hidden from the list
-- Tap "Refresh", or reload the page
-- Events are loaded from public Google Calendars, so they should appear automatically
+- Pull the list down to refresh it, or reload the page
 
 ## Technical questions
 
@@ -93,7 +100,7 @@ Yes. Under "Add to the calendar", tap the name of a calendar to subscribe to it 
 ### I'm having issues with the app. Where can I get help?
 
 - Read through this FAQ first. Most questions are answered here
-- Email [Fisher](mailto:kuanfisher@gmail.com) with what you did and what you saw instead. A screenshot helps a lot
+- Email [Fisher](mailto:lilai@fisherkuan.com) with what you did and what you saw instead. A screenshot helps a lot
 
 ### How is this app maintained?
 

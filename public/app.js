@@ -58,55 +58,6 @@ function escapeAttribute(value) {
     return escapeHtml(value).replace(/\n/g, '&#10;');
 }
 
-function sanitizeUrl(rawUrl) {
-    if (typeof rawUrl !== 'string' || rawUrl.length === 0) return null;
-    const trimmed = rawUrl.trim().replace(/[\s"'<>)]*$/, '');
-    try {
-        const validated = new URL(trimmed);
-        if (validated.protocol === 'http:' || validated.protocol === 'https:') {
-            return validated.href;
-        }
-    } catch (error) {
-        return null;
-    }
-    return null;
-}
-
-// The "link: URL" line becomes an Event link, so the description shown drops it.
-function withoutLinkLine(value) {
-    return value.replace(/^[ \t]*link:?\s*https?:\/\/\S+[ \t]*$/gim, '').trim();
-}
-
-// The server reads a "limit: N" line as the seat limit, which the seat count already shows.
-// Only a line that holds nothing else goes, so prose that mentions a limit stays.
-function withoutLimitLine(value) {
-    return value.replace(/^[ \t]*limit:?[ \t]*\d+[ \t]*$/gim, '').replace(/\n{3,}/g, '\n\n').trim();
-}
-
-// The description as shown: without the lines Lilai turns into the Event link and the seat count.
-function shownDescriptionOf(value) {
-    return withoutLimitLine(withoutLinkLine(value));
-}
-
-function eventLinkHtml(href) {
-    return `<a class="event-link" href="${escapeAttribute(href)}" target="_blank" rel="noopener noreferrer">Event link<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 16 16 8M9 8h7v7"/></svg><span class="sr-only"> (opens in a new tab)</span></a>`;
-}
-
-function extractEventLink(value) {
-    if (typeof value !== 'string' || value.length === 0) return null;
-    const linkMatch = value.match(/link:?\s*(https?:\/\/\S+)/i);
-    if (linkMatch) {
-        const sanitized = sanitizeUrl(linkMatch[1]);
-        if (sanitized) return sanitized;
-    }
-    const fallbackMatch = value.match(/https?:\/\/\S+/i);
-    if (fallbackMatch) {
-        const sanitized = sanitizeUrl(fallbackMatch[0]);
-        if (sanitized) return sanitized;
-    }
-    return null;
-}
-
 // ---------- State ----------
 const API_BASE_URL = window.location.origin;
 const PAST_BATCH = 10;
@@ -135,13 +86,14 @@ if ('serviceWorker' in navigator) {
 document.addEventListener('DOMContentLoaded', initializeApp);
 
 function initializeApp() {
-    setupAdminLink();
     wireAgenda();
 
     // Both event requests leave now instead of after /api/config answers,
     // so Home's three requests share one round trip.
     prefetchedEvents = fetchFutureEvents();
     prefetchedRail = fetchRailEvents();
+
+    checkAdminDevice();
 
     loadConfig().then(() => {
         buildCalendarStyles();
@@ -150,7 +102,7 @@ function initializeApp() {
         setupFilterPills();
         setupEventListeners();
         setupWebSocket();
-        loadEvents();
+        loadEvents().then(pointAtLinkedEvent);
     }).catch(err => console.error('Init error:', err));
 
     // Card width changes with the viewport, so re-measure which descriptions clamp.
@@ -158,6 +110,34 @@ function initializeApp() {
     if (document.fonts && document.fonts.ready) {
         document.fonts.ready.then(syncDescriptionToggles);
     }
+}
+
+// An admin (ADMIN_EMAILS) signed in on this device sees Manage on every card, as a silent
+// co-host (AccountLink.roles asks only when the device notes a sign-in).
+let adminDevice = false;
+function checkAdminDevice() {
+    if (!window.AccountLink) return;
+    AccountLink.roles().then(r => {
+        if (!r.admin) return;
+        adminDevice = true;
+        if (currentEvents.length) displayEvents();
+    });
+}
+
+async function manageEvent(button) {
+    button.disabled = true;
+    try {
+        const res = await fetch(`${API_BASE_URL}/api/me/events/${encodeURIComponent(button.dataset.eventId)}/manage`, { method: 'POST' });
+        const body = await res.json().catch(() => ({}));
+        if (res.ok && body.hostPath) {
+            window.location.href = body.hostPath;
+            return;
+        }
+        alert(body.message || 'Could not open its management page.');
+    } catch (_) {
+        alert('Could not open its management page. Check your connection.');
+    }
+    button.disabled = false;
 }
 
 // ---------- Config ----------
@@ -267,28 +247,16 @@ function setupCalendar() {
 
     loadAllCalendarEvents();
 
-    const joinLink = document.getElementById('join-group-link');
-    if (joinLink && appConfig.joinGroupUrl) joinLink.href = appConfig.joinGroupUrl;
-
     populateAddToCalendarDropdown('add-to-calendar-dropdown');
-
-    // Point the "Create event" buttons at the configured default calendar (if any)
-    wireCreateEventButtons();
 }
 
-function wireCreateEventButtons() {
-    const defaultName = appConfig.events && appConfig.events.defaultCreateCalendar;
-    // The documented "create event in calendar X" endpoint is render?action=TEMPLATE.
-    let href = 'https://calendar.google.com/calendar/render?action=TEMPLATE';
-    if (defaultName && Array.isArray(appConfig.calendars)) {
-        const match = appConfig.calendars.find(c => c.enabled && c.name === defaultName);
-        if (match) {
-            const src = calendarIdFromUrl(match.url);
-            if (src) href += `&src=${encodeURIComponent(src)}`;
-        }
-    }
-    const createBtn = document.getElementById('create-event-btn');
-    if (createBtn) createBtn.href = href;
+// Links into Home ("/#event-<id>", from the management page and the Google copies): scroll to
+// that card once the list is in.
+function pointAtLinkedEvent() {
+    const match = /^#event-(.+)$/.exec(window.location.hash);
+    if (!match) return;
+    history.replaceState(null, '', window.location.pathname + window.location.search);
+    scrollToEvent(decodeURIComponent(match[1]));
 }
 
 // Only the rail's days: every past event ever was most of Home's download.
@@ -407,13 +375,10 @@ function renderAgenda() {
         const detail = ev.location || styleFor(ev).name || '';
         const seats = seatsLabel(ev, { isPast });
         const meta = [detail, seats].filter(Boolean).join(' · ');
-        const hasLimit = ev.attendance_limit !== null && ev.attendance_limit !== undefined;
-        const isFull = hasLimit && (ev.attendingCount || 0) >= ev.attendance_limit;
         let action = '';
         if (!isPast) {
-            action = isFull
-                ? '<button type="button" class="btn btn-line agenda-join" disabled>Full</button>'
-                : `<button type="button" class="btn btn-line agenda-join" data-event-id="${escapeAttribute(ev.id)}" aria-label="${escapeAttribute(`Join ${ev.title}`)}">Join</button>`;
+            const label = joinsWaitlist(ev) ? 'Waiting list' : joinLabel(ev);
+            action = `<button type="button" class="btn btn-line agenda-join" data-event-id="${escapeAttribute(ev.id)}" aria-label="${escapeAttribute(`${joinLabel(ev)}: ${ev.title}`)}">${label}</button>`;
         }
         const open = ev.id === openAgendaRow;
         const revealId = `agenda-reveal-${ev.id}`;
@@ -500,7 +465,7 @@ function populateAddToCalendarDropdown(id) {
         link.target = '_blank';
         link.rel = 'noopener noreferrer';
         link.className = `subscribe-link tone-${st.tone}`;
-        link.innerHTML = `${shapeSvg(st.shape)}<span>${escapeHtml(cal.name)}</span>`;
+        link.innerHTML = `${shapeSvg(st.shape)}<span>${escapeHtml(cal.name)}</span><svg class="subscribe-out" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17 17 7M9 7h8v8"/></svg>`;
         dd.appendChild(link);
     });
 }
@@ -582,94 +547,6 @@ function setupFilterPills() {
     });
 }
 
-// ---------- Organizer entry point ----------
-/*
- * The admin pages stay ungated on purpose: the handful of people who run events should not
- * have to log in to fix a typo. What is protected is discovery, not access. The string
- * "/admin" never appears in any served HTML, so view-source shows nothing and a crawler has
- * no link to follow. The header grows an Admin link only on a device that has been told once.
- *
- * Telling a device: open the site as /?admin=1. /?admin=0 makes it forget again, which is
- * what you use on a borrowed phone. The flag lives in localStorage, so it is per device and
- * per browser, and it survives nothing you did not do yourself.
- *
- * A home-screen app is a separate browser as far as storage goes: iOS gives it its own
- * localStorage, so the flag set in Safari does not follow it, and there is no address bar to
- * type ?admin=1 into. For that, five quick taps on the "Upcoming" heading flip the flag in
- * whatever browser the page is running in, the installed app included. Five more flip it back.
- *
- * Anyone who reads this file learns the path. That is the accepted cost, and it is the same
- * audience that would have typed /admin anyway.
- */
-const ADMIN_HOME = '/admin/events';
-const ADMIN_FLAG_KEY = 'lilaiOrganizer';
-const ORGANIZER_TAPS = 5;
-const ORGANIZER_TAP_WINDOW_MS = 3000;
-
-function isRememberedOrganizer() {
-    try {
-        return localStorage.getItem(ADMIN_FLAG_KEY) === '1';
-    } catch (error) {
-        return false;
-    }
-}
-
-function rememberOrganizer(on) {
-    try {
-        if (on) localStorage.setItem(ADMIN_FLAG_KEY, '1');
-        else localStorage.removeItem(ADMIN_FLAG_KEY);
-    } catch (error) {
-        /* private browsing: this visit still works, the device just will not remember */
-    }
-}
-
-function setupAdminLink() {
-    const params = new URLSearchParams(window.location.search);
-
-    if (params.has('admin')) {
-        rememberOrganizer(params.get('admin') !== '0');
-        // Drop the switch from the address bar so a shared or bookmarked URL does not carry it.
-        params.delete('admin');
-        const query = params.toString();
-        history.replaceState(null, '', window.location.pathname + (query ? `?${query}` : ''));
-    }
-
-    showAdminLink(isRememberedOrganizer());
-    listenForOrganizerTaps();
-}
-
-function showAdminLink(on) {
-    document.querySelectorAll('.app-header-links').forEach(nav => {
-        const existing = nav.querySelector('[data-admin-link]');
-        if (!on) {
-            if (existing) existing.remove();
-            return;
-        }
-        if (existing) return;
-        const link = document.createElement('a');
-        link.href = ADMIN_HOME;
-        link.textContent = 'Admin';
-        link.dataset.adminLink = 'true';
-        nav.appendChild(link);
-    });
-}
-
-function listenForOrganizerTaps() {
-    const heading = document.getElementById('rail-title');
-    if (!heading) return;
-    let taps = [];
-    heading.addEventListener('click', () => {
-        const now = Date.now();
-        taps = taps.filter(t => now - t < ORGANIZER_TAP_WINDOW_MS);
-        taps.push(now);
-        if (taps.length < ORGANIZER_TAPS) return;
-        taps = [];
-        const on = !isRememberedOrganizer();
-        rememberOrganizer(on);
-        showAdminLink(on);
-    });
-}
-
 // ---------- Load events ----------
 // Both modes initially load future events only.
 // 'all' mode additionally exposes "Load earlier events" to lazy-fetch past batches.
@@ -700,6 +577,7 @@ function loadEvents({ quiet = false } = {}) {
             }
             displayEvents({ scrollToToday: currentRange === 'all' });
             renderRail();
+            if (window.renderHosted) window.renderHosted();
             // In 'all' mode, eagerly fetch the first batch of past events so the user
             // doesn't need to click "Load earlier events" to see anything in the past.
             if (currentRange === 'all' && hasMoreOlder) {
@@ -791,10 +669,24 @@ function displayEvents(options = {}) {
         pieces.push('<div class="load-earlier-wrap"><button type="button" class="text-btn load-earlier-btn">Load earlier events</button></div>');
     }
 
+    // A month name where the cards cross into a new month (owner, 2026-10-25), and above the
+    // first card when it is not in this month. The year shows only when it is not this one.
+    const monthKey = d => `${d.getFullYear()}-${d.getMonth()}`;
+    let lastMonth = monthKey(now);
+    let firstCard = true;
+
     filtered.forEach(event => {
         const eventDate = new Date(event.date);
         const isPast = eventDate < now;
         const isToday = eventDate >= today && eventDate < new Date(today.getTime() + 86400000);
+
+        const month = monthKey(eventDate);
+        if (month !== lastMonth || (firstCard && month !== monthKey(now))) {
+            const label = eventDate.toLocaleDateString('en-GB', eventDate.getFullYear() === now.getFullYear() ? { month: 'long' } : { month: 'long', year: 'numeric' });
+            pieces.push(`<h3 class="month-head">${escapeHtml(label)}</h3>`);
+        }
+        lastMonth = month;
+        firstCard = false;
 
         // Insert today divider between last past and first future event (all range)
         if (currentRange === 'all' && !insertedTodayDivider && !isPast) {
@@ -854,11 +746,35 @@ function seatsLabel(event, { isPast }) {
     const count = event.attendingCount || 0;
     const hasLimit = event.attendance_limit !== null && event.attendance_limit !== undefined;
     const limit = hasLimit ? event.attendance_limit : null;
-    if (!hasLimit && count === 0) return '';
+    // The waiting list holds no seat, so it rides after the count. Requests waiting on the
+    // host stay off the card: only the management page shows them.
+    const waiting = Array.isArray(event.waitlist) ? event.waitlist.length : 0;
+    const asking = !isPast && waiting > 0 ? ` · ${waiting} waiting` : '';
+    if (!hasLimit && count === 0) return asking ? `0 going${asking}` : '';
     if (isPast) return `${count} went`;
-    if (hasLimit && count >= limit) return `Full · ${count} of ${limit}`;
-    if (hasLimit) return `${count} of ${limit} spots taken`;
-    return `${count} going`;
+    if (hasLimit && count >= limit) return `Full · ${count} of ${limit}${asking}`;
+    if (hasLimit) return `${count} of ${limit} spots taken${asking}`;
+    return `${count} going${asking}`;
+}
+
+// A full event takes new names on its waiting list. So does one with a list already, so
+// nobody overtakes it (on an approval event a seat can be free while the host decides).
+function joinsWaitlist(event) {
+    const hasLimit = event.attendance_limit !== null && event.attendance_limit !== undefined;
+    const waiting = Array.isArray(event.waitlist) && event.waitlist.length > 0;
+    return waiting || (hasLimit && (event.attendingCount || 0) >= event.attendance_limit);
+}
+
+// On an approval event, Join asks the host instead of taking a seat.
+function joinLabel(event) {
+    if (joinsWaitlist(event)) return 'Join the waiting list';
+    return event.approval_required ? 'Ask to join' : 'Join';
+}
+
+// "1st", "2nd", "3rd", "11th": a place on the waiting list.
+function ordinal(n) {
+    const teen = n % 100 >= 11 && n % 100 <= 13;
+    return `${n}${teen ? 'th' : ({ 1: 'st', 2: 'nd', 3: 'rd' }[n % 10] || 'th')}`;
 }
 
 // Seats: one slot per place, drawn only for a small limited event. With no limit, or more
@@ -898,11 +814,10 @@ function renderEventCard(event, { isPast, isToday, prevNames }) {
 
     const sanitizedEventId = escapeAttribute(event.id);
     const sanitizedTitle = escapeHtml(event.title);
-    const descriptionText = typeof event.description === 'string' ? event.description : '';
-    const shownDescription = shownDescriptionOf(descriptionText);
+    // The description shows as written in Google Calendar: nothing in it is read as a setting.
+    const shownDescription = typeof event.description === 'string' ? event.description.trim() : '';
     const sanitizedDescription = escapeHtml(shownDescription).replace(/\n/g, '<br>');
     const locationText = typeof event.location === 'string' ? event.location : '';
-    const eventLink = extractEventLink(descriptionText);
 
     const attendees = Array.isArray(event.attendees) ? event.attendees : [];
     const attendingCount = event.attendingCount || 0;
@@ -919,10 +834,18 @@ function renderEventCard(event, { isPast, isToday, prevNames }) {
         times += `<span aria-hidden="true">–</span><span class="sr-only"> to </span>${endDay}${escapeHtml(endStr)}`;
     }
 
-    // The title's shape already names the calendar, so the meta line is the time, the place and the link.
-    const link = eventLink ? eventLinkHtml(eventLink) : '';
-    const metaParts = [`<span class="event-time">${times}</span>`, locationText ? escapeHtml(locationText) : '', link].filter(Boolean);
-    const meta = `<p class="event-meta">${metaParts.join('<span class="sep" aria-hidden="true"> · </span>')}</p>`;
+    // The title's shape already names the calendar, so the meta line is the time and the place.
+    // The event's links sit on their own row under it.
+    const host = event.hostName || event.host_name;
+    // An approval event carries a small padlock after the host: the host approves each place.
+    const lock = event.approval_required
+        ? '<span class="approval-mark" role="img" aria-label="Host approves each place" title="Host approves each place">'
+            + '<svg viewBox="0 0 16 16" aria-hidden="true"><rect x="3.5" y="7" width="9" height="6.5" rx="1"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2"/></svg></span>'
+        : '';
+    const hostNote = host ? `Hosted&nbsp;by&nbsp;${escapeHtml(host)}${lock ? `&nbsp;${lock}` : ''}` : lock;
+    const metaParts = [`<span class="event-time">${times}</span>`, locationText ? escapeHtml(locationText) : '', hostNote].filter(Boolean);
+    const meta = `<p class="event-meta">${metaParts.join('<span class="sep" aria-hidden="true"> · </span>')}</p>`
+        + EventLinks.listHtml(event.links);
 
     let names;
     if (attendees.length > 0) {
@@ -934,16 +857,35 @@ function renderEventCard(event, { isPast, isToday, prevNames }) {
         names = `<p class="names-empty">${isPast ? 'No one signed up.' : 'No one yet. Be the first.'}</p>`;
     }
 
-    let actions = '';
+    // The chat sits on every card, past ones too: a thread outlives its event (js/event-chat.js).
+    const messageCount = event.messageCount || 0;
+    const chatLabel = messageCount ? `Chat, ${messageCount} ${messageCount === 1 ? 'message' : 'messages'}` : 'Chat';
+    const chat = `<button type="button" class="chat-trigger" data-event-id="${sanitizedEventId}" aria-label="${chatLabel}" title="Chat">`
+        + '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5h16v10.5H10l-4.5 3.5V16H4Z"/></svg>'
+        + `<span class="chat-count">${messageCount || ''}</span></button>`;
+
+    // The waiting list, in order, under the names that hold a place.
+    const waitlist = Array.isArray(event.waitlist) ? event.waitlist : [];
+    const waitNames = !isPast && waitlist.length > 0
+        ? `<p class="names-heading">Waiting list</p><ol class="names names-waiting" aria-label="Waiting list">${waitlist.map(n => `<li>${escapeHtml(n)}</li>`).join('')}</ol>`
+        : '';
+
+    // Admins only: a key opens the event's management page (checkAdminDevice).
+    const manage = adminDevice
+        ? `<button type="button" class="icon-action manage-trigger" data-event-id="${sanitizedEventId}" aria-label="Manage" title="Manage">`
+            + '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="12" r="3.5"/><path d="M11.5 12H21M18 12v3M15 12v2"/></svg></button>'
+        : '';
+    let actions = `<div class="event-actions">${chat}${manage}</div>`;
     if (!isPast) {
         // Every event carries the same weight: no lead event, no solid Join.
-        const join = isFull
-            ? '<button type="button" class="btn btn-line" disabled>Full</button>'
-            : `<button type="button" class="btn btn-line rsvp-trigger-add" data-event-id="${sanitizedEventId}">Join</button>`;
-        const remove = attendingCount > 0
-            ? `<button type="button" class="text-btn rsvp-trigger-remove" data-event-id="${sanitizedEventId}">Remove a name</button>`
+        const join = `<button type="button" class="btn btn-line rsvp-trigger-add" data-event-id="${sanitizedEventId}">${joinLabel(event)}</button>`;
+        const remove = attendingCount > 0 || waitlist.length > 0
+            // An icon, so the row keeps to one line on a phone (owner, 2026-10-25): leave, an
+            // arrow out of a door. The name stays for screen readers and the hover tip.
+            ? `<button type="button" class="icon-action rsvp-trigger-remove" data-event-id="${sanitizedEventId}" aria-label="Remove a name" title="Remove a name">`
+                + '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 4.5H5.5v15H13M10 12h10M16.5 8.5 20 12l-3.5 3.5"/></svg></button>'
             : '';
-        actions = `<div class="event-actions">${join}${remove}</div>`;
+        actions = `<div class="event-actions">${join}${remove}${chat}${manage}</div>`;
     }
 
     const classes = ['event', `tone-${st.tone}`];
@@ -966,6 +908,7 @@ function renderEventCard(event, { isPast, isToday, prevNames }) {
                 ` : ''}
                 ${renderSeats(event, st, { isPast, hasLimit, isFull, newFrom })}
                 ${names}
+                ${waitNames}
                 ${actions}
             </div>
         </article>
@@ -973,7 +916,7 @@ function renderEventCard(event, { isPast, isToday, prevNames }) {
 }
 
 // One place to apply a new attendee list, whether it came from our own RSVP or a broadcast.
-function applyAttendance(eventId, attendees) {
+function applyAttendance(eventId, attendees, pendingCount, waitlist) {
     if (!Array.isArray(attendees)) return; // an older server answered without a list; the broadcast still brings it
     const count = attendees.length;
     [currentEvents, allCalendarEvents].forEach(list => {
@@ -981,6 +924,8 @@ function applyAttendance(eventId, attendees) {
         if (ev) {
             ev.attendees = attendees.slice();
             ev.attendingCount = count;
+            if (typeof pendingCount === 'number') ev.pendingCount = pendingCount;
+            if (Array.isArray(waitlist)) ev.waitlist = waitlist.slice();
         }
     });
     displayEvents();
@@ -1025,12 +970,29 @@ function openRsvpModal(eventId) {
     rsvpModal.classList.remove('hidden');
     document.getElementById('modal-event-title').textContent = event.title;
     document.getElementById('modal-event-date').textContent = formatSheetDate(event);
-    const rawDesc = typeof event.description === 'string' ? event.description : '';
-    const desc = shownDescriptionOf(rawDesc);
-    const sheetLink = extractEventLink(rawDesc);
+    const desc = typeof event.description === 'string' ? event.description.trim() : '';
     const descEl = document.getElementById('modal-event-description');
-    descEl.innerHTML = escapeHtml(desc).replace(/\n/g, '<br>') + (sheetLink ? `${desc ? '<br>' : ''}${eventLinkHtml(sheetLink)}` : '');
-    descEl.hidden = !desc && !sheetLink;
+    descEl.innerHTML = escapeHtml(desc).replace(/\n/g, '<br>');
+    descEl.hidden = !desc;
+    const linksEl = document.getElementById('modal-event-links');
+    linksEl.innerHTML = EventLinks.listHtml(event.links);
+    linksEl.hidden = !linksEl.innerHTML;
+
+    const asks = Boolean(event.approval_required);
+    const waits = joinsWaitlist(event);
+    const approvalNote = document.getElementById('modal-approval-note');
+    if (waits) {
+        approvalNote.textContent = asks
+            ? 'Every place is taken. When one opens, the first name on the waiting list goes to the host, who confirms each place.'
+            : 'Every place is taken. When one opens, it goes to the first name on the waiting list.';
+    } else {
+        approvalNote.textContent = asks
+            ? 'The host confirms each place. Your name shows under who is coming once they accept.'
+            : '';
+    }
+    approvalNote.hidden = !asks && !waits;
+    document.querySelector('.rsvp-add-btn .text').textContent = waits ? 'Join the waiting list' : asks ? 'Ask to join' : 'Confirm';
+    setRsvpSent(false);
 
     // Pre-fill the remembered name and select it, so overtyping is a single action.
     const nameInput = document.getElementById('attendee-name');
@@ -1050,11 +1012,43 @@ function restoreSheetFocus() {
     lastSheetTrigger = null;
 }
 
+// After a request to an approval event, or a name on the waiting list, the sheet says so
+// instead of closing: no name prints under who is coming.
+function setRsvpSent(sent, name = '', position = 0) {
+    document.getElementById('rsvp-form-part').hidden = sent;
+    const done = document.getElementById('rsvp-sent');
+    done.hidden = !sent;
+    if (sent) {
+        document.getElementById('rsvp-sent-title').textContent = position ? 'On the waiting list' : 'Request sent';
+        document.getElementById('rsvp-sent-text').textContent = position
+            ? `${name} is ${ordinal(position)} on the waiting list. When a place opens, it goes to the first name on the list.`
+            : `${name} is on the host's list. Your name shows under who is coming once they accept.`;
+        document.getElementById('rsvp-sent-done').focus();
+    }
+}
+
 function closeRsvpModal() {
     rsvpModal.classList.add('hidden');
     document.getElementById('attendee-name').value = '';
     currentEventForRsvp = null;
     restoreSheetFocus();
+}
+
+// Remove a name asks twice, like Remove on the management page: pick the name, then
+// "Remove Ana?" with the name on the button. Keep them closes the sheet.
+let removeConfirming = false;
+
+function setRemoveStep(confirming) {
+    const event = currentEventForRsvp;
+    const name = document.getElementById('attendee-to-remove').value;
+    removeConfirming = confirming;
+    document.getElementById('remove-pick').hidden = confirming;
+    document.getElementById('remove-modal-event-title').textContent = confirming ? `Remove ${name}?` : event.title;
+    document.getElementById('remove-modal-event-date').textContent = confirming
+        ? `${event.title}, ${formatSheetDate(event)}`
+        : formatSheetDate(event);
+    document.querySelector('.rsvp-remove-btn .text').textContent = confirming ? `Remove ${name}` : 'Remove';
+    document.querySelector('#remove-rsvp-modal .sheet-actions .text-btn').textContent = confirming ? 'Keep them' : 'Keep it';
 }
 
 function openRemoveRsvpModal(eventId) {
@@ -1065,8 +1059,6 @@ function openRemoveRsvpModal(eventId) {
     showFieldError('remove-error', '');
     const modal = document.getElementById('remove-rsvp-modal');
     modal.classList.remove('hidden');
-    document.getElementById('remove-modal-event-title').textContent = event.title;
-    document.getElementById('remove-modal-event-date').textContent = formatSheetDate(event);
     const selector = document.getElementById('attendee-to-remove');
     selector.innerHTML = '';
     (event.attendees || []).forEach(name => {
@@ -1075,13 +1067,22 @@ function openRemoveRsvpModal(eventId) {
         option.textContent = name;
         selector.appendChild(option);
     });
+    // Names on the waiting list leave it the same way. A name both coming and waiting gives
+    // up the place first, so it appears once.
+    (event.waitlist || []).filter(name => !(event.attendees || []).includes(name)).forEach(name => {
+        const option = document.createElement('option');
+        option.value = name;
+        option.textContent = `${name} (waiting list)`;
+        selector.appendChild(option);
+    });
 
     // Default to whoever this browser last RSVP'd as. Everyone else stays selectable —
     // this is a starting point, not a restriction.
     const remembered = getRememberedName();
-    if (remembered && (event.attendees || []).includes(remembered)) {
+    if (remembered && [...(event.attendees || []), ...(event.waitlist || [])].includes(remembered)) {
         selector.value = remembered;
     }
+    setRemoveStep(false);
     setTimeout(() => selector.focus(), 50);
 }
 
@@ -1105,7 +1106,7 @@ function submitRsvp(action) {
     const textEl = submitBtn.querySelector('.text');
     const originalText = textEl.textContent;
     submitBtn.disabled = true;
-    textEl.textContent = 'Joining…';
+    textEl.textContent = event.approval_required && !joinsWaitlist(event) ? 'Asking…' : 'Joining…';
 
     fetch(`${API_BASE_URL}/api/rsvp`, {
         method: 'POST',
@@ -1119,11 +1120,16 @@ function submitRsvp(action) {
         if (result.success) {
             if (navigator.vibrate) navigator.vibrate(30);
             rememberName(attendeeName);
+            if (result.pending || result.listed) {
+                setRsvpSent(true, attendeeName, result.listed ? result.position : 0);
+                applyAttendance(event.id, result.attendees, result.pendingCount, result.waitlist);
+                return;
+            }
             closeRsvpModal();
             // No toast: the name printing into the list is the confirmation.
             // Apply the server's list, never a patch of ours: the broadcast often lands
             // first, and adding the name again would show it twice.
-            applyAttendance(event.id, result.attendees);
+            applyAttendance(event.id, result.attendees, result.pendingCount, result.waitlist);
         } else {
             showFieldError('rsvp-error', result.message || 'That did not go through. Try again.');
         }
@@ -1138,6 +1144,11 @@ function submitRsvp(action) {
 
 function submitRemoveRsvp() {
     if (!currentEventForRsvp) return;
+    if (!removeConfirming) {
+        setRemoveStep(true);
+        document.querySelector('.rsvp-remove-btn').focus();
+        return;
+    }
     const event = currentEventForRsvp;
     const attendeeName = document.getElementById('attendee-to-remove').value;
     const submitBtn = document.querySelector('.rsvp-remove-btn');
@@ -1159,7 +1170,7 @@ function submitRemoveRsvp() {
             closeRemoveRsvpModal();
             // The server's list, not ours minus one name: when the broadcast lands first,
             // subtracting again would hide a second person with the same name.
-            applyAttendance(event.id, result.attendees);
+            applyAttendance(event.id, result.attendees, result.pendingCount, result.waitlist);
         } else {
             showFieldError('remove-error', result.message || 'That did not go through. Try again.');
         }
@@ -1194,6 +1205,12 @@ function setupEventListeners() {
             const ev = currentEvents.find(x => x.id === addBtn.dataset.eventId);
             if (!ev || new Date(ev.date) < new Date()) return;
             openRsvpModal(ev.id);
+            return;
+        }
+
+        const manageBtn = e.target.closest('.manage-trigger');
+        if (manageBtn) {
+            manageEvent(manageBtn);
             return;
         }
 
@@ -1256,8 +1273,14 @@ function setupWebSocket() {
         try {
             const data = JSON.parse(message.data);
             if (data.type === 'attendance_update') {
-                const { eventId, attendees } = data.payload;
-                applyAttendance(eventId, Array.isArray(attendees) ? attendees : []);
+                const { eventId, attendees, pendingCount, waitlist } = data.payload;
+                applyAttendance(eventId, Array.isArray(attendees) ? attendees : [], pendingCount, waitlist);
+            } else if (data.type === 'event_message') {
+                if (typeof EventChat !== 'undefined') EventChat.onBroadcast(data.payload);
+            } else if (['event_created', 'event_update', 'event_cancelled'].includes(data.type)) {
+                // An event was made, edited or cancelled: pick it up without a pull to refresh.
+                loadEvents({ quiet: true });
+                loadAllCalendarEvents();
             }
         } catch (err) {
             console.error('WebSocket message error:', err);

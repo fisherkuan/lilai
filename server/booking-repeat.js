@@ -145,7 +145,7 @@ function monthlyDates(playDate, rule) {
  * Expand a repeat into the play dates it covers, the first one included.
  * Returns `[playDate]` when there is no rule.
  */
-function expandRepeat(playDate, repeat, { seasonEndsOn = null, cap = MAX_OCCURRENCES } = {}) {
+function expandRepeat(playDate, repeat, { seasonEndsOn = null, cap = MAX_OCCURRENCES, noun = 'bookings' } = {}) {
     if (!repeat) return [playDate];
 
     const rule = validateRule(repeat, playDate, seasonEndsOn);
@@ -158,7 +158,7 @@ function expandRepeat(playDate, repeat, { seasonEndsOn = null, cap = MAX_OCCURRE
      * look exactly like one that worked, and nobody re-reads a queue they believe landed.
      */
     if (dates.length > cap) {
-        throw new RepeatError(`That is ${dates.length} bookings in one go, past the limit of ${cap}. Shorten the repeat.`, 'repeatUntil');
+        throw new RepeatError(`That is ${dates.length} ${noun} in one go, past the limit of ${cap}. Shorten the repeat.`, 'repeatUntil');
     }
     /*
      * Only a weekly rule can come out empty — Sundays only, ending on the Wednesday — but

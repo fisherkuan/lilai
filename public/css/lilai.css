@@ -16,6 +16,8 @@
     --ink-3: #62625c;
     --past: #a9a9a2;
     --scrim: rgba(22, 22, 22, 0.4);
+    /* Text on a red destructive button: white in light (4.7:1 on --red), paper in dark (5.3:1). */
+    --on-danger: #ffffff;
     /* Lilai's own link colour, an azure kept apart from the kit's ultramarine, which in
        light mode is the first calendar's circle. Outbound links only; focus stays the kit's. */
     --link: #0b57d0;
@@ -24,6 +26,15 @@
     --rail-sel: #1f5c43;
     --on-rail-sel: #fafaf7;
     --rail-accent: #2f7d58;
+    /* An event's chat, in the rail's green: my bubbles are a green gradient, others' white
+       bubbles sit raised on a grey thread. Owner, 2026-10-25. */
+    --chat-thread: var(--fill);
+    --chat-theirs: var(--paper-raised);
+    --chat-mine-from: #2b8058;
+    --chat-mine-to: #1f5c43;
+    --on-chat-mine: #fafaf7;
+    --chat-mine-glow: 0 2px 8px rgb(31 92 67 / 0.25);
+    --chat-liked: #2f7d58;
 
     /* Jost (from the kit) for page titles and the big numerals only. Everything else, buttons
        and labels included, keeps the device's own UI font, which stays legible at 13-20px where
@@ -56,11 +67,19 @@
         --ink-3: #8f9095;
         --past: #55565b;
         --scrim: #00000066;
+        --on-danger: #111214;
         --link: #8ab4f8;
         --rail-sel: #2f7d58;
         --on-rail-sel: #ffffff;
         --rail-accent: #5cbf8c;
-    }
+        --chat-thread: var(--paper);
+        --chat-theirs: var(--stone);
+        --chat-mine-from: #2f7d58;
+        --chat-mine-to: #225c42;
+        --on-chat-mine: #ffffff;
+        --chat-mine-glow: 0 2px 8px rgb(0 0 0 / 0.4);
+        --chat-liked: #5cbf8c;
+        }
     :root:not([data-theme="light"]) .select {
         background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23f2f2ee' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
     }
@@ -74,6 +93,13 @@
     --rail-sel: #2f7d58;
     --on-rail-sel: #ffffff;
     --rail-accent: #5cbf8c;
+    --chat-thread: var(--paper);
+    --chat-theirs: var(--stone);
+    --chat-mine-from: #2f7d58;
+    --chat-mine-to: #225c42;
+    --on-chat-mine: #ffffff;
+    --chat-mine-glow: 0 2px 8px rgb(0 0 0 / 0.4);
+    --chat-liked: #5cbf8c;
 }
 :root[data-theme="dark"] .select {
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23f2f2ee' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
@@ -160,7 +186,9 @@ button { font: inherit; color: inherit; }
     height: 1em;
     overflow: visible;
     fill: var(--tone, var(--ink));
-    stroke: var(--ink);
+    /* A filled shape's border is its own colour, so it is the same size as an outline-only
+       one (owner, 2026-10-25); an outline-only state sets its own stroke */
+    stroke: var(--tone, var(--ink));
     stroke-width: 1.5px;
     stroke-linejoin: miter;
 }
@@ -168,7 +196,7 @@ button { font: inherit; color: inherit; }
 .s-circle { --tone: var(--blue); }
 .s-square { --tone: var(--red); }
 .s-triangle { --tone: var(--yellow); }
-[class*="tone-"] .shape { fill: var(--tone); }
+[class*="tone-"] .shape { fill: var(--tone); stroke: var(--tone); }
 
 @keyframes shape-grow {
     from { transform: scale(0); }
@@ -239,9 +267,87 @@ button { font: inherit; color: inherit; }
     font-size: 15px;
     font-weight: 500;
     text-decoration: none;
+    white-space: nowrap;
     padding: var(--s3) 0;
 }
 .app-header-links a:hover { text-decoration: underline; }
+/* The header's sprites (js/sprites.js): the bug, FAQ, Donate, the account and Admin, each a
+   16px drawing at 24px in a 36x44 target. Pixel art, so no smoothing; the current page's
+   sprite carries an ink bar under it in place of the underline. */
+.hdr-icon {
+    display: inline-grid;
+    place-items: center;
+    width: 36px;
+    height: 44px;
+    padding: 0;
+    border: 0;
+    background: none;
+    border-radius: 0;
+    position: relative;
+    cursor: pointer;
+}
+.app-header-links a.hdr-icon { padding: 0; }
+.hdr-icon .sprite { width: 24px; height: 24px; stroke: none; image-rendering: pixelated; }
+.hdr-icon:hover { background: none; }
+.hdr-icon:hover .sprite { transform: translateY(-2px); }
+.hdr-icon[aria-current="page"]::after {
+    content: "";
+    position: absolute;
+    left: 8px;
+    right: 8px;
+    bottom: 4px;
+    height: 2px;
+    background: var(--ink);
+}
+@media (prefers-reduced-motion: no-preference) {
+    .hdr-icon .sprite { transition: transform 120ms ease-out; }
+}
+.masthead:has(.hdr-icon) { gap: var(--s2); }
+.masthead:has(.hdr-icon) .app-header-links { gap: var(--s2); }
+.masthead > .hdr-icon:last-child,
+.masthead > .app-header-links:last-child > .hdr-icon:last-child { margin-right: -6px; }
+/* The header as short words instead (footer "Header: Text"): Bug, FAQ, Donate, Sign in or
+   Profile, Admin, all on one line; on a phone the shapes alone stand for Lilai. */
+.masthead .hdr-text {
+    display: inline-flex;
+    align-items: center;
+    width: auto;
+    height: auto;
+    min-height: 44px;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: none;
+    font: inherit;
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--ink);
+    text-decoration: none;
+    white-space: nowrap;
+    cursor: pointer;
+}
+.masthead .hdr-text:hover { background: none; text-decoration: underline; }
+.masthead .hdr-text[aria-current="page"] {
+    text-decoration: underline;
+    text-decoration-thickness: 2px;
+    text-underline-offset: 3px;
+}
+/* In text mode the bug stays an icon: splitly's line bug, sized like the words around it. */
+.masthead .hdr-glyph { flex: none; width: 32px; height: 44px; }
+.masthead:has(.hdr-text), .masthead:has(.hdr-text) .app-header-links { gap: var(--s4); }
+@media (max-width: 479px) {
+    .masthead:has(.hdr-text) .wordmark-name { display: none; }
+    .masthead:has(.hdr-text), .masthead:has(.hdr-text) .app-header-links { gap: var(--s3); }
+}
+@media (max-width: 359px) {
+    .masthead:has(.hdr-text), .masthead:has(.hdr-text) .app-header-links { gap: 10px; }
+    .masthead .hdr-text { font-size: 14px; }
+}
+/* A 320px phone cannot fit five sprites beside the wordmark: with Admin there, the shapes
+   alone stand for Lilai (they still link home and keep its name for screen readers). */
+@media (max-width: 359px) {
+    .masthead:has([data-admin-link]) .wordmark-name { display: none; }
+}
 
 .icon-btn {
     display: inline-grid;
@@ -265,6 +371,9 @@ button { font: inherit; color: inherit; }
 }
 
 .icon-btn:hover { background: var(--wash); }
+
+/* The header's bug without js/sprites.js (admin sign-in). */
+.masthead .report-bug:not(.hdr-icon) { flex: none; }
 
 .text-link {
     display: flex;
@@ -351,6 +460,27 @@ button { font: inherit; color: inherit; }
 .view-btn svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2px; }
 .view-btn[aria-checked="true"] { background: var(--paper-raised); color: var(--ink); box-shadow: var(--shadow-raised); }
 .view-btn:focus-visible { outline: var(--stroke-2) solid var(--focus); outline-offset: 2px; }
+
+/* Create an event, where the eye already is: a round "+" beside the view switch, the same
+   stone as the switch. The sidebar keeps the worded button. */
+.new-event-btn {
+    display: inline-grid;
+    place-items: center;
+    width: 38px;
+    height: 38px;
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius-full);
+    background: var(--stone);
+    color: var(--ink);
+    cursor: pointer;
+}
+.new-event-btn svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2px; }
+.new-event-btn:hover { background: var(--ink); color: var(--paper); }
+.new-event-btn:focus-visible { outline: var(--stroke-2) solid var(--focus); outline-offset: 2px; }
+/* The "+" and the view switch wrap as one group, so a narrow phone never splits them. */
+.rail-tools { display: flex; align-items: center; gap: var(--s2); margin-left: auto; }
+.rail-head .rail-tools .view-switch { margin-left: 0; }
 
 /* Rows view: the agenda under the rail replaces the cards. */
 .home.is-rows .events-section { display: none; }
@@ -512,6 +642,8 @@ button { font: inherit; color: inherit; }
 @media (hover: hover) { .to-top:hover { background: var(--stone); } }
 .to-top:focus-visible { outline: var(--stroke-2) solid var(--focus); outline-offset: 2px; }
 .home.is-rows ~ .to-top { display: none; }
+/* At the bottom of the page the footer ends above the button, so it never covers a switch. */
+body:has(.to-top) .colophon { padding-bottom: calc(48px + max(var(--s5), env(safe-area-inset-bottom)) + var(--s3)); }
 
 /* ---------- Pull to refresh ---------- */
 
@@ -683,6 +815,10 @@ button { font: inherit; color: inherit; }
     overflow-wrap: anywhere;
 }
 
+/* The padlock on an approval event, after "Hosted by". Line-drawn in the meta line's ink. */
+.approval-mark { display: inline-block; vertical-align: -0.1em; }
+.approval-mark svg { display: block; width: 0.95em; height: 0.95em; fill: none; stroke: currentColor; stroke-width: 1.4px; stroke-linejoin: round; }
+
 /* An outbound link in the meta line: the one coloured, underlined text on Home, with an
    arrow, so it reads as a way out without becoming another button. */
 .event-link {
@@ -706,6 +842,51 @@ button { font: inherit; color: inherit; }
 }
 
 .event-link:hover { text-decoration-thickness: 2px; }
+
+/* An event's links (Lilai holds them; see js/event-links.js): a wrapping row of named links. */
+.event-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s1) var(--s4);
+    margin: var(--s2) 0 0;
+    padding: 0;
+    list-style: none;
+    font-size: var(--meta);
+}
+
+.event-links li { flex: none; max-width: 100%; }
+.event-links .event-link { min-height: 32px; overflow-wrap: anywhere; }
+.sheet-links { margin-top: var(--s3); }
+.sheet-links[hidden] { display: none; }
+
+/* The link editor: per row an address, an optional name and a remove button. On a phone
+   the name drops under the address; the remove button stays on the address line. */
+.link-rows { margin: 0; padding: 0; list-style: none; }
+
+.link-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 44px;
+    grid-template-areas: "url remove" "label .";
+    gap: var(--s2);
+    align-items: center;
+    padding-bottom: var(--s3);
+    margin-bottom: var(--s3);
+    border-bottom: 1px solid var(--hair);
+}
+
+.link-row .link-url { grid-area: url; }
+.link-row .link-label { grid-area: label; }
+.link-row .link-remove { grid-area: remove; justify-self: center; }
+
+@media (min-width: 640px) {
+    .link-row {
+        grid-template-columns: minmax(0, 3fr) minmax(0, 2fr) 44px;
+        grid-template-areas: "url label remove";
+    }
+}
+
+.link-add { min-height: 44px; }
+.link-add[hidden] { display: none; }
 
 /* Inside an event the pill steps down a size, since every event carries one. */
 .event-actions .btn {
@@ -750,10 +931,10 @@ button { font: inherit; color: inherit; }
 }
 
 .slot { display: block; }
-.slot .shape { font-size: 16px; fill: var(--paper); transform-origin: center; }
-.slot.is-taken .shape { fill: var(--tone); }
+.slot .shape { font-size: 16px; fill: var(--paper); stroke: var(--ink); transform-origin: center; }
+.slot.is-taken .shape { fill: var(--tone); stroke: var(--tone); }
 .slot.is-new .shape { animation: shape-grow 480ms var(--ease) both; }
-.seats.is-full .slot .shape { fill: var(--ink); }
+.seats.is-full .slot .shape { fill: var(--ink); stroke: var(--ink); }
 
 .seats-label {
     font-size: var(--meta);
@@ -777,6 +958,14 @@ button { font: inherit; color: inherit; }
 
 .names li { overflow-wrap: anywhere; }
 .names li.is-new { font-weight: 600; animation: name-print 700ms var(--ease) both; }
+
+/* The waiting list sits under the names, in order; its names hold no place yet. */
+.names-heading {
+    margin-top: var(--s3);
+    font-size: var(--meta);
+    color: var(--ink-3);
+}
+.names-waiting { margin-top: 2px; color: var(--ink-3); }
 
 .names-empty {
     margin-top: var(--s3);
@@ -812,6 +1001,26 @@ button { font: inherit; color: inherit; }
 
 .today-rule + .event { margin-top: 0; }
 
+/* Where the cards cross into a new month: its name, small and quiet like the rail's
+   month mark, in the system sans, with a hairline running on from its middle. */
+.month-head {
+    display: flex;
+    align-items: center;
+    gap: var(--s2);
+    margin: var(--s6) 0 0;
+    padding: 0 0 var(--s1) var(--s1);
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    color: var(--ink-2);
+}
+.month-head::after {
+    content: "";
+    flex: 1;
+    border-top: 1px solid var(--hairline);
+}
+.month-head + .today-rule { margin-top: var(--s2); }
+
 .load-earlier-wrap { padding: var(--s2) 0 var(--s4); }
 
 .state-line {
@@ -846,6 +1055,10 @@ button { font: inherit; color: inherit; }
 
 .btn-line { background: var(--fill); color: var(--ink); }
 .btn-line:hover { background: var(--stone); color: var(--ink); }
+
+/* The one red outside a calendar shape: an action that takes something away from a person (owner, 2026-10-24). */
+.btn-danger { background: var(--red); color: var(--on-danger); }
+.btn-danger:hover { background: var(--red); color: var(--on-danger); filter: brightness(0.92); }
 
 .btn:disabled,
 .btn[disabled] {
@@ -891,14 +1104,19 @@ button { font: inherit; color: inherit; }
 }
 
 .subscribe-link {
-    display: inline-flex;
+    display: flex;
     align-items: center;
-    gap: var(--s2);
+    gap: var(--s3);
     min-height: 44px;
+    border-top: 1px solid var(--hair);
+    color: var(--ink);
     font-size: 15px;
+    text-decoration: none;
 }
-
+.subscribe-link:first-child { border-top: 0; }
+.subscribe-link:hover span { text-decoration: underline; text-underline-offset: 3px; }
 .subscribe-link .shape { font-size: 13px; }
+.subscribe-out { width: 16px; height: 16px; margin-left: auto; fill: none; stroke: var(--ink-2); stroke-width: 2px; }
 
 /* ---------- Sheets (RSVP) ---------- */
 
@@ -921,7 +1139,8 @@ button { font: inherit; color: inherit; }
     max-height: 92%;
     overflow-y: auto;
     overscroll-behavior: contain;
-    padding: 0 var(--gutter) calc(var(--s5) + env(safe-area-inset-bottom));
+    --sheet-pad: var(--gutter);
+    padding: 0 var(--sheet-pad) calc(var(--s5) + env(safe-area-inset-bottom));
     background: var(--paper-raised);
     border-radius: var(--radius-sheet) var(--radius-sheet) 0 0;
     box-shadow: var(--shadow-float);
@@ -1029,6 +1248,11 @@ html.sheet-locked body {
 
 .sheet-desc[hidden] { display: none; }
 
+/* An approval event's sheet names who decides; once asked, the sheet says it was sent. */
+.sheet-approval { color: var(--ink); }
+.sheet-sent { margin-top: var(--s5); }
+.sheet-sent-title { font-size: 17px; font-weight: 600; }
+
 .field { margin-top: var(--s5); }
 
 /* 12px clears the focus ring (2px outline, 2px offset) with room to spare. */
@@ -1101,6 +1325,464 @@ html.sheet-locked body {
 
 .sheet-actions .btn { flex: 1 1 auto; }
 
+/* From 640px, fields in a sheet are as slim as the chips: 36px boxes and steppers, 16px text.
+   Phones keep the 50px field. A textarea keeps its own height. */
+@media (min-width: 640px) {
+    .sheet .input { min-height: 36px; font-size: 16px; }
+    .sheet .select { padding-right: 40px; background-position: right 10px center; background-size: 18px; }
+    .sheet .ev-step { width: 36px; height: 36px; font-size: 20px; }
+}
+
+/* In a sheet, a field's label takes the label style (13px 600), as in the booking queue. */
+.sheet .field label:not(.ev-check),
+.sheet .ev-label { font-size: 13px; font-weight: 600; line-height: 18px; margin-bottom: var(--s2); }
+
+/* Make an event: a Jost title over a full-width ink rule, and Make event pinned at the foot. */
+.sheet-make .sheet-head { padding-bottom: var(--s2); }
+.sheet-make .sheet-head .icon-btn { margin: var(--s3) 0 0; }
+.sheet-make .sheet-title { padding-top: var(--s2); font-family: var(--font-display); font-size: 32px; font-weight: 700; line-height: 1.05; }
+#event-sheet-form .sheet-actions,
+#edit-form .sheet-actions {
+    position: sticky;
+    bottom: calc(-1 * (var(--s5) + env(safe-area-inset-bottom)));
+    z-index: 1;
+    margin: var(--s5) calc(-1 * var(--sheet-pad)) 0;
+    padding: var(--s3) var(--sheet-pad) calc(var(--s3) + var(--s5) + env(safe-area-inset-bottom));
+    margin-bottom: calc(-1 * (var(--s5) + env(safe-area-inset-bottom)));
+    border-top: 1px solid var(--hair);
+    background: var(--paper-raised);
+}
+
+/* Grouped cards (owner, 2026-10-25): the event sheets turn grey and each part of the form is
+   a raised card under a small uppercase title, like iPhone Settings. No ink rules. */
+.sheet-cards { background: var(--paper); }
+.sheet-cards .sheet-grip,
+.sheet-cards #event-sheet-form .sheet-actions,
+.sheet-cards #edit-form .sheet-actions { background: var(--paper); }
+.ev-card {
+    display: grid;
+    gap: var(--s4);
+    margin-top: var(--s3);
+    padding: var(--s4);
+    border-radius: var(--radius-card);
+    background: var(--paper-raised);
+}
+.ev-card > .field, .ev-card > .ev-check { margin-top: 0; }
+.ev-card > [hidden] { display: none; }
+.ev-card-title { margin: 0 0 calc(-1 * var(--s1)); font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-2); }
+
+/* ---------- Time wheel (js/time-wheel.js) ----------
+   A time field opens two snapping columns, hours and minutes, under it (owner, 2026-10-25).
+   The middle row, on a raised band, is the time; rows fade out above and below. */
+.tw-button { width: 100%; text-align: left; cursor: pointer; font-variant-numeric: tabular-nums; }
+.tw-button.is-empty { color: var(--ink-3); }
+.tw-button[aria-expanded="true"] { outline: var(--stroke-2) solid var(--focus); outline-offset: 2px; }
+.tw-panel {
+    display: grid;
+    gap: var(--s2);
+    margin-top: var(--s2);
+    padding: var(--s2);
+    border-radius: var(--radius-control);
+    background: var(--fill);
+    /* Scrolled into view, it clears the sheet's pinned Make event bar. */
+    scroll-margin-bottom: 96px;
+}
+.tw-cols { position: relative; display: flex; align-items: center; justify-content: center; gap: var(--s1); }
+.tw-band {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 40px;
+    height: 40px;
+    border-radius: 10px;
+    background: var(--paper-raised);
+    box-shadow: var(--shadow-raised);
+    pointer-events: none;
+}
+.tw-col {
+    position: relative;
+    width: 56px;
+    height: 120px;
+    padding: 40px 0;
+    overflow-y: auto;
+    scroll-snap-type: y mandatory;
+    overscroll-behavior: contain;
+    scrollbar-width: none;
+    -webkit-mask-image: linear-gradient(transparent, #000 35%, #000 65%, transparent);
+    mask-image: linear-gradient(transparent, #000 35%, #000 65%, transparent);
+    box-sizing: border-box;
+    outline: none;
+}
+.tw-col::-webkit-scrollbar { display: none; }
+.tw-col:focus-visible { box-shadow: inset 0 0 0 var(--stroke-2) var(--focus); border-radius: 10px; }
+.tw-cell {
+    display: grid;
+    place-items: center;
+    height: 40px;
+    scroll-snap-align: center;
+    font-size: 17px;
+    font-weight: 400;
+    font-variant-numeric: tabular-nums;
+    color: var(--ink-3);
+    cursor: pointer;
+    user-select: none;
+}
+.tw-cell[aria-selected="true"] { color: var(--ink); font-weight: 600; }
+.tw-colon { position: relative; font-size: 17px; font-weight: 600; }
+.tw-done { min-height: 40px; }
+
+/* ---------- Event form ----------
+   Make an event (Home's sheet) and Edit (the management page's sheet) share one form,
+   js/event-form.js. */
+
+
+.ev-label {
+    display: block;
+    margin-bottom: var(--s3);
+}
+
+/* Make an event's "You": the signed-in email, with Change beside it */
+.ev-signed-as {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    column-gap: var(--s3);
+    margin: 0;
+    overflow-wrap: anywhere;
+}
+
+.ev-optional {
+    margin-left: var(--s1);
+    font-weight: 400;
+    color: var(--ink-3);
+}
+
+.ev-hint {
+    margin-top: var(--s2);
+    font-size: var(--meta);
+    color: var(--ink-2);
+}
+
+.ev-hint[hidden] { display: none; }
+/* A caveat the reader must act on: ink, heavier, with a rule. Never red (primaries live in shapes). */
+.ev-warn { color: var(--ink); font-weight: 600; border-left: var(--stroke-2) solid var(--ink); padding-left: var(--s3); }
+
+.ev-textarea { min-height: 112px; padding: var(--s3); resize: vertical; line-height: 1.5; }
+.input[type="date"], .input[type="time"], .ev-time { font-variant-numeric: tabular-nums; }
+
+/* Day and Until read yyyy/mm/dd whatever the device's language (owner, 2026-10-25). The
+   phone's own date input lies invisible over the text, so a tap still opens its picker. */
+.ev-datebox { position: relative; max-width: 240px; }
+.ev-date-show { display: flex; align-items: center; pointer-events: none; font-variant-numeric: tabular-nums; }
+.ev-date-show.is-empty { color: var(--ink-3); }
+.ev-datebox .ev-date-native { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; font-size: 16px; cursor: pointer; }
+.ev-datebox:focus-within .ev-date-show { outline: var(--stroke-2) solid var(--focus); outline-offset: 2px; }
+
+/* Where: a search over the owner's places, best match first (js/place-search.js). The list
+   sits in the flow under the field, so the sheet's own scroll and the iOS keyboard never
+   clip it. */
+/* Scrolled to the top of a sheet while typing (js/sheet.js), it keeps clear of the grabber and title. */
+.sheet [role="combobox"], .bs-sheet [role="combobox"] { scroll-margin-top: var(--s7); }
+.sheet .input, .sheet textarea, .bs-sheet .bs-input { scroll-margin-bottom: var(--s8); }
+.ev-place-list {
+    list-style: none;
+    margin: var(--s2) 0 0;
+    padding: var(--s1);
+    border: 1px solid var(--hairline);
+    border-radius: var(--radius-control);
+    background: var(--paper);
+    max-height: 288px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}
+.ev-place-list [role="option"] {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 2px;
+    min-height: 44px;
+    padding: var(--s2) var(--s3);
+    border-radius: 8px;
+    cursor: pointer;
+}
+.ev-place-list [aria-selected="true"] { background: var(--fill); }
+@media (hover: hover) { .ev-place-list [role="option"]:hover { background: var(--fill); } }
+.ev-place-name { font-size: 15px; font-weight: 600; overflow-wrap: anywhere; }
+.ev-place-address { font-size: 13px; color: var(--ink-2); overflow-wrap: anywhere; }
+.ev-place-none { padding: var(--s2) var(--s3); font-size: 14px; color: var(--ink-2); }
+/* Google's suggestions sit under their source's name, which is also the attribution Google asks for. */
+.ev-place-group { padding: var(--s3) var(--s3) var(--s1); font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-2); }
+
+/* Start and end read as one pair. */
+.ev-two {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: var(--s3);
+    max-width: 360px;
+}
+
+.ev-col { min-width: 0; }
+
+
+/* Separate pills; the filled one is the answer (the booking sheet's segment). */
+.ev-segment {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s2);
+}
+
+.ev-seg {
+    position: relative;
+    min-height: 44px;
+    padding: 0 var(--s4);
+    border: 0;
+    border-radius: var(--radius-full);
+    background: var(--fill);
+    color: var(--ink);
+    font: inherit;
+    font-size: 15px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 140ms var(--ease), color 140ms var(--ease);
+}
+
+/* From 640px (the drawer, a mouse) the chips draw 36px; the tap area stays 44px.
+   Phones keep the 44px chip, easier under a thumb. */
+@media (min-width: 640px) {
+    .ev-seg { min-height: 36px; padding: 0 14px; font-size: 14px; }
+    .ev-seg::after { content: ""; position: absolute; inset: -4px 0; }
+}
+
+.ev-seg:hover { background: var(--stone); }
+.ev-seg[aria-checked="true"] { background: var(--ink); color: var(--paper); font-weight: 600; }
+.ev-seg:focus-visible,
+.ev-cal:focus-visible,
+.ev-step:focus-visible,
+.ev-choice:focus-visible { outline: var(--stroke-2) solid var(--focus); outline-offset: 2px; }
+
+/* "− [8] + places" is one phrase, laid out as one. */
+.ev-limit {
+    display: flex;
+    align-items: center;
+    gap: var(--s2);
+    margin-top: var(--s3);
+}
+
+.ev-limit[hidden] { display: none; }
+
+.ev-step {
+    flex: none;
+    width: 44px;
+    height: 44px;
+    border: 0;
+    border-radius: var(--radius-full);
+    background: var(--fill);
+    color: var(--ink);
+    font: inherit;
+    font-size: 22px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.ev-step:hover { background: var(--stone); }
+
+.ev-number {
+    width: 88px;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+    -moz-appearance: textfield;
+}
+
+.ev-number::-webkit-outer-spin-button,
+.ev-number::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+
+.ev-limit-word { font-size: 15px; }
+
+/* The repeat: "Every [1] [week]", the weekdays, "Until", and a line saying what it makes. */
+.ev-repeat { display: grid; gap: var(--s3); margin-top: var(--s3); }
+.ev-repeat[hidden] { display: none; }
+.ev-every { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2) var(--s3); }
+.ev-every-word { font-size: 15px; }
+.ev-every .ev-number { width: 72px; }
+.ev-unit { width: 140px; }
+.ev-days {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: var(--s1);
+    max-width: 420px;
+}
+.ev-days[hidden] { display: none; }
+.ev-day { min-width: 0; padding: 0; text-align: center; }
+.ev-day[aria-pressed="true"] { background: var(--ink); color: var(--paper); font-weight: 600; }
+.ev-day:focus-visible { outline: var(--stroke-2) solid var(--focus); outline-offset: 2px; }
+.ev-until label { display: block; margin-bottom: var(--s2); font-size: var(--meta); color: var(--ink-2); }
+.ev-preview { margin-top: 0; }
+.ev-first { margin-top: var(--s4); }
+[data-part="calendar"]:not([hidden]) + .ev-first { margin-top: var(--s5); }
+
+/* Calendar as shape tiles: the shape is the calendar, as on Home. Outlined until picked.
+   A tile never narrows below its name, so a name never breaks mid-word; tiles that do not
+   fit move to the next row. */
+.ev-cals { display: flex; flex-wrap: wrap; gap: var(--s2); }
+.ev-cal {
+    display: grid;
+    justify-items: center;
+    gap: var(--s2);
+    flex: 1 1 0;
+    min-width: max-content;
+    padding: var(--s4) var(--s2) var(--s3);
+    border: var(--stroke-2) solid transparent;
+    border-radius: var(--radius-control);
+    background: var(--fill);
+    color: var(--ink);
+    font: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 140ms var(--ease), border-color 140ms var(--ease);
+}
+.ev-cal span { max-width: 100%; overflow-wrap: anywhere; text-align: center; }
+.ev-cal .shape { width: 32px; height: 32px; fill: none; stroke: var(--ink); }
+.ev-cal:hover { background: var(--stone); }
+.ev-cal[aria-checked="true"] { border-color: var(--ink); background: var(--paper-raised); }
+.ev-cal[aria-checked="true"] .shape { fill: var(--tone); stroke: var(--tone); }
+
+/* Two answers with a sentence each: a stacked choice, the chosen one inked. */
+.ev-choice-list {
+    display: grid;
+    gap: var(--s2);
+}
+
+.ev-choice {
+    display: grid;
+    gap: var(--s1);
+    padding: var(--s3) var(--s4);
+    border: var(--stroke-2) solid transparent;
+    border-radius: var(--radius-control);
+    background: var(--fill);
+    color: var(--ink);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    transition: border-color 140ms var(--ease), background-color 140ms var(--ease);
+}
+
+.ev-choice:hover { background: var(--stone); }
+.ev-choice[aria-checked="true"] { border-color: var(--ink); background: var(--paper-raised); }
+.ev-choice-title { font-size: 16px; font-weight: 600; }
+.ev-choice-note { font-size: var(--meta); color: var(--ink-2); }
+
+.ev-check {
+    display: flex;
+    align-items: center;
+    gap: var(--s3);
+    min-height: 44px;
+    margin-top: var(--s3);
+    font-size: 15px;
+    cursor: pointer;
+}
+
+.ev-check input { width: 20px; height: 20px; margin: 0; }
+
+.ev-form-error { margin-top: var(--s5); }
+
+.ev-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--s3) var(--s5);
+    margin-top: var(--s6);
+}
+
+/* ---------- Made ---------- */
+
+.ev-done {
+    margin-top: var(--s5);
+    padding-top: var(--s4);
+    border-top: var(--rule) solid var(--ink);
+}
+
+.ev-done:focus { outline: none; }
+
+.ev-done-title { font-size: 20px; font-weight: 600; }
+.ev-done-when { margin-top: var(--s1); font-size: 15px; color: var(--ink-2); }
+
+.ev-hostlink {
+    margin-top: var(--s5);
+    padding: var(--s4);
+    border-radius: var(--radius-card);
+    background: var(--paper-raised);
+}
+
+.ev-hostlink .ev-label { margin-bottom: 0; font-weight: 600; }
+
+.ev-hostlink-row {
+    display: flex;
+    align-items: center;
+    gap: var(--s3);
+    margin-top: var(--s3);
+}
+
+.ev-hostlink-url {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow-wrap: anywhere;
+    font-size: var(--meta);
+}
+
+.ev-done-links {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--s2) var(--s5);
+    margin-top: var(--s5);
+}
+
+.ev-done-links [hidden] { display: none; }
+
+/* Events this device manages: quiet rows in Home's sidebar. */
+.ev-hosted[hidden] { display: none; }
+.ev-hosted { margin-top: var(--s4); }
+.side-subtitle { font-size: var(--meta); font-weight: 600; }
+.ev-hostlink-url { display: block; margin-top: var(--s3); }
+.ev-hostlink-actions { display: flex; gap: var(--s5); margin-top: var(--s2); }
+.ev-hostlink-actions [hidden] { display: none; }
+
+/* The hosting card: Create an event, then the events this device manages as day blocks. */
+.side-create { gap: var(--s2); }
+.side-create-plus { font-size: 20px; line-height: 1; margin-top: -2px; }
+.side-host .ev-hosted { margin-top: var(--s5); }
+.side-lost { display: flex; width: fit-content; margin-top: var(--s3); }
+.hosted-rows { list-style: none; margin: var(--s2) 0 0; padding: 0; border-top: var(--rule) solid var(--ink); }
+.hosted-rows li + li { border-top: 1px solid var(--hair); }
+.hosted-row {
+    display: grid;
+    grid-template-columns: 40px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: var(--s3);
+    padding: var(--s3) 0;
+    color: var(--ink);
+    text-decoration: none;
+}
+.hosted-row:hover .hosted-title span { text-decoration: underline; text-underline-offset: 3px; }
+.hosted-day { display: grid; justify-items: center; line-height: 1; }
+.hosted-day b { font-family: var(--font-display); font-size: 24px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.hosted-day span { margin-top: 3px; font-size: 12px; color: var(--ink-2); }
+.hosted-main { display: grid; gap: 2px; min-width: 0; }
+.hosted-title { display: flex; align-items: center; gap: 6px; min-width: 0; font-size: 15px; font-weight: 600; }
+.hosted-title span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hosted-title .shape { flex: none; font-size: 12px; }
+.hosted-meta { font-size: var(--meta); color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.hosted-chev { width: 18px; height: 18px; fill: none; stroke: var(--ink-2); stroke-width: 2px; }
+/* A cancelled event stays in the list, struck through in grey with a hollow shape like a past
+   one, and says Cancelled first (owner, 2026-10-25). */
+.hosted-row.is-cancelled .hosted-day b,
+.hosted-row.is-cancelled .hosted-day span { color: var(--ink-3); }
+.hosted-row.is-cancelled .hosted-title span { color: var(--ink-3); font-weight: 500; text-decoration: line-through; text-decoration-thickness: 1.5px; }
+.hosted-row.is-cancelled .hosted-title .shape { fill: none; stroke: var(--past); }
+.hosted-row.is-cancelled .hosted-meta b { font-weight: 600; color: var(--ink-2); }
+
+
 /* ---------- Colophon ---------- */
 
 /* The rule sits on the footer itself, so the footer is sized to the content column
@@ -1124,51 +1806,53 @@ html.sheet-locked body {
     color: var(--ink-3);
 }
 
-/* Theme: Auto · Light · Dark. Footer-sized, but each choice is a 44px touch target. */
-.theme-switch {
+/* Footer switches: a word and an iOS switch (Dark, Header icons). The whole row toggles, so
+   it is the 44px target. Profile's Display card uses the same .ios-switch. */
+.footer-toggle {
     display: flex;
     align-items: center;
-    gap: var(--s3);
+    gap: var(--s2);
+    min-height: 44px;
     font-size: 13px;
     color: var(--ink-3);
+    cursor: pointer;
+    user-select: none;
+    -webkit-user-select: none;
 }
+.footer-toggles { display: flex; gap: var(--s5); }
+/* A smaller switch, at the footer's 13px. */
+.footer-toggle .ios-switch { width: 40px; height: 24px; }
+.footer-toggle .ios-switch::after { width: 20px; height: 20px; }
+.footer-toggle .ios-switch[aria-checked="true"]::after { transform: translateX(16px); }
 
-.theme-btn {
-    min-height: 44px;
+.ios-switch {
+    flex: none;
+    position: relative;
+    width: 51px;
+    height: 31px;
     padding: 0;
     border: 0;
-    background: none;
-    font: inherit;
-    color: var(--ink-3);
+    border-radius: 999px;
+    background: var(--stone);
     cursor: pointer;
 }
-
-.theme-btn:hover { color: var(--ink); }
-
-.theme-btn[aria-pressed="true"] {
-    color: var(--ink);
-    font-weight: 500;
-    text-decoration: underline;
-    text-decoration-thickness: var(--rule);
-    text-underline-offset: 4px;
+.ios-switch::after {
+    content: "";
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 27px;
+    height: 27px;
+    border-radius: 50%;
+    background: var(--on-rail-sel);
+    box-shadow: var(--shadow-raised);
 }
-
-/* Feedback: a footer-sized link that opens its sheet (js/feedback.js). */
-.feedback-btn {
-    min-height: 44px;
-    padding: 0;
-    border: 0;
-    background: none;
-    font: inherit;
-    font-size: 13px;
-    color: var(--ink-3);
-    text-decoration: underline;
-    text-decoration-thickness: 1px;
-    text-underline-offset: 3px;
-    cursor: pointer;
+.ios-switch[aria-checked="true"] { background: var(--rail-sel); }
+.ios-switch[aria-checked="true"]::after { transform: translateX(20px); }
+@media (prefers-reduced-motion: no-preference) {
+    .ios-switch { transition: background-color 200ms ease; }
+    .ios-switch::after { transition: transform 200ms cubic-bezier(0.3, 0.7, 0.4, 1); }
 }
-
-.feedback-btn:hover { color: var(--ink); }
 
 .textarea {
     min-height: 140px;
@@ -1212,6 +1896,325 @@ html.sheet-locked body {
 .feedback-attach { margin-top: var(--s3); }
 .feedback-attach[hidden] { display: none; }
 
+/* ---------- Chat in an event (js/event-chat.js) ---------- */
+
+/* The card's chat button: a speech outline and its count, at the end of the actions row. */
+.chat-trigger {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--s1);
+    min-width: 44px;
+    min-height: 40px;
+    margin-left: auto;
+    padding: 0 var(--s3);
+    border: 0;
+    border-radius: var(--radius-full);
+    background: none;
+    color: var(--ink);
+    font: inherit;
+    font-size: var(--meta);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    cursor: pointer;
+}
+/* A card action drawn as an icon, in the chat icon's line (Remove a name). */
+.icon-action {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    min-height: 40px;
+    border: 0;
+    border-radius: var(--radius-full);
+    background: none;
+    color: var(--ink);
+    cursor: pointer;
+}
+.icon-action svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.5px; stroke-linecap: round; stroke-linejoin: round; }
+.icon-action:hover { background: var(--wash); }
+.icon-action:focus-visible { outline: var(--stroke-2) solid var(--focus); outline-offset: 2px; }
+
+.chat-trigger svg { width: 22px; height: 22px; fill: none; stroke: var(--ink); stroke-width: 1.5px; stroke-linejoin: round; }
+.chat-trigger:hover { background: var(--wash); }
+.chat-count:empty { display: none; }
+
+/* The thread: a column that fills the sheet, the list scrolling between head and composer. */
+.sheet.sheet-chat {
+    display: flex;
+    flex-direction: column;
+    height: 92%;
+    overflow: hidden;
+    padding-bottom: 0;
+}
+.sheet-chat > .sheet-head,
+.sheet-chat > .sheet-grip { flex: none; }
+.chat-head { min-width: 0; }
+.chat-head .sheet-title { overflow-wrap: anywhere; }
+
+.chat-list {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    margin: var(--s3) calc(-1 * var(--sheet-pad)) 0;
+    padding: var(--s3) var(--sheet-pad) var(--s4);
+    list-style: none;
+    background: var(--chat-thread);
+}
+
+.chat-empty {
+    padding: var(--s6) 0;
+    font-size: var(--meta);
+    color: var(--ink-3);
+    text-align: center;
+}
+
+.chat-msg {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    margin-top: var(--s1);
+}
+.chat-msg.is-first { margin-top: var(--s4); }
+.chat-msg.is-mine { align-items: flex-end; }
+
+.chat-meta {
+    display: flex;
+    align-items: center;
+    gap: var(--s2);
+    margin: 0 var(--s3) var(--s1);
+    font-size: 13px;
+    font-weight: 600;
+}
+.chat-was { font-weight: 400; color: var(--ink-2); }
+.chat-host {
+    padding: 0 var(--s2);
+    border: 1px solid var(--ink);
+    border-radius: var(--radius-full);
+    font-size: 11px;
+    line-height: 16px;
+}
+
+/* Others' bubbles are white and raised on the grey thread; mine are the rail's green, a
+   gradient. A run's first bubble keeps the corner that points at its author. */
+.chat-bubble {
+    max-width: min(85%, 34ch);
+    padding: 9px 14px;
+    border-radius: 6px 20px 20px 6px;
+    background: var(--chat-theirs);
+    color: var(--ink);
+    box-shadow: var(--shadow-raised);
+    font-size: 16px;
+    line-height: 1.4;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+.chat-msg.is-first .chat-bubble { border-top-left-radius: 20px; }
+.chat-msg.is-mine .chat-bubble {
+    border-radius: 20px 6px 6px 20px;
+    background: linear-gradient(160deg, var(--chat-mine-from), var(--chat-mine-to));
+    color: var(--on-chat-mine);
+    box-shadow: var(--chat-mine-glow);
+}
+.chat-msg.is-mine.is-first .chat-bubble { border-top-right-radius: 20px; }
+.chat-msg.is-new .chat-bubble { animation: bubble-in 320ms var(--ease) both; transform-origin: bottom left; }
+.chat-msg.is-mine.is-new .chat-bubble { transform-origin: bottom right; }
+
+@keyframes bubble-in {
+    from { opacity: 0; transform: translateY(8px) scale(0.92); }
+}
+
+.chat-tools {
+    display: flex;
+    align-items: center;
+    gap: var(--s3);
+    min-height: 32px;
+    padding: 0 var(--s2);
+}
+.chat-time { font-size: 12px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.chat-tool.text-btn { min-height: 32px; font-size: 12px; }
+
+.chat-like {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    min-width: 32px;
+    min-height: 32px;
+    padding: 0 var(--s1);
+    border: 0;
+    border-radius: var(--radius-full);
+    background: none;
+    color: var(--ink-2);
+    font: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    cursor: pointer;
+}
+.chat-like svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.75px; stroke-linejoin: round; }
+.chat-like[aria-pressed="true"] { color: var(--chat-liked); }
+.chat-like[aria-pressed="true"] svg { fill: var(--chat-liked); stroke: var(--chat-liked); }
+.chat-like[aria-pressed="true"] svg { animation: shape-grow 360ms var(--ease); }
+.chat-like:hover { background: var(--wash); }
+
+.chat-edit { width: min(100%, 34ch + 2 * var(--s3)); }
+.chat-edit-actions { display: flex; align-items: center; justify-content: flex-end; gap: var(--s4); margin-top: var(--s2); }
+.chat-edit-actions .btn { min-height: 36px; padding: 0 var(--s4); }
+
+/* The composer stays at the foot, above the home indicator. */
+.chat-foot {
+    flex: none;
+    margin: 0 calc(-1 * var(--sheet-pad));
+    padding: var(--s3) var(--sheet-pad) calc(var(--s3) + env(safe-area-inset-bottom));
+    border-top: 1px solid var(--hair);
+    background: var(--paper-raised);
+}
+.chat-foot .field { margin-top: 0; margin-bottom: var(--s3); }
+.chat-as { margin-bottom: var(--s2); font-size: 13px; color: var(--ink-2); }
+.chat-as strong { color: var(--ink); }
+.chat-as .text-btn { min-height: 28px; margin-left: var(--s2); font-size: 13px; }
+.chat-noname { font-size: var(--meta); color: var(--ink-2); }
+.chat-noname .text-btn { min-height: 36px; }
+
+.chat-compose { display: flex; align-items: flex-end; gap: var(--s2); }
+.chat-compose .input { flex: 1 1 auto; min-width: 0; }
+.chat-compose .btn { flex: none; }
+.chat-input {
+    min-height: 44px;
+    max-height: 160px;
+    padding-top: 10px;
+    padding-bottom: 10px;
+    line-height: 1.4;
+    resize: none;
+}
+.chat-signin-lede,
+.chat-sent { margin-bottom: var(--s3); font-size: var(--meta); color: var(--ink-2); }
+.chat-sent { margin-bottom: 0; color: var(--ink); }
+#chat-signin-code { margin-top: var(--s3); }
+#chat-signin-code[hidden] { display: none; }
+#chat-signin-code .text-btn { margin-top: var(--s2); }
+/* The emailed sign-in code (js/signin-code.js), on /me, in Make an event and in a chat */
+.signin-code { font-variant-numeric: tabular-nums; letter-spacing: 0.3em; font-size: 22px; }
+#event-code { max-width: 12ch; }
+#event-signin-code[hidden] { display: none; }
+#event-signin-code .text-btn { margin-top: var(--s2); }
+
+@media (min-width: 640px) {
+    .sheet.sheet-chat { height: auto; max-width: 460px; padding-bottom: 0; }
+    .sheet.sheet-tour { height: 100%; }
+    .chat-foot { padding-bottom: var(--s5); }
+    .sheet .chat-input { min-height: 40px; padding-top: 8px; padding-bottom: 8px; }
+}
+
+/* ---------- EN · 繁中 switch (FAQ, What's new) ---------- */
+
+.lang-switch {
+    display: flex;
+    padding: 3px;
+    border-radius: var(--radius-full);
+    background: var(--fill);
+}
+
+.lang-btn {
+    min-height: 38px;
+    padding: 0 var(--s4);
+    border: 0;
+    border-radius: var(--radius-full);
+    background: none;
+    font: inherit;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--ink-2);
+    cursor: pointer;
+    transition: background-color var(--duration-swap), color var(--duration-swap);
+}
+
+.lang-btn:hover { color: var(--ink); }
+
+.lang-btn.active {
+    background: var(--paper-raised);
+    color: var(--ink);
+    box-shadow: var(--shadow-raised);
+}
+
+/* ---------- What's new (js/whats-new.js) ---------- */
+
+/* A tall sheet: the language switch and close on top, the picture taking whatever height is
+   left, then the words, the step marks and Back / Next. */
+.sheet.sheet-tour {
+    display: flex;
+    flex-direction: column;
+    height: 92%;
+    overflow: hidden;
+}
+.sheet-tour > * { flex: none; }
+.sheet-tour:focus { outline: none; }
+.tour-head { align-items: center; padding-top: var(--s2); }
+.tour-head .icon-btn { margin: 0 10px 0 0; }
+
+.tour-stage {
+    flex: 1 1 auto;
+    min-height: 160px;
+    display: flex;
+    justify-content: center;
+    margin-top: var(--s3);
+}
+
+/* The phone: one screen of the real app, a 2px ink edge, pictures stacked in it. */
+.tour-frame {
+    position: relative;
+    height: 100%;
+    aspect-ratio: 390 / 760;
+    max-width: 100%;
+    overflow: hidden;
+    border: var(--rule) solid var(--ink);
+    border-radius: 20px;
+    background: var(--paper);
+}
+.tour-shot {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: top;
+    visibility: hidden;
+}
+.tour-shot.is-shown { visibility: visible; }
+
+.tour-text { margin-top: var(--s4); min-height: 9.5em; }
+.tour-step { font-size: 13px; font-weight: 600; color: var(--ink-3); }
+.tour-title {
+    margin-top: var(--s1);
+    font-size: 22px;
+    font-weight: 600;
+    line-height: 1.25;
+    text-wrap: balance;
+}
+.tour-body { margin-top: var(--s2); font-size: 15px; line-height: 1.5; color: var(--ink-2); }
+
+/* Progress as status marks: 10px squares, ink up to this step. */
+.tour-marks {
+    display: flex;
+    gap: var(--s2);
+    margin: var(--s3) 0 0;
+    padding: 0;
+    list-style: none;
+}
+.tour-marks li {
+    width: 10px;
+    height: 10px;
+    border: 1.5px solid var(--ink);
+}
+.tour-marks li.is-on { background: var(--ink); }
+
+.tour-actions { margin-top: var(--s4); }
+.tour-actions [data-tour-back] { flex: 0 0 auto; }
+.tour-actions [hidden] { display: none; }
+
+/* The footer's "What's new" sits with the theme switch, at its 13px. */
+.colophon-link { min-height: 44px; margin-right: auto; font-size: 13px; color: var(--ink-3); }
+
 /* ---------- Breakpoints ---------- */
 
 /* Phones: a tighter header, so the first event lands in the first screen. */
@@ -1244,6 +2247,7 @@ html.sheet-locked body {
         max-width: 420px;
         max-height: none;
         border-radius: var(--radius-sheet) 0 0 var(--radius-sheet);
+        --sheet-pad: var(--s5);
         padding: var(--s5);
         animation-name: drawer-in;
     }
@@ -1253,13 +2257,22 @@ html.sheet-locked body {
 @media (min-width: 1000px) {
     .masthead { padding-top: var(--s4); padding-bottom: var(--s4); }
 
+    /* The sidebar's first card lines up with the first event card (owner, 2026-10-25): the
+       Upcoming | All switch and the calendar legend take rows of their own above the list,
+       so the side column starts where the cards do, whatever height those rows take. */
     .home {
         grid-template-columns: minmax(0, 1fr) 320px;
         grid-template-areas:
             "band band"
+            "tabs ."
+            "legend ."
             "list side";
         column-gap: var(--s8);
     }
+    .events-section { display: contents; }
+    .events-section > .list-head { grid-area: tabs; }
+    .events-section > .legend { grid-area: legend; margin-bottom: 0; }
+    .events-section > .event-list { grid-area: list; min-width: 0; }
     /* Rows view has no card list, so the rail and its rows take the left column. */
     .home.is-rows { grid-template-areas: "band side"; }
     .home.is-rows .sidebar { margin-top: var(--s4); }
@@ -1269,8 +2282,9 @@ html.sheet-locked body {
         align-self: start;
         position: sticky;
         top: var(--s4);
-        margin-top: var(--s6);
     }
+    /* The first card's own 12px top margin, so both tops meet. */
+    .home:not(.is-rows) .sidebar { margin-top: var(--s3); }
 }
 
 @media (prefers-reduced-motion: reduce) {

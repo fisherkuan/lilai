@@ -1,10 +1,10 @@
 name: CI
 
-# Runs the whole suite, DB-backed tests included, on every PR and on main.
+# Runs the whole suite, DB-backed tests included, on every PR and on main and staging.
 on:
   pull_request:
   push:
-    branches: [main]
+    branches: [main, staging]
 
 concurrency:
   group: ci-${{ github.ref }}

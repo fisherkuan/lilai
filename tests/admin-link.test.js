@@ -5,16 +5,16 @@ const path = require('node:path');
 const vm = require('node:vm');
 
 const PUBLIC_DIR = path.join(__dirname, '../public');
-const APP_JS = fs.readFileSync(path.join(PUBLIC_DIR, 'app.js'), 'utf8');
+// The link is drawn by account-link.js, which every page with the header loads.
+const ACCOUNT_LINK_JS = fs.readFileSync(path.join(PUBLIC_DIR, 'js/account-link.js'), 'utf8');
 
 /*
- * The organizer entry point is obscurity, not access control: the admin pages are
- * deliberately ungated. The whole design rests on one property — the path never reaches a
- * casual visitor — so these tests pin that property rather than the cosmetics of the link.
+ * The header's Admin link shows only for a signed-in address the server calls an admin or a
+ * booking organiser (GET /api/me/roles). A device that never signed in asks nothing.
  */
 
-// A DOM small enough to run setupAdminLink and nothing else.
-function makeHarness({ search = '', stored = null } = {}) {
+// A DOM small enough to run account-link.js. roles: the /api/me/roles answer, or a status.
+function makeHarness({ signedIn = null, roles = null, status = 200, stored = {} } = {}) {
     const navs = [{ name: 'header', children: [] }, { name: 'menu', children: [] }];
     navs.forEach(nav => {
         nav.querySelector = sel => nav.children.find(c => sel === '[data-admin-link]' && c.dataset.adminLink) || null;
@@ -23,120 +23,78 @@ function makeHarness({ search = '', stored = null } = {}) {
             nav.children.push(el);
         };
     });
-
-    const store = new Map();
-    if (stored !== null) store.set('lilaiOrganizer', stored);
-
-    const heading = { listeners: [], addEventListener(type, fn) { if (type === 'click') this.listeners.push(fn); } };
-    let now = 1_000_000;
-    const replaced = [];
+    const store = new Map(Object.entries(stored));
+    if (signedIn) store.set('lilai.signedIn', signedIn);
+    const asked = [];
+    const localStorage = {
+        getItem: k => (store.has(k) ? store.get(k) : null),
+        setItem: (k, v) => store.set(k, String(v)),
+        removeItem: k => store.delete(k)
+    };
     const context = {
         console,
-        URLSearchParams,
-        localStorage: {
-            getItem: k => (store.has(k) ? store.get(k) : null),
-            setItem: (k, v) => store.set(k, String(v)),
-            removeItem: k => store.delete(k)
+        Promise,
+        window: { localStorage },
+        fetch: (url) => {
+            asked.push(url);
+            return Promise.resolve({ ok: status === 200, json: () => Promise.resolve(roles || {}) });
         },
-        window: { location: { search, pathname: '/index.html' } },
-        Date: { now: () => now },
-        history: { replaceState: (a, b, url) => replaced.push(url) },
         document: {
-            querySelectorAll: () => navs,
-            getElementById: id => (id === 'rail-title' ? heading : null),
+            querySelectorAll: sel => (sel === '.masthead' ? navs : []),
             createElement: () => ({ dataset: {}, href: '', textContent: '' })
         }
     };
     context.navs = navs;
     context.store = store;
-    context.replaced = replaced;
-    context.tap = (times, gapMs = 100) => {
-        for (let i = 0; i < times; i++) {
-            now += gapMs;
-            heading.listeners.forEach(fn => fn());
-        }
-    };
+    context.asked = asked;
     return context;
 }
 
-function runSetup(context) {
-    const start = APP_JS.indexOf('const ADMIN_HOME');
-    const end = APP_JS.indexOf('// ---------- Load events ----------');
-    assert.ok(start > -1 && end > start, 'organizer block not found in app.js');
+async function run(context) {
     vm.createContext(context);
-    vm.runInContext(APP_JS.slice(start, end) + '\nsetupAdminLink();', context);
+    vm.runInContext(ACCOUNT_LINK_JS, context);
+    await new Promise(r => setImmediate(r));
     return context.navs.flatMap(nav => nav.children);
 }
 
-test('a plain visit on a fresh device grows no admin link', () => {
-    const links = runSetup(makeHarness());
-    assert.deepStrictEqual(links, []);
-});
-
-test('?admin=1 reveals the link in both navs and remembers the device', () => {
-    const ctx = makeHarness({ search: '?admin=1' });
-    const links = runSetup(ctx);
-    assert.strictEqual(links.length, 2);
-    links.forEach(link => {
-        assert.strictEqual(link.href, '/admin/events');
-        assert.strictEqual(link.textContent, 'Admin');
-    });
-    assert.strictEqual(ctx.store.get('lilaiOrganizer'), '1');
-});
-
-test('the switch is stripped from the address bar so a shared URL does not carry it', () => {
-    const ctx = makeHarness({ search: '?admin=1&timeRange=all' });
-    runSetup(ctx);
-    assert.deepStrictEqual(ctx.replaced, ['/index.html?timeRange=all']);
-});
-
-test('a remembered device keeps the link on later plain visits', () => {
-    const links = runSetup(makeHarness({ stored: '1' }));
-    assert.strictEqual(links.length, 2);
-});
-
-test('five quick taps on the heading turn the device into an organizer', () => {
-    // The home-screen app has its own storage and no address bar, so this is its way in.
+test('a device that never signed in asks nothing and shows no admin link', async () => {
     const ctx = makeHarness();
-    runSetup(ctx);
-    ctx.tap(5);
-    assert.strictEqual(ctx.navs.flatMap(nav => nav.children).length, 2);
-    assert.strictEqual(ctx.store.get('lilaiOrganizer'), '1');
+    assert.deepStrictEqual(await run(ctx), []);
+    assert.deepStrictEqual(ctx.asked, []);
 });
 
-test('five more taps forget the device and remove the link', () => {
-    const ctx = makeHarness({ stored: '1' });
-    runSetup(ctx);
-    ctx.tap(5);
-    assert.deepStrictEqual(ctx.navs.flatMap(nav => nav.children), []);
+test('a signed-in organiser sees Admin, to the booking queue, in every header', async () => {
+    const ctx = makeHarness({ signedIn: 'ann@lilai.test', roles: { admin: false, organizer: true } });
+    const links = await run(ctx);
+    assert.deepStrictEqual(ctx.asked, ['/api/me/roles']);
+    assert.strictEqual(links.length, 2);
+    links.forEach(a => assert.strictEqual(a.href, '/admin/bookings'));
+});
+
+test('a signed-in address that is neither gets no link', async () => {
+    const ctx = makeHarness({ signedIn: 'bob@lilai.test', roles: { admin: false, organizer: false } });
+    assert.deepStrictEqual(await run(ctx), []);
+});
+
+test('a stale sign-in note (the server says 401) gets no link', async () => {
+    const ctx = makeHarness({ signedIn: 'bob@lilai.test', status: 401 });
+    assert.deepStrictEqual(await run(ctx), []);
+});
+
+test('the retired organiser flag is cleared and opens nothing', async () => {
+    const ctx = makeHarness({ stored: { lilaiOrganizer: '1' } });
+    assert.deepStrictEqual(await run(ctx), []);
     assert.strictEqual(ctx.store.has('lilaiOrganizer'), false);
 });
 
-test('slow or too few taps change nothing', () => {
-    for (const [times, gapMs] of [[4, 100], [8, 1000]]) {
-        const ctx = makeHarness();
-        runSetup(ctx);
-        ctx.tap(times, gapMs);
-        assert.deepStrictEqual(ctx.navs.flatMap(nav => nav.children), [], `${times} taps ${gapMs}ms apart`);
-        assert.strictEqual(ctx.store.has('lilaiOrganizer'), false);
-    }
-});
-
-test('?admin=0 forgets the device and hides the link again', () => {
-    const ctx = makeHarness({ search: '?admin=0', stored: '1' });
-    const links = runSetup(ctx);
-    assert.deepStrictEqual(links, []);
-    assert.strictEqual(ctx.store.has('lilaiOrganizer'), false);
-});
-
-test('localStorage throwing (private browsing) degrades to no link, never to a crash', () => {
+test('localStorage throwing (private browsing) degrades to no link, never to a crash', async () => {
     const ctx = makeHarness();
-    ctx.localStorage = {
+    ctx.window.localStorage = {
         getItem() { throw new Error('denied'); },
         setItem() { throw new Error('denied'); },
         removeItem() { throw new Error('denied'); }
     };
-    assert.deepStrictEqual(runSetup(ctx), []);
+    assert.deepStrictEqual(await run(ctx), []);
 });
 
 test('no public HTML page leaks the admin path to view-source or a crawler', () => {
