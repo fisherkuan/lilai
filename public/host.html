@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Apply a saved theme before first paint; the switch itself is js/theme.js. -->
+    <script>try{var t=localStorage.getItem("lilaiTheme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}</script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage event — Lilai</title>
+    <meta name="description" content="Edit your event, cancel it, and see who is coming.">
+    <meta name="robots" content="noindex">
+    <meta name="referrer" content="no-referrer">
+    <meta name="theme-color" content="#efefea" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#111214" media="(prefers-color-scheme: dark)">
+    <link rel="preload" href="/bauhaus/fonts/jost-latin.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="stylesheet" href="/bauhaus/tokens.css">
+    <link rel="stylesheet" href="/css/lilai.css">
+    <link rel="stylesheet" href="/css/events.css">
+    <link rel="icon" href="/icons/favicon.ico" sizes="48x48">
+    <link rel="icon" href="/icons/favicon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+</head>
+<body>
+<svg width="0" height="0" class="shape-defs" aria-hidden="true" focusable="false">
+    <defs>
+        <symbol id="shape-circle" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10.5" vector-effect="non-scaling-stroke"/></symbol>
+        <symbol id="shape-square" viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20" vector-effect="non-scaling-stroke"/></symbol>
+        <symbol id="shape-triangle" viewBox="0 0 24 24"><path d="M12 1.8 22.6 21.6H1.4Z" vector-effect="non-scaling-stroke"/></symbol>
+        <symbol id="shape-diamond" viewBox="0 0 24 24"><path d="M12 1.5 22.5 12 12 22.5 1.5 12Z" vector-effect="non-scaling-stroke"/></symbol>
+    </defs>
+</svg>
+
+<header class="masthead">
+    <a class="wordmark" href="/" aria-label="Lilai, home">
+        <span class="wordmark-mark" aria-hidden="true">
+            <svg viewBox="88 184 336 144"><circle class="wm-circle" cx="136" cy="232" r="48"/><rect class="wm-square" x="208" y="184" width="96" height="96"/><path class="wm-triangle" d="M376 184L424 280H328Z"/><rect class="wm-base" x="88" y="304" width="336" height="24"/></svg>
+        </span>
+        <span class="wordmark-name">Lilai</span>
+    </a>
+    <nav class="app-header-links" aria-label="Site links">
+        <a href="/faq.html">FAQ</a>
+        <a href="/donate">Donate</a>
+    </nav>
+</header>
+
+<main class="ev-page ev-manage" id="manage">
+    <p class="ev-eyebrow">Manage event</p>
+    <p class="state-line" id="host-state">Loading…</p>
+
+    <div class="ev-manage-grid">
+    <article class="ev-hosted-event" id="host-event" hidden>
+        <p class="ev-cancelled" id="host-cancelled" hidden>Cancelled.</p>
+        <h1 class="ev-host-title" id="host-title"></h1>
+        <p class="ev-host-when" id="host-when"></p>
+        <p class="ev-host-where" id="host-where" hidden></p>
+        <div id="host-links"></div>
+        <p class="ev-host-meta" id="host-meta"></p>
+        <p class="ev-publish" id="host-publish" role="status"></p>
+
+        <section class="ev-series" id="series" hidden aria-labelledby="series-title">
+            <div class="section-head">
+                <h2 class="section-title" id="series-title">Repeats</h2>
+                <span class="section-meta" id="series-count"></span>
+            </div>
+            <p class="ev-series-rule" id="series-rule"></p>
+            <div class="ev-series-dates" id="series-dates" role="group" aria-label="Dates in this series"></div>
+        </section>
+
+        <div class="ev-manage-actions">
+            <button type="button" class="btn btn-solid" id="edit-btn">Edit</button>
+            <button type="button" class="btn btn-solid" id="restore-btn" hidden>Restore</button>
+            <button type="button" class="ev-copy-link" id="share-btn"><span class="ev-copy-link-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="8.5" y="8.5" width="12" height="12" rx="2"/><path d="M15.5 8.5V5.5a2 2 0 0 0-2-2h-8a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h3"/></svg></span><span class="ev-copy-link-title" id="share-title">Copy management link</span><span class="ev-copy-link-url" id="share-url"></span></button>
+            <button type="button" class="btn btn-danger" id="cancel-btn">Cancel event</button>
+        </div>
+        <p class="ev-hint" id="share-status" role="status" hidden></p>
+
+        <div class="ev-tally" aria-live="polite">
+            <span class="ev-tally-num" id="tally-num">0</span>
+            <span class="ev-tally-label" id="tally-label">coming</span>
+        </div>
+
+        <p class="field-error" id="host-error" role="alert" hidden></p>
+
+        <section class="ev-requests" id="waiting-section" hidden aria-labelledby="waiting-title">
+            <div class="section-head">
+                <h2 class="section-title" id="waiting-title">Asking to join</h2>
+                <span class="section-meta" id="waiting-count"></span>
+            </div>
+            <ul class="ev-request-list" id="waiting-list"></ul>
+        </section>
+
+        <section class="ev-requests" aria-labelledby="coming-title">
+            <div class="section-head">
+                <h2 class="section-title" id="coming-title">Coming</h2>
+                <span class="section-meta" id="coming-count"></span>
+            </div>
+            <ul class="ev-request-list" id="coming-list"></ul>
+        </section>
+
+        <section class="ev-requests" id="declined-section" hidden aria-labelledby="declined-title">
+            <div class="section-head">
+                <h2 class="section-title" id="declined-title">Declined</h2>
+                <span class="section-meta" id="declined-count"></span>
+            </div>
+            <ul class="ev-request-list" id="declined-list"></ul>
+        </section>
+
+        <p class="ev-host-foot" id="host-foot"></p>
+        <p class="ev-done-links">
+            <a class="text-link" id="host-home" href="/">Show on Home</a>
+            <a class="text-link" id="host-google" href="#" target="_blank" rel="noopener noreferrer" hidden>Open the Google Calendar copy</a>
+        </p>
+    </article>
+
+    <!-- What happened, newest first. Beside the event from 1000px, under it on phones. -->
+    <aside class="ev-activity" id="activity" hidden aria-labelledby="activity-title">
+        <div class="section-head">
+            <h2 class="section-title" id="activity-title">Activity</h2>
+            <span class="section-meta" id="activity-count"></span>
+        </div>
+        <div class="ev-activity-list" id="activity-list"></div>
+        <button type="button" class="text-btn ev-activity-more" id="activity-more" hidden>Show all</button>
+    </aside>
+    </div>
+</main>
+
+<!-- Edit: the same form as Make an event (js/event-form.js) -->
+<div id="edit-sheet" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="edit-sheet-title">
+    <div class="sheet sheet-cards">
+        <div class="sheet-head">
+            <h3 class="sheet-title" id="edit-sheet-title">Edit event</h3>
+            <button type="button" class="icon-btn" data-close aria-label="Close"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+        </div>
+        <form id="edit-form" novalidate>
+            <div id="edit-fields"></div>
+            <div class="field ev-card" id="edit-scope-field" hidden>
+                <span class="ev-label" id="edit-scope-label">Change</span>
+                <div class="ev-segment" id="edit-scope" role="radiogroup" aria-labelledby="edit-scope-label">
+                    <button type="button" class="ev-seg" role="radio" aria-checked="true" data-scope="this">This date</button>
+                    <button type="button" class="ev-seg" role="radio" aria-checked="false" data-scope="later">This and later dates</button>
+                </div>
+                <p class="ev-hint">Later dates keep their own day and take the new times and everything else.</p>
+            </div>
+            <p class="field-error ev-form-error" id="edit-error" role="alert" hidden></p>
+            <div class="sheet-actions">
+                <button type="submit" class="btn btn-solid" id="edit-save"><span class="text">Save</span></button>
+                <button type="button" class="text-btn" data-close>Cancel</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Cancel the event -->
+<div id="cancel-sheet" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="cancel-sheet-title">
+    <div class="sheet sheet-danger">
+        <div class="sheet-head danger-band">
+            <div class="danger-band-top"><svg class="danger-mark" viewBox="0 0 24 24" aria-hidden="true"><path class="danger-mark-sign" d="M7.03 1.5h9.94l5.53 5.53v9.94l-5.53 5.53H7.03L1.5 16.97V7.03Z"/><path class="danger-mark-bang" d="M12 6.5v7.5"/><circle class="danger-mark-dot" cx="12" cy="17.6" r="1.4"/></svg><span class="danger-kicker">Warning</span><button type="button" class="icon-btn" data-close aria-label="Close"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
+            <h3 class="sheet-title danger-title" id="cancel-sheet-title">Cancel this event?</h3>
+        </div>
+        <div class="danger-stripes" aria-hidden="true"></div>
+        <p class="danger-what" id="cancel-when"></p>
+        <ul class="danger-list">
+            <li>It disappears from Home and Google Calendar.</li>
+            <li>People who joined are not told.</li>
+            <li>Restore brings it back as it was.</li>
+        </ul>
+        <div class="field" id="cancel-scope-field" hidden>
+            <span class="ev-label" id="cancel-scope-label">Cancel</span>
+            <div class="ev-segment" id="cancel-scope" role="radiogroup" aria-labelledby="cancel-scope-label">
+                <button type="button" class="ev-seg" role="radio" aria-checked="true" data-scope="this">Only this date</button>
+                <button type="button" class="ev-seg" role="radio" aria-checked="false" data-scope="later">This and later dates</button>
+            </div>
+        </div>
+        <p class="field-error" id="cancel-error" role="alert" hidden></p>
+        <div class="sheet-actions danger-actions">
+            <button type="button" class="btn btn-danger" id="cancel-confirm"><span class="text">Yes, cancel event</span></button>
+            <button type="button" class="text-btn" data-close>Keep it</button>
+        </div>
+    </div>
+</div>
+<div id="remove-sheet" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="remove-sheet-title">
+    <div class="sheet">
+        <div class="sheet-head">
+            <h3 class="sheet-title" id="remove-sheet-title">Remove this person?</h3>
+            <button type="button" class="icon-btn" data-close aria-label="Close"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+        </div>
+        <p class="sheet-when">They are not told. Undo under Declined brings them back while there is room.</p>
+        <div class="sheet-actions">
+            <button type="button" class="btn btn-danger" id="remove-confirm"><span class="text">Remove</span></button>
+            <button type="button" class="text-btn" data-close>Keep them</button>
+        </div>
+    </div>
+</div>
+
+<footer class="colophon">
+    <p>Built by Fisher Kuan</p>
+</footer>
+<script src="/js/theme.js"></script>
+<script src="/js/feedback.js"></script>
+<script src="/js/sheet.js"></script>
+<script src="/js/event-links.js"></script>
+<script src="/js/place-search.js"></script>
+<script src="/js/event-form.js"></script>
+<script src="/js/device-links.js"></script>
+<script src="/js/host.js"></script>
+</body>
+</html>

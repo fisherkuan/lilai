@@ -1,4 +1,5 @@
 {
+  "publicUrl": "https://lilai.fisherkuan.com",
   "calendars": [
     {
       "name": "SportsCenter",
@@ -8,7 +9,8 @@
     {
       "name": "TSA",
       "url": "https://calendar.google.com/calendar/embed?src=90e81f658dee696bd826585eaa03e9d9865828e945c2a8c882cfc45de45f74e7%40group.calendar.google.com&ctz=Europe%2FBrussels",
-      "enabled": true
+      "enabled": true,
+      "restricted": true
     },
     {
       "name": "揪團啦",
@@ -34,5 +36,114 @@
     "lateSubmissionGraceSeconds": 43200,
     "cancelUndoSeconds": 300,
     "seasonEndsOn": "2027-09-30"
-  }
+  },
+  "places": [
+    {
+      "name": "TSH 1",
+      "address": "Topsporthal, Tervuursevest 101, 3001 Leuven"
+    },
+    {
+      "name": "TSH 2",
+      "address": "Topsporthal, Tervuursevest 101, 3001 Leuven"
+    },
+    {
+      "name": "TSH 3",
+      "address": "Topsporthal, Tervuursevest 101, 3001 Leuven"
+    },
+    {
+      "name": "TSH 4",
+      "address": "Topsporthal, Tervuursevest 101, 3001 Leuven"
+    },
+    {
+      "name": "Topsporthal",
+      "address": "Tervuursevest 101, 3001 Leuven",
+      "aliases": [
+        "TSH"
+      ]
+    },
+    {
+      "name": "GDN A",
+      "aliases": [
+        "GDN grote zaal A"
+      ]
+    },
+    {
+      "name": "GDN B",
+      "aliases": [
+        "GDN grote zaal B"
+      ]
+    },
+    {
+      "name": "GDN C"
+    },
+    {
+      "name": "GDN spiegelzaal 2"
+    },
+    {
+      "name": "Gymnasium",
+      "address": "Tervuursevest 101, 3001 Leuven",
+      "aliases": [
+        "Gym",
+        "Gymnasium KU Leuven"
+      ]
+    },
+    {
+      "name": "Gymnasium kleine zaal",
+      "address": "Tervuursevest 101, 3001 Leuven",
+      "aliases": [
+        "Gym klein zaal"
+      ]
+    },
+    {
+      "name": "Padel courts",
+      "address": "USC Padelterreinen, 3001 Leuven",
+      "aliases": [
+        "Padel",
+        "TSH 旁 padel"
+      ]
+    },
+    {
+      "name": "Atletiekpiste",
+      "address": "Tervuursevest 123, 3001 Leuven",
+      "aliases": [
+        "Athletics track",
+        "田徑場"
+      ]
+    },
+    {
+      "name": "Baseball and cricket field",
+      "address": "Heverlee, 3001 Leuven",
+      "aliases": [
+        "魯汶大學紅土棒球場",
+        "棒球場"
+      ]
+    },
+    {
+      "name": "Sportoase Leuven"
+    },
+    {
+      "name": "Auditoria Van Evenstraat",
+      "address": "Van Evenstraat, 3000 Leuven"
+    },
+    {
+      "name": "'t Celestijntje",
+      "address": "Celestijnenlaan 19, 3001 Leuven"
+    },
+    {
+      "name": "Optimist",
+      "address": "Vismarkt 7, 3000 Leuven"
+    },
+    {
+      "name": "Pangaea",
+      "address": "Andreas Vesaliusstraat 34, 3000 Leuven"
+    },
+    {
+      "name": "Chen's Restaurant",
+      "address": "Leuvensestraat 36, 3010 Leuven"
+    },
+    {
+      "name": "Wok Dynasty Heverlee",
+      "address": "Lodewijk Engelbertus van Arenbergplein 11, 3001 Leuven"
+    }
+  ]
 }

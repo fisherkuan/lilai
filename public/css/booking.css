@@ -803,11 +803,22 @@
     font-variant-numeric: tabular-nums;
 }
 
-/* A section separated by a rule, never boxed. */
-.bs-block {
-    padding-top: var(--s4);
-    border-top: var(--rule) solid var(--ink);
+/* Grouped cards (owner, 2026-10-25), as in Make an event: the sheet is grey, each part of a
+   step a raised card, "What happens next" and "Queuing is not booking" included. */
+.bs-sheet { background: var(--paper); }
+.bs-head { border-bottom: 0; }
+.bs-footer { border-top: 1px solid var(--hair); }
+.bs-body { gap: var(--s3); }
+.bs-card, .bs-block {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s5);
+    padding: var(--s4);
+    border-radius: var(--radius-card);
+    background: var(--paper-raised);
 }
+.bs-block { gap: 0; }
+.bs-card-title { margin: 0 0 calc(-1 * var(--s2)); font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-2); }
 
 .bs-block-title { font-size: 16px; font-weight: 600; }
 .bs-block-lead { margin-top: var(--s1); font-size: 15px; font-variant-numeric: tabular-nums; }
@@ -983,13 +994,8 @@ select.bs-unit { flex: none; width: 150px; max-width: none; }
 .bs-person-add:hover { background: var(--stone); }
 
 /* What we will submit: label and value on one line, between two ink rules. */
-.bs-table {
-    border-top: var(--rule) solid var(--ink);
-    border-bottom: var(--rule) solid var(--ink);
-}
-
 .bs-table-head {
-    padding: var(--s3) 0 var(--s2);
+    padding: 0 0 var(--s2);
     font-size: 16px;
     font-weight: 600;
 }
@@ -1019,8 +1025,6 @@ select.bs-unit { flex: none; width: 150px; max-width: none; }
     display: flex;
     flex-direction: column;
     gap: var(--s3);
-    padding-top: var(--s3);
-    border-top: 3px solid var(--ink);
 }
 
 .bs-full-head {
@@ -1327,3 +1331,11 @@ select.bs-unit { flex: none; width: 150px; max-width: none; }
 :root[data-theme="dark"] select.bs-input {
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23f2f2ee' stroke-width='1.5'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
 }
+
+/* Dates read yyyy/mm/dd whatever the device's language (owner, 2026-10-25), as in Make an
+   event: the native input lies invisible over the text. */
+.bs-datebox { position: relative; max-width: 240px; }
+.bs-date-show { display: flex; align-items: center; pointer-events: none; font-variant-numeric: tabular-nums; }
+.bs-date-show.is-empty { color: var(--ink-3); }
+.bs-datebox .bs-date-native { position: absolute; inset: 0; width: 100%; height: 100%; min-height: 0; opacity: 0; font-size: 16px; cursor: pointer; }
+.bs-datebox:focus-within .bs-date-show { outline: var(--stroke-2) solid var(--focus); outline-offset: 2px; }

@@ -15,6 +15,8 @@
     --ink-3: #62625c;
     --past: #a9a9a2;
     --scrim: rgba(22, 22, 22, 0.4);
+    /* Text on a red destructive button: white in light (4.7:1 on --red), paper in dark (5.3:1). */
+    --on-danger: #ffffff;
     /* Lilai's own link colour, an azure kept apart from the kit's ultramarine, which in
        light mode is the first calendar's circle. Outbound links only; focus stays the kit's. */
     --link: #0b57d0;
@@ -58,6 +60,8 @@
         --ink-3: #8f9095;
         --past: #55565b;
         --scrim: rgba(0, 0, 0, 0.4);
+    --on-danger: #111214;
+        --on-danger: #111214;
         --link: #8ab4f8;
         --ground: var(--paper);
         --rail-sel: #2f7d58;
@@ -357,6 +361,27 @@ button { font: inherit; color: inherit; }
 .view-btn svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2px; }
 .view-btn[aria-checked="true"] { background: var(--paper-raised); color: var(--ink); box-shadow: var(--shadow-raised); }
 .view-btn:focus-visible { outline: var(--stroke-2) solid var(--focus); outline-offset: 2px; }
+
+/* Create an event, where the eye already is: a round "+" beside the view switch, the same
+   stone as the switch. The sidebar keeps the worded button. */
+.new-event-btn {
+    display: inline-grid;
+    place-items: center;
+    width: 38px;
+    height: 38px;
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius-full);
+    background: var(--stone);
+    color: var(--ink);
+    cursor: pointer;
+}
+.new-event-btn svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2px; }
+.new-event-btn:hover { background: var(--ink); color: var(--paper); }
+.new-event-btn:focus-visible { outline: var(--stroke-2) solid var(--focus); outline-offset: 2px; }
+/* The "+" and the view switch wrap as one group, so a narrow phone never splits them. */
+.rail-tools { display: flex; align-items: center; gap: var(--s2); margin-left: auto; }
+.rail-head .rail-tools .view-switch { margin-left: 0; }
 
 /* Rows view: the agenda under the rail replaces the cards. */
 .home.is-rows .events-section { display: none; }
@@ -713,6 +738,51 @@ button { font: inherit; color: inherit; }
 
 .event-link:hover { text-decoration-thickness: 2px; }
 
+/* An event's links (Lilai holds them; see js/event-links.js): a wrapping row of named links. */
+.event-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s1) var(--s4);
+    margin: var(--s2) 0 0;
+    padding: 0;
+    list-style: none;
+    font-size: var(--meta);
+}
+
+.event-links li { flex: none; max-width: 100%; }
+.event-links .event-link { min-height: 32px; overflow-wrap: anywhere; }
+.sheet-links { margin-top: var(--s3); }
+.sheet-links[hidden] { display: none; }
+
+/* The link editor: per row an address, an optional name and a remove button. On a phone
+   the name drops under the address; the remove button stays on the address line. */
+.link-rows { margin: 0; padding: 0; list-style: none; }
+
+.link-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 44px;
+    grid-template-areas: "url remove" "label .";
+    gap: var(--s2);
+    align-items: center;
+    padding-bottom: var(--s3);
+    margin-bottom: var(--s3);
+    border-bottom: 1px solid var(--hair);
+}
+
+.link-row .link-url { grid-area: url; }
+.link-row .link-label { grid-area: label; }
+.link-row .link-remove { grid-area: remove; justify-self: center; }
+
+@media (min-width: 640px) {
+    .link-row {
+        grid-template-columns: minmax(0, 3fr) minmax(0, 2fr) 44px;
+        grid-template-areas: "url label remove";
+    }
+}
+
+.link-add { min-height: 44px; }
+.link-add[hidden] { display: none; }
+
 /* Inside an event the pill steps down a size, since every event carries one. */
 .event-actions .btn {
     min-height: 40px;
@@ -853,6 +923,10 @@ button { font: inherit; color: inherit; }
 .btn-line { background: var(--fill); color: var(--ink); }
 .btn-line:hover { background: var(--stone); color: var(--ink); }
 
+/* The one red outside a calendar shape: an action that takes something away from a person (owner, 2026-10-24). */
+.btn-danger { background: var(--red); color: var(--on-danger); }
+.btn-danger:hover { background: var(--red); color: var(--on-danger); filter: brightness(0.92); }
+
 .btn:disabled,
 .btn[disabled] {
     background: var(--fill);
@@ -897,14 +971,19 @@ button { font: inherit; color: inherit; }
 }
 
 .subscribe-link {
-    display: inline-flex;
+    display: flex;
     align-items: center;
-    gap: var(--s2);
+    gap: var(--s3);
     min-height: 44px;
+    border-top: 1px solid var(--hair);
+    color: var(--ink);
     font-size: 15px;
+    text-decoration: none;
 }
-
+.subscribe-link:first-child { border-top: 0; }
+.subscribe-link:hover span { text-decoration: underline; text-underline-offset: 3px; }
 .subscribe-link .shape { font-size: 13px; }
+.subscribe-out { width: 16px; height: 16px; margin-left: auto; fill: none; stroke: var(--ink-2); stroke-width: 2px; }
 
 /* ---------- Sheets (RSVP) ---------- */
 
@@ -927,7 +1006,8 @@ button { font: inherit; color: inherit; }
     max-height: 92%;
     overflow-y: auto;
     overscroll-behavior: contain;
-    padding: 0 var(--gutter) calc(var(--s5) + env(safe-area-inset-bottom));
+    --sheet-pad: var(--gutter);
+    padding: 0 var(--sheet-pad) calc(var(--s5) + env(safe-area-inset-bottom));
     background: var(--paper-raised);
     border-radius: var(--radius-sheet) var(--radius-sheet) 0 0;
     box-shadow: var(--shadow-float);
@@ -1035,6 +1115,11 @@ html.sheet-locked body {
 
 .sheet-desc[hidden] { display: none; }
 
+/* An approval event's sheet names who decides; once asked, the sheet says it was sent. */
+.sheet-approval { color: var(--ink); }
+.sheet-sent { margin-top: var(--s5); }
+.sheet-sent-title { font-size: 17px; font-weight: 600; }
+
 .field { margin-top: var(--s5); }
 
 /* 12px clears the focus ring (2px outline, 2px offset) with room to spare. */
@@ -1106,6 +1191,387 @@ html.sheet-locked body {
 }
 
 .sheet-actions .btn { flex: 1 1 auto; }
+
+/* From 640px, fields in a sheet are as slim as the chips: 36px boxes and steppers, 16px text.
+   Phones keep the 50px field. A textarea keeps its own height. */
+@media (min-width: 640px) {
+    .sheet .input { min-height: 36px; font-size: 16px; }
+    .sheet .select { padding-right: 40px; background-position: right 10px center; background-size: 18px; }
+    .sheet .ev-step { width: 36px; height: 36px; font-size: 20px; }
+}
+
+/* In a sheet, a field's label takes the label style (13px 600), as in the booking queue. */
+.sheet .field label:not(.ev-check),
+.sheet .ev-label { font-size: 13px; font-weight: 600; line-height: 18px; margin-bottom: var(--s2); }
+
+/* Make an event: a Jost title over a full-width ink rule, and Make event pinned at the foot. */
+.sheet-make .sheet-head { padding-bottom: var(--s2); }
+.sheet-make .sheet-head .icon-btn { margin: var(--s3) 0 0; }
+.sheet-make .sheet-title { padding-top: var(--s2); font-family: var(--font-display); font-size: 32px; font-weight: 700; line-height: 1.05; }
+#event-sheet-form .sheet-actions,
+#edit-form .sheet-actions {
+    position: sticky;
+    bottom: calc(-1 * (var(--s5) + env(safe-area-inset-bottom)));
+    z-index: 1;
+    margin: var(--s5) calc(-1 * var(--sheet-pad)) 0;
+    padding: var(--s3) var(--sheet-pad) calc(var(--s3) + var(--s5) + env(safe-area-inset-bottom));
+    margin-bottom: calc(-1 * (var(--s5) + env(safe-area-inset-bottom)));
+    border-top: 1px solid var(--hair);
+    background: var(--paper-raised);
+}
+
+/* Grouped cards (owner, 2026-10-25): the event sheets turn grey and each part of the form is
+   a raised card under a small uppercase title, like iPhone Settings. No ink rules. */
+.sheet-cards { background: var(--paper); }
+.sheet-cards .sheet-grip,
+.sheet-cards #event-sheet-form .sheet-actions,
+.sheet-cards #edit-form .sheet-actions { background: var(--paper); }
+.ev-card {
+    display: grid;
+    gap: var(--s4);
+    margin-top: var(--s3);
+    padding: var(--s4);
+    border-radius: var(--radius-card);
+    background: var(--paper-raised);
+}
+.ev-card > .field, .ev-card > .ev-check { margin-top: 0; }
+.ev-card > [hidden] { display: none; }
+.ev-card-title { margin: 0 0 calc(-1 * var(--s1)); font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-2); }
+
+/* ---------- Event form ----------
+   Make an event (Home's sheet) and Edit (the management page's sheet) share one form,
+   js/event-form.js. */
+
+
+.ev-label {
+    display: block;
+    margin-bottom: var(--s3);
+}
+
+.ev-optional {
+    margin-left: var(--s1);
+    font-weight: 400;
+    color: var(--ink-3);
+}
+
+.ev-hint {
+    margin-top: var(--s2);
+    font-size: var(--meta);
+    color: var(--ink-2);
+}
+
+.ev-hint[hidden] { display: none; }
+/* A caveat the reader must act on: ink, heavier, with a rule. Never red (primaries live in shapes). */
+.ev-warn { color: var(--ink); font-weight: 600; border-left: var(--stroke-2) solid var(--ink); padding-left: var(--s3); }
+
+.ev-textarea { min-height: 112px; padding: var(--s3); resize: vertical; line-height: 1.5; }
+.input[type="date"], .input[type="time"], .ev-time { font-variant-numeric: tabular-nums; }
+
+/* Day and Until read yyyy/mm/dd whatever the device's language (owner, 2026-10-25). The
+   phone's own date input lies invisible over the text, so a tap still opens its picker. */
+.ev-datebox { position: relative; max-width: 240px; }
+.ev-date-show { display: flex; align-items: center; pointer-events: none; font-variant-numeric: tabular-nums; }
+.ev-date-show.is-empty { color: var(--ink-3); }
+.ev-datebox .ev-date-native { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; font-size: 16px; cursor: pointer; }
+.ev-datebox:focus-within .ev-date-show { outline: var(--stroke-2) solid var(--focus); outline-offset: 2px; }
+
+/* Where: a search over the owner's places, best match first (js/place-search.js). The list
+   sits in the flow under the field, so the sheet's own scroll and the iOS keyboard never
+   clip it. */
+.ev-place-list {
+    list-style: none;
+    margin: var(--s2) 0 0;
+    padding: var(--s1);
+    border: 1px solid var(--hairline);
+    border-radius: var(--radius-control);
+    background: var(--paper);
+    max-height: 288px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}
+.ev-place-list [role="option"] {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 2px;
+    min-height: 44px;
+    padding: var(--s2) var(--s3);
+    border-radius: 8px;
+    cursor: pointer;
+}
+.ev-place-list [aria-selected="true"] { background: var(--fill); }
+@media (hover: hover) { .ev-place-list [role="option"]:hover { background: var(--fill); } }
+.ev-place-name { font-size: 15px; font-weight: 600; overflow-wrap: anywhere; }
+.ev-place-address { font-size: 13px; color: var(--ink-2); overflow-wrap: anywhere; }
+.ev-place-none { padding: var(--s2) var(--s3); font-size: 14px; color: var(--ink-2); }
+/* Google's suggestions sit under their source's name, which is also the attribution Google asks for. */
+.ev-place-group { padding: var(--s3) var(--s3) var(--s1); font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-2); }
+
+/* Start and end read as one pair. */
+.ev-two {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: var(--s3);
+    max-width: 360px;
+}
+
+.ev-col { min-width: 0; }
+
+
+/* Separate pills; the filled one is the answer (the booking sheet's segment). */
+.ev-segment {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s2);
+}
+
+.ev-seg {
+    position: relative;
+    min-height: 44px;
+    padding: 0 var(--s4);
+    border: 0;
+    border-radius: var(--radius-full);
+    background: var(--fill);
+    color: var(--ink);
+    font: inherit;
+    font-size: 15px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 140ms var(--ease), color 140ms var(--ease);
+}
+
+/* From 640px (the drawer, a mouse) the chips draw 36px; the tap area stays 44px.
+   Phones keep the 44px chip, easier under a thumb. */
+@media (min-width: 640px) {
+    .ev-seg { min-height: 36px; padding: 0 14px; font-size: 14px; }
+    .ev-seg::after { content: ""; position: absolute; inset: -4px 0; }
+}
+
+.ev-seg:hover { background: var(--stone); }
+.ev-seg[aria-checked="true"] { background: var(--ink); color: var(--paper); font-weight: 600; }
+.ev-seg:focus-visible,
+.ev-cal:focus-visible,
+.ev-step:focus-visible,
+.ev-choice:focus-visible { outline: var(--stroke-2) solid var(--focus); outline-offset: 2px; }
+
+/* "− [8] + places" is one phrase, laid out as one. */
+.ev-limit {
+    display: flex;
+    align-items: center;
+    gap: var(--s2);
+    margin-top: var(--s3);
+}
+
+.ev-limit[hidden] { display: none; }
+
+.ev-step {
+    flex: none;
+    width: 44px;
+    height: 44px;
+    border: 0;
+    border-radius: var(--radius-full);
+    background: var(--fill);
+    color: var(--ink);
+    font: inherit;
+    font-size: 22px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.ev-step:hover { background: var(--stone); }
+
+.ev-number {
+    width: 88px;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+    -moz-appearance: textfield;
+}
+
+.ev-number::-webkit-outer-spin-button,
+.ev-number::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+
+.ev-limit-word { font-size: 15px; }
+
+/* The repeat: "Every [1] [week]", the weekdays, "Until", and a line saying what it makes. */
+.ev-repeat { display: grid; gap: var(--s3); margin-top: var(--s3); }
+.ev-repeat[hidden] { display: none; }
+.ev-every { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2) var(--s3); }
+.ev-every-word { font-size: 15px; }
+.ev-every .ev-number { width: 72px; }
+.ev-unit { width: 140px; }
+.ev-days {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: var(--s1);
+    max-width: 420px;
+}
+.ev-days[hidden] { display: none; }
+.ev-day { min-width: 0; padding: 0; text-align: center; }
+.ev-day[aria-pressed="true"] { background: var(--ink); color: var(--paper); font-weight: 600; }
+.ev-day:focus-visible { outline: var(--stroke-2) solid var(--focus); outline-offset: 2px; }
+.ev-until label { display: block; margin-bottom: var(--s2); font-size: var(--meta); color: var(--ink-2); }
+.ev-preview { margin-top: 0; }
+.ev-first { margin-top: var(--s4); }
+[data-part="calendar"]:not([hidden]) + .ev-first { margin-top: var(--s5); }
+
+/* Calendar as shape tiles: the shape is the calendar, as on Home. Outlined until picked. */
+.ev-cals { display: grid; grid-template-columns: repeat(auto-fit, minmax(92px, 1fr)); gap: var(--s2); }
+.ev-cal {
+    display: grid;
+    justify-items: center;
+    gap: var(--s2);
+    min-width: 0;
+    padding: var(--s4) var(--s2) var(--s3);
+    border: var(--stroke-2) solid transparent;
+    border-radius: var(--radius-control);
+    background: var(--fill);
+    color: var(--ink);
+    font: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 140ms var(--ease), border-color 140ms var(--ease);
+}
+.ev-cal span { max-width: 100%; overflow-wrap: anywhere; text-align: center; }
+.ev-cal .shape { width: 32px; height: 32px; fill: none; }
+.ev-cal:hover { background: var(--stone); }
+.ev-cal[aria-checked="true"] { border-color: var(--ink); background: var(--paper-raised); }
+.ev-cal[aria-checked="true"] .shape { fill: var(--tone); }
+
+/* Two answers with a sentence each: a stacked choice, the chosen one inked. */
+.ev-choice-list {
+    display: grid;
+    gap: var(--s2);
+}
+
+.ev-choice {
+    display: grid;
+    gap: var(--s1);
+    padding: var(--s3) var(--s4);
+    border: var(--stroke-2) solid transparent;
+    border-radius: var(--radius-control);
+    background: var(--fill);
+    color: var(--ink);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    transition: border-color 140ms var(--ease), background-color 140ms var(--ease);
+}
+
+.ev-choice:hover { background: var(--stone); }
+.ev-choice[aria-checked="true"] { border-color: var(--ink); background: var(--paper-raised); }
+.ev-choice-title { font-size: 16px; font-weight: 600; }
+.ev-choice-note { font-size: var(--meta); color: var(--ink-2); }
+
+.ev-check {
+    display: flex;
+    align-items: center;
+    gap: var(--s3);
+    min-height: 44px;
+    margin-top: var(--s3);
+    font-size: 15px;
+    cursor: pointer;
+}
+
+.ev-check input { width: 20px; height: 20px; margin: 0; }
+
+.ev-form-error { margin-top: var(--s5); }
+
+.ev-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--s3) var(--s5);
+    margin-top: var(--s6);
+}
+
+/* ---------- Made ---------- */
+
+.ev-done {
+    margin-top: var(--s5);
+    padding-top: var(--s4);
+    border-top: var(--rule) solid var(--ink);
+}
+
+.ev-done:focus { outline: none; }
+
+.ev-done-title { font-size: 20px; font-weight: 600; }
+.ev-done-when { margin-top: var(--s1); font-size: 15px; color: var(--ink-2); }
+
+.ev-hostlink {
+    margin-top: var(--s5);
+    padding: var(--s4);
+    border-radius: var(--radius-card);
+    background: var(--paper-raised);
+}
+
+.ev-hostlink .ev-label { margin-bottom: 0; font-weight: 600; }
+
+.ev-hostlink-row {
+    display: flex;
+    align-items: center;
+    gap: var(--s3);
+    margin-top: var(--s3);
+}
+
+.ev-hostlink-url {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow-wrap: anywhere;
+    font-size: var(--meta);
+}
+
+.ev-done-links {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--s2) var(--s5);
+    margin-top: var(--s5);
+}
+
+.ev-done-links [hidden] { display: none; }
+
+/* Events this device manages: quiet rows in Home's sidebar. */
+.ev-hosted[hidden] { display: none; }
+.ev-hosted { margin-top: var(--s4); }
+.side-subtitle { font-size: var(--meta); font-weight: 600; }
+.ev-hostlink-url { display: block; margin-top: var(--s3); }
+.ev-hostlink-actions { display: flex; gap: var(--s5); margin-top: var(--s2); }
+.ev-hostlink-actions [hidden] { display: none; }
+
+/* The hosting card: Create an event, then the events this device manages as day blocks. */
+.side-create { gap: var(--s2); }
+.side-create-plus { font-size: 20px; line-height: 1; margin-top: -2px; }
+.side-host .ev-hosted { margin-top: var(--s5); }
+.side-lost { margin-top: var(--s3); }
+.hosted-rows { list-style: none; margin: var(--s2) 0 0; padding: 0; border-top: var(--rule) solid var(--ink); }
+.hosted-rows li + li { border-top: 1px solid var(--hair); }
+.hosted-row {
+    display: grid;
+    grid-template-columns: 40px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: var(--s3);
+    padding: var(--s3) 0;
+    color: var(--ink);
+    text-decoration: none;
+}
+.hosted-row:hover .hosted-title span { text-decoration: underline; text-underline-offset: 3px; }
+.hosted-day { display: grid; justify-items: center; line-height: 1; }
+.hosted-day b { font-family: var(--font-display); font-size: 24px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.hosted-day span { margin-top: 3px; font-size: 12px; color: var(--ink-2); }
+.hosted-main { display: grid; gap: 2px; min-width: 0; }
+.hosted-title { display: flex; align-items: center; gap: 6px; min-width: 0; font-size: 15px; font-weight: 600; }
+.hosted-title span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hosted-title .shape { flex: none; font-size: 12px; }
+.hosted-meta { font-size: var(--meta); color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.hosted-chev { width: 18px; height: 18px; fill: none; stroke: var(--ink-2); stroke-width: 2px; }
+
+/* Lost a management link: where to look, then the request to the admins. */
+.lost-where { list-style: none; margin: var(--s4) 0 var(--s5); padding: 0; display: grid; gap: var(--s3); }
+.lost-where li { position: relative; padding-left: var(--s5); line-height: 1.45; }
+.lost-where li::before { content: ""; position: absolute; left: 0; top: 0.55em; width: 8px; height: 8px; background: var(--ink); }
+.lost-ask-title { margin: 0 0 var(--s4); padding-top: var(--s4); border-top: var(--stroke-2) solid var(--ink); font-size: 17px; font-weight: 600; }
+.lost-sent { margin: 0 0 var(--s5); line-height: 1.45; }
 
 /* ---------- Colophon ---------- */
 
@@ -1250,6 +1716,7 @@ html.sheet-locked body {
         max-width: 420px;
         max-height: none;
         border-radius: var(--radius-sheet) 0 0 var(--radius-sheet);
+        --sheet-pad: var(--s5);
         padding: var(--s5);
         animation-name: drawer-in;
     }
@@ -1259,13 +1726,22 @@ html.sheet-locked body {
 @media (min-width: 1000px) {
     .masthead { padding-top: var(--s4); padding-bottom: var(--s4); }
 
+    /* The sidebar's first card lines up with the first event card (owner, 2026-10-25): the
+       Upcoming | All switch and the calendar legend take rows of their own above the list,
+       so the side column starts where the cards do, whatever height those rows take. */
     .home {
         grid-template-columns: minmax(0, 1fr) 320px;
         grid-template-areas:
             "band band"
+            "tabs ."
+            "legend ."
             "list side";
         column-gap: var(--s8);
     }
+    .events-section { display: contents; }
+    .events-section > .list-head { grid-area: tabs; }
+    .events-section > .legend { grid-area: legend; margin-bottom: 0; }
+    .events-section > .event-list { grid-area: list; min-width: 0; }
     /* Rows view has no card list, so the rail and its rows take the left column. */
     .home.is-rows { grid-template-areas: "band side"; }
     .home.is-rows .sidebar { margin-top: var(--s4); }
@@ -1275,8 +1751,9 @@ html.sheet-locked body {
         align-self: start;
         position: sticky;
         top: var(--s4);
-        margin-top: var(--s6);
     }
+    /* The first card's own 12px top margin, so both tops meet. */
+    .home:not(.is-rows) .sidebar { margin-top: var(--s3); }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -58,55 +58,6 @@ function escapeAttribute(value) {
     return escapeHtml(value).replace(/\n/g, '&#10;');
 }
 
-function sanitizeUrl(rawUrl) {
-    if (typeof rawUrl !== 'string' || rawUrl.length === 0) return null;
-    const trimmed = rawUrl.trim().replace(/[\s"'<>)]*$/, '');
-    try {
-        const validated = new URL(trimmed);
-        if (validated.protocol === 'http:' || validated.protocol === 'https:') {
-            return validated.href;
-        }
-    } catch (error) {
-        return null;
-    }
-    return null;
-}
-
-// The "link: URL" line becomes an Event link, so the description shown drops it.
-function withoutLinkLine(value) {
-    return value.replace(/^[ \t]*link:?\s*https?:\/\/\S+[ \t]*$/gim, '').trim();
-}
-
-// The server reads a "limit: N" line as the seat limit, which the seat count already shows.
-// Only a line that holds nothing else goes, so prose that mentions a limit stays.
-function withoutLimitLine(value) {
-    return value.replace(/^[ \t]*limit:?[ \t]*\d+[ \t]*$/gim, '').replace(/\n{3,}/g, '\n\n').trim();
-}
-
-// The description as shown: without the lines Lilai turns into the Event link and the seat count.
-function shownDescriptionOf(value) {
-    return withoutLimitLine(withoutLinkLine(value));
-}
-
-function eventLinkHtml(href) {
-    return `<a class="event-link" href="${escapeAttribute(href)}" target="_blank" rel="noopener noreferrer">Event link<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 16 16 8M9 8h7v7"/></svg><span class="sr-only"> (opens in a new tab)</span></a>`;
-}
-
-function extractEventLink(value) {
-    if (typeof value !== 'string' || value.length === 0) return null;
-    const linkMatch = value.match(/link:?\s*(https?:\/\/\S+)/i);
-    if (linkMatch) {
-        const sanitized = sanitizeUrl(linkMatch[1]);
-        if (sanitized) return sanitized;
-    }
-    const fallbackMatch = value.match(/https?:\/\/\S+/i);
-    if (fallbackMatch) {
-        const sanitized = sanitizeUrl(fallbackMatch[0]);
-        if (sanitized) return sanitized;
-    }
-    return null;
-}
-
 // ---------- State ----------
 const API_BASE_URL = window.location.origin;
 const PAST_BATCH = 10;
@@ -150,7 +101,7 @@ function initializeApp() {
         setupFilterPills();
         setupEventListeners();
         setupWebSocket();
-        loadEvents();
+        loadEvents().then(pointAtLinkedEvent);
     }).catch(err => console.error('Init error:', err));
 
     // Card width changes with the viewport, so re-measure which descriptions clamp.
@@ -267,28 +218,16 @@ function setupCalendar() {
 
     loadAllCalendarEvents();
 
-    const joinLink = document.getElementById('join-group-link');
-    if (joinLink && appConfig.joinGroupUrl) joinLink.href = appConfig.joinGroupUrl;
-
     populateAddToCalendarDropdown('add-to-calendar-dropdown');
-
-    // Point the "Create event" buttons at the configured default calendar (if any)
-    wireCreateEventButtons();
 }
 
-function wireCreateEventButtons() {
-    const defaultName = appConfig.events && appConfig.events.defaultCreateCalendar;
-    // The documented "create event in calendar X" endpoint is render?action=TEMPLATE.
-    let href = 'https://calendar.google.com/calendar/render?action=TEMPLATE';
-    if (defaultName && Array.isArray(appConfig.calendars)) {
-        const match = appConfig.calendars.find(c => c.enabled && c.name === defaultName);
-        if (match) {
-            const src = calendarIdFromUrl(match.url);
-            if (src) href += `&src=${encodeURIComponent(src)}`;
-        }
-    }
-    const createBtn = document.getElementById('create-event-btn');
-    if (createBtn) createBtn.href = href;
+// Links into Home ("/#event-<id>", from the management page and the Google copies): scroll to
+// that card once the list is in.
+function pointAtLinkedEvent() {
+    const match = /^#event-(.+)$/.exec(window.location.hash);
+    if (!match) return;
+    history.replaceState(null, '', window.location.pathname + window.location.search);
+    scrollToEvent(decodeURIComponent(match[1]));
 }
 
 // Only the rail's days: every past event ever was most of Home's download.
@@ -413,7 +352,7 @@ function renderAgenda() {
         if (!isPast) {
             action = isFull
                 ? '<button type="button" class="btn btn-line agenda-join" disabled>Full</button>'
-                : `<button type="button" class="btn btn-line agenda-join" data-event-id="${escapeAttribute(ev.id)}" aria-label="${escapeAttribute(`Join ${ev.title}`)}">Join</button>`;
+                : `<button type="button" class="btn btn-line agenda-join" data-event-id="${escapeAttribute(ev.id)}" aria-label="${escapeAttribute(`${joinLabel(ev)}: ${ev.title}`)}">${joinLabel(ev)}</button>`;
         }
         const open = ev.id === openAgendaRow;
         const revealId = `agenda-reveal-${ev.id}`;
@@ -500,7 +439,7 @@ function populateAddToCalendarDropdown(id) {
         link.target = '_blank';
         link.rel = 'noopener noreferrer';
         link.className = `subscribe-link tone-${st.tone}`;
-        link.innerHTML = `${shapeSvg(st.shape)}<span>${escapeHtml(cal.name)}</span>`;
+        link.innerHTML = `${shapeSvg(st.shape)}<span>${escapeHtml(cal.name)}</span><svg class="subscribe-out" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17 17 7M9 7h8v8"/></svg>`;
         dd.appendChild(link);
     });
 }
@@ -601,7 +540,7 @@ function setupFilterPills() {
  * Anyone who reads this file learns the path. That is the accepted cost, and it is the same
  * audience that would have typed /admin anyway.
  */
-const ADMIN_HOME = '/admin/events';
+const ADMIN_HOME = '/admin/bookings';
 const ADMIN_FLAG_KEY = 'lilaiOrganizer';
 const ORGANIZER_TAPS = 5;
 const ORGANIZER_TAP_WINDOW_MS = 3000;
@@ -700,6 +639,7 @@ function loadEvents({ quiet = false } = {}) {
             }
             displayEvents({ scrollToToday: currentRange === 'all' });
             renderRail();
+            if (window.renderHosted) window.renderHosted();
             // In 'all' mode, eagerly fetch the first batch of past events so the user
             // doesn't need to click "Load earlier events" to see anything in the past.
             if (currentRange === 'all' && hasMoreOlder) {
@@ -854,11 +794,18 @@ function seatsLabel(event, { isPast }) {
     const count = event.attendingCount || 0;
     const hasLimit = event.attendance_limit !== null && event.attendance_limit !== undefined;
     const limit = hasLimit ? event.attendance_limit : null;
-    if (!hasLimit && count === 0) return '';
+    // Requests waiting on the host hold no seat, so they ride after the count.
+    const asking = !isPast && event.pendingCount > 0 ? ` · ${event.pendingCount} asking` : '';
+    if (!hasLimit && count === 0) return asking ? `0 going${asking}` : '';
     if (isPast) return `${count} went`;
-    if (hasLimit && count >= limit) return `Full · ${count} of ${limit}`;
-    if (hasLimit) return `${count} of ${limit} spots taken`;
-    return `${count} going`;
+    if (hasLimit && count >= limit) return `Full · ${count} of ${limit}${asking}`;
+    if (hasLimit) return `${count} of ${limit} spots taken${asking}`;
+    return `${count} going${asking}`;
+}
+
+// On an approval event, Join asks the host instead of taking a seat.
+function joinLabel(event) {
+    return event.approval_required ? 'Ask to join' : 'Join';
 }
 
 // Seats: one slot per place, drawn only for a small limited event. With no limit, or more
@@ -898,11 +845,10 @@ function renderEventCard(event, { isPast, isToday, prevNames }) {
 
     const sanitizedEventId = escapeAttribute(event.id);
     const sanitizedTitle = escapeHtml(event.title);
-    const descriptionText = typeof event.description === 'string' ? event.description : '';
-    const shownDescription = shownDescriptionOf(descriptionText);
+    // The description shows as written in Google Calendar: nothing in it is read as a setting.
+    const shownDescription = typeof event.description === 'string' ? event.description.trim() : '';
     const sanitizedDescription = escapeHtml(shownDescription).replace(/\n/g, '<br>');
     const locationText = typeof event.location === 'string' ? event.location : '';
-    const eventLink = extractEventLink(descriptionText);
 
     const attendees = Array.isArray(event.attendees) ? event.attendees : [];
     const attendingCount = event.attendingCount || 0;
@@ -919,10 +865,12 @@ function renderEventCard(event, { isPast, isToday, prevNames }) {
         times += `<span aria-hidden="true">–</span><span class="sr-only"> to </span>${endDay}${escapeHtml(endStr)}`;
     }
 
-    // The title's shape already names the calendar, so the meta line is the time, the place and the link.
-    const link = eventLink ? eventLinkHtml(eventLink) : '';
-    const metaParts = [`<span class="event-time">${times}</span>`, locationText ? escapeHtml(locationText) : '', link].filter(Boolean);
-    const meta = `<p class="event-meta">${metaParts.join('<span class="sep" aria-hidden="true"> · </span>')}</p>`;
+    // The title's shape already names the calendar, so the meta line is the time and the place.
+    // The event's links sit on their own row under it.
+    const hostNote = event.approval_required && event.host_name ? `${escapeHtml(event.host_name)} confirms each place` : '';
+    const metaParts = [`<span class="event-time">${times}</span>`, locationText ? escapeHtml(locationText) : '', hostNote].filter(Boolean);
+    const meta = `<p class="event-meta">${metaParts.join('<span class="sep" aria-hidden="true"> · </span>')}</p>`
+        + EventLinks.listHtml(event.links);
 
     let names;
     if (attendees.length > 0) {
@@ -939,7 +887,7 @@ function renderEventCard(event, { isPast, isToday, prevNames }) {
         // Every event carries the same weight: no lead event, no solid Join.
         const join = isFull
             ? '<button type="button" class="btn btn-line" disabled>Full</button>'
-            : `<button type="button" class="btn btn-line rsvp-trigger-add" data-event-id="${sanitizedEventId}">Join</button>`;
+            : `<button type="button" class="btn btn-line rsvp-trigger-add" data-event-id="${sanitizedEventId}">${joinLabel(event)}</button>`;
         const remove = attendingCount > 0
             ? `<button type="button" class="text-btn rsvp-trigger-remove" data-event-id="${sanitizedEventId}">Remove a name</button>`
             : '';
@@ -973,7 +921,7 @@ function renderEventCard(event, { isPast, isToday, prevNames }) {
 }
 
 // One place to apply a new attendee list, whether it came from our own RSVP or a broadcast.
-function applyAttendance(eventId, attendees) {
+function applyAttendance(eventId, attendees, pendingCount) {
     if (!Array.isArray(attendees)) return; // an older server answered without a list; the broadcast still brings it
     const count = attendees.length;
     [currentEvents, allCalendarEvents].forEach(list => {
@@ -981,6 +929,7 @@ function applyAttendance(eventId, attendees) {
         if (ev) {
             ev.attendees = attendees.slice();
             ev.attendingCount = count;
+            if (typeof pendingCount === 'number') ev.pendingCount = pendingCount;
         }
     });
     displayEvents();
@@ -1025,12 +974,22 @@ function openRsvpModal(eventId) {
     rsvpModal.classList.remove('hidden');
     document.getElementById('modal-event-title').textContent = event.title;
     document.getElementById('modal-event-date').textContent = formatSheetDate(event);
-    const rawDesc = typeof event.description === 'string' ? event.description : '';
-    const desc = shownDescriptionOf(rawDesc);
-    const sheetLink = extractEventLink(rawDesc);
+    const desc = typeof event.description === 'string' ? event.description.trim() : '';
     const descEl = document.getElementById('modal-event-description');
-    descEl.innerHTML = escapeHtml(desc).replace(/\n/g, '<br>') + (sheetLink ? `${desc ? '<br>' : ''}${eventLinkHtml(sheetLink)}` : '');
-    descEl.hidden = !desc && !sheetLink;
+    descEl.innerHTML = escapeHtml(desc).replace(/\n/g, '<br>');
+    descEl.hidden = !desc;
+    const linksEl = document.getElementById('modal-event-links');
+    linksEl.innerHTML = EventLinks.listHtml(event.links);
+    linksEl.hidden = !linksEl.innerHTML;
+
+    const asks = Boolean(event.approval_required);
+    const approvalNote = document.getElementById('modal-approval-note');
+    approvalNote.textContent = asks
+        ? `${event.host_name || 'The host'} confirms each place. Your name shows under who is coming once they accept.`
+        : '';
+    approvalNote.hidden = !asks;
+    document.querySelector('.rsvp-add-btn .text').textContent = asks ? 'Ask to join' : 'Confirm';
+    setRsvpSent(false);
 
     // Pre-fill the remembered name and select it, so overtyping is a single action.
     const nameInput = document.getElementById('attendee-name');
@@ -1048,6 +1007,18 @@ function openRsvpModal(eventId) {
 function restoreSheetFocus() {
     if (lastSheetTrigger && document.contains(lastSheetTrigger)) lastSheetTrigger.focus();
     lastSheetTrigger = null;
+}
+
+// After a request to an approval event, the sheet says so instead of closing: no name prints.
+function setRsvpSent(sent, name = '') {
+    document.getElementById('rsvp-form-part').hidden = sent;
+    const done = document.getElementById('rsvp-sent');
+    done.hidden = !sent;
+    if (sent) {
+        document.getElementById('rsvp-sent-text').textContent =
+            `${name} is on the host's list. Your name shows under who is coming once they accept.`;
+        document.getElementById('rsvp-sent-done').focus();
+    }
 }
 
 function closeRsvpModal() {
@@ -1105,7 +1076,7 @@ function submitRsvp(action) {
     const textEl = submitBtn.querySelector('.text');
     const originalText = textEl.textContent;
     submitBtn.disabled = true;
-    textEl.textContent = 'Joining…';
+    textEl.textContent = event.approval_required ? 'Asking…' : 'Joining…';
 
     fetch(`${API_BASE_URL}/api/rsvp`, {
         method: 'POST',
@@ -1119,11 +1090,16 @@ function submitRsvp(action) {
         if (result.success) {
             if (navigator.vibrate) navigator.vibrate(30);
             rememberName(attendeeName);
+            if (result.pending) {
+                setRsvpSent(true, attendeeName);
+                applyAttendance(event.id, result.attendees, result.pendingCount);
+                return;
+            }
             closeRsvpModal();
             // No toast: the name printing into the list is the confirmation.
             // Apply the server's list, never a patch of ours: the broadcast often lands
             // first, and adding the name again would show it twice.
-            applyAttendance(event.id, result.attendees);
+            applyAttendance(event.id, result.attendees, result.pendingCount);
         } else {
             showFieldError('rsvp-error', result.message || 'That did not go through. Try again.');
         }
@@ -1159,7 +1135,7 @@ function submitRemoveRsvp() {
             closeRemoveRsvpModal();
             // The server's list, not ours minus one name: when the broadcast lands first,
             // subtracting again would hide a second person with the same name.
-            applyAttendance(event.id, result.attendees);
+            applyAttendance(event.id, result.attendees, result.pendingCount);
         } else {
             showFieldError('remove-error', result.message || 'That did not go through. Try again.');
         }
@@ -1256,8 +1232,12 @@ function setupWebSocket() {
         try {
             const data = JSON.parse(message.data);
             if (data.type === 'attendance_update') {
-                const { eventId, attendees } = data.payload;
-                applyAttendance(eventId, Array.isArray(attendees) ? attendees : []);
+                const { eventId, attendees, pendingCount } = data.payload;
+                applyAttendance(eventId, Array.isArray(attendees) ? attendees : [], pendingCount);
+            } else if (['event_created', 'event_update', 'event_cancelled'].includes(data.type)) {
+                // An event was made, edited or cancelled: pick it up without a pull to refresh.
+                loadEvents({ quiet: true });
+                loadAllCalendarEvents();
             }
         } catch (err) {
             console.error('WebSocket message error:', err);

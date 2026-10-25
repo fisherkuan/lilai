@@ -76,7 +76,8 @@ const mockEvents = [
         title: 'Morning run along Dijle',
         date: daysFromNow(1, 8),
         endDate: daysFromNow(1, 9, 30),
-        description: '5km easy pace. Meet at Ladeuzeplein.\nLink: https://maps.google.com/?q=Ladeuzeplein',
+        description: '5km easy pace. Meet at Ladeuzeplein.',
+        links: [{ url: 'https://maps.google.com/?q=Ladeuzeplein', label: 'Map' }],
         location: 'Ladeuzeplein',
         source: null,
         attendance_limit: null
@@ -86,7 +87,7 @@ const mockEvents = [
         title: 'Hot pot gathering',
         date: daysFromNow(3, 19),
         endDate: daysFromNow(3, 22),
-        description: 'Communal hot pot — bring an ingredient. limit: 10',
+        description: 'Communal hot pot — bring an ingredient.',
         location: 'Fisher\'s place',
         source: null,
         attendance_limit: 10
@@ -162,8 +163,8 @@ async function seed() {
         // Upsert events
         for (const ev of mockEvents) {
             await client.query(
-                `INSERT INTO events (id, title, date, endDate, description, location, source, attendance_limit)
-                 VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+                `INSERT INTO events (id, title, date, endDate, description, location, source, attendance_limit, links)
+                 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
                  ON CONFLICT (id) DO UPDATE SET
                     title = EXCLUDED.title,
                     date = EXCLUDED.date,
@@ -171,8 +172,9 @@ async function seed() {
                     description = EXCLUDED.description,
                     location = EXCLUDED.location,
                     source = EXCLUDED.source,
-                    attendance_limit = EXCLUDED.attendance_limit`,
-                [ev.id, ev.title, ev.date, ev.endDate, ev.description, ev.location, ev.source, ev.attendance_limit]
+                    attendance_limit = EXCLUDED.attendance_limit,
+                    links = EXCLUDED.links`,
+                [ev.id, ev.title, ev.date, ev.endDate, ev.description, ev.location, ev.source, ev.attendance_limit, JSON.stringify(ev.links || [])]
             );
         }
         console.log(`Upserted ${mockEvents.length} events.`);

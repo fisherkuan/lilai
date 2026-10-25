@@ -257,6 +257,30 @@
      * between two spellings of one person's address. The contact details are a promise kept
      * on the next screen, not a thing to pick between here.
      */
+    // Grouped cards (owner, 2026-10-25): each part of a step is a raised card on the grey
+    // sheet, under a small uppercase title when it needs one.
+    function card(title, parts) {
+        const kept = parts.filter(Boolean);
+        if (kept.length === 0) return null;
+        return h('section', { class: 'bs-card' }, [title ? h('h3', { class: 'bs-card-title', text: title }) : null, ...kept].filter(Boolean));
+    }
+
+    // A date field that reads yyyy/mm/dd, as in Make an event: our text, with the native
+    // input invisible on top so a tap still opens the phone's picker.
+    function dateBox(input) {
+        const show = h('span', { class: 'bs-date bs-date-show', 'aria-hidden': 'true' });
+        const sync = () => {
+            show.textContent = input.value ? input.value.replaceAll('-', '/') : 'yyyy/mm/dd';
+            show.classList.toggle('is-empty', !input.value);
+        };
+        input.classList.add('bs-date-native');
+        input.addEventListener('input', sync);
+        input.addEventListener('change', sync);
+        input.addEventListener('click', () => { try { input.showPicker(); } catch (_) { /* not supported */ } });
+        sync();
+        return h('div', { class: 'bs-datebox' }, [show, input]);
+    }
+
     function stepWho() {
         const people = window.bookingPeople.list();
 
@@ -325,19 +349,19 @@
         sport.addEventListener('input', () => { draft.sport = sport.value.trim(); renderFooter(); });
 
         const body = [
-            stepWho(),
-            h('div', { class: 'bs-field' }, [
+            card(null, [stepWho()]),
+            card('Sport and day', [h('div', { class: 'bs-field' }, [
                 h('label', { class: 'bs-label', text: 'Sport' }),
                 sport,
                 h('p', { class: 'bs-note', text: 'Padel, tennis, table tennis and beach volleyball are booked through KU Leuven’s separate online tool, not this form.' })
             ]),
             h('div', { class: 'bs-field' }, [
                 h('label', { class: 'bs-label', text: 'Day you want to play' }),
-                picker,
+                dateBox(picker),
                 h('p', { class: 'bs-note', text: options.seasonEndsOn
                     ? `Any day from today to ${prettyDate(options.seasonEndsOn)}, when this season's sports card runs out.`
                     : 'Any day from today.' })
-            ])
+            ])])
         ];
 
         if (draft.playDate && openingLabel(draft.playDate).open) {
@@ -429,7 +453,7 @@
             : [`Both are ${hoursWord} starts, not a start and an end. The second is the fallback if the first is taken.`];
 
         return [
-            h('div', { class: 'bs-field' }, [
+            card('Times', [h('div', { class: 'bs-field' }, [
                 h('label', { class: 'bs-label', text: 'How long' }),
                 duration
             ]),
@@ -446,9 +470,9 @@
                     ])
                 ]),
                 h('p', { class: 'bs-note' }, example)
-            ]),
-            repeatField(),
-            ...detailFields()
+            ])]),
+            card(null, [repeatField()]),
+            card('Players and court', detailFields())
         ];
     }
 
@@ -545,7 +569,7 @@
         });
         parts.push(h('div', { class: 'bs-field' }, [
             h('label', { class: 'bs-label bs-label-sm', text: 'Until' }),
-            until
+            dateBox(until)
         ]));
 
         // Whatever the server says the rule expands to, verbatim — including its refusals.
@@ -591,7 +615,7 @@
         const firstName = String(draft.name || '').trim().split(/\s+/)[0] || 'them';
 
         return [
-            h('div', { class: 'bs-field' }, [
+            card(null, [h('div', { class: 'bs-field' }, [
                 h('label', { class: 'bs-label', text: 'Booking for' }),
                 h('div', { class: 'bs-person' }, [
                     h('div', { class: 'bs-person-who' }, [
@@ -604,14 +628,14 @@
                 ]),
                 // The privacy sentence sits under the contact details it is about.
                 h('p', { class: 'bs-note', text: 'The email and phone go on KU Leuven\u2019s form and nowhere else — the board shows only the name.' })
-            ]),
-            h('div', { class: 'bs-table' }, [
+            ])]),
+            card(null, [h('div', { class: 'bs-table' }, [
                 h('div', { class: 'bs-table-head', text: 'What we will submit' }),
                 ...rows.map(([label, value]) => h('div', { class: 'bs-table-row' }, [
                     h('span', { class: 'bs-table-label', text: label }),
                     h('span', { class: 'bs-table-value', text: value })
                 ]))
-            ]),
+            ])]),
             h('div', { class: 'bs-block' }, [
                 h('div', { class: 'bs-block-title', text: 'Queuing is not booking.' }),
                 h('p', { class: 'bs-block-note', text: `We submit the request ${openingLabel(draft.playDate).open ? 'right away' : 'at midnight'}. KU Leuven decides, and emails ${firstName} directly — usually within a day or two.` })
@@ -635,7 +659,7 @@
         ]));
 
         return [
-            h('div', { class: 'bs-full' }, [
+            h('div', { class: 'bs-full bs-card' }, [
                 h('div', { class: 'bs-full-head' }, [
                     h('span', { class: 'bs-pips' }, quota.entries.map(() => h('span', { class: 'bq-pip used warn' }))),
                     h('span', { class: 'bs-full-title', text: `That week is full for ${quota.name} — ${quota.used} of ${quota.limit}` })
