@@ -1,9 +1,13 @@
-// Which DB events a calendar sync may delete. Deleting an event cascades to its RSVPs,
-// so a calendar whose feed could not be read keeps everything it had: an outage must
-// never look like a calendar that was emptied.
+// The legacy feed: before Lilai took a calendar over (calendar-import.js), it read the
+// calendar's public iCal feed. That path stays only for a calendar not yet imported (Google
+// credentials missing), and it never touches a row Lilai owns (`managed`).
+//
+// Which unmanaged rows a feed refresh may delete. Deleting an event cascades to its RSVPs,
+// so a calendar whose feed could not be read keeps everything it had: an outage must never
+// look like a calendar that was emptied.
 
-// dbRows: [{id, source}] currently in the DB. calendarEvents: [{id, source}] from the feeds.
-// unreadSources: calendar ids whose feed failed this time.
+// dbRows: [{id, source}] unmanaged rows in the DB. calendarEvents: [{id, source}] from the
+// feeds. unreadSources: calendar ids whose feed was not read this time (failed, or imported).
 function findStaleEventIds(dbRows, calendarEvents, unreadSources) {
     const feedIds = new Set(calendarEvents.map(event => event.id));
     return dbRows

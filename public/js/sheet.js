@@ -8,6 +8,9 @@
  * - A sheet lives in the visible part of the screen. iOS lays the keyboard over the page
  *   instead of shrinking it, so a layer pinned to `inset: 0` puts its sheet under the
  *   keyboard. The layer follows `visualViewport` instead (`--vv-top`, `--vv-h`).
+ * - The field being typed in stays in sight. When a field takes the focus, and again once the
+ *   keyboard has finished rising, it scrolls to the middle of what is left of the sheet (a
+ *   search box with suggestions under it, `role="combobox"`, to the top, so they show).
  * - The grabber works: drag it (or the sheet's header) up to fill the screen, down to go
  *   back or to dismiss, and tap it to toggle. Dismissing clicks the sheet's own close
  *   button, so each sheet's close rules (a send in flight, a draft kept) still apply.
@@ -86,11 +89,25 @@
         html.style.setProperty('--vv-top', `${vv.offsetTop}px`);
         html.style.setProperty('--vv-h', `${vv.height}px`);
         // The sheet just got shorter: keep the field being typed in on screen.
-        const active = doc.activeElement;
-        if (active && active.closest && active.closest(SHEETS) && active.scrollIntoView) {
-            active.scrollIntoView({ block: 'nearest' });
-        }
+        keepInView(doc.activeElement);
     }
+
+    const FIELDS = 'input:not([type="checkbox"]):not([type="radio"]):not([type="button"]), textarea, select, [contenteditable="true"]';
+
+    function keepInView(field) {
+        if (!field || !field.matches || !field.matches(FIELDS) || !field.closest(SHEETS)) return;
+        if (!field.closest(LAYERS) || doc.activeElement !== field) return;
+        field.scrollIntoView({ block: field.getAttribute('role') === 'combobox' ? 'start' : 'center' });
+    }
+
+    // On a phone the keyboard takes half the screen: bring the field up now, and again once the
+    // keyboard has risen (iOS reports the smaller viewport only after its animation).
+    doc.addEventListener('focusin', (e) => {
+        if (!phone.matches) return;
+        const field = e.target;
+        setTimeout(() => keepInView(field), 50);
+        setTimeout(() => keepInView(field), 400);
+    });
 
     if (vv) {
         vv.addEventListener('resize', trackViewport);

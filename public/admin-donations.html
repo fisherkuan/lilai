@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <!-- Apply a saved theme before first paint; the switch itself is js/theme.js. -->
-    <script>try{var t=localStorage.getItem("lilaiTheme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}</script>
+    <script>var t="light";try{if(localStorage.getItem("lilaiTheme")==="dark")t="dark"}catch(e){}document.documentElement.dataset.theme=t</script>
     <meta name="theme-color" content="#efefea" media="(prefers-color-scheme: light)">
     <meta name="theme-color" content="#111214" media="(prefers-color-scheme: dark)">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -37,15 +37,14 @@
 </header>
 
 <nav class="admin-nav" aria-label="Admin">
-    <a href="/admin/events">Events</a>
     <a href="/admin/donations" aria-current="page">Donations</a>
     <a href="/admin/bookings">Booking queue</a>
+    <a href="/admin/places">Places</a>
 </nav>
 
 <main class="admin">
     <div class="admin-head">
         <h1 class="admin-title">Donations</h1>
-        <p class="admin-sub">Add a donation or an expense. Entries show on the Donate page.</p>
     </div>
 
     <div class="admin-grid">
@@ -85,11 +84,11 @@
             </form>
         </section>
 
-        <aside class="sidebar" aria-label="Admin key and public page">
+        <aside class="sidebar" aria-label="Account and public page">
             <section class="side-block" aria-labelledby="side-key-title">
-                <h2 class="side-title" id="side-key-title">Admin key</h2>
-                <p class="side-note">The first entry asks for the key and saves it in this browser. Clear it on a shared device.</p>
-                <button type="button" class="text-btn" id="clear-key-btn">Clear stored admin key</button>
+                <h2 class="side-title" id="side-key-title">Signed in</h2>
+                <p class="side-note" id="admin-email"></p>
+                <button type="button" class="text-btn" id="sign-out-btn">Sign out</button>
             </section>
 
             <section class="side-block" aria-labelledby="side-public-title">
@@ -105,8 +104,10 @@
     <p>Built by Fisher Kuan</p>
 </footer>
 <script src="/js/theme.js"></script>
+<script src="/js/sprites.js"></script>
 <script src="/js/feedback.js"></script>
 <script src="/js/sheet.js"></script>
+<script src="/js/admin-session.js"></script>
 
 <script src="/js/admin-donations.js"></script>
 </body>

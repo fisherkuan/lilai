@@ -1,30 +1,22 @@
 # Lilai
 
-A modern web application for managing event RSVPs with Google Calendar integration. This app allows attendees to RSVP to events while giving hosts visibility into expected attendance counts.
+Meetups and who is coming. Lilai keeps the events in its own database and publishes them to public Google calendars, so anyone can subscribe from their own calendar app. People RSVP with a typed name; no accounts.
 
 ## Features
 
-### Core Features
-- 📅 **Google Calendar Integration** - Embed public Google Calendar to display events
-- 📝 **RSVP Management** - Allow users to RSVP with attendance status (Yes/No/Maybe)
-
-- 📊 **Attendance Dashboard** - Real-time attendance summary for event hosts
-- 💬 **Comments Support** - Optional comments field for special requirements
-- 📱 **Responsive Design** - Works seamlessly on desktop, tablet, and mobile
-
-### Optional Features
-
-- 🎨 **Modern UI/UX** - Clean, professional interface with smooth animations
-- 💾 **File-based Storage** - No database required for quick setup
-
+- **Events made in Lilai**: one-off or repeating, with a seat limit, links, and an optional "I approve each person" mode
+- **A management page per event**, reached by its own link: edit, cancel, accept or decline requests, share with co-hosts
+- **Published Google calendars**: every change is copied to the calendar's read-only Google copy
+- **Calendar keys**: a restricted calendar (TSA) takes a key link to add events to
+- **Live attendance** over WebSocket, a 14-day date rail, and an installable PWA
+- Bank-transfer donations, and a queue that books KU Leuven sports courts when the booking window opens
 
 ## Technology Stack
 
-- **Frontend**: HTML5, CSS3, Vanilla JavaScript
-- **Backend**: Node.js, Express.js
-- **Storage**: JSON file-based storage
-- **Styling**: Custom CSS with responsive design
-- **Calendar**: Google Calendar iframe integration
+- **Frontend**: HTML, CSS and vanilla JavaScript, no build step
+- **Backend**: Node.js, Express, WebSocket (`ws`)
+- **Storage**: PostgreSQL
+- **Calendars**: Google Calendar API (service account), write-only
 
 ## Project Structure
 
@@ -81,30 +73,15 @@ npm run dev
 
 ## Google Calendar Setup
 
-To integrate your Google Calendar:
+Lilai publishes each calendar in `config/app.json` to Google; it never reads events back once it has taken a calendar over.
 
-1. **Make your calendar public**:
-   - Open Google Calendar
-   - Go to your calendar settings
-   - Under "Access permissions", check "Make available to public"
+1. Create a Google Cloud service account with the Calendar API enabled and download its JSON key.
+2. Set the key as `GOOGLE_SERVICE_ACCOUNT_JSON` (the JSON itself or base64 of it).
+3. Share each calendar with the service account's email, "Make changes to events". The server logs the address at startup.
+4. List the calendars in `config/app.json` by their embed URL (`calendars[]`, in shape order). Mark one `"restricted": true` to require a calendar key to add events to it, and mint a key with `node scripts/calendar-link.js <calendar>`.
+5. Start the server. Each calendar is imported once from Google; after that, make the Google calendars read-only for everyone but the service account.
 
-2. **Get the embed URL**:
-   - In calendar settings, go to "Integrate calendar"
-   - Copy the "Public URL" or "Embed code"
-
-3. **Add to the app**:
-   - Open `config/app.json`
-   - In the `calendar` object, update the `urls` array with your Google Calendar embed URLs.
-     Example:
-     ```json
-     "calendar": {
-       "urls": [
-         "https://calendar.google.com/calendar/embed?src=yourcalendarid1@group.calendar.google.com&ctz=Europe%2FBrussels",
-         "https://calendar.google.com/calendar/embed?src=yourcalendarid2@group.calendar.google.com&ctz=Europe%2FBrussels"
-       ],
-       "enabled": true
-     }
-     ```
+Without the key, events still work in Lilai and reach Google once it is set. See `CLAUDE.md` for the details.
 
 ## API Endpoints
 

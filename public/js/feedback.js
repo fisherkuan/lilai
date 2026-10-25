@@ -1,5 +1,5 @@
 /*
- * Footer "Send feedback" button and its sheet, ported from splitly's feedback form.
+ * The header's bug button and the footer's "Send feedback" button, and their sheet, ported from splitly's feedback form.
  * It posts { message, email, page, files } to /api/feedback, which saves the message and
  * emails it to the owner. Files go base64 in the JSON body and reach the email only.
  *
@@ -17,6 +17,9 @@
         too_large: 'Files must add up to under 10 MB',
         bad_email: 'That email address does not look right'
     };
+    // The line bug from splitly (src/components/icons.tsx, 2026-10): the header's bug in text
+    // mode, and wherever js/sprites.js (the Goomba) is not loaded.
+    const BUG_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 9h8v6a4 4 0 0 1-8 0zM9.5 9V7a2.5 2.5 0 0 1 5 0v2M12 12v7M4 13h4M16 13h4M5 7l3 2M19 7l-3 2M5 19l3-2M19 19l-3-2"/></svg>';
     const CLOSE_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>';
 
     let modal = null;
@@ -191,6 +194,20 @@
     function render() {
         const footer = document.querySelector('.colophon');
         if (!footer) return;
+        // In the header: the bug leads the icons.
+        const masthead = document.querySelector('.masthead');
+        if (masthead) {
+            const bug = document.createElement('button');
+            bug.type = 'button';
+            bug.className = 'icon-btn report-bug';
+            bug.setAttribute('aria-label', 'Report a bug');
+            bug.title = 'Report a bug';
+            if (window.Sprites) window.Sprites.iconize(bug, 'goomba', 'Report a bug', 'Bug', BUG_ICON);
+            else bug.innerHTML = BUG_ICON;
+            bug.addEventListener('click', open);
+            // First after the wordmark, ahead of the links (owner, 2026-10-25).
+            masthead.insertBefore(bug, masthead.querySelector('.app-header-links') || masthead.querySelector('[data-admin-link]'));
+        }
         const btn = document.createElement('button');
         btn.type = 'button';
         btn.className = 'feedback-btn';

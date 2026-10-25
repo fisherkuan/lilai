@@ -17,6 +17,19 @@ const { createBookingSchema } = require('./booking-schema');
 const { BookingFormClient, readFormOptions } = require('./booking-form');
 const { createScheduler } = require('./booking-scheduler');
 const { findStaleEventIds, looksLikeIcsFeed } = require('./calendar-sync');
+const { readServiceAccount, createGoogleCalendar } = require('./google-calendar');
+const hosting = require('./event-hosting');
+const { createPublisher } = require('./calendar-publish');
+const { createPlaceAutocomplete } = require('./place-autocomplete');
+const places = require('./places');
+const adminAuthLib = require('./admin-auth');
+const contactsLib = require('./contacts');
+const chatLib = require('./event-chat');
+const { importCalendar, createImportSchema, importedCalendarIds } = require('./calendar-import');
+const access = require('./calendar-access');
+const activity = require('./event-activity');
+const waitingList = require('./waiting-list');
+const { sanitizeHtmlText } = require('./html-text');
 const { mergeContact, sendAfterForEdit } = require('./booking-edit');
 const {
     expandRepeat, validateRule, describeRule, RepeatError, UNITS, MAX_EVERY, MAX_OCCURRENCES
@@ -42,6 +55,8 @@ if (missingVars.length > 0) {
 }
 
 const app = express();
+// Heroku's router is the one proxy in front, so req.ip is the visitor (the place search's budget).
+app.set('trust proxy', 1);
 
 /*
  * Express 4 does not catch a rejected async handler: the request never answers, and Node
@@ -73,6 +88,10 @@ app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
 // Serve static files from public directory
+// The admin pages' files open only through their gated routes.
+app.get(['/admin-donations.html', '/admin-places.html'], (req, res) => {
+    res.redirect(302, req.path === '/admin-places.html' ? '/admin/places' : '/admin/donations');
+});
 app.use(express.static(path.join(__dirname, '../public')));
 
 const isProduction = process.env.NODE_ENV === 'production';
@@ -100,26 +119,38 @@ pool.on('error', (error) => {
     console.error('Idle database connection dropped:', error.message);
 });
 
+// The saved places, held in memory (server/places.js); loaded once the schema exists.
+const placeStore = places.createPlaceStore(pool);
+
+// Admin sign-in by emailed code (server/admin-auth.js), for Donations and Places.
+const adminAuth = adminAuthLib.createAdminAuth({ pool, emailOf: (req) => contacts.emailOf(req) });
+
+// Chat in an event (server/event-chat.js): anyone reads and likes, a signed-in email posts.
+const chat = chatLib.createEventChat({ pool });
+
+// Sign-in: a link by email, then a device session (server/contacts.js). The
+// address's name is also its chat name, so changing it renames its messages.
+const contacts = contactsLib.createContacts({ pool, onRename: chat.renameAuthor });
+
+// Threads that read differently after a name change redraw.
+function broadcastRenamed(renamedIn) {
+    for (const eventId of renamedIn) broadcast({ type: 'event_message', payload: { action: 'renamed', eventId } });
+}
+
 // Read once at startup: an invalid IBAN stops the server rather than reaching a donor.
 const bankDetails = readBankDetails();
 
-// Admin authentication middleware
-function requireAdminKey(req, res, next) {
-    const adminKey = process.env.ADMIN_API_KEY;
-
-    if (!adminKey) {
-        console.error('ADMIN_API_KEY not configured in environment variables');
-        return res.status(500).json({ success: false, message: 'Server configuration error' });
-    }
-
-    const providedKey = req.headers['x-admin-key'] || req.body.adminKey;
-
-    if (providedKey !== adminKey) {
-        return res.status(401).json({ success: false, message: 'Unauthorized: Invalid admin key' });
-    }
-
-    next();
+// Lilai owns events; each Google calendar is a published copy, written through the API as a
+// service account. Without GOOGLE_SERVICE_ACCOUNT_JSON events still work in Lilai and their
+// copies wait; a key that is set but unreadable stops startup.
+const serviceAccount = readServiceAccount();
+const googleCalendar = serviceAccount ? createGoogleCalendar(serviceAccount) : null;
+if (googleCalendar) {
+    console.log(`Publishing to Google Calendar: share each calendar with ${googleCalendar.clientEmail} ("Make changes to events")`);
 }
+// Calendars Lilai has taken over from Google (calendar-import.js). The legacy feed is read
+// only for the others.
+let importedCalendars = new Set();
 
 // Input validation helpers
 function validateAttendeeName(name) {
@@ -147,6 +178,15 @@ try {
         rsvp: { allowAnonymous: false, requireName: true }
     };
 }
+
+// Links in emails and in the Google copies point here. PUBLIC_URL overrides it (local runs).
+if (process.env.PUBLIC_URL) appConfig.publicUrl = process.env.PUBLIC_URL;
+
+// Google Maps search for the event form's Where field; off without a key.
+const placeAutocomplete = createPlaceAutocomplete({
+    apiKey: process.env.GOOGLE_MAPS_API_KEY || '',
+    referer: appConfig.publicUrl ? `${String(appConfig.publicUrl).replace(/\/+$/, '')}/` : ''
+});
 
 // Create HTTP server
 const server = http.createServer(app);
@@ -222,50 +262,6 @@ function decodeIcsText(value) {
         .replace(/\\,/g, ',')
         .replace(/\\;/g, ';')
         .replace(/\\\\/g, '\\');
-}
-
-function decodeHtmlEntities(value) {
-    if (typeof value !== 'string') {
-        return '';
-    }
-
-    return value
-        .replace(/&quot;/gi, '"')
-        .replace(/&#39;/gi, '\'')
-        .replace(/&nbsp;/gi, ' ')
-        .replace(/&lt;/gi, '<')
-        .replace(/&gt;/gi, '>')
-        .replace(/&amp;/gi, '&');
-}
-
-function sanitizeHtmlText(value) {
-    if (typeof value !== 'string') {
-        return '';
-    }
-
-    let text = value;
-
-    text = text.replace(/<(br|hr)\s*\/?>/gi, '\n');
-    text = text.replace(/<\/p\s*>/gi, '\n');
-    text = text.replace(/<\/div\s*>/gi, '\n');
-
-    text = text.replace(/<a\s+[^>]*href=["']([^"']+)["'][^>]*>(.*?)<\/a>/gi, (match, href, linkText) => {
-        const trimmedLinkText = (linkText || '').trim();
-        if (trimmedLinkText && trimmedLinkText !== href) {
-            return `${trimmedLinkText} (${href})`;
-        }
-        return href;
-    });
-
-    text = text.replace(/<[^>]+>/g, '');
-
-    return decodeHtmlEntities(text)
-        .replace(/\r/g, '')
-        .replace(/[ \t]+\n/g, '\n')
-        .replace(/\n{3,}/g, '\n\n')
-        .replace(/^\n+/, '')
-        .replace(/\n+$/, '')
-        .trim();
 }
 
 function extractIcsField(block, fieldName) {
@@ -346,9 +342,19 @@ async function initializeDatabase() {
             console.log('Note: created_by column removal attempted (may not exist):', error.message);
         }
 
+        await hosting.createHostingSchema(client);
+        const activitySeeded = await activity.createActivitySchema(client);
+        if (activitySeeded > 0) console.log(`[activity] event log started from ${activitySeeded} RSVPs on file.`);
+        await createImportSchema(client);
+        await access.createCalendarAccessSchema(client);
         await createBookingSchema(client);
         await createSeriesSchema(client);
         await feedback.createFeedbackSchema(client);
+        await adminAuthLib.createAdminAuthSchema(client);
+        await contactsLib.createContactsSchema(client);
+        await chatLib.createChatSchema(client);
+        const placesSeeded = await places.createPlacesSchema(client, appConfig.places || []);
+        if (placesSeeded) console.log(`📍 Saved ${placesSeeded} places from config/app.json`);
         const seeded = await createProfileSchema(client, uuidv4);
         if (seeded.created > 0) {
             console.log(`[bookings] address book seeded from the queue: ${seeded.created} people, ${seeded.linked} entries linked.`);
@@ -370,7 +376,7 @@ async function initializeDatabase() {
     }
 }
 
-// Pull the calendar feed into the DB. One refresh at a time; it never throws, because
+// Pull the legacy feed into the DB, for calendars not yet imported. One refresh at a time; it never throws, because
 // nobody awaits it. The attempt time counts as the fetch time, so a failing feed is
 // retried once per TTL rather than on every request.
 function refreshCalendar() {
@@ -389,6 +395,37 @@ function refreshCalendar() {
     return calendarCache.refreshing;
 }
 
+// Whether any calendar still comes from its legacy feed.
+function legacyFeedNeeded() {
+    return publishedCalendars().some(c => !importedCalendars.has(c.id));
+}
+
+// The calendar id inside a configured embed, iCal or calendar URL, or null.
+function calendarIdOf(calendarUrl) {
+    let match = null;
+    if (calendarUrl.includes('src=')) {
+        match = calendarUrl.match(/src=([^&]+)/);
+    } else if (calendarUrl.includes('calendar.google.com/calendar/ical/')) {
+        match = calendarUrl.match(/ical\/([^\/]+)\//);
+    } else {
+        match = calendarUrl.match(/calendar\/([^\/?&]+)/);
+    }
+    return match ? decodeURIComponent(match[1]) : null;
+}
+
+// Every enabled calendar, as Lilai publishes it. A restricted one takes a calendar key to
+// write to (calendar-access.js).
+function publishedCalendars() {
+    return (appConfig.calendars || [])
+        .filter(c => c.enabled)
+        .map(c => ({ name: c.name, id: calendarIdOf(c.url), restricted: Boolean(c.restricted) }))
+        .filter(c => c.id);
+}
+
+function calendarById(id) {
+    return publishedCalendars().find(c => c.id === id) || null;
+}
+
 // Function to fetch events from Google Calendar
 async function fetchCalendarEvents() {
     if (!appConfig.calendars || appConfig.calendars.length === 0) {
@@ -402,16 +439,11 @@ async function fetchCalendarEvents() {
             continue;
         }
         const calendarUrl = calendarEntry.url;
-        let calendarId = null;
-        if (calendarUrl.includes('src=')) {
-            const match = calendarUrl.match(/src=([^&]+)/);
-            if (match) calendarId = decodeURIComponent(match[1]);
-        } else if (calendarUrl.includes('calendar.google.com/calendar/ical/')) {
-            const match = calendarUrl.match(/ical\/([^\/]+)\//);
-            if (match) calendarId = decodeURIComponent(match[1]);
-        } else {
-            const match = calendarUrl.match(/calendar\/([^\/?&]+)/);
-            if (match) calendarId = decodeURIComponent(match[1]);
+        const calendarId = calendarIdOf(calendarUrl);
+        // A calendar Lilai has taken over is never read back: its events live here.
+        if (calendarId && importedCalendars.has(calendarId)) {
+            unreadSources.add(calendarId);
+            continue;
         }
 
         if (!calendarId) {
@@ -443,14 +475,6 @@ async function fetchCalendarEvents() {
                 const uidMatch = block.match(/UID:(.*)/);
                 const description = extractIcsField(block, 'DESCRIPTION');
                 const location = extractIcsField(block, 'LOCATION');
-                let attendanceLimitFromDescription = undefined; // Use undefined to signify "not specified"
-
-                if (description) {
-                    const limitMatch = description.match(/limit:?\s*(\d+)/i); // Only capture numbers
-                    if (limitMatch) {
-                        attendanceLimitFromDescription = parseInt(limitMatch[1], 10); // A number
-                    }
-                }
 
                 if (summaryMatch && dtstartMatch && uidMatch) {
                     let start = dtstartMatch[1];
@@ -484,8 +508,7 @@ async function fetchCalendarEvents() {
                         endDate: end,
                         description,
                         location,
-                        source: calendarId,
-                        attendance_limit_from_description: attendanceLimitFromDescription
+                        source: calendarId
                     });
                 }
             }
@@ -503,7 +526,13 @@ async function fetchCalendarEvents() {
 // Get configuration
 app.get('/api/config', (req, res) => {
     try {
-        res.json(appConfig);
+        res.json({
+            ...appConfig,
+            eventCreation: {
+                publishing: Boolean(googleCalendar),
+                calendars: publishedCalendars().map(c => ({ name: c.name, restricted: c.restricted }))
+            }
+        });
     } catch (error) {
         console.error('Error fetching config:', error);
         res.status(500).json({ error: 'Failed to fetch configuration' });
@@ -545,38 +574,22 @@ app.get('/api/donation-qr.svg', async (req, res) => {
     }
 });
 
-// Write one calendar snapshot to the DB: upsert every event, delete the ones the feed dropped.
-// A calendar in unreadSources failed to load, so none of its events count as dropped.
+// Write one legacy feed snapshot to the DB: upsert every event, delete the ones the feed
+// dropped. A calendar in unreadSources was not read, so none of its events count as dropped.
+// A managed row is Lilai's: the feed neither overwrites nor deletes it.
 async function syncCalendarToDb({ events: calendarEvents, unreadSources }) {
     const client = await pool.connect();
     try {
         await client.query('BEGIN');
 
-        // Sync calendar events
+        // Until a calendar is imported, Google owns what it shows (title, time, description,
+        // place); the limit, the links and the host fields are Lilai's and never touched here.
         if (calendarEvents.length > 0) {
-            // Fetch existing events for comparison
-            const existingEventsResult = await client.query('SELECT id, attendance_limit FROM events');
-            const existingEventsMap = new Map(existingEventsResult.rows.map(row => [row.id, row]));
-
             // Dedupe by id (last wins, like the per-row upserts did) — a
             // repeated id in one multi-row INSERT is a Postgres error.
             const rowsById = new Map();
             for (const event of calendarEvents) {
-                let finalAttendanceLimit;
-                const existingEvent = existingEventsMap.get(event.id);
-
-                if (event.attendance_limit_from_description !== undefined) {
-                    // Limit was explicitly specified in the description (a number)
-                    finalAttendanceLimit = event.attendance_limit_from_description;
-                } else if (existingEvent) {
-                    // Preserve existing limit if event already exists
-                    finalAttendanceLimit = existingEvent.attendance_limit;
-                } else {
-                    // New event, no limit in description, so default to null (unlimited)
-                    finalAttendanceLimit = null;
-                }
-
-                rowsById.set(event.id, [event.id, event.title, event.date, event.endDate, event.description, event.location, event.source, finalAttendanceLimit]);
+                rowsById.set(event.id, [event.id, event.title, event.date, event.endDate, event.description, event.location, event.source]);
             }
 
             // One multi-row upsert — per-row statements cost a network
@@ -585,11 +598,11 @@ async function syncCalendarToDb({ events: calendarEvents, unreadSources }) {
             const placeholders = [];
             for (const row of rowsById.values()) {
                 const base = upsertParams.length;
-                placeholders.push(`($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6}, $${base + 7}, $${base + 8})`);
+                placeholders.push(`($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6}, $${base + 7})`);
                 upsertParams.push(...row);
             }
             await client.query(
-                `INSERT INTO events (id, title, date, endDate, description, location, source, attendance_limit)
+                `INSERT INTO events (id, title, date, endDate, description, location, source)
                  VALUES ${placeholders.join(', ')}
                  ON CONFLICT (id) DO UPDATE SET
                     title = EXCLUDED.title,
@@ -597,14 +610,14 @@ async function syncCalendarToDb({ events: calendarEvents, unreadSources }) {
                     endDate = EXCLUDED.endDate,
                     description = EXCLUDED.description,
                     location = EXCLUDED.location,
-                    source = EXCLUDED.source,
-                    attendance_limit = EXCLUDED.attendance_limit`,
+                    source = EXCLUDED.source
+                 WHERE events.managed = FALSE`,
                 upsertParams
             );
         }
 
         // Remove deleted calendar events
-        const dbEventsResult = await client.query('SELECT id, source FROM events WHERE source IS NOT NULL');
+        const dbEventsResult = await client.query('SELECT id, source FROM events WHERE source IS NOT NULL AND managed = FALSE');
         const staleEventIds = findStaleEventIds(dbEventsResult.rows, calendarEvents, unreadSources);
 
         if (staleEventIds.length > 0) {
@@ -627,10 +640,9 @@ app.get('/api/events', async (req, res) => {
     try {
         const timeRange = req.query.timeRange || appConfig.events.defaultTimeRange;
 
-        // Serve what the DB holds and refresh the calendar behind the request:
-        // a visitor never waits for Google. The DB lags the feed by at most one
-        // refresh, the same five minutes the cache already allowed.
-        if (appConfig.events.autoFetch && Date.now() - calendarCache.lastFetch > CACHE_TTL) {
+        // Lilai's own events are already here. A calendar not yet taken over from Google is
+        // still read from its feed, behind the request: a visitor never waits for Google.
+        if (appConfig.events.autoFetch && legacyFeedNeeded() && Date.now() - calendarCache.lastFetch > CACHE_TTL) {
             refreshCalendar();
         }
 
@@ -664,7 +676,7 @@ app.get('/api/events', async (req, res) => {
 
         if (beforeCursor) {
             params.push(beforeCursor.toISOString());
-            whereClause = `WHERE e.date < $${params.length}`;
+            whereClause = `WHERE e.date < $${params.length} AND e.cancelled_at IS NULL`;
             orderClause = 'ORDER BY e.date DESC';
             if (limit) {
                 params.push(limit);
@@ -672,18 +684,18 @@ app.get('/api/events', async (req, res) => {
             }
         } else if (windowed) {
             params.push(fromDate.toISOString(), toDate.toISOString());
-            whereClause = 'WHERE e.date >= $1 AND e.date < $2';
+            whereClause = 'WHERE e.date >= $1 AND e.date < $2 AND e.cancelled_at IS NULL';
         } else {
             switch (timeRange) {
                 case 'future':
-                    whereClause = 'WHERE e.date > NOW()';
+                    whereClause = 'WHERE e.date > NOW() AND e.cancelled_at IS NULL';
                     break;
                 case 'past':
-                    whereClause = 'WHERE e.date < NOW()';
+                    whereClause = 'WHERE e.date < NOW() AND e.cancelled_at IS NULL';
                     break;
                 case 'all':
                 default:
-                    whereClause = '';
+                    whereClause = 'WHERE e.cancelled_at IS NULL';
                     break;
             }
             if (limit) {
@@ -696,26 +708,36 @@ app.get('/api/events', async (req, res) => {
             SELECT
                 e.*,
                 COALESCE(r.attendingCount, 0) as "attendingCount",
-                r.attendees
+                r.attendees,
+                COALESCE(r.pendingCount, 0) as "pendingCount",
+                r.waitlist,
+                COALESCE(m.messageCount, 0) as "messageCount"
             FROM events e
             LEFT JOIN (
                 SELECT
                     event_id,
-                    COUNT(*) as attendingCount,
-                    array_agg(attendee_name) as attendees
+                    COUNT(*) FILTER (WHERE attendance = 'yes') as attendingCount,
+                    array_agg(attendee_name ORDER BY timestamp) FILTER (WHERE attendance = 'yes') as attendees,
+                    COUNT(*) FILTER (WHERE attendance = 'pending') as pendingCount,
+                    array_agg(attendee_name ORDER BY timestamp, id) FILTER (WHERE attendance = 'waiting') as waitlist
                 FROM rsvps
-                WHERE attendance = 'yes'
                 GROUP BY event_id
             ) r ON e.id = r.event_id
+            LEFT JOIN (
+                SELECT event_id, COUNT(*) as messageCount FROM event_messages GROUP BY event_id
+            ) m ON e.id = m.event_id
             ${whereClause}
             ${orderClause}
             ${limitClause}
         `, params);
 
         const eventsWithAttendance = eventsResult.rows.map(event => ({
-            ...event,
+            ...hosting.publicEvent(event),
             attendingCount: parseInt(event.attendingCount, 10),
-            attendees: event.attendees || []
+            pendingCount: parseInt(event.pendingCount, 10),
+            attendees: event.attendees || [],
+            waitlist: event.waitlist || [],
+            messageCount: parseInt(event.messageCount, 10)
         }));
 
         res.json(eventsWithAttendance);
@@ -727,187 +749,706 @@ app.get('/api/events', async (req, res) => {
     }
 });
 
-// Get a specific event
-app.get('/api/events/:id', async (req, res) => {
-    const client = await pool.connect();
+// What a repeat rule lands on, for the form's preview: the server's own expansion, so the
+// sheet cannot promise a date the server would refuse. Before /api/events/:id, which would
+// otherwise read "repeat-preview" as an id.
+app.get('/api/events/repeat-preview', (req, res) => {
+    const rule = {
+        every: Number(req.query.every),
+        unit: req.query.unit,
+        weekdays: String(req.query.weekdays || '').split(',').filter(Boolean).map(Number),
+        until: String(req.query.until || '')
+    };
     try {
-        const { id } = req.params;
-        const result = await client.query('SELECT * FROM events WHERE id = $1', [id]);
-        const event = result.rows[0];
-
-        if (!event) {
-            return res.status(404).json({ error: 'Event not found' });
-        }
-
-        res.json(event);
+        const dates = expandRepeat(String(req.query.date || ''), rule, { cap: hosting.MAX_OCCURRENCES, noun: 'events' });
+        res.json({ dates });
     } catch (error) {
-        console.error('Error fetching event:', error);
-        res.status(500).json({ error: 'Failed to fetch event' });
-    } finally {
-        client.release();
+        if (error instanceof RepeatError) return res.status(400).json({ error: error.message });
+        throw error;
     }
 });
 
-// Submit RSVP
+// Get a specific event. A cancelled one is gone for the public.
+app.get('/api/events/:id', async (req, res) => {
+    const result = await pool.query('SELECT * FROM events WHERE id = $1 AND cancelled_at IS NULL', [req.params.id]);
+    const event = result.rows[0];
+    if (!event) return res.status(404).json({ error: 'Event not found' });
+    res.json(hosting.publicEvent(event));
+});
+
+// Who holds a seat, how many requests wait for the host, and the waiting list in order. One
+// shape for the RSVP answer, the broadcast and the host page.
+async function attendanceOf(client, eventId) {
+    const result = await client.query(
+        `SELECT attendee_name, attendance FROM rsvps
+         WHERE event_id = $1 AND attendance IN ('yes', 'pending', 'waiting') ORDER BY ${waitingList.ORDER}`,
+        [eventId]
+    );
+    const named = status => result.rows.filter(r => r.attendance === status).map(r => r.attendee_name);
+    const attendees = named(hosting.STATUS.YES);
+    return {
+        eventId,
+        attendingCount: attendees.length,
+        attendees,
+        pendingCount: named(hosting.STATUS.PENDING).length,
+        waitlist: named(hosting.STATUS.WAITING)
+    };
+}
+
+// An RSVP refused inside the transaction: rolled back, answered with its status and message.
+class RsvpRefusal extends Error {
+    constructor(status, message) {
+        super(message);
+        this.status = status;
+    }
+}
+
+const JOIN_KIND = { yes: 'joined', pending: 'asked', waiting: 'listed' };
+
+// Submit RSVP. "add" takes a place; on an event whose host approves each person it asks to
+// join instead ('pending', no seat until the host accepts). On a full event it joins the
+// waiting list. "remove" gives up a place or a spot on the list, and the first name waiting
+// moves up into what opened. All of it under the event row's lock, so two people cannot both
+// take the last place.
 app.post('/api/rsvp', async (req, res) => {
+    const { eventId, action, attendeeName } = req.body;
+
+    if (!eventId || !action) {
+        return res.status(400).json({ success: false, message: 'Event ID and action are required' });
+    }
+
+    if (!['add', 'remove'].includes(action)) {
+        return res.status(400).json({ success: false, message: 'Invalid action. Must be "add" or "remove"' });
+    }
+
+    const validatedName = validateAttendeeName(attendeeName);
+    if (!validatedName) {
+        return res.status(400).json({
+            success: false,
+            message: action === 'add'
+                ? 'Invalid attendee name. Name must be 1-100 characters and contain no scripts.'
+                : 'Invalid attendee name'
+        });
+    }
+
     const client = await pool.connect();
+    let status = null;
+    let attendance;
     try {
-        const { eventId, action, attendeeName } = req.body;
-
-        if (!eventId || !action) {
-            return res.status(400).json({ success: false, message: 'Event ID and action are required' });
-        }
-
-        if (!['add', 'remove'].includes(action)) {
-            return res.status(400).json({ success: false, message: 'Invalid action. Must be "add" or "remove"' });
-        }
-
-        const eventResult = await client.query('SELECT * FROM events WHERE id = $1', [eventId]);
-        if (eventResult.rows.length === 0) {
-            return res.status(404).json({ success: false, message: 'Event not found' });
-        }
-
+        await client.query('BEGIN');
+        const eventResult = await client.query('SELECT * FROM events WHERE id = $1 AND cancelled_at IS NULL FOR UPDATE', [eventId]);
         const event = eventResult.rows[0];
+        if (!event) throw new RsvpRefusal(404, 'Event not found');
 
         if (action === 'add') {
-            // Validate attendee name
-            const validatedName = validateAttendeeName(attendeeName);
-            if (!validatedName) {
-                return res.status(400).json({
-                    success: false,
-                    message: 'Invalid attendee name. Name must be 1-100 characters and contain no scripts.'
-                });
-            }
-
-            if (event.attendance_limit !== null) {
-                const rsvpsResult = await client.query('SELECT COUNT(*) FROM rsvps WHERE event_id = $1 AND attendance = $2', [eventId, 'yes']);
-                const attendingCount = parseInt(rsvpsResult.rows[0].count, 10);
-                if (attendingCount >= event.attendance_limit) {
-                    return res.status(400).json({ success: false, message: 'Event is full' });
-                }
-            }
-
-            const newRsvp = {
-                id: uuidv4(),
-                eventId,
-                attendance: 'yes',
-                attendeeName: validatedName,
-                timestamp: new Date()
-            };
+            const counts = await waitingList.counts(client, eventId);
+            status = waitingList.joinStatus({ limit: event.attendance_limit, approval: event.approval_required, ...counts });
+            // One open request and one spot on the list per name: a second would only show the
+            // host a duplicate. Two people may share a name in the places themselves.
+            const watched = event.approval_required ? ['yes', 'pending', 'waiting'] : status === hosting.STATUS.WAITING ? ['waiting'] : [];
+            const existing = watched.length ? await client.query(
+                'SELECT attendance FROM rsvps WHERE event_id = $1 AND attendee_name = $2 AND attendance = ANY($3) LIMIT 1',
+                [eventId, validatedName, watched]
+            ) : { rows: [] };
+            const already = existing.rows[0]?.attendance;
+            if (already === hosting.STATUS.YES) throw new RsvpRefusal(400, `${validatedName} already has a place.`);
+            if (already === hosting.STATUS.PENDING) throw new RsvpRefusal(400, `${validatedName} has already asked. The host decides.`);
+            if (already === hosting.STATUS.WAITING) throw new RsvpRefusal(400, `${validatedName} is already on the waiting list.`);
             await client.query(
                 'INSERT INTO rsvps (id, event_id, attendee_name, attendance, timestamp) VALUES ($1, $2, $3, $4, $5)',
-                [newRsvp.id, newRsvp.eventId, newRsvp.attendeeName, newRsvp.attendance, newRsvp.timestamp]
+                [uuidv4(), eventId, validatedName, status, new Date()]
             );
-        } else if (action === 'remove') {
-            // Validate attendee name
-            const validatedName = validateAttendeeName(attendeeName);
-            if (!validatedName) {
-                return res.status(400).json({
-                    success: false,
-                    message: 'Invalid attendee name'
-                });
-            }
-            await client.query(
-                'DELETE FROM rsvps WHERE id IN (SELECT id FROM rsvps WHERE event_id = $1 AND attendee_name = $2 AND attendance = $3 LIMIT 1)',
-                [eventId, validatedName, 'yes']
+            await activity.logActivity(client, eventId, JOIN_KIND[status], { name: validatedName });
+        } else {
+            // A place first, else a spot on the list: someone holding both left the place.
+            const gone = await client.query(
+                `DELETE FROM rsvps WHERE id IN (
+                    SELECT id FROM rsvps WHERE event_id = $1 AND attendee_name = $2 AND attendance IN ('yes', 'waiting')
+                    ORDER BY (attendance = 'yes') DESC, timestamp DESC LIMIT 1)
+                 RETURNING attendance`,
+                [eventId, validatedName]
             );
+            const left = gone.rows[0]?.attendance;
+            if (left) await activity.logActivity(client, eventId, left === hosting.STATUS.WAITING ? 'leftlist' : 'left', { name: validatedName });
+            await waitingList.promote(client, event);
         }
-
-        // After action, fetch updated attendance data and broadcast
-        const eventRsvpsResult = await client.query('SELECT attendee_name FROM rsvps WHERE event_id = $1 AND attendance = $2', [eventId, 'yes']);
-        const attendees = eventRsvpsResult.rows.map(rsvp => rsvp.attendee_name);
-        const attendingCount = attendees.length;
-
-        broadcast({
-            type: 'attendance_update',
-            payload: {
-                eventId,
-                attendingCount,
-                attendees
-            }
-        });
-
-        // The list goes back in the response too. The broadcast above usually reaches the
-        // caller first, so a client that patched its own copy would apply the change twice.
-        res.json({
-            success: true,
-            message: `RSVP ${action === 'add' ? 'added' : 'removed'} successfully`,
-            attendingCount,
-            attendees
-        });
+        attendance = await attendanceOf(client, eventId);
+        await client.query('COMMIT');
     } catch (error) {
+        try { await client.query('ROLLBACK'); } catch (rollbackError) { /* connection gone */ }
+        if (error instanceof RsvpRefusal) return res.status(error.status).json({ success: false, message: error.message });
         console.error('Error submitting RSVP:', error);
-        res.status(500).json({ success: false, message: 'Internal server error' });
+        return res.status(500).json({ success: false, message: 'Internal server error' });
     } finally {
         client.release();
     }
+
+    broadcast({ type: 'attendance_update', payload: attendance });
+
+    const pending = status === hosting.STATUS.PENDING;
+    const listed = status === hosting.STATUS.WAITING;
+    const position = listed ? attendance.waitlist.lastIndexOf(validatedName) + 1 : null;
+    let message = `RSVP ${action === 'add' ? 'added' : 'removed'} successfully`;
+    if (pending) message = 'Request sent. The host decides.';
+    if (listed) message = `${validatedName} is ${waitingList.ordinal(position)} on the waiting list.`;
+
+    // The list goes back in the response too. The broadcast above usually reaches the
+    // caller first, so a client that patched its own copy would apply the change twice.
+    res.json({ success: true, pending, listed, position, message, ...attendance });
 });
 
-// POST /api/events endpoint removed - events are managed via Google Calendar sync
 
-// Update event attendance limit (ONLY - other fields sync from Google Calendar)
-app.put('/api/events/:id', async (req, res) => {
+// ---------------------------------------------------------------------------
+// Making and managing events. Lilai's database holds them; the publisher copies each change to
+// its Google calendar (calendar-publish.js).
+// ---------------------------------------------------------------------------
+
+function inputError(res, error) {
+    if (error instanceof hosting.EventInputError) {
+        res.status(400).json({ success: false, field: error.field, message: error.message });
+        return true;
+    }
+    return false;
+}
+
+// The calendars a request may write to: the open ones, and each restricted one that a calendar
+// key sent with it opens.
+async function writableCalendars(keys) {
+    const opened = await access.calendarsForKeys(pool, keys);
+    return publishedCalendars().filter(c => !c.restricted || opened.has(c.name));
+}
+
+const EVENT_FIELDS_SQL = `title = $2, date = $3, endDate = $4, location = $5, description = $6, links = $7,
+    attendance_limit = $8, approval_required = $9, location_address = $10, place_id = $11`;
+
+function eventFieldParams(id, edit, start, end) {
+    return [id, edit.title, start, end, edit.location || null, edit.description || null,
+        JSON.stringify(edit.links), edit.limit, edit.approval, edit.locationAddress || null, edit.placeId || null];
+}
+
+// A change the Google copy must follow: next version, pushed as soon as the publisher runs.
+const NEEDS_PUSH_SQL = 'version = version + 1, updated_at = NOW(), push_attempts = 0, push_error = NULL, next_push_at = NULL';
+
+// Make an event, or a repeating one (one row per date, one series). Open to anyone signed in;
+// the host email is the signed-in one, never typed. A restricted calendar takes one of its keys.
+app.post('/api/events', async (req, res) => {
+    const signedIn = await contacts.emailOf(req);
+    if (!signedIn) return res.status(401).json({ success: false, field: 'hostEmail', message: 'Sign in to make an event.' });
+    const calendars = publishedCalendars();
+    let input;
+    try {
+        input = hosting.validateEvent({ ...req.body, hostEmail: signedIn }, { mode: 'create', calendars: calendars.map(c => c.name), places: placeList(), allowAnyPlace: !placeAutocomplete.enabled });
+    } catch (error) {
+        if (inputError(res, error)) return;
+        throw error;
+    }
+    const calendar = calendars.find(c => c.name === input.calendar);
+    const writable = await writableCalendars(req.body?.calendarKeys);
+    if (!writable.some(c => c.name === calendar.name)) {
+        return res.status(403).json({
+            success: false,
+            field: 'calendar',
+            message: `Only ${calendar.name}'s admins can add events to it. Open your ${calendar.name} calendar link on this device first.`
+        });
+    }
+
+    const token = hosting.newToken();
+    const seriesId = input.occurrences.length > 1 ? uuidv4() : null;
+    const ids = [];
     const client = await pool.connect();
     try {
-        const { id } = req.params;
-        const { attendanceLimit } = req.body;
-
-        // ONLY allow attendance_limit updates - reject attempts to modify other fields
-        const bodyKeys = Object.keys(req.body);
-        if (bodyKeys.length !== 1 || attendanceLimit === undefined) {
-            return res.status(400).json({
-                success: false,
-                message: 'Only attendanceLimit can be updated. Other event fields are synced from Google Calendar.'
-            });
+        await client.query('BEGIN');
+        if (seriesId) {
+            await client.query('INSERT INTO event_series (id, rule) VALUES ($1, $2)', [seriesId, JSON.stringify(input.repeat)]);
         }
-
-        // Validate attendance limit
-        const limit = attendanceLimit === null || attendanceLimit === '' ? null : parseInt(attendanceLimit, 10);
-        if (limit !== null && (isNaN(limit) || limit < 0)) {
-            return res.status(400).json({
-                success: false,
-                message: 'Attendance limit must be a positive number or null'
-            });
-        }
-
-        await client.query(
-            'UPDATE events SET attendance_limit = $1 WHERE id = $2',
-            [limit, id]
-        );
-
-        const updatedEventResult = await client.query('SELECT * FROM events WHERE id = $1', [id]);
-        const updatedEvent = updatedEventResult.rows[0];
-
-        if (!updatedEvent) {
-            return res.status(404).json({ success: false, message: 'Event not found' });
-        }
-
-        const eventRsvpsResult = await client.query(
-            'SELECT attendee_name FROM rsvps WHERE event_id = $1 AND attendance = $2',
-            [id, 'yes']
-        );
-        const attendees = eventRsvpsResult.rows.map(rsvp => rsvp.attendee_name);
-        const attendingCount = attendees.length;
-
-        broadcast({
-            type: 'event_update',
-            payload: {
-                ...updatedEvent,
-                attendees,
-                attendingCount
+        for (const occurrence of input.occurrences) {
+            const googleId = hosting.newGoogleEventId();
+            const id = hosting.eventIdForGoogleId(googleId);
+            ids.push(id);
+            await client.query(
+                `INSERT INTO events (id, title, date, endDate, location, description, links, attendance_limit,
+                                     approval_required, location_address, place_id, source, host_name, host_email,
+                                     google_calendar_id, google_event_id, series_id,
+                                     managed, version, synced_version, created_in_app_at, updated_at)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $12, $15, $16, TRUE, 1, 0, NOW(), NOW())`,
+                [...eventFieldParams(id, input, occurrence.start, occurrence.end),
+                    calendar.id, input.hostName, input.hostEmail, googleId, seriesId]
+            );
+            await activity.logActivity(client, id, 'created', { name: input.hostName });
+            if (input.hostJoins) {
+                await client.query(
+                    'INSERT INTO rsvps (id, event_id, attendee_name, attendance, timestamp) VALUES ($1, $2, $3, $4, NOW())',
+                    [uuidv4(), id, input.hostName, hosting.STATUS.YES]
+                );
+                await activity.logActivity(client, id, 'joined', { name: input.hostName });
             }
-        });
-
-        res.json({ success: true, message: 'Attendance limit updated successfully', event: updatedEvent });
+        }
+        await client.query(
+            'INSERT INTO event_host_links (id, token_hash, event_id, series_id, created_via) VALUES ($1, $2, $3, $4, $5)',
+            [uuidv4(), hosting.hashToken(token), seriesId ? null : ids[0], seriesId, 'create']
+        );
+        await client.query('COMMIT');
     } catch (error) {
-        console.error('Error updating event:', error);
-        res.status(500).json({ success: false, message: 'Internal server error' });
+        try { await client.query('ROLLBACK'); } catch (rollbackError) { /* connection gone */ }
+        throw error;
     } finally {
         client.release();
     }
+
+    publisher.nudge();
+    broadcast({ type: 'event_created', payload: { ids } });
+    // The host's new name follows their email to their other devices.
+    if (input.hostName) broadcastRenamed((await contacts.setName(signedIn, input.hostName)).renamedIn);
+
+    // No email: the host is signed in, and Profile lists every event that email hosts.
+    const hostPath = `/host/${token}`;
+
+    res.status(201).json({
+        success: true,
+        id: ids[0],
+        ids,
+        count: ids.length,
+        date: input.occurrences[0].start.toISOString(),
+        hostPath,
+        publishing: Boolean(googleCalendar)
+    });
 });
 
-// DELETE /api/events/:id endpoint removed - events are managed via Google Calendar sync
+// The address links point at: config's publicUrl, else the request's own origin.
+function publicUrl(req) {
+    if (appConfig.publicUrl) return appConfig.publicUrl.replace(/\/+$/, '');
+    return `${req.get('x-forwarded-proto') || req.protocol}://${req.get('host')}`;
+}
+
+// A management link -> what it covers: { eventId } or { seriesId }. Null for a bad link.
+async function hostScope(token) {
+    if (!hosting.looksLikeToken(token)) return null;
+    const result = await pool.query('SELECT event_id, series_id FROM event_host_links WHERE token_hash = $1', [hosting.hashToken(token)]);
+    const row = result.rows[0];
+    return row ? { eventId: row.event_id, seriesId: row.series_id } : null;
+}
+
+/*
+ * The event a link manages: the one asked for, when the link covers it; else the link's own
+ * event, or for a series its next date still on (then its next date, then its latest).
+ */
+async function linkedEvent(db, scope, eventId, { lock = false } = {}) {
+    const forUpdate = lock ? ' FOR UPDATE' : '';
+    if (scope.eventId) {
+        if (eventId && eventId !== scope.eventId) return null;
+        return (await db.query(`SELECT * FROM events WHERE id = $1${forUpdate}`, [scope.eventId])).rows[0] || null;
+    }
+    if (eventId) {
+        return (await db.query(`SELECT * FROM events WHERE id = $1 AND series_id = $2${forUpdate}`, [eventId, scope.seriesId])).rows[0] || null;
+    }
+    return (await db.query(
+        `SELECT * FROM events WHERE series_id = $1
+         ORDER BY (date < NOW()), (cancelled_at IS NOT NULL), CASE WHEN date >= NOW() THEN date END, date DESC
+         LIMIT 1`,
+        [scope.seriesId]
+    )).rows[0] || null;
+}
+
+// Everything the management page draws, for one event (and its series).
+async function hostView(event) {
+    const requests = await pool.query(
+        `SELECT id, attendee_name, attendance, timestamp FROM rsvps WHERE event_id = $1 ORDER BY ${waitingList.ORDER}`,
+        [event.id]
+    );
+    const calendar = calendarById(event.source);
+    let series = null;
+    if (event.series_id) {
+        const [rule, dates] = await Promise.all([
+            pool.query('SELECT rule FROM event_series WHERE id = $1', [event.series_id]),
+            pool.query(
+                `SELECT e.id, e.date, e.cancelled_at,
+                        (SELECT COUNT(*) FROM rsvps r WHERE r.event_id = e.id AND r.attendance = 'yes')::int AS "attendingCount"
+                 FROM events e WHERE e.series_id = $1 ORDER BY e.date`,
+                [event.series_id]
+            )
+        ]);
+        const r = rule.rows[0]?.rule;
+        series = {
+            rule: r ? `${describeRule(r)}, until ${r.until}` : '',
+            dates: dates.rows.map(d => ({ id: d.id, date: d.date, cancelled: Boolean(d.cancelled_at), attendingCount: d.attendingCount }))
+        };
+    }
+    return {
+        success: true,
+        event: {
+            ...hosting.publicEvent(event),
+            host_email: event.host_email,
+            ...(await attendanceOf(pool, event.id)),
+            cancelled: Boolean(event.cancelled_at),
+            calendar: calendar ? { name: calendar.name, restricted: calendar.restricted } : null,
+            publish: hosting.publishState(event, { publishing: Boolean(googleCalendar) }),
+            form: hosting.formValues(event)
+        },
+        requests: requests.rows.map(r => ({ id: r.id, name: r.attendee_name, status: r.attendance, at: r.timestamp })),
+        activity: await activity.listActivity(pool, event.id),
+        messages: await chat.forHost(event),
+        series
+    };
+}
+
+// Resolve link + event for a write, inside a transaction with the event row locked.
+async function lockLinkedEvent(client, req, res) {
+    const scope = await hostScope(req.params.token);
+    const event = scope ? await linkedEvent(client, scope, req.params.eventId, { lock: true }) : null;
+    if (!event) {
+        res.status(404).json({ success: false, message: 'This link does not open that event.' });
+        return null;
+    }
+    if (!event.managed) {
+        res.status(409).json({ success: false, message: 'Lilai has not taken this calendar over from Google yet, so it cannot change this event.' });
+        return null;
+    }
+    return event;
+}
+
+// One write to a linked event, in a transaction. `work` returns the ids it changed, or null
+// when it already answered.
+async function withLinkedEvent(req, res, work) {
+    const client = await pool.connect();
+    let changed;
+    let event;
+    try {
+        await client.query('BEGIN');
+        event = await lockLinkedEvent(client, req, res);
+        if (!event) {
+            await client.query('ROLLBACK');
+            return null;
+        }
+        changed = await work(client, event);
+        if (!changed) {
+            await client.query('ROLLBACK');
+            return null;
+        }
+        await client.query('COMMIT');
+    } catch (error) {
+        try { await client.query('ROLLBACK'); } catch (rollbackError) { /* connection gone */ }
+        if (inputError(res, error)) return null;
+        throw error;
+    } finally {
+        client.release();
+    }
+    const fresh = (await pool.query('SELECT * FROM events WHERE id = $1', [event.id])).rows[0];
+    return { changed, fresh };
+}
+
+app.get('/api/host/:token', async (req, res) => {
+    const scope = await hostScope(req.params.token);
+    const event = scope ? await linkedEvent(pool, scope, req.query.event || null) : null;
+    if (!event) return res.status(404).json({ success: false, message: 'This link does not open any event.' });
+    res.set('Cache-Control', 'no-store').json(await hostView(event));
+});
+
+// One 'edited' row naming the fields that changed; an edit that changed nothing logs nothing.
+async function logEdit(client, before) {
+    const after = (await client.query('SELECT * FROM events WHERE id = $1', [before.id])).rows[0];
+    const fields = activity.changedFields(hosting.formValues(before), hosting.formValues(after));
+    if (fields.length) await activity.logActivity(client, before.id, 'edited', { detail: fields.join(', ') });
+}
+
+// Edit. On a repeating event, scope 'later' gives the same changes to every later date still
+// on, each keeping its own day.
+app.put('/api/host/:token/events/:eventId', async (req, res) => {
+    const result = await withLinkedEvent(req, res, async (client, event) => {
+        const edit = hosting.validateEvent(req.body, { mode: 'edit', current: event, places: placeList(), allowAnyPlace: !placeAutocomplete.enabled });
+        await client.query(`UPDATE events SET ${EVENT_FIELDS_SQL}, ${NEEDS_PUSH_SQL} WHERE id = $1`,
+            eventFieldParams(event.id, edit, edit.start, edit.end));
+        await logEdit(client, event);
+        const changed = [event.id];
+        if (edit.scope === 'later' && event.series_id) {
+            const later = await client.query(
+                `SELECT * FROM events WHERE series_id = $1 AND date > $2 AND cancelled_at IS NULL ORDER BY date FOR UPDATE`,
+                [event.series_id, event.date]
+            );
+            for (const row of later.rows) {
+                let times;
+                try {
+                    times = hosting.laterTimes(row, edit);
+                } catch (error) {
+                    throw new hosting.EventInputError('start', `On ${new Date(row.date).toISOString().slice(0, 10)} the clocks change and ${edit.startTime} does not exist. Pick another time.`);
+                }
+                await client.query(`UPDATE events SET ${EVENT_FIELDS_SQL}, ${NEEDS_PUSH_SQL} WHERE id = $1`,
+                    eventFieldParams(row.id, edit, times.start, times.end));
+                await logEdit(client, row);
+                changed.push(row.id);
+            }
+        }
+        // A raised limit, or one taken away, opens places for the waiting list.
+        for (const id of changed) {
+            await waitingList.promote(client, (await client.query('SELECT * FROM events WHERE id = $1', [id])).rows[0]);
+        }
+        return changed;
+    });
+    if (!result) return;
+    publisher.nudge();
+    broadcast({ type: 'event_update', payload: { ids: result.changed } });
+    res.json(await hostView(result.fresh));
+});
+
+// Cancel: the event leaves Home and its Google copy is deleted. RSVPs stay, so Restore
+// brings it back as it was.
+app.post('/api/host/:token/events/:eventId/cancel', async (req, res) => {
+    const later = req.body?.scope === 'later';
+    const result = await withLinkedEvent(req, res, async (client, event) => {
+        const done = await client.query(
+            `UPDATE events SET cancelled_at = NOW(), ${NEEDS_PUSH_SQL}
+             WHERE cancelled_at IS NULL AND (id = $1 OR ($2::uuid IS NOT NULL AND series_id = $2 AND date > $3))
+             RETURNING id`,
+            [event.id, later ? event.series_id : null, event.date]
+        );
+        for (const row of done.rows) await activity.logActivity(client, row.id, 'cancelled');
+        return done.rows.map(r => r.id).concat(event.cancelled_at ? [event.id] : []);
+    });
+    if (!result) return;
+    publisher.nudge();
+    broadcast({ type: 'event_cancelled', payload: { ids: result.changed } });
+    res.json(await hostView(result.fresh));
+});
+
+app.post('/api/host/:token/events/:eventId/restore', async (req, res) => {
+    const result = await withLinkedEvent(req, res, async (client, event) => {
+        if (!event.cancelled_at) return [event.id];
+        await client.query(`UPDATE events SET cancelled_at = NULL, ${NEEDS_PUSH_SQL} WHERE id = $1`, [event.id]);
+        await activity.logActivity(client, event.id, 'restored');
+        return [event.id];
+    });
+    if (!result) return;
+    publisher.nudge();
+    broadcast({ type: 'event_update', payload: { ids: result.changed } });
+    res.json(await hostView(result.fresh));
+});
+
+// Accept, decline, or put back among the requests or on the waiting list. Accepting respects
+// the limit, under the row lock, so two quick taps cannot both take the last seat; moving
+// someone in from the waiting list is the host's own call and may go past it. Whatever a
+// decision frees goes to the first name waiting.
+app.post('/api/host/:token/events/:eventId/requests/:rsvpId', async (req, res) => {
+    const status = hosting.DECISIONS[req.body?.decision];
+    if (!status) {
+        return res.status(400).json({ success: false, message: 'Decision must be accept, decline, undo or wait.' });
+    }
+    const result = await withLinkedEvent(req, res, async (client, event) => {
+        const found = await client.query('SELECT attendance, attendee_name FROM rsvps WHERE id = $1 AND event_id = $2', [req.params.rsvpId, event.id]);
+        if (!found.rows[0]) {
+            res.status(404).json({ success: false, message: 'That request is gone. Its owner may have withdrawn it.' });
+            return null;
+        }
+        const from = found.rows[0].attendance;
+        if (status === hosting.STATUS.YES && from !== hosting.STATUS.YES && from !== hosting.STATUS.WAITING && event.attendance_limit !== null) {
+            const taken = await client.query('SELECT COUNT(*) FROM rsvps WHERE event_id = $1 AND attendance = $2', [event.id, hosting.STATUS.YES]);
+            if (parseInt(taken.rows[0].count, 10) >= event.attendance_limit) {
+                res.status(409).json({
+                    success: false,
+                    message: `All ${event.attendance_limit} places are taken. Free one first, or raise the limit.`
+                });
+                return null;
+            }
+        }
+        await client.query('UPDATE rsvps SET attendance = $1 WHERE id = $2', [status, req.params.rsvpId]);
+        const kind = activity.decisionKind(from, status);
+        if (kind) await activity.logActivity(client, event.id, kind, { name: found.rows[0].attendee_name });
+        await waitingList.promote(client, event);
+        return [event.id];
+    });
+    if (!result) return;
+    broadcast({ type: 'attendance_update', payload: await attendanceOf(pool, result.fresh.id) });
+    res.json(await hostView(result.fresh));
+});
+
+// The host removes a message from the event's chat.
+app.delete('/api/host/:token/events/:eventId/messages/:messageId', async (req, res) => {
+    const scope = await hostScope(req.params.token);
+    const event = scope ? await linkedEvent(pool, scope, req.params.eventId) : null;
+    if (!event) return res.status(404).json({ success: false, message: 'This link does not open that event.' });
+    let done;
+    try {
+        done = await chat.hostRemove(event.id, req.params.messageId);
+    } catch (error) {
+        if (chatError(res, error)) return;
+        throw error;
+    }
+    broadcast({ type: 'event_message', payload: { action: 'deleted', eventId: event.id, id: done.id, count: done.count } });
+    res.json(await hostView(event));
+});
+
+// ---------------------------------------------------------------------------
+// Chat in an event (event-chat.js). Reading and liking are open; posting, editing and
+// removing one's own message need the sign-in session.
+// ---------------------------------------------------------------------------
+
+function chatError(res, error) {
+    if (!(error instanceof chatLib.ChatError)) return false;
+    res.status(error.status).json({ success: false, field: error.field, message: error.message });
+    return true;
+}
+
+// Every chat route answers through here, so a ChatError becomes its own status.
+function chatRoute(handler) {
+    return async (req, res) => {
+        try {
+            await handler(req, res);
+        } catch (error) {
+            if (!chatError(res, error)) throw error;
+        }
+    };
+}
+
+app.get('/api/events/:id/messages', chatRoute(async (req, res) => {
+    const email = await contacts.emailOf(req);
+    const thread = await chat.list(req.params.id, { email, likerKey: req.query.liker });
+    res.set('Cache-Control', 'no-store').json({ success: true, ...thread });
+}));
+
+app.post('/api/events/:id/messages', chatRoute(async (req, res) => {
+    const email = await contacts.emailOf(req);
+    const { message, count } = await chat.post(req.params.id, email, req.body, { ip: req.ip });
+    broadcast({ type: 'event_message', payload: { action: 'posted', eventId: message.eventId, message: { ...message, mine: false, liked: false }, count } });
+    res.status(201).json({ success: true, message, count });
+}));
+
+app.put('/api/events/:id/messages/:messageId', chatRoute(async (req, res) => {
+    const email = await contacts.emailOf(req);
+    const { message } = await chat.edit(req.params.id, req.params.messageId, email, req.body);
+    broadcast({ type: 'event_message', payload: { action: 'edited', eventId: message.eventId, message: { ...message, mine: false, liked: false } } });
+    res.json({ success: true, message });
+}));
+
+app.delete('/api/events/:id/messages/:messageId', chatRoute(async (req, res) => {
+    const email = await contacts.emailOf(req);
+    const done = await chat.remove(req.params.id, req.params.messageId, email);
+    broadcast({ type: 'event_message', payload: { action: 'deleted', eventId: req.params.id, id: done.id, count: done.count } });
+    res.json({ success: true, ...done });
+}));
+
+app.post('/api/events/:id/messages/:messageId/like', chatRoute(async (req, res) => {
+    const done = await chat.like(req.params.id, req.params.messageId, req.body?.liker, req.body?.like !== false, { ip: req.ip });
+    broadcast({ type: 'event_message', payload: { action: 'liked', eventId: req.params.id, id: done.id, likes: done.likes } });
+    res.json({ success: true, ...done });
+}));
+
+// A sign-in link for the chat: any address may have one, and it comes back to the thread.
+app.post('/api/events/:id/messages/signin', chatRoute(async (req, res) => {
+    const eventId = String(req.params.id);
+    try {
+        await contacts.requestSignIn(req.body?.email, {
+            ip: req.ip, baseUrl: publicUrl(req), next: `/#chat-${encodeURIComponent(eventId)}`
+        });
+    } catch (error) {
+        if (!error.status) throw error;
+        return res.status(error.status).json({ success: false, field: error.field, message: error.message });
+    }
+    res.json({ success: true });
+}));
+
+// ---------------------------------------------------------------------------
+// Calendar keys (calendar-access.js): a calendar's page, and a way into each of its events.
+// ---------------------------------------------------------------------------
+
+async function keyedCalendar(token) {
+    const name = await access.calendarForKey(pool, token);
+    return name ? publishedCalendars().find(c => c.name === name) || null : null;
+}
+
+app.get('/api/calendar-access/:token', async (req, res) => {
+    const calendar = await keyedCalendar(req.params.token);
+    if (!calendar) return res.status(404).json({ success: false, message: 'This calendar link does not work any more.' });
+    const events = await pool.query(
+        `SELECT e.id, e.title, e.date, e.endDate, e.location, e.attendance_limit, e.approval_required, e.series_id, e.managed,
+                (SELECT COUNT(*) FROM rsvps r WHERE r.event_id = e.id AND r.attendance = 'yes')::int AS "attendingCount",
+                (SELECT COUNT(*) FROM rsvps r WHERE r.event_id = e.id AND r.attendance = 'pending')::int AS "pendingCount"
+         FROM events e
+         WHERE e.source = $1 AND e.cancelled_at IS NULL AND e.date >= NOW() - INTERVAL '12 hours'
+         ORDER BY e.date LIMIT 200`,
+        [calendar.id]
+    );
+    res.set('Cache-Control', 'no-store').json({
+        success: true,
+        calendar: { name: calendar.name, restricted: calendar.restricted, imported: importedCalendars.has(calendar.id) },
+        events: events.rows
+    });
+});
+
+// A management link for one of the calendar's events, made for whoever holds the key. A
+// series gets one link for all its dates.
+app.post('/api/calendar-access/:token/events/:eventId/manage', async (req, res) => {
+    const calendar = await keyedCalendar(req.params.token);
+    if (!calendar) return res.status(404).json({ success: false, message: 'This calendar link does not work any more.' });
+    const event = (await pool.query('SELECT id, source, managed, series_id FROM events WHERE id = $1', [req.params.eventId])).rows[0];
+    if (!event || event.source !== calendar.id) {
+        return res.status(404).json({ success: false, message: `That event is not in ${calendar.name}.` });
+    }
+    if (!event.managed) {
+        return res.status(409).json({ success: false, message: 'Lilai has not taken this calendar over from Google yet, so its events cannot be managed here.' });
+    }
+    const token = hosting.newToken();
+    await pool.query(
+        'INSERT INTO event_host_links (id, token_hash, event_id, series_id, created_via) VALUES ($1, $2, $3, $4, $5)',
+        [uuidv4(), hosting.hashToken(token), event.series_id ? null : event.id, event.series_id, 'calendar']
+    );
+    res.status(201).json({ success: true, hostPath: `/host/${token}` });
+});
+
+// The saved places, in the owner's order (server/places.js, edited on /admin/places).
+function placeList() {
+    return placeStore.list();
+}
+
+// google: whether the form may also search Google Maps (GOOGLE_MAPS_API_KEY is set).
+app.get('/api/places', (req, res) => {
+    res.json({ places: placeList(), google: placeAutocomplete.enabled });
+});
+
+// The saved places' admin (/admin/places), behind the admin key: the list is what every
+// host is offered.
+function placeError(res, error) {
+    if (!(error instanceof places.PlaceInputError)) return false;
+    res.status(error.message.startsWith('There is already') ? 409 : 400).json({ field: error.field, message: error.message });
+    return true;
+}
+
+app.post('/api/places', adminAuth.requireAdmin, async (req, res) => {
+    try {
+        res.status(201).json({ place: await placeStore.add(req.body) });
+    } catch (error) {
+        if (!placeError(res, error)) throw error;
+    }
+});
+
+app.put('/api/places/order', adminAuth.requireAdmin, async (req, res) => {
+    await placeStore.reorder(req.body?.ids);
+    res.json({ places: placeList() });
+});
+
+app.put('/api/places/:id', adminAuth.requireAdmin, async (req, res) => {
+    try {
+        const place = await placeStore.update(Number(req.params.id), req.body);
+        if (!place) return res.status(404).json({ message: 'That place is gone.' });
+        res.json({ place });
+    } catch (error) {
+        if (!placeError(res, error)) throw error;
+    }
+});
+
+app.delete('/api/places/:id', adminAuth.requireAdmin, async (req, res) => {
+    const removed = await placeStore.remove(Number(req.params.id));
+    if (!removed) return res.status(404).json({ message: 'That place is gone.' });
+    res.json({ success: true });
+});
+
+// Google Maps suggestions for what is typed, through server/place-autocomplete.js.
+app.get('/api/places/search', async (req, res) => {
+    try {
+        const results = await placeAutocomplete.search(req.query.q, { sessionToken: req.query.session, caller: req.ip });
+        res.json({ results });
+    } catch (error) {
+        console.error('[places]', error.message);
+        res.status(502).json({ results: [], error: 'Google Maps search is not answering.' });
+    }
+});
 
 // Donations API Routes
 
@@ -953,7 +1494,7 @@ app.get('/api/donations', async (req, res) => {
 });
 
 // Create a new donation (admin only - requires API key)
-app.post('/api/donations', requireAdminKey, async (req, res) => {
+app.post('/api/donations', adminAuth.requireAdmin, async (req, res) => {
     const client = await pool.connect();
     try {
         const { amount, description, donator, entry_date } = req.body;
@@ -2339,12 +2880,9 @@ app.get('/api/health', (req, res) => {
     res.json({ status: 'OK', timestamp: new Date().toISOString() });
 });
 
-app.get('/admin', (req, res) => {
-    res.redirect(301, '/admin/events');
-});
-
-app.get('/admin/events', (req, res) => {
-    res.sendFile(path.join(__dirname, '../public/admin.html'));
+// Events are managed on their own pages now; the admin area starts at the booking queue.
+app.get(['/admin', '/admin/events'], (req, res) => {
+    res.redirect(302, '/admin/bookings');
 });
 
 app.get('/admin/bookings', (req, res) => {
@@ -2355,7 +2893,126 @@ app.get('/admin/bookings/:id', (req, res) => {
     res.sendFile(path.join(__dirname, '../public/admin-booking-detail.html'));
 });
 
-app.get('/admin/donations', (req, res) => {
+// Making an event is a sheet on Home.
+app.get('/events/new', (req, res) => {
+    res.redirect(302, '/#new');
+});
+
+// Management and calendar links carry their token in the path: keep it out of other sites'
+// Referer headers and out of caches.
+app.get('/host/:token', (req, res) => {
+    res.set('Referrer-Policy', 'no-referrer').set('Cache-Control', 'no-store');
+    res.sendFile(path.join(__dirname, '../public/host.html'));
+});
+
+app.get('/calendars/:token', (req, res) => {
+    res.set('Referrer-Policy', 'no-referrer').set('Cache-Control', 'no-store');
+    res.sendFile(path.join(__dirname, '../public/calendar.html'));
+});
+
+// The sign-in page (/me): it asks for an email, and the emailed link signs this device in.
+// The link carries its token in the path, so it gets the management page's headers.
+app.get(['/me', '/me/signin/:token'], (req, res) => {
+    res.set('Referrer-Policy', 'no-referrer').set('Cache-Control', 'no-store');
+    res.sendFile(path.join(__dirname, '../public/me.html'));
+});
+
+app.post('/api/me/link', async (req, res) => {
+    try {
+        await contacts.requestSignIn(req.body?.email, { ip: req.ip, baseUrl: publicUrl(req), next: req.body?.next });
+    } catch (error) {
+        if (!error.status) throw error;
+        return res.status(error.status).json({ success: false, field: error.field, message: error.message });
+    }
+    res.json({ success: true });
+});
+
+app.post('/api/me/session', async (req, res) => {
+    const signedIn = await contacts.redeem(req.body?.token, req.get('user-agent'));
+    if (!signedIn) return res.status(401).json({ success: false, message: 'This link has run out. Ask for a new one.' });
+    contacts.signIn(res, signedIn.session);
+    // Without a name yet, the page asks for one before going on (js/me.js).
+    res.json({ success: true, ...(await contacts.profileOf(signedIn.email)) });
+});
+
+app.delete('/api/me/session', async (req, res) => {
+    await contacts.signOut(req, res);
+    res.json({ success: true });
+});
+
+app.get('/api/me', async (req, res) => {
+    const email = await contacts.emailOf(req);
+    res.set('Cache-Control', 'no-store');
+    if (!email) return res.status(401).json({ success: false, message: 'Not signed in.' });
+    res.json({ success: true, ...(await contacts.profileOf(email)), chatMessages: await chat.countBy(email), ...(await contacts.eventsOf(email)) });
+});
+
+// The name a signed-in device fills in for RSVPs and new events (js/me.js).
+app.put('/api/me/name', async (req, res) => {
+    const email = await contacts.emailOf(req);
+    if (!email) return res.status(401).json({ success: false, message: 'Sign in again.' });
+    const { name, renamedIn } = await contacts.setName(email, req.body?.name);
+    broadcastRenamed(renamedIn);
+    res.json({ success: true, name });
+});
+
+app.post('/api/me/events/:eventId/manage', async (req, res) => {
+    const email = await contacts.emailOf(req);
+    if (!email) return res.status(401).json({ success: false, message: 'Sign in again.' });
+    const hostPath = await contacts.manageLink(email, req.params.eventId);
+    if (!hostPath) return res.status(404).json({ success: false, message: 'That event is not one of yours.' });
+    res.status(201).json({ success: true, hostPath });
+});
+
+// Delete my email: the address leaves every event and RSVP, and every device signs out.
+app.delete('/api/me', async (req, res) => {
+    const email = await contacts.emailOf(req);
+    if (!email) return res.status(401).json({ success: false, message: 'Sign in again.' });
+    await contacts.forget(email);
+    await chat.forget(email);
+    await contacts.signOut(req, res);
+    res.json({ success: true });
+});
+
+// Admin sign-in: a code to an address on ADMIN_EMAILS, then a 30-day cookie.
+app.get('/admin/login', async (req, res) => {
+    const next = String(req.query.next || '');
+    if (await adminAuth.adminOf(req)) return res.redirect(302, next.startsWith('/admin/') ? next : '/admin/donations');
+    res.set('Cache-Control', 'no-store');
+    res.sendFile(path.join(__dirname, '../public/admin-login.html'));
+});
+
+app.post('/api/admin/code', async (req, res) => {
+    const result = await adminAuth.sendCode(req.body?.email);
+    if (!result.sent) return res.status(503).json({ message: result.reason });
+    res.json({ success: true });
+});
+
+app.post('/api/admin/session', async (req, res) => {
+    const token = await adminAuth.verifyCode(req.body?.email, req.body?.code);
+    if (!token) return res.status(401).json({ field: 'code', message: 'That code is wrong or has run out. Ask for a new one.' });
+    adminAuth.signIn(res, token);
+    res.json({ success: true });
+});
+
+app.get('/api/admin/session', async (req, res) => {
+    const email = await adminAuth.adminOf(req);
+    if (!email) return res.status(401).json({ message: 'Not signed in.' });
+    res.set('Cache-Control', 'no-store').json({ email });
+});
+
+// Sign out of the admin, and of this device's /me session, which would let it straight back in.
+app.delete('/api/admin/session', async (req, res) => {
+    await adminAuth.signOut(req, res);
+    await contacts.signOut(req, res);
+    res.json({ success: true });
+});
+
+app.get('/admin/places', adminAuth.requireAdminPage, (req, res) => {
+    res.sendFile(path.join(__dirname, '../public/admin-places.html'));
+});
+
+app.get('/admin/donations', adminAuth.requireAdminPage, (req, res) => {
     res.sendFile(path.join(__dirname, '../public/admin-donations.html'));
 });
 
@@ -2386,6 +3043,38 @@ app.use((err, req, res, next) => {
  * Submission is off unless BOOKING_SUBMIT=live is set. Dry run exercises the claim and
  * the whole state machine without sending anything to KU Leuven.
  */
+// Copies each change to an event into its Google calendar (calendar-publish.js).
+const publisher = createPublisher({
+    pool,
+    googleCalendar,
+    publicUrl: appConfig.publicUrl || null,
+    places: () => placeList(),
+    broadcast
+});
+
+/*
+ * Take each calendar over from Google once (calendar-import.js). Needs credentials; a failure
+ * is retried every ten minutes, and the legacy feed keeps that calendar fresh meanwhile.
+ */
+async function importCalendars() {
+    if (!googleCalendar) return;
+    let failed = false;
+    for (const calendar of publishedCalendars()) {
+        if (importedCalendars.has(calendar.id)) continue;
+        try {
+            const { imported, removed } = await importCalendar({ pool, googleCalendar, calendarId: calendar.id, sanitize: sanitizeHtmlText });
+            importedCalendars.add(calendar.id);
+            console.log(`[import] ${calendar.name}: took over ${imported} events from Google, dropped ${removed} gone ones.`);
+            publisher.nudge();
+            broadcast({ type: 'event_update', payload: { ids: [] } });
+        } catch (error) {
+            failed = true;
+            console.error(`[import] ${calendar.name} failed:`, error.message);
+        }
+    }
+    if (failed) setTimeout(importCalendars, 10 * 60 * 1000).unref();
+}
+
 const bookingScheduler = bookingConfigError ? null : createScheduler({
     pool,
     broadcast,
@@ -2405,6 +3094,7 @@ async function initializeDatabaseWithRetry() {
     for (let attempt = 1; ; attempt++) {
         try {
             await initializeDatabase();
+            await placeStore.load();
             return;
         } catch (error) {
             if (attempt >= DB_CONNECT_ATTEMPTS) throw error;
@@ -2420,8 +3110,20 @@ initializeDatabaseWithRetry().then(() => {
         console.log(`🚀 Event Attendance App server running on http://localhost:${PORT}`);
         console.log('🎉 Ready to accept RSVPs!');
     });
-    // Pull the feed now, so the first visitor after a restart is not the one who triggers it.
-    if (appConfig.events.autoFetch) refreshCalendar();
+    importedCalendarIds(pool).then((ids) => {
+        importedCalendars = ids;
+        // Pull the feed now for calendars not yet taken over, so the first visitor after a
+        // restart is not the one who triggers it.
+        if (appConfig.events.autoFetch && legacyFeedNeeded()) refreshCalendar();
+        return importCalendars();
+    }).catch((error) => console.error('Calendar takeover failed to start:', error.message));
+    publisher.start();
+    // Chat threads end 180 days after their event; checked at boot and every six hours.
+    const expireChats = () => chat.expire()
+        .then((n) => { if (n) console.log(`[chat] ${n} old messages deleted`); })
+        .catch((error) => console.error('[chat] expiry failed:', error.message));
+    expireChats();
+    setInterval(expireChats, 6 * 3600 * 1000).unref();
     if (bookingScheduler) {
         bookingScheduler.start().catch((error) => {
             console.error('Booking scheduler failed to start:', error.message);

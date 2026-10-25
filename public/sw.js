@@ -1,4 +1,4 @@
-const CACHE_NAME = 'lilai-cache-v50'; // Bumped version
+const CACHE_NAME = 'lilai-cache-v102'; // Bumped version
 const urlsToCache = [
   '/',
   '/index.html',
@@ -11,9 +11,18 @@ const urlsToCache = [
   '/bauhaus/fonts/jost-latin.woff2',
   '/app.js',
   '/js/theme.js',
+  '/js/sprites.js',
+  '/js/account-link.js',
   '/js/feedback.js',
   '/js/sheet.js',
   '/js/date-rail.js',
+  '/js/event-links.js',
+  '/js/event-form.js',
+  '/js/time-wheel.js',
+  '/js/device-links.js',
+  '/js/event-chat.js',
+  '/js/place-search.js',
+  '/js/make-event.js',
   '/js/pull-to-refresh.js',
   '/manifest.json',
   '/icons/icon-192x192.png',
@@ -74,11 +83,21 @@ function isOurCode(url) {
             || url.pathname.startsWith('/api/'));
 }
 
+// Management, calendar and sign-in pages, and their answers, carry a secret link or a
+// person's events: never into Cache Storage. Nor does an event's chat, which says who is signed in.
+function isHostTraffic(url) {
+    return url.origin === self.location.origin
+        && (['/host/', '/api/host/', '/calendars/', '/api/calendar-access/', '/me', '/api/me'].some(p => url.pathname.startsWith(p))
+            || /^\/api\/events\/[^/]+\/messages/.test(url.pathname));
+}
+
 self.addEventListener('fetch', (event) => {
     // Ignore non-GET requests and requests to non-web-standard schemes
     if (event.request.method !== 'GET' || !event.request.url.startsWith('http')) {
         return;
     }
+
+    if (isHostTraffic(new URL(event.request.url))) return;
 
     if (isOurCode(new URL(event.request.url))) {
         event.respondWith(

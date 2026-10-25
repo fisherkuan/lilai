@@ -2,8 +2,10 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <!-- Old links to Home's lost-link sheet go to the sign-in page. -->
+    <script>if(location.hash==="#lost-link")location.replace("/me")</script>
     <!-- Apply a saved theme before first paint; the switch itself is js/theme.js. -->
-    <script>try{var t=localStorage.getItem("lilaiTheme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}</script>
+    <script>var t="light";try{if(localStorage.getItem("lilaiTheme")==="dark")t="dark"}catch(e){}document.documentElement.dataset.theme=t</script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Lilai</title>
     <meta name="description" content="Discover upcoming meetups and RSVP in seconds.">
@@ -45,8 +47,9 @@
         <span class="wordmark-name">Lilai</span>
     </a>
     <nav class="app-header-links" aria-label="Site links">
-        <a href="faq.html">FAQ</a>
-        <a href="/donate">Donate</a>
+        <a href="faq.html" data-hdr="faq">FAQ</a>
+        <a href="/donate" data-hdr="donate">Donate</a>
+        <a href="/me" data-account-link>Sign in</a>
     </nav>
 </header>
 
@@ -55,13 +58,18 @@
         <div class="rail-head">
             <h2 class="rail-title" id="rail-title">Upcoming</h2>
             <p class="rail-range" id="rail-range"></p>
-            <div class="view-switch" role="radiogroup" aria-label="Show events as">
-                <button type="button" class="view-btn" role="radio" aria-checked="true" data-view="cards" aria-label="Cards" title="Cards">
-                    <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="7" rx="2"/><rect x="4" y="13" width="16" height="7" rx="2"/></svg>
+            <div class="rail-tools">
+                <button type="button" class="new-event-btn" data-make-event aria-label="Create an event" title="Create an event">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
                 </button>
-                <button type="button" class="view-btn" role="radio" aria-checked="false" data-view="rows" aria-label="Rows" title="Rows">
-                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
-                </button>
+                <div class="view-switch" role="radiogroup" aria-label="Show events as">
+                    <button type="button" class="view-btn" role="radio" aria-checked="true" data-view="cards" aria-label="Cards" title="Cards">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="7" rx="2"/><rect x="4" y="13" width="16" height="7" rx="2"/></svg>
+                    </button>
+                    <button type="button" class="view-btn" role="radio" aria-checked="false" data-view="rows" aria-label="Rows" title="Rows">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+                    </button>
+                </div>
             </div>
         </div>
         <div id="rail-container"></div>
@@ -93,17 +101,23 @@
         </div>
     </section>
 
-    <aside class="sidebar" aria-label="Calendar links and support">
+    <aside class="sidebar" aria-label="Hosting, calendars and support">
+        <section class="side-block side-host" aria-label="Hosting">
+            <button type="button" class="btn btn-solid side-create" id="create-event-btn" data-make-event><span class="side-create-plus" aria-hidden="true">+</span>Create an event</button>
+            <div class="ev-hosted" id="hosted-list" hidden>
+                <h2 class="side-subtitle">You manage</h2>
+                <ul class="hosted-rows" id="hosted-items"></ul>
+            </div>
+            <a class="text-btn side-lost" href="/me" data-signed-out>Sign in</a>
+        </section>
+
         <section class="side-block" aria-labelledby="side-cal-title">
-            <h2 class="side-title" id="side-cal-title">Add to the calendar</h2>
-            <a href="https://calendar.google.com/calendar/u/0/r/eventedit" target="_blank" rel="noopener noreferrer" class="btn btn-line" id="create-event-btn">Create an event</a>
-            <p class="side-note">Only members of the <a href="#" id="join-group-link" target="_blank" rel="noopener noreferrer">Leuven Taiwanese group</a> can add events. Subscribe in your own calendar app:</p>
+            <h2 class="side-title" id="side-cal-title">Subscribe on Google Calendar</h2>
             <div class="subscribe-list" id="add-to-calendar-dropdown"></div>
         </section>
 
         <section class="side-block" aria-labelledby="side-support-title">
             <h2 class="side-title" id="side-support-title">Keep this running</h2>
-            <p class="side-note">Hosting this app costs money. Donations go directly to operating expenses.</p>
             <a href="/donate" class="text-link">Donate</a>
         </section>
     </aside>
@@ -124,17 +138,28 @@
         </div>
         <p class="sheet-when" id="modal-event-date">Event date</p>
         <p class="sheet-desc" id="modal-event-description"></p>
-        <div class="field">
-            <div class="field-label-row">
-                <label for="attendee-name">Your name</label>
-                <button type="button" id="forget-name-btn" class="text-btn" hidden>Not you?</button>
+        <div class="sheet-links" id="modal-event-links" hidden></div>
+        <div id="rsvp-form-part">
+            <p class="sheet-desc sheet-approval" id="modal-approval-note" hidden></p>
+            <div class="field">
+                <div class="field-label-row">
+                    <label for="attendee-name">Your name</label>
+                    <button type="button" id="forget-name-btn" class="text-btn" hidden>Not you?</button>
+                </div>
+                <input type="text" id="attendee-name" class="input" autocomplete="name" enterkeyhint="done">
+                <p class="field-error" id="rsvp-error" role="alert" hidden></p>
             </div>
-            <input type="text" id="attendee-name" class="input" autocomplete="name" enterkeyhint="done">
-            <p class="field-error" id="rsvp-error" role="alert" hidden></p>
+            <div class="sheet-actions">
+                <button type="button" class="btn btn-solid rsvp-add-btn" onclick="submitRsvp('add')"><span class="text">Confirm</span></button>
+                <button type="button" class="text-btn" onclick="closeRsvpModal()">Cancel</button>
+            </div>
         </div>
-        <div class="sheet-actions">
-            <button type="button" class="btn btn-solid rsvp-add-btn" onclick="submitRsvp('add')"><span class="text">Confirm</span></button>
-            <button type="button" class="text-btn" onclick="closeRsvpModal()">Cancel</button>
+        <div class="sheet-sent" id="rsvp-sent" hidden>
+            <p class="sheet-sent-title" id="rsvp-sent-title">Request sent</p>
+            <p class="sheet-desc" id="rsvp-sent-text"></p>
+            <div class="sheet-actions">
+                <button type="button" class="btn btn-solid" id="rsvp-sent-done" onclick="closeRsvpModal()">Done</button>
+            </div>
         </div>
     </div>
 </div>
@@ -149,14 +174,110 @@
             </button>
         </div>
         <p class="sheet-when" id="remove-modal-event-date">Event date</p>
-        <div class="field">
+        <div class="field" id="remove-pick">
             <label for="attendee-to-remove">Whose spot to give up</label>
             <select id="attendee-to-remove" class="input select"></select>
             <p class="field-error" id="remove-error" role="alert" hidden></p>
         </div>
         <div class="sheet-actions">
-            <button type="button" class="btn btn-solid rsvp-remove-btn" onclick="submitRemoveRsvp()"><span class="text">Remove</span></button>
+            <button type="button" class="btn btn-danger rsvp-remove-btn" onclick="submitRemoveRsvp()"><span class="text">Remove</span></button>
             <button type="button" class="text-btn" onclick="closeRemoveRsvpModal()">Keep it</button>
+        </div>
+    </div>
+</div>
+
+<!-- Make an event: a sheet that slides in (js/make-event.js, js/event-form.js) -->
+<div id="event-sheet" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="event-sheet-title">
+    <div class="sheet sheet-make sheet-cards">
+        <div class="sheet-head">
+            <h3 class="sheet-title" id="event-sheet-title">Make an event</h3>
+            <button type="button" class="icon-btn" data-close aria-label="Close">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
+            </button>
+        </div>
+        <!-- Not signed in: an event is tied to the signed-in email (js/make-event.js) -->
+        <form id="event-signin" novalidate hidden>
+            <section class="ev-card" aria-labelledby="event-signin-title">
+                <h3 class="ev-card-title" id="event-signin-title">Sign in first</h3>
+                <div id="event-signin-fields">
+                    <p class="ev-hint">Lilai emails you a link. Open it on this device and you come back here.</p>
+                    <div class="field">
+                        <label for="event-signin-email">Email</label>
+                        <input type="email" id="event-signin-email" class="input" autocomplete="email" inputmode="email" required>
+                        <p class="field-error" id="event-signin-error" role="alert" hidden></p>
+                    </div>
+                </div>
+                <p class="ev-hint" id="event-signin-sent" role="status" hidden></p>
+            </section>
+            <div class="sheet-actions">
+                <button type="submit" class="btn btn-solid" id="event-signin-send"><span class="text">Email me a link</span></button>
+                <button type="button" class="text-btn" data-close>Cancel</button>
+            </div>
+        </form>
+        <form id="event-sheet-form" novalidate>
+            <div id="event-form-fields"></div>
+            <p class="field-error ev-form-error" id="event-form-error" role="alert" hidden></p>
+            <div class="sheet-actions">
+                <button type="submit" class="btn btn-solid" id="event-submit"><span class="text">Make event</span></button>
+                <button type="button" class="text-btn" data-close>Cancel</button>
+            </div>
+        </form>
+        <section class="ev-done" id="event-made" hidden tabindex="-1" aria-labelledby="event-made-title">
+            <p class="ev-done-title" id="event-made-title"></p>
+            <p class="ev-done-when" id="event-made-when"></p>
+            <div class="ev-hostlink">
+                <p class="ev-label">Management link</p>
+                <p class="ev-hint">Anyone with this link can manage the event.</p>
+                <code class="ev-hostlink-url" id="event-made-url"></code>
+                <div class="ev-hostlink-actions">
+                    <button type="button" class="text-btn" id="event-made-copy">Copy link</button>
+                    <button type="button" class="text-btn" id="event-made-share" hidden>Share</button>
+                </div>
+                <p class="ev-hint">Find it again any time under <a href="/me">Profile</a>.</p>
+            </div>
+            <p class="ev-hint" id="event-made-publish" hidden></p>
+            <div class="sheet-actions">
+                <a class="btn btn-solid" id="event-made-open" href="#">Open management page</a>
+                <button type="button" class="text-btn" data-close>Done</button>
+            </div>
+        </section>
+    </div>
+</div>
+
+<!-- Chat in an event: a thread that slides in from a card's chat button (js/event-chat.js) -->
+<div id="chat-sheet" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="chat-title">
+    <div class="sheet sheet-chat">
+        <div class="sheet-head">
+            <div class="chat-head">
+                <h3 class="sheet-title" id="chat-title">Chat</h3>
+                <p class="sheet-when" id="chat-when"></p>
+            </div>
+            <button type="button" class="icon-btn" data-close aria-label="Close">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
+            </button>
+        </div>
+        <ol class="chat-list" id="chat-list" aria-live="polite" aria-label="Messages"></ol>
+        <div class="chat-foot">
+            <form id="chat-form" novalidate hidden>
+                <p class="chat-as" id="chat-as">Posting as <strong id="chat-as-name"></strong> <a class="text-btn" id="chat-rename" href="/me">Change</a></p>
+                <div class="chat-compose">
+                    <textarea id="chat-input" class="input chat-input" rows="1" maxlength="1000" placeholder="Message" aria-label="Message"></textarea>
+                    <button type="submit" class="btn btn-solid chat-send" id="chat-send">Send</button>
+                </div>
+                <p class="field-error" id="chat-error" role="alert" hidden></p>
+            </form>
+            <p class="chat-noname" id="chat-noname" hidden><a class="text-btn" id="chat-addname" href="/me">Add your name</a> to post.</p>
+            <form id="chat-signin" novalidate hidden>
+                <div id="chat-signin-fields">
+                    <p class="chat-signin-lede">Sign in with your email to post, so nobody can post as you. Others see only your name.</p>
+                    <div class="chat-compose">
+                        <input type="email" id="chat-email" class="input" autocomplete="email" inputmode="email" placeholder="Email" aria-label="Email">
+                        <button type="submit" class="btn btn-solid" id="chat-email-send">Email me a link</button>
+                    </div>
+                    <p class="field-error" id="chat-signin-error" role="alert" hidden></p>
+                </div>
+                <p class="chat-sent" id="chat-signin-sent" role="status" hidden></p>
+            </form>
         </div>
     </div>
 </div>
@@ -165,11 +286,20 @@
     <p>Built by Fisher Kuan</p>
 </footer>
 <script src="/js/theme.js"></script>
+<script src="/js/sprites.js"></script>
+<script src="/js/account-link.js"></script>
 <script src="/js/feedback.js"></script>
 <script src="/js/sheet.js"></script>
 
 <script src="/js/date-rail.js"></script>
+<script src="/js/event-links.js"></script>
+<script src="/js/place-search.js"></script>
+<script src="/js/time-wheel.js"></script>
+<script src="/js/event-form.js"></script>
 <script src="/js/pull-to-refresh.js"></script>
 <script src="app.js"></script>
+<script src="/js/device-links.js"></script>
+<script src="/js/make-event.js"></script>
+<script src="/js/event-chat.js"></script>
 </body>
 </html>

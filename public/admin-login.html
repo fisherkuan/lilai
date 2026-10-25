@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <!-- Apply a saved theme before first paint; the switch itself is js/theme.js. -->
-    <script>try{var t=localStorage.getItem("lilaiTheme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}</script>
+    <script>var t="light";try{if(localStorage.getItem("lilaiTheme")==="dark")t="dark"}catch(e){}document.documentElement.dataset.theme=t</script>
     <meta name="theme-color" content="#efefea" media="(prefers-color-scheme: light)">
     <meta name="theme-color" content="#111214" media="(prefers-color-scheme: dark)">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="robots" content="noindex, nofollow">
-    <title>Admin — Events — Lilai</title>
+    <title>Admin sign-in — Lilai</title>
     <link rel="preload" href="/bauhaus/fonts/jost-latin.woff2" as="font" type="font/woff2" crossorigin>
     <link rel="stylesheet" href="/bauhaus/tokens.css">
     <link rel="stylesheet" href="/css/lilai.css">
@@ -36,42 +36,43 @@
     </a>
 </header>
 
-<nav class="admin-nav" aria-label="Admin">
-    <a href="/admin/events" aria-current="page">Events</a>
-    <a href="/admin/donations">Donations</a>
-    <a href="/admin/bookings">Booking queue</a>
-</nav>
-
-<main class="admin">
+<main class="admin admin-login">
+    <a class="text-link login-back" id="login-back" href="/"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>Back</a>
     <div class="admin-head">
-        <h1 class="admin-title">Events</h1>
-        <p class="admin-sub">Set attendance limits for upcoming events.</p>
+        <h1 class="admin-title">Admin sign-in</h1>
     </div>
 
-    <div class="admin-grid">
-        <section class="admin-main" aria-label="Upcoming events">
-            <div id="admin-events-list" class="event-list">
-                <p class="state-line">Loading events…</p>
-            </div>
-        </section>
+    <form id="email-form" class="admin-card admin-form" novalidate>
+        <div class="field">
+            <label for="email">Email</label>
+            <input type="email" id="email" name="email" class="input" autocomplete="email" inputmode="email" required>
+        </div>
+        <div class="sheet-actions">
+            <button type="submit" class="btn btn-solid">Email me a code</button>
+        </div>
+        <p class="row-status" id="email-message" role="status" aria-live="polite" hidden></p>
+    </form>
 
-        <aside class="sidebar" aria-label="About limits">
-            <section class="side-block" aria-labelledby="side-limit-title">
-                <h2 class="side-title" id="side-limit-title">How limits work</h2>
-                <p class="side-note">A limit closes Join once that many people have signed up. Leave the field empty for no limit.</p>
-                <p class="side-note">A “limit: N” line in the calendar description wins over this page. Change it in Google Calendar instead.</p>
-            </section>
-        </aside>
-    </div>
+    <form id="code-form" class="admin-card admin-form" novalidate hidden>
+        <p class="login-sent" id="code-sent"></p>
+        <div class="field">
+            <label for="code">Code</label>
+            <input type="text" id="code" name="code" class="input login-code" autocomplete="one-time-code" inputmode="numeric" maxlength="6" pattern="[0-9]*">
+            <p class="field-error" data-error-for="code" role="alert" hidden></p>
+        </div>
+        <div class="sheet-actions">
+            <button type="submit" class="btn btn-solid">Sign in</button>
+            <button type="button" class="text-btn" id="resend-btn">Send a new code</button>
+        </div>
+        <p class="row-status" id="code-message" role="status" aria-live="polite" hidden></p>
+        <button type="button" class="text-btn login-other" id="other-btn">Use another email</button>
+    </form>
 </main>
 
 <footer class="colophon">
     <p>Built by Fisher Kuan</p>
 </footer>
 <script src="/js/theme.js"></script>
-<script src="/js/feedback.js"></script>
-<script src="/js/sheet.js"></script>
-
-<script src="/admin.js"></script>
+<script src="/js/admin-login.js"></script>
 </body>
 </html>

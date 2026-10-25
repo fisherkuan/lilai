@@ -6,6 +6,8 @@ const vm = require('node:vm');
 
 const PUBLIC_DIR = path.join(__dirname, '../public');
 const APP_JS = fs.readFileSync(path.join(PUBLIC_DIR, 'app.js'), 'utf8');
+// The link itself is drawn by account-link.js, which every page with the header loads.
+const ACCOUNT_LINK_JS = fs.readFileSync(path.join(PUBLIC_DIR, 'js/account-link.js'), 'utf8');
 
 /*
  * The organizer entry point is obscurity, not access control: the admin pages are
@@ -60,10 +62,12 @@ function makeHarness({ search = '', stored = null } = {}) {
 }
 
 function runSetup(context) {
-    const start = APP_JS.indexOf('const ADMIN_HOME');
+    const start = APP_JS.indexOf('const ADMIN_FLAG_KEY');
     const end = APP_JS.indexOf('// ---------- Load events ----------');
     assert.ok(start > -1 && end > start, 'organizer block not found in app.js');
+    context.window.localStorage = context.localStorage;
     vm.createContext(context);
+    vm.runInContext(ACCOUNT_LINK_JS, context);
     vm.runInContext(APP_JS.slice(start, end) + '\nsetupAdminLink();', context);
     return context.navs.flatMap(nav => nav.children);
 }
@@ -78,7 +82,7 @@ test('?admin=1 reveals the link in both navs and remembers the device', () => {
     const links = runSetup(ctx);
     assert.strictEqual(links.length, 2);
     links.forEach(link => {
-        assert.strictEqual(link.href, '/admin/events');
+        assert.strictEqual(link.href, '/admin/bookings');
         assert.strictEqual(link.textContent, 'Admin');
     });
     assert.strictEqual(ctx.store.get('lilaiOrganizer'), '1');

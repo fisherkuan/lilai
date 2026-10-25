@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Apply a saved theme before first paint; the switch itself is js/theme.js. -->
+    <script>var t="light";try{if(localStorage.getItem("lilaiTheme")==="dark")t="dark"}catch(e){}document.documentElement.dataset.theme=t</script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign in — Lilai</title>
+    <meta name="description" content="Find the events you host on Lilai with your email.">
+    <meta name="robots" content="noindex">
+    <meta name="referrer" content="no-referrer">
+    <meta name="theme-color" content="#efefea" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#111214" media="(prefers-color-scheme: dark)">
+    <link rel="preload" href="/bauhaus/fonts/jost-latin.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="stylesheet" href="/bauhaus/tokens.css">
+    <link rel="stylesheet" href="/css/lilai.css">
+    <link rel="stylesheet" href="/css/events.css">
+    <link rel="icon" href="/icons/favicon.ico" sizes="48x48">
+    <link rel="icon" href="/icons/favicon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+</head>
+<body>
+<svg width="0" height="0" class="shape-defs" aria-hidden="true" focusable="false">
+    <defs>
+        <symbol id="shape-circle" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10.5" vector-effect="non-scaling-stroke"/></symbol>
+        <symbol id="shape-square" viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20" vector-effect="non-scaling-stroke"/></symbol>
+        <symbol id="shape-triangle" viewBox="0 0 24 24"><path d="M12 1.8 22.6 21.6H1.4Z" vector-effect="non-scaling-stroke"/></symbol>
+        <symbol id="shape-diamond" viewBox="0 0 24 24"><path d="M12 1.5 22.5 12 12 22.5 1.5 12Z" vector-effect="non-scaling-stroke"/></symbol>
+    </defs>
+</svg>
+<header class="masthead">
+    <a class="wordmark" href="/" aria-label="Lilai, home">
+        <span class="wordmark-mark" aria-hidden="true">
+            <svg viewBox="88 184 336 144"><circle class="wm-circle" cx="136" cy="232" r="48"/><rect class="wm-square" x="208" y="184" width="96" height="96"/><path class="wm-triangle" d="M376 184L424 280H328Z"/><rect class="wm-base" x="88" y="304" width="336" height="24"/></svg>
+        </span>
+        <span class="wordmark-name">Lilai</span>
+    </a>
+    <nav class="app-header-links" aria-label="Site links">
+        <a href="/faq.html" data-hdr="faq">FAQ</a>
+        <a href="/donate" data-hdr="donate">Donate</a>
+        <a href="/me" data-account-link aria-current="page">Sign in</a>
+    </nav>
+</header>
+
+<main class="ev-page" id="me">
+    <p class="state-line" id="me-state">Loading…</p>
+
+    <!-- Not signed in: ask for the email -->
+    <section id="me-ask" hidden>
+        <a class="text-link me-back" href="/" data-me-back hidden>Back</a>
+        <h1>Sign in</h1>
+        <p class="ev-lede">Lilai emails you a link that signs this device in.</p>
+        <form id="me-form" class="me-form" novalidate>
+            <div class="field">
+                <label for="me-email">Email</label>
+                <input type="email" id="me-email" class="input" autocomplete="email" inputmode="email" required>
+                <p class="field-error" id="me-error" role="alert" hidden></p>
+            </div>
+            <div class="sheet-actions">
+                <button type="submit" class="btn btn-solid" id="me-send"><span class="text">Email me a link</span></button>
+            </div>
+        </form>
+        <div id="me-sent" class="ev-notice" hidden tabindex="-1">
+            <p id="me-sent-text"></p>
+            <button type="button" class="text-btn" id="me-other">Use another email</button>
+        </div>
+    </section>
+
+    <!-- The emailed link signs this device in on load; this shows only when it could not -->
+    <section id="me-redeem" hidden>
+        <h1>Not signed in</h1>
+        <p class="field-error" id="me-redeem-error" role="alert" hidden></p>
+        <div class="ev-manage-actions">
+            <button type="button" class="btn btn-solid" id="me-redeem-btn">Email me a new link</button>
+        </div>
+    </section>
+
+    <!-- Just signed in, without a name yet: one name for this email, everywhere on Lilai -->
+    <section id="me-name-step" hidden>
+        <h1>Your name</h1>
+        <p class="ev-lede">Shown on your chat messages, and filled in when you join or make an event.</p>
+        <form id="me-first-name-form" class="me-form" novalidate>
+            <div class="field">
+                <label for="me-first-name">Name</label>
+                <input type="text" id="me-first-name" class="input" maxlength="100" autocomplete="name" enterkeyhint="done">
+                <p class="field-error" id="me-first-name-error" role="alert" hidden></p>
+            </div>
+            <div class="sheet-actions">
+                <button type="submit" class="btn btn-solid" id="me-first-name-save">Continue</button>
+                <button type="button" class="text-btn" id="me-first-name-skip">Skip for now</button>
+            </div>
+        </form>
+    </section>
+
+    <!-- Signed in: the profile, in grouped cards like Make an event (owner, 2026-10-25) -->
+    <article id="me-list" class="me-profile" hidden>
+        <a class="text-link me-back" href="/" data-me-back hidden>Back</a>
+        <h1 class="sr-only">Profile</h1>
+
+        <header class="me-id">
+            <span class="me-avatar" id="me-avatar" aria-hidden="true"></span>
+            <div class="me-id-text">
+                <p class="me-id-name" id="me-id-name"></p>
+                <p class="me-id-email" id="me-who"></p>
+            </div>
+        </header>
+
+        <form id="me-name-form" class="me-card" novalidate>
+            <label class="me-card-title" for="me-name">Name</label>
+            <div class="me-name-row">
+                <input type="text" id="me-name" class="input" maxlength="100" autocomplete="name">
+                <button type="submit" class="btn btn-line" id="me-name-save">Save</button>
+            </div>
+            <p class="ev-hint" id="me-name-hint">Filled in when you join or make an event.</p>
+        </form>
+
+        <section class="me-card" aria-labelledby="me-upcoming-title">
+            <div class="me-card-head">
+                <h2 class="me-card-title" id="me-upcoming-title">You host</h2>
+                <span class="me-card-count" id="me-upcoming-count"></span>
+            </div>
+            <ul class="me-rows" id="me-upcoming"></ul>
+        </section>
+
+        <section class="me-card" aria-labelledby="me-joined-title" id="me-joined-block" hidden>
+            <h2 class="me-card-title" id="me-joined-title">You joined</h2>
+            <ul class="me-rows" id="me-joined"></ul>
+        </section>
+
+        <section class="me-card" aria-labelledby="me-past-title" id="me-past-block" hidden>
+            <h2 class="me-card-title" id="me-past-title">Past</h2>
+            <ul class="me-rows" id="me-past"></ul>
+        </section>
+        <p class="field-error" id="me-list-error" role="alert" hidden></p>
+
+        <section class="me-card" aria-labelledby="me-display-title">
+            <h2 class="me-card-title" id="me-display-title">Display</h2>
+            <div class="me-setting">
+                <span class="me-setting-name" id="me-dark-label">Dark</span>
+                <button type="button" class="ios-switch" role="switch" aria-checked="false" aria-labelledby="me-dark-label" id="me-dark"></button>
+            </div>
+            <div class="me-setting">
+                <span class="me-setting-name" id="me-icons-label">Header icons</span>
+                <button type="button" class="ios-switch" role="switch" aria-checked="false" aria-labelledby="me-icons-label" id="me-icons"></button>
+            </div>
+        </section>
+
+        <section class="me-card me-account" aria-label="This device and your email">
+            <button type="button" class="me-account-row" id="me-signout">Sign out of this device</button>
+            <button type="button" class="me-account-row" id="me-delete">Delete my email</button>
+            <div id="me-delete-confirm" class="me-delete-confirm" hidden tabindex="-1">
+                <p id="me-delete-text"></p>
+                <div class="ev-manage-actions">
+                    <button type="button" class="btn btn-danger" id="me-delete-yes">Delete my email</button>
+                    <button type="button" class="text-btn" id="me-delete-no">Keep it</button>
+                </div>
+            </div>
+        </section>
+    </article>
+</main>
+
+<footer class="colophon">
+    <p>Built by Fisher Kuan</p>
+</footer>
+<script src="/js/theme.js"></script>
+<script src="/js/sprites.js"></script>
+<script src="/js/account-link.js"></script>
+<script src="/js/feedback.js"></script>
+<script src="/js/sheet.js"></script>
+<script src="/js/device-links.js"></script>
+<script src="/js/me.js"></script>
+</body>
+</html>

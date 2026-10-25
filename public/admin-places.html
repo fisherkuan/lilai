@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Apply a saved theme before first paint; the switch itself is js/theme.js. -->
+    <script>var t="light";try{if(localStorage.getItem("lilaiTheme")==="dark")t="dark"}catch(e){}document.documentElement.dataset.theme=t</script>
+    <meta name="theme-color" content="#efefea" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#111214" media="(prefers-color-scheme: dark)">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <title>Admin — Places — Lilai</title>
+    <link rel="preload" href="/bauhaus/fonts/jost-latin.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="stylesheet" href="/bauhaus/tokens.css">
+    <link rel="stylesheet" href="/css/lilai.css">
+    <link rel="stylesheet" href="/css/admin.css">
+    <link rel="icon" href="/icons/favicon.ico" sizes="48x48">
+    <link rel="icon" href="/icons/favicon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+</head>
+<body>
+<svg width="0" height="0" class="shape-defs" aria-hidden="true" focusable="false">
+    <defs>
+        <symbol id="shape-circle" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10.5" vector-effect="non-scaling-stroke"/></symbol>
+        <symbol id="shape-square" viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20" vector-effect="non-scaling-stroke"/></symbol>
+        <symbol id="shape-triangle" viewBox="0 0 24 24"><path d="M12 1.8 22.6 21.6H1.4Z" vector-effect="non-scaling-stroke"/></symbol>
+        <symbol id="shape-diamond" viewBox="0 0 24 24"><path d="M12 1.5 22.5 12 12 22.5 1.5 12Z" vector-effect="non-scaling-stroke"/></symbol>
+    </defs>
+</svg>
+
+<header class="masthead">
+    <a class="wordmark" href="/" aria-label="Lilai, home">
+        <span class="wordmark-mark" aria-hidden="true">
+            <svg viewBox="88 184 336 144"><circle class="wm-circle" cx="136" cy="232" r="48"/><rect class="wm-square" x="208" y="184" width="96" height="96"/><path class="wm-triangle" d="M376 184L424 280H328Z"/><rect class="wm-base" x="88" y="304" width="336" height="24"/></svg>
+        </span>
+        <span class="wordmark-name">Lilai</span>
+    </a>
+</header>
+
+<nav class="admin-nav" aria-label="Admin">
+    <a href="/admin/donations">Donations</a>
+    <a href="/admin/bookings">Booking queue</a>
+    <a href="/admin/places" aria-current="page">Places</a>
+</nav>
+
+<main class="admin">
+    <div class="admin-head">
+        <h1 class="admin-title">Places</h1>
+    </div>
+
+    <div class="admin-grid">
+        <section class="admin-main" aria-label="Places">
+            <form id="place-form" class="admin-card admin-form" novalidate>
+                <h2 class="pl-card-title">Add a place</h2>
+                <div class="field" id="find-field" hidden>
+                    <label for="find">Find on Google Maps</label>
+                    <div class="ev-place">
+                        <input type="text" id="find" class="input" autocomplete="off" spellcheck="false" role="combobox"
+                            aria-expanded="false" aria-autocomplete="list" aria-controls="find-list">
+                        <ul class="ev-place-list" id="find-list" role="listbox" aria-label="Google Maps" hidden></ul>
+                    </div>
+                </div>
+                <div class="field">
+                    <label for="name">Name</label>
+                    <input type="text" id="name" name="name" class="input" maxlength="255" autocomplete="off">
+                    <p class="field-error" data-error-for="name" role="alert" hidden></p>
+                </div>
+                <div class="field">
+                    <label for="address">Address</label>
+                    <input type="text" id="address" name="address" class="input" maxlength="255" autocomplete="off">
+                    <p class="field-error" data-error-for="address" role="alert" hidden></p>
+                </div>
+                <div class="field">
+                    <label for="aliases">Other names</label>
+                    <input type="text" id="aliases" name="aliases" class="input" autocomplete="off" aria-describedby="aliases-hint">
+                    <p class="field-hint" id="aliases-hint">Comma between names. Search finds these too.</p>
+                    <p class="field-error" data-error-for="aliases" role="alert" hidden></p>
+                </div>
+                <div class="sheet-actions">
+                    <button type="submit" class="btn btn-solid">Add place</button>
+                    <button type="button" class="text-btn" id="reset-btn">Reset</button>
+                </div>
+                <p class="row-status" id="form-message" role="status" aria-live="polite" hidden></p>
+            </form>
+
+            <section class="admin-card" aria-labelledby="list-title">
+                <h2 class="pl-card-title" id="list-title">Saved places <span class="pl-count" id="place-count"></span></h2>
+                <ol class="pl-rows" id="place-rows"></ol>
+                <p class="row-status" id="list-message" role="status" aria-live="polite" hidden></p>
+            </section>
+        </section>
+
+        <aside class="sidebar" aria-label="Account">
+            <section class="side-block" aria-labelledby="side-key-title">
+                <h2 class="side-title" id="side-key-title">Signed in</h2>
+                <p class="side-note" id="admin-email"></p>
+                <button type="button" class="text-btn" id="sign-out-btn">Sign out</button>
+            </section>
+        </aside>
+    </div>
+</main>
+
+<footer class="colophon">
+    <p>Built by Fisher Kuan</p>
+</footer>
+<script src="/js/theme.js"></script>
+<script src="/js/sprites.js"></script>
+<script src="/js/feedback.js"></script>
+<script src="/js/sheet.js"></script>
+<script src="/js/admin-session.js"></script>
+<script src="/js/admin-places.js"></script>
+</body>
+</html>
