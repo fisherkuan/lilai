@@ -41,15 +41,15 @@ function fakeLink() {
     };
 }
 
-test('a header link shows its sprite by default and its short word in text mode', () => {
+test('a header link shows its short word by default and its sprite in icons mode', () => {
     const icons = fakeLink();
-    load().iconize(icons, 'goomba', 'Report a bug', 'Bug');
+    load({ 'lilai.headerStyle': 'icons' }).iconize(icons, 'goomba', 'Report a bug', 'Bug');
     assert.match(icons.innerHTML, /class="sprite"/);
     assert.strictEqual(icons.attrs['aria-label'], 'Report a bug');
     assert.ok(icons.classList.has('hdr-icon'));
 
     const text = fakeLink();
-    load({ 'lilai.headerStyle': 'text' }).iconize(text, 'goomba', 'Report a bug', 'Bug');
+    load().iconize(text, 'goomba', 'Report a bug', 'Bug');
     assert.strictEqual(text.textContent, 'Bug');
     assert.strictEqual(text.attrs['aria-label'], 'Report a bug');
     assert.ok(text.classList.has('hdr-text'));
