@@ -649,6 +649,8 @@ button { font: inherit; color: inherit; }
 @media (hover: hover) { .to-top:hover { background: var(--stone); } }
 .to-top:focus-visible { outline: var(--stroke-2) solid var(--focus); outline-offset: 2px; }
 .home.is-rows ~ .to-top { display: none; }
+/* At the bottom of the page the footer ends above the button, so it never covers a switch. */
+body:has(.to-top) .colophon { padding-bottom: calc(48px + max(var(--s5), env(safe-area-inset-bottom)) + var(--s3)); }
 
 /* ---------- Pull to refresh ---------- */
 
@@ -1411,16 +1413,15 @@ html.sheet-locked body {
     place-items: center;
     height: 40px;
     scroll-snap-align: center;
-    font-family: var(--font-display);
-    font-size: 20px;
-    font-weight: 500;
+    font-size: 17px;
+    font-weight: 400;
     font-variant-numeric: tabular-nums;
     color: var(--ink-3);
     cursor: pointer;
     user-select: none;
 }
-.tw-cell[aria-selected="true"] { color: var(--ink); font-weight: 700; }
-.tw-colon { position: relative; font-family: var(--font-display); font-size: 20px; font-weight: 700; }
+.tw-cell[aria-selected="true"] { color: var(--ink); font-weight: 600; }
+.tw-colon { position: relative; font-size: 17px; font-weight: 600; }
 .tw-done { min-height: 40px; }
 
 /* ---------- Event form ----------
@@ -1795,51 +1796,53 @@ html.sheet-locked body {
     color: var(--ink-3);
 }
 
-/* Theme: Auto · Light · Dark. Footer-sized, but each choice is a 44px touch target. */
-.theme-switch {
+/* Footer switches: a word and an iOS switch (Dark, Header icons). The whole row toggles, so
+   it is the 44px target. Profile's Display card uses the same .ios-switch. */
+.footer-toggle {
     display: flex;
     align-items: center;
-    gap: var(--s3);
+    gap: var(--s2);
+    min-height: 44px;
     font-size: 13px;
     color: var(--ink-3);
+    cursor: pointer;
+    user-select: none;
+    -webkit-user-select: none;
 }
+.footer-toggles { display: flex; gap: var(--s5); }
+/* A smaller switch, at the footer's 13px. */
+.footer-toggle .ios-switch { width: 40px; height: 24px; }
+.footer-toggle .ios-switch::after { width: 20px; height: 20px; }
+.footer-toggle .ios-switch[aria-checked="true"]::after { transform: translateX(16px); }
 
-.theme-btn {
-    min-height: 44px;
+.ios-switch {
+    flex: none;
+    position: relative;
+    width: 51px;
+    height: 31px;
     padding: 0;
     border: 0;
-    background: none;
-    font: inherit;
-    color: var(--ink-3);
+    border-radius: 999px;
+    background: var(--stone);
     cursor: pointer;
 }
-
-.theme-btn:hover { color: var(--ink); }
-
-.theme-btn[aria-pressed="true"] {
-    color: var(--ink);
-    font-weight: 500;
-    text-decoration: underline;
-    text-decoration-thickness: var(--rule);
-    text-underline-offset: 4px;
+.ios-switch::after {
+    content: "";
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 27px;
+    height: 27px;
+    border-radius: 50%;
+    background: var(--on-rail-sel);
+    box-shadow: var(--shadow-raised);
 }
-
-/* Feedback: a footer-sized link that opens its sheet (js/feedback.js). */
-.feedback-btn {
-    min-height: 44px;
-    padding: 0;
-    border: 0;
-    background: none;
-    font: inherit;
-    font-size: 13px;
-    color: var(--ink-3);
-    text-decoration: underline;
-    text-decoration-thickness: 1px;
-    text-underline-offset: 3px;
-    cursor: pointer;
+.ios-switch[aria-checked="true"] { background: var(--rail-sel); }
+.ios-switch[aria-checked="true"]::after { transform: translateX(20px); }
+@media (prefers-reduced-motion: no-preference) {
+    .ios-switch { transition: background-color 200ms ease; }
+    .ios-switch::after { transition: transform 200ms cubic-bezier(0.3, 0.7, 0.4, 1); }
 }
-
-.feedback-btn:hover { color: var(--ink); }
 
 .textarea {
     min-height: 140px;
@@ -2192,7 +2195,7 @@ html.sheet-locked body {
 .tour-actions [hidden] { display: none; }
 
 /* The footer's "What's new" sits with the theme switch, at its 13px. */
-.colophon-link { min-height: 44px; font-size: 13px; color: var(--ink-3); }
+.colophon-link { min-height: 44px; margin-right: auto; font-size: 13px; color: var(--ink-3); }
 
 /* ---------- Breakpoints ---------- */
 
