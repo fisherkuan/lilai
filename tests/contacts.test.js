@@ -25,8 +25,11 @@ test('the sign-in mail carries the link and the code and says how long they work
     assert.equal(mail.from, 'Lilai <hi@lilai.test>');
     assert.equal(mail.subject, '042917 is your Lilai sign-in code');
     assert.match(mail.text, /https:\/\/lilai\.test\/me\/signin\/x/);
-    assert.match(mail.text, /code where Lilai asked for it: 042917/);
-    assert.match(mail.text, /work for 30 minutes/);
+    // The code comes first, on its own line; the link is the fallback.
+    assert.ok(mail.text.indexOf('\n042917\n') < mail.text.indexOf('https://lilai.test'));
+    assert.match(mail.text, /works for 30 minutes/);
+    assert.match(mail.html, />042917</);
+    assert.match(mail.html, /href="https:\/\/lilai\.test\/me\/signin\/x"/);
 });
 
 test('a series shows once, as its next date still on', () => {
@@ -81,7 +84,7 @@ test('a host signs in by email, finds their events, manages one, and deletes the
         // Any address gets a link: opening it proves the address.
         await ask('stranger@lilai.test');
         assert.deepEqual(mails.map(m => m.to), [['stranger@lilai.test']]);
-        assert.match(mails[0].text, /sign in to Lilai/);
+        assert.match(mails[0].text, /Lilai sign-in code/);
         mails.length = 0;
         await assert.rejects(ask('not an email'), { status: 400 });
 
@@ -157,7 +160,7 @@ test('the emailed code signs in a device the link cannot reach, five wrong tries
         const mails = [];
         const fetchImpl = async (url, init) => { mails.push(JSON.parse(init.body)); return { ok: true, text: async () => '' }; };
         const contacts = createContacts({ pool, env: { RESEND_API_KEY: 'k' }, fetchImpl });
-        const codeOf = (mail) => mail.text.match(/asked for it: (\d{6})/)[1];
+        const codeOf = (mail) => mail.subject.match(/^(\d{6}) /)[1];
 
         await contacts.requestSignIn('Cat@lilai.test', { ip: '1.1.1.1', baseUrl: '' });
         const code = codeOf(mails[0]);

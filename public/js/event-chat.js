@@ -210,9 +210,7 @@
         list.innerHTML = '<li class="chat-empty">Loading…</li>';
         $('chat-form').hidden = true;
         $('chat-signin').hidden = true;
-        $('chat-signin-sent').hidden = true;
-        $('chat-signin-code').hidden = true;
-        $('chat-signin-fields').hidden = false;
+        showCodeStep(SignInCode.pending());
         showError('chat-error', '');
         showError('chat-signin-error', '');
         sheet.classList.remove('hidden');
@@ -279,12 +277,8 @@
         try {
             const { ok, result } = await api('/signin', { method: 'POST', body: JSON.stringify({ email }) });
             if (!ok) return showError('chat-signin-error', result.message || 'That did not go through. Try again.');
-            $('chat-signin-fields').hidden = true;
-            $('chat-signin-sent').textContent = `A link and a code are on their way to ${email}. Open the link on this device, or type the code here, within 30 minutes.`;
-            $('chat-signin-sent').hidden = false;
-            $('chat-code').value = '';
-            showError('chat-code-error', '');
-            $('chat-signin-code').hidden = false;
+            SignInCode.remember(email, `chat-${eventId}`);
+            showCodeStep(email);
             $('chat-code').focus();
         } catch (_) {
             showError('chat-signin-error', 'No connection. Check your network and try again.');
@@ -293,24 +287,30 @@
         }
     }
 
-    // The emailed code, for a device the link does not open on (an iPhone home-screen app).
+    // The code step, for an address a code went to in the last 30 minutes ('' for the email
+    // step). Kept across a reload by js/signin-code.js.
+    function showCodeStep(email) {
+        $('chat-signin-fields').hidden = Boolean(email);
+        $('chat-signin-sent').hidden = !email;
+        $('chat-signin-code').hidden = !email;
+        if (!email) return;
+        $('chat-email').value = email;
+        $('chat-signin-sent').textContent = `Type the code sent to ${email}. It works for 30 minutes. The link in the same email works too.`;
+        $('chat-code').value = '';
+        showError('chat-code-error', '');
+    }
+
+    // The emailed code (js/signin-code.js), typed in the panel.
     async function signInWithCode() {
         showError('chat-code-error', '');
-        const code = $('chat-code').value.replace(/\s/g, '');
-        if (!/^\d{6}$/.test(code)) return showError('chat-code-error', 'Type the six digits from the email.');
+        const code = $('chat-code').value;
+        if (!SignInCode.isCode(code)) return showError('chat-code-error', 'Type the six digits from the email.');
         const button = $('chat-code-send');
         if (button.disabled) return;
         button.disabled = true;
         try {
-            const res = await fetch('/api/me/session', {
-                method: 'POST',
-                cache: 'no-store',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email: $('chat-email').value.trim(), code })
-            });
-            const result = await res.json().catch(() => ({}));
-            if (!res.ok || result.success === false) return showError('chat-code-error', result.message || 'That did not go through. Try again.');
-            if (root.AccountLink) root.AccountLink.remember(result.email);
+            const { ok, result } = await SignInCode.redeem($('chat-email').value.trim(), code);
+            if (!ok) return showError('chat-code-error', result.message || 'That did not go through. Try again.');
             await load({ stick: true });
         } catch (_) {
             showError('chat-code-error', 'No connection. Check your network and try again.');
@@ -476,7 +476,12 @@
         signInWithCode();
     });
     $('chat-code').addEventListener('input', () => {
-        if (/^\d{6}$/.test($('chat-code').value.trim())) signInWithCode();
+        if (SignInCode.isCode($('chat-code').value)) signInWithCode();
+    });
+    $('chat-signin-other').addEventListener('click', () => {
+        SignInCode.clear();
+        showCodeStep('');
+        $('chat-email').focus();
     });
     const input = $('chat-input');
     input.addEventListener('input', () => autosize(input));
@@ -488,11 +493,15 @@
         }
     });
 
-    // /#chat-<id>: a chat sign-in link lands here, signed in, on its thread.
+    // /#chat-<id>: a chat sign-in link lands here, signed in, on its thread. A code asked for in
+    // a thread in the last 30 minutes reopens it too (iOS reloaded the app meanwhile).
     const match = /^#chat-(.+)$/.exec(root.location.hash);
+    const waiting = /^chat-(.+)$/.exec(SignInCode.pendingWhere());
     if (match) {
         history.replaceState(null, '', root.location.pathname + root.location.search);
         open(decodeURIComponent(match[1]));
+    } else if (waiting && !root.location.hash) {
+        open(waiting[1]);
     }
 
     root.EventChat = { open, onBroadcast };

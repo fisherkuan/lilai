@@ -78,6 +78,20 @@
         $('me-form').hidden = false;
         $('me-sent').hidden = true;
         $('me-code-form').hidden = true;
+        // A code sent in the last 30 minutes: straight to its field, even after a reload.
+        const waiting = SignInCode.pending();
+        if (waiting) showCodeField(waiting);
+    }
+
+    function showCodeField(email) {
+        $('me-email').value = email;
+        $('me-form').hidden = true;
+        $('me-sent-text').textContent = `Type the code sent to ${email}. It works for 30 minutes. The link in the same email works too.`;
+        $('me-code').value = '';
+        showError('me-code-error', '');
+        $('me-code-form').hidden = false;
+        $('me-sent').hidden = false;
+        $('me-code').focus();
     }
 
     async function sendLink(e) {
@@ -92,18 +106,13 @@
         try {
             const { ok, result } = await api('/api/me/link', { method: 'POST', body: JSON.stringify(next ? { email: typed, next } : { email: typed }) });
             if (!ok) return showError('me-error', result.message || 'That did not go through. Try again.');
-            $('me-form').hidden = true;
-            $('me-sent-text').textContent = `A link and a code are on their way to ${typed}. Open the link, or type the code here. Both work for 30 minutes.`;
-            $('me-code').value = '';
-            showError('me-code-error', '');
-            $('me-code-form').hidden = false;
-            $('me-sent').hidden = false;
-            $('me-code').focus();
+            SignInCode.remember(typed);
+            showCodeField(typed);
         } catch (_) {
             showError('me-error', 'No connection. Check your network and try again.');
         } finally {
             button.disabled = false;
-            text.textContent = 'Email me a link';
+            text.textContent = 'Email me a code';
         }
     }
 
@@ -114,7 +123,7 @@
     function redeemFailed(message, retry) {
         showOnly('me-redeem');
         showError('me-redeem-error', message);
-        $('me-redeem-btn').textContent = retry ? 'Try again' : 'Email me a new link';
+        $('me-redeem-btn').textContent = retry ? 'Try again' : 'Email me a new code';
         $('me-redeem-btn').dataset.retry = retry ? '1' : '';
         $('me-redeem-btn').disabled = false;
     }
@@ -135,15 +144,15 @@
     async function redeemCode(e) {
         if (e) e.preventDefault();
         showError('me-code-error', '');
-        const code = $('me-code').value.replace(/\s/g, '');
-        if (!/^\d{6}$/.test(code)) return showError('me-code-error', 'Type the six digits from the email.');
+        const code = $('me-code').value;
+        if (!SignInCode.isCode(code)) return showError('me-code-error', 'Type the six digits from the email.');
         const button = $('me-code-btn');
         const text = button.querySelector('.text');
         if (button.disabled) return;
         button.disabled = true;
         text.textContent = 'Signing in…';
         try {
-            const { ok, result } = await api('/api/me/session', { method: 'POST', body: JSON.stringify({ email: $('me-email').value.trim(), code }) });
+            const { ok, result } = await SignInCode.redeem($('me-email').value.trim(), code);
             if (!ok) return showError('me-code-error', result.message || 'That did not go through. Try again.');
             await signedIn(result);
         } catch (_) {
@@ -155,6 +164,7 @@
     }
 
     async function signedIn(result) {
+        SignInCode.clear();
         // The header's "Profile" link, even when this goes straight back to a chat.
         AccountLink.remember(result.email);
         // The email's one name is asked here, once, not in each chat.
@@ -408,10 +418,11 @@
     $('me-form').addEventListener('submit', sendLink);
     $('me-code-form').addEventListener('submit', redeemCode);
     $('me-code').addEventListener('input', () => {
-        if (/^\d{6}$/.test($('me-code').value.trim())) redeemCode();
+        if (SignInCode.isCode($('me-code').value)) redeemCode();
     });
     $('me-name-form').addEventListener('submit', saveName);
     $('me-other').addEventListener('click', () => {
+        SignInCode.clear();
         showAsk();
         $('me-email').value = '';
         $('me-email').focus();
