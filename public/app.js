@@ -716,10 +716,24 @@ function displayEvents(options = {}) {
         pieces.push('<div class="load-earlier-wrap"><button type="button" class="text-btn load-earlier-btn">Load earlier events</button></div>');
     }
 
+    // A month name where the cards cross into a new month (owner, 2026-10-25), and above the
+    // first card when it is not in this month. The year shows only when it is not this one.
+    const monthKey = d => `${d.getFullYear()}-${d.getMonth()}`;
+    let lastMonth = monthKey(now);
+    let firstCard = true;
+
     filtered.forEach(event => {
         const eventDate = new Date(event.date);
         const isPast = eventDate < now;
         const isToday = eventDate >= today && eventDate < new Date(today.getTime() + 86400000);
+
+        const month = monthKey(eventDate);
+        if (month !== lastMonth || (firstCard && month !== monthKey(now))) {
+            const label = eventDate.toLocaleDateString('en-GB', eventDate.getFullYear() === now.getFullYear() ? { month: 'long' } : { month: 'long', year: 'numeric' });
+            pieces.push(`<h3 class="month-head">${escapeHtml(label)}</h3>`);
+        }
+        lastMonth = month;
+        firstCard = false;
 
         // Insert today divider between last past and first future event (all range)
         if (currentRange === 'all' && !insertedTodayDivider && !isPast) {
