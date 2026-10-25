@@ -193,8 +193,9 @@ button { font: inherit; color: inherit; }
     height: 1em;
     overflow: visible;
     fill: var(--tone, var(--ink));
-    /* Filled shapes are borderless, like the wordmark; an outline-only state sets its stroke */
-    stroke: none;
+    /* A filled shape's border is its own colour, so it is the same size as an outline-only
+       one (owner, 2026-10-25); an outline-only state sets its own stroke */
+    stroke: var(--tone, var(--ink));
     stroke-width: 1.5px;
     stroke-linejoin: miter;
 }
@@ -202,7 +203,7 @@ button { font: inherit; color: inherit; }
 .s-circle { --tone: var(--blue); }
 .s-square { --tone: var(--red); }
 .s-triangle { --tone: var(--yellow); }
-[class*="tone-"] .shape { fill: var(--tone); }
+[class*="tone-"] .shape { fill: var(--tone); stroke: var(--tone); }
 
 @keyframes shape-grow {
     from { transform: scale(0); }
@@ -851,9 +852,9 @@ button { font: inherit; color: inherit; }
 
 .slot { display: block; }
 .slot .shape { font-size: 16px; fill: var(--paper); stroke: var(--ink); transform-origin: center; }
-.slot.is-taken .shape { fill: var(--tone); stroke: none; }
+.slot.is-taken .shape { fill: var(--tone); stroke: var(--tone); }
 .slot.is-new .shape { animation: shape-grow 480ms var(--ease) both; }
-.seats.is-full .slot .shape { fill: var(--ink); }
+.seats.is-full .slot .shape { fill: var(--ink); stroke: var(--ink); }
 
 .seats-label {
     font-size: var(--meta);
@@ -1477,7 +1478,7 @@ html.sheet-locked body {
 .ev-cal .shape { width: 32px; height: 32px; fill: none; stroke: var(--ink); }
 .ev-cal:hover { background: var(--stone); }
 .ev-cal[aria-checked="true"] { border-color: var(--ink); background: var(--paper-raised); }
-.ev-cal[aria-checked="true"] .shape { fill: var(--tone); stroke: none; }
+.ev-cal[aria-checked="true"] .shape { fill: var(--tone); stroke: var(--tone); }
 
 /* Two answers with a sentence each: a stacked choice, the chosen one inked. */
 .ev-choice-list {
@@ -1606,6 +1607,13 @@ html.sheet-locked body {
 .hosted-title .shape { flex: none; font-size: 12px; }
 .hosted-meta { font-size: var(--meta); color: var(--ink-2); font-variant-numeric: tabular-nums; }
 .hosted-chev { width: 18px; height: 18px; fill: none; stroke: var(--ink-2); stroke-width: 2px; }
+/* A cancelled event stays in the list, struck through in grey with a hollow shape like a past
+   one, and says Cancelled first (owner, 2026-10-25). */
+.hosted-row.is-cancelled .hosted-day b,
+.hosted-row.is-cancelled .hosted-day span { color: var(--ink-3); }
+.hosted-row.is-cancelled .hosted-title span { color: var(--ink-3); font-weight: 500; text-decoration: line-through; text-decoration-thickness: 1.5px; }
+.hosted-row.is-cancelled .hosted-title .shape { fill: none; stroke: var(--past); }
+.hosted-row.is-cancelled .hosted-meta b { font-weight: 600; color: var(--ink-2); }
 
 
 /* ---------- Colophon ---------- */

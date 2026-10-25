@@ -220,7 +220,7 @@ Everything else is ink on paper. Text, rules and buttons carry no colour, so the
 Motion is scarce and tied to state. When attendance changes, a shape scales from its centre with an exponential ease-out. A new RSVP prints bold into the names list. Nothing moves on load, and reduced motion is instant.
 
 **Key Characteristics:**
-- One primary shape per calendar, flat fill, 1.5px ink contour.
+- One primary shape per calendar, flat fill, a 1.5px contour in its own colour (owner, 2026-10-25), so a filled shape and an outline-only one are the same size.
 - Primaries appear only inside shapes. The two exceptions come from the kit: the yellow text selection and the blue focus ring. Outbound links take lilai's own azure, not a primary.
 - Lifted, as in iOS grouped lists: a grey ground (`--ground`, the kit's fill; paper in dark) under raised, borderless 16px cards with a soft shadow. Buttons and chips are filled pills with no outline; fields are filled with 12px corners. Calendar shapes and status marks stay square. 1px line-grey hairlines divide dense rows inside a section. There are no gradients.
 - Every event has the same size and the same grey Join pill. The date rail and its agenda already show what comes next.
@@ -338,7 +338,7 @@ The page is a single column capped at 1180px, with a 16px gutter on phones and 3
 
 ## Elevation & Depth
 
-The page is lifted. The ground is grey (`--ground`: the kit's fill in light, paper in dark, so cards always sit lighter than the ground). Event boxes, sidebar cards and sheets sit on paper-raised; fields sit on the kit's `fill` and switch tracks on stone. Cards take `--shadow-raised`, sheets `--shadow-float`. There are no gradients. A shape's 1.5px ink contour separates it from paper, so even the yellow triangle holds its edge.
+The page is lifted. The ground is grey (`--ground`: the kit's fill in light, paper in dark, so cards always sit lighter than the ground). Event boxes, sidebar cards and sheets sit on paper-raised; fields sit on the kit's `fill` and switch tracks on stone. Cards take `--shadow-raised`, sheets `--shadow-float`. There are no gradients. A filled shape's contour is its own colour; only an outline-only shape (an open seat, an unpicked calendar, a hidden calendar) draws an ink contour, and a past one a grey contour.
 
 ### Named Rules
 **The Lifted Card Rule.** Cards are raised paper with 16px corners and `--shadow-raised`, never an outline. A sheet gets paper-raised, the scrim behind it and `--shadow-float`. On phones it slides up from the bottom edge with a grabber and a round filled close button; from 640px it slides in from the right as a full-height panel (420px; the booking sheet 520px) with 20px corners on its left side. This deviates from the kit's Float Rule, which keeps cards on the page shadowless (owner's choice, 2026-10-22).
@@ -347,7 +347,7 @@ The page is lifted. The ground is grey (`--ground`: the kit's fill in light, pap
 
 The form language has two registers.
 
-- **Calendar shapes.** Circle, square, triangle and diamond are drawn from one SVG symbol set on a 24-unit grid. Each has a flat fill and a 1.5px ink contour with mitred joins that does not scale with size. The circle is the only curve in the system.
+- **Calendar shapes.** Circle, square, triangle and diamond are drawn from one SVG symbol set on a 24-unit grid. Each has a flat fill and a 1.5px contour in the same colour, with mitred joins, that does not scale with size; outline-only states draw it in ink. The circle is the only curve in the system.
 - **Controls are soft; geometry stays square.** Buttons, choice chips, icon-button hovers and switches are pills (`--radius-full`). Fields are filled with 12px corners (`--radius-control`). Event boxes and the desktop sheet take 16px (`--radius-card`); the phone sheet takes 20px on its top corners (`--radius-sheet`). Status marks, seat pips and the balance bar stay square. Buttons, chips, fields and event boxes carry no outline. Section rules are 2px ink (`--rule` is `--stroke-2`). The Today marker is 3px ink. The range and language switches are the kit's pill switch.
 
 **The Event Box Rule.** Each event on Home is a lifted card (see The Lifted Card Rule), 24px padding (16px sides on phones) and 12px between cards. Sidebar blocks are the same cards. The box replaced a bare rule above each event on 2026-10-02, because users could not tell where one event ended; the 2px ink outline gave way to the lift on 2026-10-22. Only the status mark and the balance bar carry a full border.
