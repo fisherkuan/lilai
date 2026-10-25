@@ -677,6 +677,11 @@ async function syncCalendarToDb({ events: calendarEvents, unreadSources }) {
     }
 }
 
+// Who hosts an event, as the card shows it: the host address's one name (contacts.name,
+// renamed everywhere with it), else the name the host gave when they joined. Needs
+// `events e LEFT JOIN contacts c ON c.email = lower(e.host_email)`; the address never leaves.
+const HOST_NAME_SQL = "COALESCE(NULLIF(c.name, ''), NULLIF(e.host_name, ''))";
+
 // Get all events
 app.get('/api/events', async (req, res) => {
     const client = await pool.connect();
@@ -754,8 +759,10 @@ app.get('/api/events', async (req, res) => {
                 r.attendees,
                 COALESCE(r.pendingCount, 0) as "pendingCount",
                 r.waitlist,
-                COALESCE(m.messageCount, 0) as "messageCount"
+                COALESCE(m.messageCount, 0) as "messageCount",
+                ${HOST_NAME_SQL} as "hostName"
             FROM events e
+            LEFT JOIN contacts c ON c.email = lower(e.host_email)
             LEFT JOIN (
                 SELECT
                     event_id,
@@ -813,7 +820,12 @@ app.get('/api/events/repeat-preview', (req, res) => {
 
 // Get a specific event. A cancelled one is gone for the public.
 app.get('/api/events/:id', async (req, res) => {
-    const result = await pool.query('SELECT * FROM events WHERE id = $1 AND cancelled_at IS NULL', [req.params.id]);
+    const result = await pool.query(
+        `SELECT e.*, ${HOST_NAME_SQL} as "hostName" FROM events e
+         LEFT JOIN contacts c ON c.email = lower(e.host_email)
+         WHERE e.id = $1 AND e.cancelled_at IS NULL`,
+        [req.params.id]
+    );
     const event = result.rows[0];
     if (!event) return res.status(404).json({ error: 'Event not found' });
     res.json(hosting.publicEvent(event));

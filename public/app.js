@@ -746,10 +746,10 @@ function seatsLabel(event, { isPast }) {
     const count = event.attendingCount || 0;
     const hasLimit = event.attendance_limit !== null && event.attendance_limit !== undefined;
     const limit = hasLimit ? event.attendance_limit : null;
-    // Requests waiting on the host and the waiting list hold no seat, so they ride after the count.
+    // The waiting list holds no seat, so it rides after the count. Requests waiting on the
+    // host stay off the card: only the management page shows them.
     const waiting = Array.isArray(event.waitlist) ? event.waitlist.length : 0;
-    const asking = (!isPast && event.pendingCount > 0 ? ` · ${event.pendingCount} asking` : '')
-        + (!isPast && waiting > 0 ? ` · ${waiting} waiting` : '');
+    const asking = !isPast && waiting > 0 ? ` · ${waiting} waiting` : '';
     if (!hasLimit && count === 0) return asking ? `0 going${asking}` : '';
     if (isPast) return `${count} went`;
     if (hasLimit && count >= limit) return `Full · ${count} of ${limit}${asking}`;
@@ -836,7 +836,13 @@ function renderEventCard(event, { isPast, isToday, prevNames }) {
 
     // The title's shape already names the calendar, so the meta line is the time and the place.
     // The event's links sit on their own row under it.
-    const hostNote = event.approval_required && event.host_name ? `${escapeHtml(event.host_name)} confirms each place` : '';
+    const host = event.hostName || event.host_name;
+    // An approval event carries a small padlock after the host: the host approves each place.
+    const lock = event.approval_required
+        ? '<span class="approval-mark" role="img" aria-label="Host approves each place" title="Host approves each place">'
+            + '<svg viewBox="0 0 16 16" aria-hidden="true"><rect x="3.5" y="7" width="9" height="6.5" rx="1"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2"/></svg></span>'
+        : '';
+    const hostNote = host ? `Hosted&nbsp;by&nbsp;${escapeHtml(host)}${lock ? `&nbsp;${lock}` : ''}` : lock;
     const metaParts = [`<span class="event-time">${times}</span>`, locationText ? escapeHtml(locationText) : '', hostNote].filter(Boolean);
     const meta = `<p class="event-meta">${metaParts.join('<span class="sep" aria-hidden="true"> · </span>')}</p>`
         + EventLinks.listHtml(event.links);
@@ -858,12 +864,10 @@ function renderEventCard(event, { isPast, isToday, prevNames }) {
         + '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5h16v10.5H10l-4.5 3.5V16H4Z"/></svg>'
         + `<span class="chat-count">${messageCount || ''}</span></button>`;
 
-    // This device's name on the waiting list, and where it stands.
+    // The waiting list, in order, under the names that hold a place.
     const waitlist = Array.isArray(event.waitlist) ? event.waitlist : [];
-    const mine = getRememberedName();
-    const place = !isPast && mine ? waitlist.indexOf(mine) + 1 : 0;
-    const waitNote = place > 0
-        ? `<p class="waitlist-note">${escapeHtml(mine)} is ${ordinal(place)} on the waiting list</p>`
+    const waitNames = !isPast && waitlist.length > 0
+        ? `<p class="names-heading">Waiting list</p><ol class="names names-waiting" aria-label="Waiting list">${waitlist.map(n => `<li>${escapeHtml(n)}</li>`).join('')}</ol>`
         : '';
 
     // Admins only: a key opens the event's management page (checkAdminDevice).
@@ -904,7 +908,7 @@ function renderEventCard(event, { isPast, isToday, prevNames }) {
                 ` : ''}
                 ${renderSeats(event, st, { isPast, hasLimit, isFull, newFrom })}
                 ${names}
-                ${waitNote}
+                ${waitNames}
                 ${actions}
             </div>
         </article>
@@ -979,11 +983,11 @@ function openRsvpModal(eventId) {
     const approvalNote = document.getElementById('modal-approval-note');
     if (waits) {
         approvalNote.textContent = asks
-            ? `Every place is taken. When one opens, the first name on the waiting list goes to ${event.host_name || 'the host'}, who confirms each place.`
+            ? 'Every place is taken. When one opens, the first name on the waiting list goes to the host, who confirms each place.'
             : 'Every place is taken. When one opens, it goes to the first name on the waiting list.';
     } else {
         approvalNote.textContent = asks
-            ? `${event.host_name || 'The host'} confirms each place. Your name shows under who is coming once they accept.`
+            ? 'The host confirms each place. Your name shows under who is coming once they accept.'
             : '';
     }
     approvalNote.hidden = !asks && !waits;
