@@ -1,8 +1,8 @@
-// Booking organisers: the people who run the booking queue. Signed in with an address on this
-// list, a device shows the header's Admin link (to /admin/bookings). The owner edits the list
+// Booking organisers: the people who run the booking queue. Signed in on /me with an address
+// on this list, a device may use the booking queue (its pages, APIs and live updates;
+// bookingAccess in app.js) and shows the header's Admin link to it. The owner edits the list
 // on /admin/organisers, so it changes without a deploy. Admins (ADMIN_EMAILS) are not on it:
-// they see the link anyway. The booking queue itself stays open by design; the list only
-// decides who is shown the way in.
+// they have the queue anyway.
 
 const normalEmail = (value) => String(value ?? '').trim().toLowerCase().slice(0, 254);
 const looksLikeEmail = (value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);

@@ -77,7 +77,7 @@ Vanilla JavaScript with no build step.
 - `js/account-link.js` - The header's account link on every public page (Home, FAQ, Donate, host, calendar, sign-in): "Sign in", or "Profile" once this device signed in on `/me`; both open `/me`. It also adds "Admin" (to `/admin/bookings`, the star sprite, at the very end of the header) on all of them when the signed-in address is an admin or a booking organiser (`AccountLink.roles()`, `GET /api/me/roles`, asked only when the device notes a sign-in; the old `lilaiOrganizer` flag, `?admin=1` and five taps on Home's heading were retired 2026-10-25); below 360px the wordmark drops its name to make room. Home's sidebar "Sign in" link (`[data-signed-out]`) hides once signed in. The cookie is HttpOnly, so `js/me.js` keeps the note in `lilai.signedIn`. Admin pages keep their own sign-in
 - `admin-login.html` + `js/admin-login.js` - Admin sign-in (`/admin/login?next=`): email, then the six-digit code (a full code signs in by itself)
 - `js/admin-session.js` - On Donations and Places: who is signed in, Sign out, and `AdminSession.adminFetch` (a 401 goes back to sign-in)
-- `admin-organisers.html` + `js/admin-organisers.js` - The booking organisers (`/admin/organisers`, admins only): add and remove the addresses that see the Admin link to the booking queue. Kept in the database (`server/organizers.js`), so the owner changes it without a deploy. `js/admin-nav.js` hides the admin-only tabs (Donations, Places, Organisers) on the booking pages for a device that is not an admin
+- `admin-organisers.html` + `js/admin-organisers.js` - The booking organisers (`/admin/organisers`, admins only): add and remove the addresses that see the Admin link to the booking queue. Kept in the database (`server/organizers.js`), so the owner changes it without a deploy. Only they (and admins) may use the booking queue. `js/admin-nav.js` hides the admin-only tabs (Donations, Places, Organisers) on the booking pages for a device that is not an admin
 - `admin-places.html` + `js/admin-places.js` - The saved places (`/admin/places`, signed in): add (with "Find on Google Maps" filling name and address), edit, reorder, remove
 - `donations.html` + `js/donation.js` - Public donation submission page
 - `faq.html` + `js/faq.js` - FAQ page
@@ -271,7 +271,7 @@ Required in `.env`:
 - `POST /api/bookings/:id/report-failure` - Mark a `sent` or `unconfirmed` request as `failed` by hand (KU Leuven refuses by email, which the app never sees). `failed` holds no quota, so the person's slot that week comes back. No undo
 
 ### Admin Sign-in Endpoints
-`server/admin-auth.js`. Guards `/admin/donations`, `/admin/places` (a page redirects to `/admin/login?next=`), `POST /api/donations` and the places writes (401). The booking queue stays open by design. Codes and sessions are stored as SHA-256 hashes; mail goes through Resend with `FEEDBACK_EMAIL_FROM`, so sign-in needs `RESEND_API_KEY` like the feedback mail.
+`server/admin-auth.js`. Guards `/admin/donations`, `/admin/places` (a page redirects to `/admin/login?next=`), `POST /api/donations` and the places writes (401). The booking queue takes its organisers too (see Booking Queue). Codes and sessions are stored as SHA-256 hashes; mail goes through Resend with `FEEDBACK_EMAIL_FROM`, so sign-in needs `RESEND_API_KEY` like the feedback mail.
 - `POST /api/admin/code` - Body `{email}`. An address on `ADMIN_EMAILS` gets a six-digit code valid ten minutes (five an hour); every other address gets the same answer and no mail. 503 `{message}` when the mail cannot go out
 - `POST /api/admin/session` - Body `{email, code}`. The right code (used once; five wrong tries spend it) sets the `lilai_admin` cookie: HttpOnly, SameSite=Lax, Secure in production, 30 days. 401 otherwise
 - `GET /api/admin/session` - `{email}` of the signed-in admin, or 401
@@ -284,6 +284,8 @@ Required in `.env`:
 - `GET /api/health` - Health check
 
 ## Booking Queue
+
+**Organisers only (since 2026-10-25; open to anyone with the address before).** `/admin/bookings`, `/admin/bookings/:id`, every `/api/bookings*`, `/api/booking-profiles*`, `/api/booking-series*` route and the `booking_update` broadcast take an admin, an address on the organisers list (`server/organizers.js`, edited on `/admin/organisers`) signed in on `/me`, or `X-Admin-Key` (`bookingAccess`, `requireOrganizer`, `requireOrganizerPage` in `app.js`). A signed-out page goes to `/me?next=`; a signed-in address not on the list gets `not-organiser.html` (403). A WebSocket is checked once, when it connects. `js/admin-nav.js` sends a booking request answered 401 to sign-in and 403 to that page.
 
 Queues KU Leuven sports-facility requests and submits them when the booking window
 opens — midnight Brussels, 14 days before the play date.

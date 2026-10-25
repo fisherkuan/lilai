@@ -2,7 +2,7 @@
 // sign in: they ask for a code, Resend mails six digits valid ten minutes, and the right
 // code sets a 30-day session cookie. Codes and sessions are stored as hashes, in the
 // database, so every dyno and restart sees the same ones. Guards the Donations and Places
-// admin; the booking queue stays open by design.
+// admin. The booking queue takes organisers too (bookingAccess in app.js).
 
 const crypto = require('crypto');
 
@@ -156,11 +156,16 @@ function createAdminAuth({ pool, env = process.env, fetchImpl = fetch, now = () 
         res.set('Set-Cookie', sessionCookie(token, { secure }));
     }
 
-    // For admin APIs: 401 without a session. ADMIN_API_KEY in X-Admin-Key still works, for scripts.
-    function requireAdmin(req, res, next) {
+    // ADMIN_API_KEY in X-Admin-Key: for scripts.
+    function hasApiKey(req) {
         const key = env.ADMIN_API_KEY;
         const given = req.headers['x-admin-key'];
-        if (key && given && given.length === key.length && crypto.timingSafeEqual(Buffer.from(given), Buffer.from(key))) return next();
+        return Boolean(key && given && given.length === key.length && crypto.timingSafeEqual(Buffer.from(given), Buffer.from(key)));
+    }
+
+    // For admin APIs: 401 without a session. ADMIN_API_KEY in X-Admin-Key still works, for scripts.
+    function requireAdmin(req, res, next) {
+        if (hasApiKey(req)) return next();
         adminOf(req).then(email => {
             if (!email) return res.status(401).json({ success: false, message: 'Sign in again.' });
             req.adminEmail = email;
@@ -176,7 +181,7 @@ function createAdminAuth({ pool, env = process.env, fetchImpl = fetch, now = () 
         }, next);
     }
 
-    return { sendCode, verifyCode, adminOf, signIn, signOut, requireAdmin, requireAdminPage };
+    return { sendCode, verifyCode, adminOf, hasApiKey, signIn, signOut, requireAdmin, requireAdminPage };
 }
 
 module.exports = {

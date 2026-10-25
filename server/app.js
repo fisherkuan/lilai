@@ -90,7 +90,13 @@ app.use(bodyParser.urlencoded({ extended: true }));
 
 // Serve static files from public directory
 // The admin pages' files open only through their gated routes.
-const GATED_FILES = { '/admin-donations.html': '/admin/donations', '/admin-places.html': '/admin/places', '/admin-organisers.html': '/admin/organisers' };
+const GATED_FILES = {
+    '/admin-donations.html': '/admin/donations',
+    '/admin-places.html': '/admin/places',
+    '/admin-organisers.html': '/admin/organisers',
+    '/admin-bookings.html': '/admin/bookings',
+    '/admin-booking-detail.html': '/admin/bookings'
+};
 app.get(Object.keys(GATED_FILES), (req, res) => {
     res.redirect(302, GATED_FILES[req.path]);
 });
@@ -124,6 +130,33 @@ pool.on('error', (error) => {
 // The saved places, held in memory (server/places.js); loaded once the schema exists.
 const placeStore = places.createPlaceStore(pool);
 const organizers = organizersLib.createOrganizers(pool);
+
+// The booking queue is for its organisers (since 2026-10-25; it was open to anyone with the
+// address before): an admin, an address on the organisers list signed in on /me, or a script
+// with ADMIN_API_KEY. 'ok', 'signed-out' or 'not-listed'.
+async function bookingAccess(req) {
+    if (adminAuth.hasApiKey(req) || await adminAuth.adminOf(req)) return 'ok';
+    const email = await contacts.emailOf(req);
+    if (!email) return 'signed-out';
+    return (await organizers.has(email)) ? 'ok' : 'not-listed';
+}
+
+function requireOrganizer(req, res, next) {
+    bookingAccess(req).then(access => {
+        if (access === 'ok') return next();
+        if (access === 'signed-out') return res.status(401).json({ success: false, message: 'Sign in again.' });
+        res.status(403).json({ success: false, message: 'The booking queue is for its organisers.' });
+    }, next);
+}
+
+// A page: sign in on /me first and come back; an address not on the list is told so.
+function requireOrganizerPage(req, res, next) {
+    bookingAccess(req).then(access => {
+        if (access === 'ok') return next();
+        if (access === 'signed-out') return res.redirect(302, `/me?next=${encodeURIComponent(req.originalUrl)}`);
+        res.status(403).sendFile(path.join(__dirname, '../public/not-organiser.html'));
+    }, next);
+}
 
 // Admin sign-in by emailed code (server/admin-auth.js), for Donations and Places.
 const adminAuth = adminAuthLib.createAdminAuth({ pool, emailOf: (req) => contacts.emailOf(req) });
@@ -208,8 +241,12 @@ const wss = new WebSocket.Server({ server });
  */
 const HEARTBEAT_MS = 30000;
 
-wss.on('connection', ws => {
+wss.on('connection', (ws, req) => {
     console.log('Client connected');
+    // Booking updates go only to the booking queue's organisers (bookingAccess); the upgrade
+    // request carries the cookies.
+    ws.bookings = false;
+    bookingAccess(req).then(access => { ws.bookings = access === 'ok'; }, () => {});
     ws.isAlive = true;
     ws.on('pong', () => { ws.isAlive = true; });
     // A malformed frame is an 'error' on this socket; unheard, it ends the process. ws closes
@@ -238,7 +275,9 @@ heartbeat.unref();
 wss.on('close', () => clearInterval(heartbeat));
 
 function broadcast(data) {
+    const bookingsOnly = data.type === 'booking_update';
     wss.clients.forEach(client => {
+        if (bookingsOnly && !client.bookings) return;
         if (client.readyState === WebSocket.OPEN) {
             client.send(JSON.stringify(data));
         }
@@ -1694,6 +1733,8 @@ async function queueOccurrence(client, entry, { queuedBy, profileId, seriesId })
 }
 
 // List the board: everything still owed a submission, plus a page of what has gone out.
+app.use(['/api/bookings', '/api/booking-profiles', '/api/booking-series'], requireOrganizer);
+
 app.get('/api/bookings', async (req, res) => {
     const client = await pool.connect();
     try {
@@ -2881,11 +2922,11 @@ app.get(['/admin', '/admin/events'], (req, res) => {
     res.redirect(302, '/admin/bookings');
 });
 
-app.get('/admin/bookings', (req, res) => {
+app.get('/admin/bookings', requireOrganizerPage, (req, res) => {
     res.sendFile(path.join(__dirname, '../public/admin-bookings.html'));
 });
 
-app.get('/admin/bookings/:id', (req, res) => {
+app.get('/admin/bookings/:id', requireOrganizerPage, (req, res) => {
     res.sendFile(path.join(__dirname, '../public/admin-booking-detail.html'));
 });
 
