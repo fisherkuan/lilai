@@ -33,6 +33,16 @@ test('the code mail names the code in the subject', () => {
 const CONNECTION = process.env.TEST_DATABASE_URL;
 const scratch = CONNECTION && /test|scratch|local/i.test(new URL(CONNECTION).pathname);
 
+test('a device signed in on /me with an admin address is an admin, without a code', async () => {
+    const pool = { query: async () => ({ rows: [] }) };
+    const env = { ADMIN_EMAILS: 'boss@lilai.test' };
+    const as = (email) => createAdminAuth({ pool, env, emailOf: async () => email });
+    const req = { headers: {} };
+    assert.equal(await as('boss@lilai.test').adminOf(req), 'boss@lilai.test');
+    assert.equal(await as('guest@lilai.test').adminOf(req), null);
+    assert.equal(await as(null).adminOf(req), null);
+});
+
 test('a code signs an admin in once; wrong codes run out; others get nothing', { skip: !scratch && 'no TEST_DATABASE_URL' }, async () => {
     const pool = new Pool({ connectionString: CONNECTION });
     try {
@@ -71,7 +81,7 @@ test('a code signs an admin in once; wrong codes run out; others get nothing', {
         for (let i = 0; i < 3; i += 1) await auth.sendCode('boss@lilai.test');
         assert.equal((await auth.sendCode('boss@lilai.test')).sent, false);
 
-        const res = { headers: {}, set(k, v) { this.headers[k] = v; } };
+        const res = { headers: {}, append(k, v) { this.headers[k] = v; } };
         await auth.signOut(req, res);
         assert.match(res.headers['Set-Cookie'], /Max-Age=0/);
         assert.equal(await auth.adminOf(req), null);

@@ -62,7 +62,7 @@ async function createAdminAuthSchema(client) {
         )`);
 }
 
-function createAdminAuth({ pool, env = process.env, fetchImpl = fetch, now = () => new Date() }) {
+function createAdminAuth({ pool, env = process.env, fetchImpl = fetch, now = () => new Date(), emailOf = null }) {
     const secure = env.NODE_ENV === 'production';
 
     // Mails a code to an admin address. Answers the same for any address, so the form
@@ -132,18 +132,24 @@ function createAdminAuth({ pool, env = process.env, fetchImpl = fetch, now = () 
     }
 
     // The signed-in admin's email, or null. An address taken off ADMIN_EMAILS stops working.
+    // A device signed in on /me (`emailOf`, the emailed link) with an admin address counts too,
+    // so an admin is not asked for a code again.
     async function adminOf(req) {
+        const admins = adminEmails(env);
         const token = parseCookies(req.headers.cookie)[COOKIE];
-        if (!token) return null;
-        const row = (await pool.query('SELECT email FROM admin_sessions WHERE token_hash = $1 AND expires_at > $2',
-            [hash(token), now()])).rows[0];
-        return row && adminEmails(env).includes(row.email) ? row.email : null;
+        if (token) {
+            const row = (await pool.query('SELECT email FROM admin_sessions WHERE token_hash = $1 AND expires_at > $2',
+                [hash(token), now()])).rows[0];
+            if (row && admins.includes(row.email)) return row.email;
+        }
+        const email = emailOf ? await emailOf(req) : null;
+        return email && admins.includes(email) ? email : null;
     }
 
     async function signOut(req, res) {
         const token = parseCookies(req.headers.cookie)[COOKIE];
         if (token) await pool.query('DELETE FROM admin_sessions WHERE token_hash = $1', [hash(token)]);
-        res.set('Set-Cookie', sessionCookie('', { secure, maxAgeMs: 0 }));
+        res.append('Set-Cookie', sessionCookie('', { secure, maxAgeMs: 0 }));
     }
 
     function signIn(res, token) {

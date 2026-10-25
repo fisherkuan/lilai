@@ -268,7 +268,8 @@ Required in `.env`:
 - `POST /api/admin/code` - Body `{email}`. An address on `ADMIN_EMAILS` gets a six-digit code valid ten minutes (five an hour); every other address gets the same answer and no mail. 503 `{message}` when the mail cannot go out
 - `POST /api/admin/session` - Body `{email, code}`. The right code (used once; five wrong tries spend it) sets the `lilai_admin` cookie: HttpOnly, SameSite=Lax, Secure in production, 30 days. 401 otherwise
 - `GET /api/admin/session` - `{email}` of the signed-in admin, or 401
-- `DELETE /api/admin/session` - Sign out: the session row is deleted and the cookie cleared
+- `DELETE /api/admin/session` - Sign out: the session row is deleted and the cookie cleared, and this device's `/me` session with it
+- A device signed in on `/me` (`lilai_session`) with an address on `ADMIN_EMAILS` is an admin too, with no code (`createAdminAuth({ emailOf })`)
 
 ### Configuration
 - `GET /api/config` - Get app configuration (calendars, settings)
