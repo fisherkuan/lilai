@@ -1326,6 +1326,9 @@ html.sheet-locked body {
 /* Where: a search over the owner's places, best match first (js/place-search.js). The list
    sits in the flow under the field, so the sheet's own scroll and the iOS keyboard never
    clip it. */
+/* Scrolled to the top of a sheet while typing (js/sheet.js), it keeps clear of the grabber and title. */
+.sheet [role="combobox"], .bs-sheet [role="combobox"] { scroll-margin-top: var(--s7); }
+.sheet .input, .sheet textarea, .bs-sheet .bs-input { scroll-margin-bottom: var(--s8); }
 .ev-place-list {
     list-style: none;
     margin: var(--s2) 0 0;

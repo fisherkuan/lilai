@@ -464,9 +464,29 @@
                 openPlaces(false);
             }
         });
-        // pointerdown keeps the focus in the field, so the tap lands before the list closes.
-        placeBox.addEventListener('pointerdown', (e) => e.preventDefault());
+        // A tap picks on pointerup, before the field's blur closes the list. Safari on iPhone
+        // drops the click after a cancelled touch pointerdown, so only a mouse cancels it (to
+        // keep the focus in the field). A finger that moved was scrolling the list, not picking.
+        let placePress = null;
+        let placePicked = false;
+        placeBox.addEventListener('pointerdown', (e) => {
+            if (e.pointerType === 'mouse') e.preventDefault();
+            placePress = { id: e.pointerId, x: e.clientX, y: e.clientY };
+            placePicked = false;
+        });
+        placeBox.addEventListener('pointerup', (e) => {
+            const press = placePress;
+            placePress = null;
+            if (!press || press.id !== e.pointerId || Math.hypot(e.clientX - press.x, e.clientY - press.y) > 8) return;
+            const li = e.target.closest('[role="option"]');
+            if (!li) return;
+            placePicked = true;
+            choosePlace(placeMatches[Number(li.dataset.index)]);
+        });
+        placeBox.addEventListener('pointercancel', () => { placePress = null; });
+        // Keyboards and screen readers still pick by click.
         placeBox.addEventListener('click', (e) => {
+            if (placePicked) { placePicked = false; return; }
             const li = e.target.closest('[role="option"]');
             if (li) choosePlace(placeMatches[Number(li.dataset.index)]);
         });
