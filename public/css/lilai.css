@@ -193,7 +193,8 @@ button { font: inherit; color: inherit; }
     height: 1em;
     overflow: visible;
     fill: var(--tone, var(--ink));
-    stroke: var(--ink);
+    /* Filled shapes are borderless, like the wordmark; an outline-only state sets its stroke */
+    stroke: none;
     stroke-width: 1.5px;
     stroke-linejoin: miter;
 }
@@ -849,8 +850,8 @@ button { font: inherit; color: inherit; }
 }
 
 .slot { display: block; }
-.slot .shape { font-size: 16px; fill: var(--paper); transform-origin: center; }
-.slot.is-taken .shape { fill: var(--tone); }
+.slot .shape { font-size: 16px; fill: var(--paper); stroke: var(--ink); transform-origin: center; }
+.slot.is-taken .shape { fill: var(--tone); stroke: none; }
 .slot.is-new .shape { animation: shape-grow 480ms var(--ease) both; }
 .seats.is-full .slot .shape { fill: var(--ink); }
 
@@ -1473,10 +1474,10 @@ html.sheet-locked body {
     transition: background-color 140ms var(--ease), border-color 140ms var(--ease);
 }
 .ev-cal span { max-width: 100%; overflow-wrap: anywhere; text-align: center; }
-.ev-cal .shape { width: 32px; height: 32px; fill: none; }
+.ev-cal .shape { width: 32px; height: 32px; fill: none; stroke: var(--ink); }
 .ev-cal:hover { background: var(--stone); }
 .ev-cal[aria-checked="true"] { border-color: var(--ink); background: var(--paper-raised); }
-.ev-cal[aria-checked="true"] .shape { fill: var(--tone); }
+.ev-cal[aria-checked="true"] .shape { fill: var(--tone); stroke: none; }
 
 /* Two answers with a sentence each: a stacked choice, the chosen one inked. */
 .ev-choice-list {
