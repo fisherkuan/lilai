@@ -326,7 +326,7 @@ a specification, never called at runtime.
 
 ## Release flow
 
-Feature branches open their PRs against `staging`, never `main`. Several merged PRs are tried together on `staging` locally: there is no staging Heroku app (it would cost $5–12 a month). When `staging` holds a complete version, a release PR merges `staging` into `main`, and `main` deploys to production (`git push heroku main`). Fixes made on `main` directly are merged back into `staging` straight after.
+Feature branches open their PRs against `staging`, never `main`. Several merged PRs are tried together on `staging` locally: there is no staging Heroku app (it would cost $5–12 a month). When `staging` holds a complete version, a release PR merges `staging` into `main`, and Heroku deploys `main` to production by itself within a few minutes of the merge (no `git push heroku`). Fixes made on `main` directly are merged back into `staging` straight after.
 
 To try `staging`, run it against its own scratch database, never `event_attendance` or production, and without the production keys, so nothing reaches people:
 ```bash
