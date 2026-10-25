@@ -10,7 +10,7 @@ No, login is not required for any operation in the webapp, including viewing cal
 
 Tap "+" next to "Upcoming", or "Create an event" in the sidebar. Fill in what, when and where (search a saved place or anything on Google Maps), and choose who gets a place: anyone, up to a number of places, or only the people you approve. An event can repeat, for example every Thursday until the end of term. Anyone can make an event in SportsCenter and 揪團啦; TSA events are for TSA's admins.
 
-Lilai asks for your email, and for your name only if you are coming too. When the event is made, Lilai gives you its management link and emails it to you. Keep it: it is how you edit or cancel the event, and how you accept or decline people who ask to join. Share it with anyone who hosts with you. This device also remembers it under "You manage".
+First you sign in with your email; the event is kept with it. Lilai asks for your name only if you are coming too. When the event is made, Lilai gives you its management link and emails it to you. Keep it: it is how you edit or cancel the event, and how you accept or decline people who ask to join. Share it with anyone who hosts with you. This device also remembers it under "You manage".
 
 ### Can I install this app on my phone?
 
@@ -79,7 +79,7 @@ No. Events are made and changed in Lilai, which copies them to the group's Googl
 
 ### What does Lilai keep about my email?
 
-The email you make an event with. Lilai keeps it with that event, sends the management link to it, and lets you find your events again when you [sign in](/me). Nobody else sees it: not attendees, and not other hosts. Lilai sends nothing else to it, and the sign-in link works once, for 30 minutes. Once signed in, "Delete my email" takes it off every event and signs out every device; your events and your name stay. If you sign in to post in an event's chat, Lilai keeps that email the same way: your messages show only your name.
+The email you make an event with. Lilai keeps it with that event, sends the management link to it, and lets you find your events again when you [sign in](/me). Nobody else sees it: not attendees, and not other hosts. Lilai sends nothing else to it, and the sign-in link works for 30 minutes. Once signed in, "Delete my email" takes it off every event and signs out every device; your events and your name stay. If you sign in to post in an event's chat, Lilai keeps that email the same way: your messages show only your name.
 
 ### I can't see any events. What's wrong?
 
