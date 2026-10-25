@@ -253,7 +253,6 @@
 }
 .ios-switch[aria-checked="true"] { background: var(--rail-sel); }
 .ios-switch[aria-checked="true"]::after { transform: translateX(20px); }
-.ios-switch:disabled { opacity: 0.4; cursor: default; }
 @media (prefers-reduced-motion: no-preference) {
     .ios-switch { transition: background-color 200ms ease; }
     .ios-switch::after { transition: transform 200ms cubic-bezier(0.3, 0.7, 0.4, 1); }

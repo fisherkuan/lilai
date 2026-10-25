@@ -349,31 +349,18 @@
         a.hidden = false;
     });
 
-    // Display: the footer's choices as iOS switches, on this device only. Match device is the
-    // theme's Auto; Dark picks Light or Dark and, while Match device is on, shows the device's
-    // own setting greyed out. Header icons is the sprites (off: short words). Each follows the
+    // Display: the footer's choices as iOS switches, on this device only. Dark picks Dark or
+    // Light (the default); Header icons is the sprites (off: short words). Each follows the
     // footer through the page events js/theme.js and js/sprites.js send.
-    const deviceDark = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
-    function setSwitch(button, on, disabled = false) {
+    function setSwitch(button, on) {
         button.setAttribute('aria-checked', String(on));
-        button.disabled = disabled;
     }
-    function showTheme(choice) {
-        const auto = choice === 'auto';
-        setSwitch($('me-auto'), auto);
-        setSwitch($('me-dark'), auto ? Boolean(deviceDark && deviceDark.matches) : choice === 'dark', auto);
-    }
-    if (window.LilaiTheme && $('me-auto')) {
-        $('me-auto').addEventListener('click', () => {
-            const on = $('me-auto').getAttribute('aria-checked') === 'true';
-            // Off: keep what the device shows now, as a fixed choice.
-            window.LilaiTheme.set(on ? (deviceDark && deviceDark.matches ? 'dark' : 'light') : 'auto');
-        });
+    if (window.LilaiTheme && $('me-dark')) {
+        const showTheme = choice => setSwitch($('me-dark'), choice === 'dark');
         $('me-dark').addEventListener('click', () => {
             window.LilaiTheme.set($('me-dark').getAttribute('aria-checked') === 'true' ? 'light' : 'dark');
         });
         document.addEventListener('lilai:theme', e => showTheme(e.detail));
-        if (deviceDark) deviceDark.addEventListener('change', () => showTheme(window.LilaiTheme.get()));
         showTheme(window.LilaiTheme.get());
     }
     if (window.Sprites && $('me-icons')) {
