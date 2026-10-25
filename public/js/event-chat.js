@@ -211,6 +211,7 @@
         $('chat-form').hidden = true;
         $('chat-signin').hidden = true;
         $('chat-signin-sent').hidden = true;
+        $('chat-signin-code').hidden = true;
         $('chat-signin-fields').hidden = false;
         showError('chat-error', '');
         showError('chat-signin-error', '');
@@ -279,10 +280,40 @@
             const { ok, result } = await api('/signin', { method: 'POST', body: JSON.stringify({ email }) });
             if (!ok) return showError('chat-signin-error', result.message || 'That did not go through. Try again.');
             $('chat-signin-fields').hidden = true;
-            $('chat-signin-sent').textContent = `A link is on its way to ${email}. Open it on this device within 30 minutes; it brings you back here.`;
+            $('chat-signin-sent').textContent = `A link and a code are on their way to ${email}. Open the link on this device, or type the code here, within 30 minutes.`;
             $('chat-signin-sent').hidden = false;
+            $('chat-code').value = '';
+            showError('chat-code-error', '');
+            $('chat-signin-code').hidden = false;
+            $('chat-code').focus();
         } catch (_) {
             showError('chat-signin-error', 'No connection. Check your network and try again.');
+        } finally {
+            button.disabled = false;
+        }
+    }
+
+    // The emailed code, for a device the link does not open on (an iPhone home-screen app).
+    async function signInWithCode() {
+        showError('chat-code-error', '');
+        const code = $('chat-code').value.replace(/\s/g, '');
+        if (!/^\d{6}$/.test(code)) return showError('chat-code-error', 'Type the six digits from the email.');
+        const button = $('chat-code-send');
+        if (button.disabled) return;
+        button.disabled = true;
+        try {
+            const res = await fetch('/api/me/session', {
+                method: 'POST',
+                cache: 'no-store',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: $('chat-email').value.trim(), code })
+            });
+            const result = await res.json().catch(() => ({}));
+            if (!res.ok || result.success === false) return showError('chat-code-error', result.message || 'That did not go through. Try again.');
+            if (root.AccountLink) root.AccountLink.remember(result.email);
+            await load({ stick: true });
+        } catch (_) {
+            showError('chat-code-error', 'No connection. Check your network and try again.');
         } finally {
             button.disabled = false;
         }
@@ -439,7 +470,14 @@
         }
     });
     $('chat-form').addEventListener('submit', send);
-    $('chat-signin').addEventListener('submit', askLink);
+    $('chat-signin').addEventListener('submit', (e) => {
+        if ($('chat-signin-code').hidden) return askLink(e);
+        e.preventDefault();
+        signInWithCode();
+    });
+    $('chat-code').addEventListener('input', () => {
+        if (/^\d{6}$/.test($('chat-code').value.trim())) signInWithCode();
+    });
     const input = $('chat-input');
     input.addEventListener('input', () => autosize(input));
     // Enter sends on a keyboard; Shift+Enter is a new line. Phones keep Enter as a new line.
