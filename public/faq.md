@@ -35,7 +35,7 @@ Your name then appears in the event's list of names. This device remembers your 
 
 ### Can I change or cancel my RSVP?
 
-Yes. Tap "Remove a name" under the event, pick your name from the list, then tap "Remove".
+Yes. Tap "Remove a name" under the event, pick your name from the list, tap "Remove", then tap "Remove" with your name to confirm.
 
 ### Can multiple people use the same name to RSVP?
 

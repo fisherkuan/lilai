@@ -1067,6 +1067,23 @@ function closeRsvpModal() {
     restoreSheetFocus();
 }
 
+// Remove a name asks twice, like Remove on the management page: pick the name, then
+// "Remove Ana?" with the name on the button. Keep them closes the sheet.
+let removeConfirming = false;
+
+function setRemoveStep(confirming) {
+    const event = currentEventForRsvp;
+    const name = document.getElementById('attendee-to-remove').value;
+    removeConfirming = confirming;
+    document.getElementById('remove-pick').hidden = confirming;
+    document.getElementById('remove-modal-event-title').textContent = confirming ? `Remove ${name}?` : event.title;
+    document.getElementById('remove-modal-event-date').textContent = confirming
+        ? `${event.title}, ${formatSheetDate(event)}`
+        : formatSheetDate(event);
+    document.querySelector('.rsvp-remove-btn .text').textContent = confirming ? `Remove ${name}` : 'Remove';
+    document.querySelector('#remove-rsvp-modal .sheet-actions .text-btn').textContent = confirming ? 'Keep them' : 'Keep it';
+}
+
 function openRemoveRsvpModal(eventId) {
     const event = findEvent(eventId);
     if (!event) return;
@@ -1075,8 +1092,6 @@ function openRemoveRsvpModal(eventId) {
     showFieldError('remove-error', '');
     const modal = document.getElementById('remove-rsvp-modal');
     modal.classList.remove('hidden');
-    document.getElementById('remove-modal-event-title').textContent = event.title;
-    document.getElementById('remove-modal-event-date').textContent = formatSheetDate(event);
     const selector = document.getElementById('attendee-to-remove');
     selector.innerHTML = '';
     (event.attendees || []).forEach(name => {
@@ -1100,6 +1115,7 @@ function openRemoveRsvpModal(eventId) {
     if (remembered && [...(event.attendees || []), ...(event.waitlist || [])].includes(remembered)) {
         selector.value = remembered;
     }
+    setRemoveStep(false);
     setTimeout(() => selector.focus(), 50);
 }
 
@@ -1161,6 +1177,11 @@ function submitRsvp(action) {
 
 function submitRemoveRsvp() {
     if (!currentEventForRsvp) return;
+    if (!removeConfirming) {
+        setRemoveStep(true);
+        document.querySelector('.rsvp-remove-btn').focus();
+        return;
+    }
     const event = currentEventForRsvp;
     const attendeeName = document.getElementById('attendee-to-remove').value;
     const submitBtn = document.querySelector('.rsvp-remove-btn');
