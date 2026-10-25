@@ -30,13 +30,15 @@ function mailFrom(env) {
     return env.NOTIFY_EMAIL_FROM || env.FEEDBACK_EMAIL_FROM || 'Lilai <onboarding@resend.dev>';
 }
 
-function buildSignInMail(to, url, env = process.env) {
+const SIGNIN_LEAD = 'Open this link to see the events you host on Lilai:';
+
+function buildSignInMail(to, url, env = process.env, lead = SIGNIN_LEAD) {
     return {
         from: mailFrom(env),
         to: [to],
         subject: 'Your Lilai sign-in link',
         text: [
-            'Open this link to see the events you host on Lilai:',
+            lead,
             url,
             '',
             'It works once, for 30 minutes, on the device you open it on.',
@@ -152,7 +154,14 @@ function createContacts({ pool, env = process.env, fetchImpl = fetch, now = () =
             [email, new Date(now().getTime() - HOUR_MS)]
         );
         if (sent.rows[0].n >= LINKS_PER_HOUR) return;
+        await sendSignInLink(email, { baseUrl });
+    }
 
+    // A sign-in link to an address, without the checks: for an admin's approved request
+    // (server/email-claims.js) as much as for the form. Returns whether the mail went out.
+    async function sendSignInLink(emailInput, { baseUrl, lead }) {
+        const email = normalEmail(emailInput);
+        if (!env.RESEND_API_KEY) return false;
         const token = hosting.newToken();
         await pool.query(
             'INSERT INTO contact_tokens (token_hash, email, purpose, created_at, expires_at) VALUES ($1, $2, $3, $4, $5)',
@@ -161,9 +170,10 @@ function createContacts({ pool, env = process.env, fetchImpl = fetch, now = () =
         const res = await fetchImpl('https://api.resend.com/emails', {
             method: 'POST',
             headers: { Authorization: `Bearer ${env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify(buildSignInMail(email, `${baseUrl}/me/signin/${token}`, env))
+            body: JSON.stringify(buildSignInMail(email, `${baseUrl}/me/signin/${token}`, env, lead))
         });
         if (!res.ok) console.error('[contacts] sign-in mail', res.status, await res.text());
+        return res.ok;
     }
 
     // A sign-in link -> a new device session token, else null. A link works once. Opening it
@@ -297,7 +307,7 @@ function createContacts({ pool, env = process.env, fetchImpl = fetch, now = () =
         }
     }
 
-    return { requestSignIn, redeem, emailOf, signIn, signOut, eventsOf, manageLink, forget };
+    return { requestSignIn, sendSignInLink, redeem, emailOf, signIn, signOut, eventsOf, manageLink, forget };
 }
 
 module.exports = {

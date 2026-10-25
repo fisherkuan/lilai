@@ -164,6 +164,17 @@
 .pl-edit .field:first-child { margin-top: 0; }
 .pl-empty { padding: var(--s3) 0; color: var(--ink-2); }
 
+/* ---------- Lost-link requests ---------- */
+
+.rq-row { display: block; }
+.rq-hint { margin-top: var(--s2); }
+.rq-events { list-style: none; margin: var(--s2) 0 0; padding: 0; }
+.rq-event { display: flex; align-items: flex-start; gap: var(--s3); padding: var(--s2) 0; cursor: pointer; }
+.rq-event input { flex: none; width: 20px; height: 20px; margin-top: 2px; accent-color: var(--ink); }
+.rq-event > span { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.rq-search { margin-top: var(--s3); }
+.rq-actions { margin-top: var(--s4); }
+
 /* ---------- Admin sign-in ---------- */
 
 .admin-login > * { max-width: 480px; }

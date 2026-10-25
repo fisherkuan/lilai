@@ -24,6 +24,7 @@ const { createPlaceAutocomplete } = require('./place-autocomplete');
 const places = require('./places');
 const adminAuthLib = require('./admin-auth');
 const contactsLib = require('./contacts');
+const claimsLib = require('./email-claims');
 const { importCalendar, createImportSchema, importedCalendarIds } = require('./calendar-import');
 const access = require('./calendar-access');
 const activity = require('./event-activity');
@@ -125,6 +126,8 @@ const adminAuth = adminAuthLib.createAdminAuth({ pool });
 
 // Find my events: a sign-in link by email, then a device session (server/contacts.js).
 const contacts = contactsLib.createContacts({ pool });
+// Lost a management link: a request the admin approves on /admin/requests (server/email-claims.js).
+const claims = claimsLib.createClaims({ pool, contacts });
 
 // Read once at startup: an invalid IBAN stops the server rather than reaching a donor.
 const bankDetails = readBankDetails();
@@ -341,6 +344,7 @@ async function initializeDatabase() {
         await feedback.createFeedbackSchema(client);
         await adminAuthLib.createAdminAuthSchema(client);
         await contactsLib.createContactsSchema(client);
+        await claimsLib.createClaimsSchema(client);
         const placesSeeded = await places.createPlacesSchema(client, appConfig.places || []);
         if (placesSeeded) console.log(`📍 Saved ${placesSeeded} places from config/app.json`);
         const seeded = await createProfileSchema(client, uuidv4);
@@ -2874,6 +2878,51 @@ app.get('/api/admin/session', async (req, res) => {
 app.delete('/api/admin/session', async (req, res) => {
     await adminAuth.signOut(req, res);
     res.json({ success: true });
+});
+
+// Lost a management link: name and email from /me, approved by the admin on /admin/requests.
+app.post('/api/me/claims', async (req, res) => {
+    try {
+        await claims.submit(req.body, { ip: req.ip, baseUrl: publicUrl(req) });
+    } catch (error) {
+        if (!error.status) throw error;
+        return res.status(error.status).json({ success: false, field: error.field, message: error.message });
+    }
+    res.json({ success: true });
+});
+
+const CLAIM_ID = /^[0-9a-f-]{36}$/;
+
+app.get('/api/admin/claims', adminAuth.requireAdmin, async (req, res) => {
+    res.set('Cache-Control', 'no-store').json({ success: true, ...(await claims.list()) });
+});
+
+app.get('/api/admin/claims/events', adminAuth.requireAdmin, async (req, res) => {
+    res.set('Cache-Control', 'no-store').json({ success: true, events: await claims.searchEvents(req.query.q) });
+});
+
+app.post('/api/admin/claims/:id/approve', adminAuth.requireAdmin, async (req, res) => {
+    if (!CLAIM_ID.test(req.params.id)) return res.status(404).json({ success: false, message: 'That request is gone.' });
+    let result;
+    try {
+        result = await claims.approve(req.params.id, req.body?.eventIds, { admin: req.adminEmail, baseUrl: publicUrl(req) });
+    } catch (error) {
+        if (!error.status) throw error;
+        return res.status(error.status).json({ success: false, field: error.field, message: error.message });
+    }
+    if (!result) return res.status(404).json({ success: false, message: 'Already decided. Reload.' });
+    res.json({ success: true, ...result });
+});
+
+app.post('/api/admin/claims/:id/decline', adminAuth.requireAdmin, async (req, res) => {
+    if (!CLAIM_ID.test(req.params.id) || !(await claims.decline(req.params.id, { admin: req.adminEmail }))) {
+        return res.status(404).json({ success: false, message: 'Already decided. Reload.' });
+    }
+    res.json({ success: true });
+});
+
+app.get('/admin/requests', adminAuth.requireAdminPage, (req, res) => {
+    res.sendFile(path.join(__dirname, '../public/admin-requests.html'));
 });
 
 app.get('/admin/places', adminAuth.requireAdminPage, (req, res) => {

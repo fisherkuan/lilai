@@ -54,6 +54,28 @@
             <p id="me-sent-text"></p>
             <button type="button" class="text-btn" id="me-other">Use another email</button>
         </div>
+
+        <!-- No email on the event: ask the admin to attach one (server/email-claims.js) -->
+        <section class="ev-requests me-lost" id="lost" aria-labelledby="lost-title">
+            <h2 class="section-title" id="lost-title">Lost a management link?</h2>
+            <p class="ev-lede">Made the event without an email? Send your name and an email. Once the admin confirms the event is yours, Lilai sends you a sign-in link.</p>
+            <form id="lost-form" class="me-form" novalidate>
+                <div class="field">
+                    <label for="lost-name">Your name, as host</label>
+                    <input type="text" id="lost-name" class="input" maxlength="100" autocomplete="name" required>
+                </div>
+                <div class="field">
+                    <label for="lost-email">Email</label>
+                    <input type="email" id="lost-email" class="input" autocomplete="email" inputmode="email" required>
+                </div>
+                <p class="field-error" id="lost-error" role="alert" hidden></p>
+                <div class="sheet-actions">
+                    <button type="submit" class="btn btn-solid" id="lost-send"><span class="text">Send</span></button>
+                </div>
+            </form>
+            <p class="ev-notice" id="lost-sent" hidden tabindex="-1">Sent. Once the admin confirms, the sign-in link comes to that email.</p>
+            <p class="ev-hint">Know Fisher Kuan? A direct message is faster.</p>
+        </section>
     </section>
 
     <!-- The emailed link: one tap signs this device in -->

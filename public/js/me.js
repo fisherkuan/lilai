@@ -9,6 +9,7 @@
     const parts = location.pathname.split('/').filter(Boolean);
     const signinToken = parts[1] === 'signin' ? decodeURIComponent(parts[2] || '') : '';
     let email = '';
+    const NAME_KEY = 'lilai.attendeeName';
 
     function escapeHtml(value) {
         return String(value).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -56,6 +57,10 @@
         showOnly('me-ask');
         $('me-form').hidden = false;
         $('me-sent').hidden = true;
+        if (!$('lost-name').value) {
+            try { $('lost-name').value = localStorage.getItem(NAME_KEY) || ''; } catch (_) { /* private mode */ }
+        }
+        if (location.hash === '#lost') $('lost').scrollIntoView();
     }
 
     async function sendLink(e) {
@@ -79,6 +84,33 @@
         } finally {
             button.disabled = false;
             text.textContent = 'Email me a link';
+        }
+    }
+
+    // Lost a management link, no email on the event: a request for the admin.
+    async function sendClaim(e) {
+        e.preventDefault();
+        showError('lost-error', '');
+        const name = $('lost-name').value.trim();
+        const typed = $('lost-email').value.trim();
+        if (!name) return showError('lost-error', 'Add your name.');
+        if (!typed) return showError('lost-error', 'Add an email.');
+        const button = $('lost-send');
+        const text = button.querySelector('.text');
+        button.disabled = true;
+        text.textContent = 'Sending…';
+        try {
+            const { ok, result } = await api('/api/me/claims', { method: 'POST', body: JSON.stringify({ name, email: typed }) });
+            if (!ok) return showError('lost-error', result.message || 'That did not go through. Try again.');
+            try { localStorage.setItem(NAME_KEY, name); } catch (_) { /* private mode */ }
+            $('lost-form').hidden = true;
+            $('lost-sent').hidden = false;
+            $('lost-sent').focus();
+        } catch (_) {
+            showError('lost-error', 'No connection. Check your network and try again.');
+        } finally {
+            button.disabled = false;
+            text.textContent = 'Send';
         }
     }
 
@@ -197,6 +229,7 @@
     }
 
     $('me-form').addEventListener('submit', sendLink);
+    $('lost-form').addEventListener('submit', sendClaim);
     $('me-other').addEventListener('click', () => {
         showAsk();
         $('me-email').value = '';

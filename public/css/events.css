@@ -184,7 +184,10 @@
 .me-form .input { background-color: var(--paper-raised); }
 .me-form[hidden] { display: none; }
 #me-sent .text-btn { margin-top: var(--s2); }
-#me-sent[hidden], #me-delete-confirm[hidden] { display: none; }
+#me-sent[hidden], #me-delete-confirm[hidden], #lost-sent[hidden] { display: none; }
+.me-lost { margin-top: var(--s7); padding-top: var(--s4); }
+.me-lost .ev-lede { margin-top: var(--s2); }
+.me-lost > .ev-hint { margin-top: var(--s4); }
 
 /* ---------- Calendar page ---------- */
 
