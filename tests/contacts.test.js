@@ -20,11 +20,13 @@ test('the session cookie is HttpOnly and Lax for 90 days, Secure in production',
     assert.doesNotMatch(sessionCookie('abc', { secure: false }), /Secure/);
 });
 
-test('the sign-in mail carries the link and says how long it works', () => {
-    const mail = buildSignInMail('a@b.be', 'https://lilai.test/me/signin/x', { NOTIFY_EMAIL_FROM: 'Lilai <hi@lilai.test>' });
+test('the sign-in mail carries the link and the code and says how long they work', () => {
+    const mail = buildSignInMail('a@b.be', 'https://lilai.test/me/signin/x', '042917', { NOTIFY_EMAIL_FROM: 'Lilai <hi@lilai.test>' });
     assert.equal(mail.from, 'Lilai <hi@lilai.test>');
+    assert.equal(mail.subject, '042917 is your Lilai sign-in code');
     assert.match(mail.text, /https:\/\/lilai\.test\/me\/signin\/x/);
-    assert.match(mail.text, /works for 30 minutes/);
+    assert.match(mail.text, /code where Lilai asked for it: 042917/);
+    assert.match(mail.text, /work for 30 minutes/);
 });
 
 test('a series shows once, as its next date still on', () => {
@@ -137,6 +139,44 @@ test('a host signs in by email, finds their events, manages one, and deletes the
         const again = await contacts.redeem(mails[3].text.match(/\/me\/signin\/([A-Za-z0-9_-]{32})/)[1], 'test');
         assert.equal(again.email, 'ann@lilai.test');
         assert.deepEqual((await contacts.eventsOf('ann@lilai.test')).upcoming, []);
+    } finally {
+        await pool.end();
+    }
+});
+
+test('the emailed code signs in a device the link cannot reach, five wrong tries spend it', { skip: !scratch && 'no TEST_DATABASE_URL' }, async () => {
+    const pool = new Pool({ connectionString: CONNECTION });
+    try {
+        const client = await pool.connect();
+        try {
+            await createContactsSchema(client);
+        } finally {
+            client.release();
+        }
+        await pool.query('TRUNCATE contacts, contact_tokens, device_sessions');
+        const mails = [];
+        const fetchImpl = async (url, init) => { mails.push(JSON.parse(init.body)); return { ok: true, text: async () => '' }; };
+        const contacts = createContacts({ pool, env: { RESEND_API_KEY: 'k' }, fetchImpl });
+        const codeOf = (mail) => mail.text.match(/asked for it: (\d{6})/)[1];
+
+        await contacts.requestSignIn('Cat@lilai.test', { ip: '1.1.1.1', baseUrl: '' });
+        const code = codeOf(mails[0]);
+        const wrong = code === '000000' ? '111111' : '000000';
+        assert.equal(await contacts.redeemCode('cat@lilai.test', wrong, 'test'), null);
+        assert.equal(await contacts.redeemCode('dog@lilai.test', code, 'test'), null); // another address
+        const signedIn = await contacts.redeemCode(' CAT@lilai.test ', ` ${code.slice(0, 3)} ${code.slice(3)} `, 'test');
+        assert.equal(signedIn.email, 'cat@lilai.test');
+        assert.equal(await contacts.emailOf({ headers: { cookie: `${COOKIE}=${signedIn.session}` } }), 'cat@lilai.test');
+
+        // Four more wrong tries make five: the right code no longer works.
+        for (let i = 0; i < 4; i++) await contacts.redeemCode('cat@lilai.test', wrong, 'test');
+        assert.equal(await contacts.redeemCode('cat@lilai.test', code, 'test'), null);
+        // A new mail brings a new code that works.
+        await contacts.requestSignIn('cat@lilai.test', { ip: '1.1.1.1', baseUrl: '' });
+        assert.equal((await contacts.redeemCode('cat@lilai.test', codeOf(mails[1]), 'test')).email, 'cat@lilai.test');
+        // And a code runs out with its link.
+        await pool.query("UPDATE contact_tokens SET expires_at = NOW() - interval '1 second'");
+        assert.equal(await contacts.redeemCode('cat@lilai.test', codeOf(mails[1]), 'test'), null);
     } finally {
         await pool.end();
     }
