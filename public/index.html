@@ -277,6 +277,13 @@
                     <p class="field-error" id="chat-signin-error" role="alert" hidden></p>
                 </div>
                 <p class="chat-sent" id="chat-signin-sent" role="status" hidden></p>
+                <div id="chat-signin-code" hidden>
+                    <div class="chat-compose">
+                        <input type="text" id="chat-code" class="input" autocomplete="one-time-code" inputmode="numeric" maxlength="6" pattern="[0-9]*" placeholder="Code" aria-label="Code from the email">
+                        <button type="submit" class="btn btn-solid" id="chat-code-send">Sign in</button>
+                    </div>
+                    <p class="field-error" id="chat-code-error" role="alert" hidden></p>
+                </div>
             </form>
         </div>
     </div>
@@ -301,5 +308,6 @@
 <script src="/js/device-links.js"></script>
 <script src="/js/make-event.js"></script>
 <script src="/js/event-chat.js"></script>
+<script src="/js/whats-new.js"></script>
 </body>
 </html>

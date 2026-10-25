@@ -1,4 +1,4 @@
-const CACHE_NAME = 'lilai-cache-v102'; // Bumped version
+const CACHE_NAME = 'lilai-cache-v104'; // Bumped version
 const urlsToCache = [
   '/',
   '/index.html',
@@ -23,6 +23,7 @@ const urlsToCache = [
   '/js/event-chat.js',
   '/js/place-search.js',
   '/js/make-event.js',
+  '/js/whats-new.js',
   '/js/pull-to-refresh.js',
   '/manifest.json',
   '/icons/icon-192x192.png',
@@ -98,6 +99,10 @@ self.addEventListener('fetch', (event) => {
     }
 
     if (isHostTraffic(new URL(event.request.url))) return;
+
+    // Video goes straight to the network: Safari asks for byte ranges, and a cached full
+    // answer to a range request will not play.
+    if (event.request.headers.has('range') || /\.mp4$/.test(new URL(event.request.url).pathname)) return;
 
     if (isOurCode(new URL(event.request.url))) {
         event.respondWith(

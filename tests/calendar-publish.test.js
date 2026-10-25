@@ -89,3 +89,39 @@ test('without Google credentials nothing is pushed', async () => {
     await createPublisher({ pool, googleCalendar: null }).tick();
     assert.equal(pool.writes.length, 0);
 });
+
+test('a copy organised by someone else is replaced by one of Lilai\'s own', async () => {
+    const calls = [];
+    const refusal = Object.assign(new Error('The operation can only be performed by the creator of the event.'), { status: 403, reason: 'forbiddenForNonOrganizer' });
+    const googleCalendar = {
+        updateEvent: async (cal, id) => { calls.push(['update', id]); throw refusal; },
+        insertEvent: async (cal, r) => { calls.push(['insert', r.id]); return { htmlLink: 'https://g/new' }; },
+        deleteEvent: async (cal, id) => { calls.push(['delete', id]); return null; }
+    };
+    const pool = fakePool([row({ synced_version: 1 })]);
+    await createPublisher({ pool, googleCalendar }).tick();
+    const newId = calls[1][1];
+    assert.match(newId, /^[0-9a-f]{32}$/);
+    assert.deepEqual(calls, [['update', 'a'], ['insert', newId], ['delete', 'a']]);
+    assert.match(pool.writes[0].sql, /SET google_event_id = \$2/);
+    assert.deepEqual(pool.writes[0].params, ['cal-a@google.com', newId]);
+    assert.match(pool.writes[1].sql, /synced_version = \$2/);
+});
+
+test('an old copy that cannot be removed leaves the new copy in place', async () => {
+    const refusal = Object.assign(new Error('only the creator'), { status: 403, reason: 'forbiddenForNonOrganizer' });
+    const googleCalendar = {
+        updateEvent: async () => { throw refusal; },
+        insertEvent: async () => ({}),
+        deleteEvent: async () => { throw Object.assign(new Error('nope'), { status: 403 }); }
+    };
+    const pool = fakePool([row({ synced_version: 1 })]);
+    const original = console.error;
+    console.error = () => {};
+    try {
+        await createPublisher({ pool, googleCalendar }).tick();
+    } finally {
+        console.error = original;
+    }
+    assert.match(pool.writes.at(-1).sql, /synced_version = \$2/);
+});

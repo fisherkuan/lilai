@@ -6,8 +6,8 @@
  * Each sprite is rows of palette letters ('.' is empty); `Sprites.svg(name)` turns one into an
  * inline SVG of 1x1 squares, one path per colour. The colours are fixed: a sprite looks the
  * same in both themes, like the calendar shapes. The links keep their word as aria-label and
- * title, so a screen reader and a long press still name them. A footer switch trades the
- * sprites for short words on this device (lilai.headerStyle).
+ * title, so a screen reader and a long press still name them. The header shows short words
+ * unless this device picked the sprites with the footer switch (lilai.headerStyle).
  */
 (function (root) {
     'use strict';
@@ -81,10 +81,11 @@
             + '</svg>';
     }
 
-    // The header shows sprites or short words, the device's choice (footer "Header: Icons · Text").
+    // The header shows short words by default, or sprites when the device chose them
+    // (the footer's "Header icons" switch; owner 2026-10-25).
     const MODE_KEY = 'lilai.headerStyle';
     function mode() {
-        try { return root.localStorage.getItem(MODE_KEY) === 'text' ? 'text' : 'icons'; } catch (_) { return 'icons'; }
+        try { return root.localStorage.getItem(MODE_KEY) === 'icons' ? 'icons' : 'text'; } catch (_) { return 'text'; }
     }
 
     // A link may keep a line icon in text mode instead of a word (the bug, owner 2026-10-25).
@@ -131,21 +132,18 @@
         });
     }
 
-    // Footer: "Header  Icons  Text", beside the theme switch and styled like it.
+    // Footer: a "Header icons" switch, beside the Dark one and drawn like it.
     function renderSwitch() {
         const footer = document.querySelector('.colophon');
         if (!footer || !document.querySelector('.masthead')) return;
-        const group = document.createElement('div');
-        group.className = 'theme-switch';
-        group.setAttribute('role', 'group');
-        group.setAttribute('aria-label', 'Header');
-        group.innerHTML = '<span class="theme-switch-label">Header</span>'
-            + [['icons', 'Icons'], ['text', 'Text']].map(([value, text]) =>
-                `<button type="button" class="theme-btn" data-header-choice="${value}" aria-pressed="false">${text}</button>`).join('');
-        footer.appendChild(group);
-        const buttons = [...group.querySelectorAll('button')];
-        const mark = () => buttons.forEach(b => b.setAttribute('aria-pressed', String(b.dataset.headerChoice === mode())));
-        buttons.forEach(b => b.addEventListener('click', () => setMode(b.dataset.headerChoice)));
+        const row = document.createElement('div');
+        row.className = 'footer-toggle';
+        row.innerHTML = '<span id="footer-icons-label">Header icons</span>'
+            + '<button type="button" class="ios-switch" role="switch" aria-checked="false" aria-labelledby="footer-icons-label"></button>';
+        (root.LilaiFooterToggles ? root.LilaiFooterToggles(footer) : footer).appendChild(row);
+        const toggle = row.querySelector('.ios-switch');
+        const mark = () => toggle.setAttribute('aria-checked', String(mode() === 'icons'));
+        row.addEventListener('click', () => setMode(mode() === 'icons' ? 'text' : 'icons'));
         document.addEventListener('lilai:header', mark);
         mark();
     }

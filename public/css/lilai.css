@@ -649,6 +649,8 @@ button { font: inherit; color: inherit; }
 @media (hover: hover) { .to-top:hover { background: var(--stone); } }
 .to-top:focus-visible { outline: var(--stroke-2) solid var(--focus); outline-offset: 2px; }
 .home.is-rows ~ .to-top { display: none; }
+/* At the bottom of the page the footer ends above the button, so it never covers a switch. */
+body:has(.to-top) .colophon { padding-bottom: calc(48px + max(var(--s5), env(safe-area-inset-bottom)) + var(--s3)); }
 
 /* ---------- Pull to refresh ---------- */
 
@@ -1411,16 +1413,15 @@ html.sheet-locked body {
     place-items: center;
     height: 40px;
     scroll-snap-align: center;
-    font-family: var(--font-display);
-    font-size: 20px;
-    font-weight: 500;
+    font-size: 17px;
+    font-weight: 400;
     font-variant-numeric: tabular-nums;
     color: var(--ink-3);
     cursor: pointer;
     user-select: none;
 }
-.tw-cell[aria-selected="true"] { color: var(--ink); font-weight: 700; }
-.tw-colon { position: relative; font-family: var(--font-display); font-size: 20px; font-weight: 700; }
+.tw-cell[aria-selected="true"] { color: var(--ink); font-weight: 600; }
+.tw-colon { position: relative; font-size: 17px; font-weight: 600; }
 .tw-done { min-height: 40px; }
 
 /* ---------- Event form ----------
@@ -1795,51 +1796,53 @@ html.sheet-locked body {
     color: var(--ink-3);
 }
 
-/* Theme: Auto · Light · Dark. Footer-sized, but each choice is a 44px touch target. */
-.theme-switch {
+/* Footer switches: a word and an iOS switch (Dark, Header icons). The whole row toggles, so
+   it is the 44px target. Profile's Display card uses the same .ios-switch. */
+.footer-toggle {
     display: flex;
     align-items: center;
-    gap: var(--s3);
+    gap: var(--s2);
+    min-height: 44px;
     font-size: 13px;
     color: var(--ink-3);
+    cursor: pointer;
+    user-select: none;
+    -webkit-user-select: none;
 }
+.footer-toggles { display: flex; gap: var(--s5); }
+/* A smaller switch, at the footer's 13px. */
+.footer-toggle .ios-switch { width: 40px; height: 24px; }
+.footer-toggle .ios-switch::after { width: 20px; height: 20px; }
+.footer-toggle .ios-switch[aria-checked="true"]::after { transform: translateX(16px); }
 
-.theme-btn {
-    min-height: 44px;
+.ios-switch {
+    flex: none;
+    position: relative;
+    width: 51px;
+    height: 31px;
     padding: 0;
     border: 0;
-    background: none;
-    font: inherit;
-    color: var(--ink-3);
+    border-radius: 999px;
+    background: var(--stone);
     cursor: pointer;
 }
-
-.theme-btn:hover { color: var(--ink); }
-
-.theme-btn[aria-pressed="true"] {
-    color: var(--ink);
-    font-weight: 500;
-    text-decoration: underline;
-    text-decoration-thickness: var(--rule);
-    text-underline-offset: 4px;
+.ios-switch::after {
+    content: "";
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 27px;
+    height: 27px;
+    border-radius: 50%;
+    background: var(--on-rail-sel);
+    box-shadow: var(--shadow-raised);
 }
-
-/* Feedback: a footer-sized link that opens its sheet (js/feedback.js). */
-.feedback-btn {
-    min-height: 44px;
-    padding: 0;
-    border: 0;
-    background: none;
-    font: inherit;
-    font-size: 13px;
-    color: var(--ink-3);
-    text-decoration: underline;
-    text-decoration-thickness: 1px;
-    text-underline-offset: 3px;
-    cursor: pointer;
+.ios-switch[aria-checked="true"] { background: var(--rail-sel); }
+.ios-switch[aria-checked="true"]::after { transform: translateX(20px); }
+@media (prefers-reduced-motion: no-preference) {
+    .ios-switch { transition: background-color 200ms ease; }
+    .ios-switch::after { transition: transform 200ms cubic-bezier(0.3, 0.7, 0.4, 1); }
 }
-
-.feedback-btn:hover { color: var(--ink); }
 
 .textarea {
     min-height: 140px;
@@ -2077,12 +2080,125 @@ html.sheet-locked body {
 .chat-signin-lede,
 .chat-sent { margin-bottom: var(--s3); font-size: var(--meta); color: var(--ink-2); }
 .chat-sent { margin-bottom: 0; color: var(--ink); }
+#chat-signin-code { margin-top: var(--s3); }
+#chat-signin-code[hidden] { display: none; }
+#chat-code { font-variant-numeric: tabular-nums; letter-spacing: 0.2em; }
 
 @media (min-width: 640px) {
     .sheet.sheet-chat { height: auto; max-width: 460px; padding-bottom: 0; }
+    .sheet.sheet-tour { height: 100%; }
     .chat-foot { padding-bottom: var(--s5); }
     .sheet .chat-input { min-height: 40px; padding-top: 8px; padding-bottom: 8px; }
 }
+
+/* ---------- EN · 繁中 switch (FAQ, What's new) ---------- */
+
+.lang-switch {
+    display: flex;
+    padding: 3px;
+    border-radius: var(--radius-full);
+    background: var(--fill);
+}
+
+.lang-btn {
+    min-height: 38px;
+    padding: 0 var(--s4);
+    border: 0;
+    border-radius: var(--radius-full);
+    background: none;
+    font: inherit;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--ink-2);
+    cursor: pointer;
+    transition: background-color var(--duration-swap), color var(--duration-swap);
+}
+
+.lang-btn:hover { color: var(--ink); }
+
+.lang-btn.active {
+    background: var(--paper-raised);
+    color: var(--ink);
+    box-shadow: var(--shadow-raised);
+}
+
+/* ---------- What's new (js/whats-new.js) ---------- */
+
+/* A tall sheet: the language switch and close on top, the picture taking whatever height is
+   left, then the words, the step marks and Back / Next. */
+.sheet.sheet-tour {
+    display: flex;
+    flex-direction: column;
+    height: 92%;
+    overflow: hidden;
+}
+.sheet-tour > * { flex: none; }
+.sheet-tour:focus { outline: none; }
+.tour-head { align-items: center; padding-top: var(--s2); }
+.tour-head .icon-btn { margin: 0 10px 0 0; }
+
+.tour-stage {
+    flex: 1 1 auto;
+    min-height: 160px;
+    display: flex;
+    justify-content: center;
+    margin-top: var(--s3);
+}
+
+/* The phone: one screen of the real app, a 2px ink edge, pictures stacked in it. */
+.tour-frame {
+    position: relative;
+    height: 100%;
+    aspect-ratio: 390 / 760;
+    max-width: 100%;
+    overflow: hidden;
+    border: var(--rule) solid var(--ink);
+    border-radius: 20px;
+    background: var(--paper);
+}
+.tour-shot {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: top;
+    visibility: hidden;
+}
+.tour-shot.is-shown { visibility: visible; }
+
+.tour-text { margin-top: var(--s4); min-height: 9.5em; }
+.tour-step { font-size: 13px; font-weight: 600; color: var(--ink-3); }
+.tour-title {
+    margin-top: var(--s1);
+    font-size: 22px;
+    font-weight: 600;
+    line-height: 1.25;
+    text-wrap: balance;
+}
+.tour-body { margin-top: var(--s2); font-size: 15px; line-height: 1.5; color: var(--ink-2); }
+
+/* Progress as status marks: 10px squares, ink up to this step. */
+.tour-marks {
+    display: flex;
+    gap: var(--s2);
+    margin: var(--s3) 0 0;
+    padding: 0;
+    list-style: none;
+}
+.tour-marks li {
+    width: 10px;
+    height: 10px;
+    border: 1.5px solid var(--ink);
+}
+.tour-marks li.is-on { background: var(--ink); }
+
+.tour-actions { margin-top: var(--s4); }
+.tour-actions [data-tour-back] { flex: 0 0 auto; }
+.tour-actions [hidden] { display: none; }
+
+/* The footer's "What's new" sits with the theme switch, at its 13px. */
+.colophon-link { min-height: 44px; margin-right: auto; font-size: 13px; color: var(--ink-3); }
 
 /* ---------- Breakpoints ---------- */
 
