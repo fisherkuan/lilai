@@ -6,6 +6,12 @@
     const $ = (id) => document.getElementById(id);
     const next = new URLSearchParams(location.search).get('next');
     const target = next && next.startsWith('/admin/') ? next : '/admin/donations';
+
+    // Back to the page that sent someone here (not an admin page, which would send them back), else Home.
+    try {
+        const from = new URL(document.referrer);
+        if (from.origin === location.origin && !from.pathname.startsWith('/admin')) $('login-back').href = from.pathname + from.search + from.hash;
+    } catch (_) { /* no referrer */ }
     let email = '';
     try { $('email').value = localStorage.getItem('lilaiAdminEmail') || ''; } catch (_) { /* private mode */ }
 

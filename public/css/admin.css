@@ -193,3 +193,7 @@
 
     .admin-grid .sidebar { margin-top: 0; }
 }
+
+/* Admin sign-in: back for anyone who is not an admin */
+.login-back { width: fit-content; gap: var(--s1); margin-bottom: var(--s3); }
+.login-back svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2px; stroke-linecap: square; }
