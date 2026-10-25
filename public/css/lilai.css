@@ -274,14 +274,18 @@ button { font: inherit; color: inherit; }
     font-size: 15px;
     font-weight: 500;
     text-decoration: none;
+    white-space: nowrap;
     padding: var(--s3) 0;
 }
 .app-header-links a:hover { text-decoration: underline; }
-/* A 320px phone cannot fit four links beside the wordmark: with Admin there, the shapes alone
-   stand for Lilai (they still link home and keep its name for screen readers). */
-@media (max-width: 359px) {
-    .app-header-links { gap: var(--s3); }
+/* A phone cannot fit four links and the bug beside the wordmark: with Admin there, the shapes
+   alone stand for Lilai (they still link home and keep its name for screen readers). */
+@media (max-width: 429px) {
     .masthead:has([data-admin-link]) .wordmark-name { display: none; }
+}
+@media (max-width: 359px) {
+    .masthead, .app-header-links { gap: 10px; }
+    .masthead .icon-btn.report-bug { width: 36px; margin-right: -7px; }
 }
 
 .icon-btn {
@@ -306,6 +310,9 @@ button { font: inherit; color: inherit; }
 }
 
 .icon-btn:hover { background: var(--wash); }
+
+/* The header's bug (js/feedback.js): last in the masthead, its glyph lined up with the gutter. */
+.masthead .report-bug { flex: none; margin: 0 -11px 0 calc(var(--s2) * -1); }
 
 .text-link {
     display: flex;
