@@ -195,6 +195,25 @@
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
             </button>
         </div>
+        <!-- Not signed in: an event is tied to the signed-in email (js/make-event.js) -->
+        <form id="event-signin" novalidate hidden>
+            <section class="ev-card" aria-labelledby="event-signin-title">
+                <h3 class="ev-card-title" id="event-signin-title">Sign in first</h3>
+                <div id="event-signin-fields">
+                    <p class="ev-hint">Lilai emails you a link. Open it on this device and you come back here.</p>
+                    <div class="field">
+                        <label for="event-signin-email">Email</label>
+                        <input type="email" id="event-signin-email" class="input" autocomplete="email" inputmode="email" required>
+                        <p class="field-error" id="event-signin-error" role="alert" hidden></p>
+                    </div>
+                </div>
+                <p class="ev-hint" id="event-signin-sent" role="status" hidden></p>
+            </section>
+            <div class="sheet-actions">
+                <button type="submit" class="btn btn-solid" id="event-signin-send"><span class="text">Email me a link</span></button>
+                <button type="button" class="text-btn" data-close>Cancel</button>
+            </div>
+        </form>
         <form id="event-sheet-form" novalidate>
             <div id="event-form-fields"></div>
             <p class="field-error ev-form-error" id="event-form-error" role="alert" hidden></p>

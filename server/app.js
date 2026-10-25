@@ -929,13 +929,15 @@ function eventFieldParams(id, edit, start, end) {
 // A change the Google copy must follow: next version, pushed as soon as the publisher runs.
 const NEEDS_PUSH_SQL = 'version = version + 1, updated_at = NOW(), push_attempts = 0, push_error = NULL, next_push_at = NULL';
 
-// Make an event, or a repeating one (one row per date, one series). Open to anyone, like
-// RSVP; a restricted calendar takes one of its keys.
+// Make an event, or a repeating one (one row per date, one series). Open to anyone signed in;
+// the host email is the signed-in one, never typed. A restricted calendar takes one of its keys.
 app.post('/api/events', async (req, res) => {
+    const signedIn = await contacts.emailOf(req);
+    if (!signedIn) return res.status(401).json({ success: false, field: 'hostEmail', message: 'Sign in to make an event.' });
     const calendars = publishedCalendars();
     let input;
     try {
-        input = hosting.validateEvent(req.body, { mode: 'create', calendars: calendars.map(c => c.name), places: placeList(), allowAnyPlace: !placeAutocomplete.enabled });
+        input = hosting.validateEvent({ ...req.body, hostEmail: signedIn }, { mode: 'create', calendars: calendars.map(c => c.name), places: placeList(), allowAnyPlace: !placeAutocomplete.enabled });
     } catch (error) {
         if (inputError(res, error)) return;
         throw error;
@@ -995,13 +997,8 @@ app.post('/api/events', async (req, res) => {
 
     publisher.nudge();
     broadcast({ type: 'event_created', payload: { ids } });
-    // A signed-in host's new name follows their email to their other devices.
-    if (input.hostName) {
-        const signedIn = await contacts.emailOf(req).catch(() => null);
-        if (signedIn && signedIn === contactsLib.normalEmail(input.hostEmail)) {
-            broadcastRenamed((await contacts.setName(signedIn, input.hostName)).renamedIn);
-        }
-    }
+    // The host's new name follows their email to their other devices.
+    if (input.hostName) broadcastRenamed((await contacts.setName(signedIn, input.hostName)).renamedIn);
 
     const hostPath = `/host/${token}`;
     const emailed = input.hostEmail
@@ -2929,7 +2926,7 @@ app.get(['/me', '/me/signin/:token'], (req, res) => {
 
 app.post('/api/me/link', async (req, res) => {
     try {
-        await contacts.requestSignIn(req.body?.email, { ip: req.ip, baseUrl: publicUrl(req) });
+        await contacts.requestSignIn(req.body?.email, { ip: req.ip, baseUrl: publicUrl(req), next: req.body?.next });
     } catch (error) {
         if (!error.status) throw error;
         return res.status(error.status).json({ success: false, field: error.field, message: error.message });

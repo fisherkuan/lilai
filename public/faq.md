@@ -10,7 +10,7 @@ No, login is not required for any operation in the webapp, including viewing cal
 
 Tap "+" next to "Upcoming", or "Create an event" in the sidebar. Fill in what, when and where (search a saved place or anything on Google Maps), and choose who gets a place: anyone, up to a number of places, or only the people you approve. An event can repeat, for example every Thursday until the end of term. Anyone can make an event in SportsCenter and 揪團啦; TSA events are for TSA's admins.
 
-Lilai asks for your email, and for your name only if you are coming too. When the event is made, Lilai gives you its management link and emails it to you. Keep it: it is how you edit or cancel the event, and how you accept or decline people who ask to join. Share it with anyone who hosts with you. This device also remembers it under "You manage".
+First you sign in with your email; the event is kept with it. Lilai asks for your name only if you are coming too. When the event is made, Lilai gives you its management link and emails it to you. Keep it: it is how you edit or cancel the event, and how you accept or decline people who ask to join. Share it with anyone who hosts with you. This device also remembers it under "You manage".
 
 ### Can I install this app on my phone?
 

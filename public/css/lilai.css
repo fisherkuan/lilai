@@ -1278,6 +1278,16 @@ html.sheet-locked body {
     margin-bottom: var(--s3);
 }
 
+/* Make an event's "You": the signed-in email, with Change beside it */
+.ev-signed-as {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    column-gap: var(--s3);
+    margin: 0;
+    overflow-wrap: anywhere;
+}
+
 .ev-optional {
     margin-left: var(--s1);
     font-weight: 400;

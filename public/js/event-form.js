@@ -177,8 +177,8 @@
         <section class="ev-card" data-part="you" aria-labelledby="${p}-c-you">
             <h3 class="ev-card-title" id="${p}-c-you">You</h3>
             <div class="field">
-                <label for="${p}-email">Email</label>
-                <input type="email" id="${p}-email" class="input" autocomplete="email" inputmode="email" required>
+                <p class="ev-label">Email</p>
+                <p class="ev-signed-as"><span id="${p}-email"></span> <a class="text-link" href="/me">Change</a></p>
                 <p class="field-error" data-error-for="hostEmail" role="alert" hidden></p>
             </div>
             <label class="ev-check">
@@ -510,8 +510,9 @@
             setHostName(name) {
                 if ($('host')) $('host').value = name || '';
             },
+            // The signed-in email; the host email is never typed (the server takes it from the session).
             setHostEmail(email) {
-                if ($('email')) $('email').value = email || '';
+                if ($('email')) $('email').textContent = email || '';
             },
             // The edit sheet opens on the event as it stands.
             set(values) {
@@ -580,7 +581,7 @@
                         repeat: state.repeatOn ? repeatRule() : null,
                         hostName: $('joins').checked ? $('host').value : '',
                         hostJoins: $('joins').checked,
-                        hostEmail: $('email').value
+                        hostEmail: $('email').textContent
                     });
                 }
                 return body;
@@ -602,7 +603,7 @@
                 if (mode === 'create') {
                     if (!body.calendar) return !showError('calendar', 'Pick a calendar.');
                     if (body.repeat && !body.repeat.until) return !showError('repeat', 'Say until when it repeats.', $('until'));
-                    if (!body.hostEmail.trim()) return !showError('hostEmail', 'Add your email.');
+                    if (!body.hostEmail.trim()) return !showError('hostEmail', 'Sign in to make an event.');
                     if (body.hostJoins && !body.hostName.trim()) return !showError('hostName', 'Add your name for the guest list.');
                 }
                 return true;

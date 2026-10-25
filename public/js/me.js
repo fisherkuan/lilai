@@ -321,7 +321,10 @@
     $('me-delete-yes').addEventListener('click', deleteEmail);
 
     if (signinToken) {
-        if (next.startsWith('/#chat-')) {
+        if (next.startsWith('/#new')) {
+            $('me-redeem-lede').textContent = 'Then you can make your event from this phone or browser.';
+            $('me-redeem-btn').textContent = 'Sign in and make the event';
+        } else if (next.startsWith('/#chat-')) {
             $('me-redeem-lede').textContent = 'Then you can post in the event chat from this phone or browser.';
             $('me-redeem-btn').textContent = 'Sign in and go to the chat';
         }
