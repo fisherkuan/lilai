@@ -164,6 +164,13 @@
 .pl-edit .field:first-child { margin-top: 0; }
 .pl-empty { padding: var(--s3) 0; color: var(--ink-2); }
 
+/* ---------- Admin sign-in ---------- */
+
+.admin-login > * { max-width: 480px; }
+.login-sent { margin: 0; color: var(--ink-2); }
+.login-code { font-variant-numeric: tabular-nums; letter-spacing: 0.3em; font-size: 22px; }
+.login-other { margin-top: var(--s4); }
+
 /* ---------- Breakpoints ---------- */
 
 @media (min-width: 640px) {

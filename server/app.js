@@ -22,6 +22,7 @@ const hosting = require('./event-hosting');
 const { createPublisher } = require('./calendar-publish');
 const { createPlaceAutocomplete } = require('./place-autocomplete');
 const places = require('./places');
+const adminAuthLib = require('./admin-auth');
 const { importCalendar, createImportSchema, importedCalendarIds } = require('./calendar-import');
 const access = require('./calendar-access');
 const activity = require('./event-activity');
@@ -84,6 +85,10 @@ app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
 // Serve static files from public directory
+// The admin pages' files open only through their gated routes.
+app.get(['/admin-donations.html', '/admin-places.html'], (req, res) => {
+    res.redirect(302, req.path === '/admin-places.html' ? '/admin/places' : '/admin/donations');
+});
 app.use(express.static(path.join(__dirname, '../public')));
 
 const isProduction = process.env.NODE_ENV === 'production';
@@ -114,6 +119,9 @@ pool.on('error', (error) => {
 // The saved places, held in memory (server/places.js); loaded once the schema exists.
 const placeStore = places.createPlaceStore(pool);
 
+// Admin sign-in by emailed code (server/admin-auth.js), for Donations and Places.
+const adminAuth = adminAuthLib.createAdminAuth({ pool });
+
 // Read once at startup: an invalid IBAN stops the server rather than reaching a donor.
 const bankDetails = readBankDetails();
 
@@ -128,24 +136,6 @@ if (googleCalendar) {
 // Calendars Lilai has taken over from Google (calendar-import.js). The legacy feed is read
 // only for the others.
 let importedCalendars = new Set();
-
-// Admin authentication middleware
-function requireAdminKey(req, res, next) {
-    const adminKey = process.env.ADMIN_API_KEY;
-
-    if (!adminKey) {
-        console.error('ADMIN_API_KEY not configured in environment variables');
-        return res.status(500).json({ success: false, message: 'Server configuration error' });
-    }
-
-    const providedKey = req.headers['x-admin-key'] || req.body.adminKey;
-
-    if (providedKey !== adminKey) {
-        return res.status(401).json({ success: false, message: 'Unauthorized: Invalid admin key' });
-    }
-
-    next();
-}
 
 // Input validation helpers
 function validateAttendeeName(name) {
@@ -342,6 +332,7 @@ async function initializeDatabase() {
         await createBookingSchema(client);
         await createSeriesSchema(client);
         await feedback.createFeedbackSchema(client);
+        await adminAuthLib.createAdminAuthSchema(client);
         const placesSeeded = await places.createPlacesSchema(client, appConfig.places || []);
         if (placesSeeded) console.log(`📍 Saved ${placesSeeded} places from config/app.json`);
         const seeded = await createProfileSchema(client, uuidv4);
@@ -1292,7 +1283,7 @@ function placeError(res, error) {
     return true;
 }
 
-app.post('/api/places', requireAdminKey, async (req, res) => {
+app.post('/api/places', adminAuth.requireAdmin, async (req, res) => {
     try {
         res.status(201).json({ place: await placeStore.add(req.body) });
     } catch (error) {
@@ -1300,12 +1291,12 @@ app.post('/api/places', requireAdminKey, async (req, res) => {
     }
 });
 
-app.put('/api/places/order', requireAdminKey, async (req, res) => {
+app.put('/api/places/order', adminAuth.requireAdmin, async (req, res) => {
     await placeStore.reorder(req.body?.ids);
     res.json({ places: placeList() });
 });
 
-app.put('/api/places/:id', requireAdminKey, async (req, res) => {
+app.put('/api/places/:id', adminAuth.requireAdmin, async (req, res) => {
     try {
         const place = await placeStore.update(Number(req.params.id), req.body);
         if (!place) return res.status(404).json({ message: 'That place is gone.' });
@@ -1315,7 +1306,7 @@ app.put('/api/places/:id', requireAdminKey, async (req, res) => {
     }
 });
 
-app.delete('/api/places/:id', requireAdminKey, async (req, res) => {
+app.delete('/api/places/:id', adminAuth.requireAdmin, async (req, res) => {
     const removed = await placeStore.remove(Number(req.params.id));
     if (!removed) return res.status(404).json({ message: 'That place is gone.' });
     res.json({ success: true });
@@ -1376,7 +1367,7 @@ app.get('/api/donations', async (req, res) => {
 });
 
 // Create a new donation (admin only - requires API key)
-app.post('/api/donations', requireAdminKey, async (req, res) => {
+app.post('/api/donations', adminAuth.requireAdmin, async (req, res) => {
     const client = await pool.connect();
     try {
         const { amount, description, donator, entry_date } = req.body;
@@ -2792,11 +2783,43 @@ app.get('/calendars/:token', (req, res) => {
     res.sendFile(path.join(__dirname, '../public/calendar.html'));
 });
 
-app.get('/admin/places', (req, res) => {
+// Admin sign-in: a code to an address on ADMIN_EMAILS, then a 30-day cookie.
+app.get('/admin/login', async (req, res) => {
+    const next = String(req.query.next || '');
+    if (await adminAuth.adminOf(req)) return res.redirect(302, next.startsWith('/admin/') ? next : '/admin/donations');
+    res.set('Cache-Control', 'no-store');
+    res.sendFile(path.join(__dirname, '../public/admin-login.html'));
+});
+
+app.post('/api/admin/code', async (req, res) => {
+    const result = await adminAuth.sendCode(req.body?.email);
+    if (!result.sent) return res.status(503).json({ message: result.reason });
+    res.json({ success: true });
+});
+
+app.post('/api/admin/session', async (req, res) => {
+    const token = await adminAuth.verifyCode(req.body?.email, req.body?.code);
+    if (!token) return res.status(401).json({ field: 'code', message: 'That code is wrong or has run out. Ask for a new one.' });
+    adminAuth.signIn(res, token);
+    res.json({ success: true });
+});
+
+app.get('/api/admin/session', async (req, res) => {
+    const email = await adminAuth.adminOf(req);
+    if (!email) return res.status(401).json({ message: 'Not signed in.' });
+    res.set('Cache-Control', 'no-store').json({ email });
+});
+
+app.delete('/api/admin/session', async (req, res) => {
+    await adminAuth.signOut(req, res);
+    res.json({ success: true });
+});
+
+app.get('/admin/places', adminAuth.requireAdminPage, (req, res) => {
     res.sendFile(path.join(__dirname, '../public/admin-places.html'));
 });
 
-app.get('/admin/donations', (req, res) => {
+app.get('/admin/donations', adminAuth.requireAdminPage, (req, res) => {
     res.sendFile(path.join(__dirname, '../public/admin-donations.html'));
 });
 

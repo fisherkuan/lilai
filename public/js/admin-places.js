@@ -1,5 +1,5 @@
 // Admin: the saved places an event's Where offers first (server/places.js). Reading the list
-// is public; each change sends the admin key, asked for once and kept in this browser.
+// is public; changes need the admin session (js/admin-session.js).
 (function () {
     'use strict';
 
@@ -13,31 +13,15 @@
         return String(value).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
     }
 
-    function adminKey() {
-        let key = null;
-        try { key = localStorage.getItem('adminKey'); } catch (_) { /* private mode */ }
-        if (!key) {
-            key = prompt('Enter admin key (will be saved locally in your browser):');
-            if (key) try { localStorage.setItem('adminKey', key); } catch (_) { /* kept for this page only */ }
-        }
-        return key;
-    }
-
     // Sends a change. Answers the parsed body, or throws an Error with .field when the server
     // points at one.
     async function send(method, url, body) {
-        const key = adminKey();
-        if (!key) throw new Error('The admin key is needed for changes.');
-        const res = await fetch(url, {
+        const res = await AdminSession.adminFetch(url, {
             method,
-            headers: { 'Content-Type': 'application/json', 'X-Admin-Key': key },
+            headers: { 'Content-Type': 'application/json' },
             body: body ? JSON.stringify(body) : undefined
         });
         const data = await res.json().catch(() => ({}));
-        if (res.status === 401) {
-            try { localStorage.removeItem('adminKey'); } catch (_) { /* nothing stored */ }
-            throw new Error('That admin key is wrong. Try again.');
-        }
         if (!res.ok) throw Object.assign(new Error(data.message || 'That did not work. Try again.'), { field: data.field });
         return data;
     }
@@ -196,10 +180,6 @@
         }
     });
     $('reset-btn').addEventListener('click', () => { resetForm(); status('form-message', ''); });
-    $('clear-key-btn').addEventListener('click', () => {
-        try { localStorage.removeItem('adminKey'); } catch (_) { /* nothing stored */ }
-        status('list-message', 'Admin key cleared. The next change asks for it again.');
-    });
 
     // ---------- Find on Google Maps: fills the name and address ----------
     const find = $('find');

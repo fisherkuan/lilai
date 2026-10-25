@@ -27,7 +27,7 @@ The server runs on `http://localhost:3000` by default (configurable via PORT env
 ### Database
 - PostgreSQL is used for production (connection via `DATABASE_URL` env var)
 - Database schema is auto-initialized on server startup via `initializeDatabase()` in server/app.js
-- Tables: `events`, `rsvps`, `places`, `event_series`, `event_host_links`, `event_activity`, `calendar_keys`, `calendar_state`, `donations`, `feedback`, `booking_queue`, `booking_profiles`, `booking_series`
+- Tables: `events`, `rsvps`, `places`, `admin_codes`, `admin_sessions`, `event_series`, `event_host_links`, `event_activity`, `calendar_keys`, `calendar_state`, `donations`, `feedback`, `booking_queue`, `booking_profiles`, `booking_series`
 - `rsvps.attendance` is `yes` (holds a seat), `pending` (asked to join an approval event) or `declined` (the host said no). Every count of who is coming filters on `yes`
 - Schema migrations are idempotent and run automatically on startup
 
@@ -74,7 +74,9 @@ Vanilla JavaScript with no build step.
 **Structure:**
 - `index.html` + `app.js` - Main event listing and RSVP interface
 - `admin-donations.html` + `js/admin-donations.js` - Donation management
-- `admin-places.html` + `js/admin-places.js` - The saved places (`/admin/places`, admin key): add (with "Find on Google Maps" filling name and address), edit, reorder, remove
+- `admin-login.html` + `js/admin-login.js` - Admin sign-in (`/admin/login?next=`): email, then the six-digit code (a full code signs in by itself)
+- `js/admin-session.js` - On Donations and Places: who is signed in, Sign out, and `AdminSession.adminFetch` (a 401 goes back to sign-in)
+- `admin-places.html` + `js/admin-places.js` - The saved places (`/admin/places`, signed in): add (with "Find on Google Maps" filling name and address), edit, reorder, remove
 - `donations.html` + `js/donation.js` - Public donation submission page
 - `faq.html` + `js/faq.js` - FAQ page
 - `bauhaus/tokens.css` - The Bauhaus kit's tokens, copied verbatim (do not edit)
@@ -152,7 +154,8 @@ Required in `.env`:
 - `FEEDBACK_EMAIL_FROM` - Optional. Needs a domain verified in Resend, else the default `onboarding@resend.dev` only delivers to the Resend account's own address
 - `GOOGLE_SERVICE_ACCOUNT_JSON` - A Google service account key (the JSON file, or base64 of it) that publishes events to the Google calendars and runs the one-time import. Share every calendar in `config/app.json` with its `client_email` ("Make changes to events"); the address is logged at startup. Without it events still work in Lilai and their copies wait. A value that does not parse stops startup
 - `GOOGLE_MAPS_API_KEY` - Optional. A Google Cloud API key with Places API (New) enabled; turns on Google Maps search in Where and on `/admin/places`. Each search is one billed Autocomplete request (10,000 free a month); cap the daily quota in Cloud Console so it cannot bill
-- `ADMIN_API_KEY` - The key the admin pages send for donations and places
+- `ADMIN_EMAILS` - Optional, comma-separated. Who may sign in to the admin (default `lilai@fisherkuan.com`). Taking an address off ends its sessions
+- `ADMIN_API_KEY` - Optional. Sent as `X-Admin-Key`, it still opens the admin APIs, for scripts; the pages use the sign-in
 - `PUBLIC_URL` - Optional. Overrides `publicUrl` (local runs)
 - `PORT` - Server port (default: 3000)
 - `NODE_ENV` - Set to "production" to enable SSL for PostgreSQL
@@ -227,6 +230,13 @@ Required in `.env`:
 - `POST /api/bookings/:id/restore` - Undo a cancellation inside the undo window, without a quota check
 - `DELETE /api/bookings/:id` - Cancel a queued entry (used by the quota swap)
 - `POST /api/bookings/:id/report-failure` - Mark a `sent` or `unconfirmed` request as `failed` by hand (KU Leuven refuses by email, which the app never sees). `failed` holds no quota, so the person's slot that week comes back. No undo
+
+### Admin Sign-in Endpoints
+`server/admin-auth.js`. Guards `/admin/donations`, `/admin/places` (a page redirects to `/admin/login?next=`), `POST /api/donations` and the places writes (401). The booking queue stays open by design. Codes and sessions are stored as SHA-256 hashes; mail goes through Resend with `FEEDBACK_EMAIL_FROM`, so sign-in needs `RESEND_API_KEY` like the feedback mail.
+- `POST /api/admin/code` - Body `{email}`. An address on `ADMIN_EMAILS` gets a six-digit code valid ten minutes (five an hour); every other address gets the same answer and no mail. 503 `{message}` when the mail cannot go out
+- `POST /api/admin/session` - Body `{email, code}`. The right code (used once; five wrong tries spend it) sets the `lilai_admin` cookie: HttpOnly, SameSite=Lax, Secure in production, 30 days. 401 otherwise
+- `GET /api/admin/session` - `{email}` of the signed-in admin, or 401
+- `DELETE /api/admin/session` - Sign out: the session row is deleted and the cookie cleared
 
 ### Configuration
 - `GET /api/config` - Get app configuration (calendars, settings)

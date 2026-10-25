@@ -1,27 +1,9 @@
 const API_BASE_URL = window.location.origin;
 
-// Admin key management
-function getAdminKey() {
-    let key = localStorage.getItem('adminKey');
-    if (!key) {
-        key = prompt('Enter admin key (will be saved locally in your browser):');
-        if (key) {
-            localStorage.setItem('adminKey', key);
-        }
-    }
-    return key;
-}
-
-function clearStoredKey() {
-    localStorage.removeItem('adminKey');
-    showMessage('Admin key cleared. You will be prompted again on next submission.', 'success');
-}
-
 document.addEventListener('DOMContentLoaded', () => {
     const form = document.getElementById('donation-form');
     form.addEventListener('submit', handleSubmit);
     document.getElementById('reset-btn').addEventListener('click', resetForm);
-    document.getElementById('clear-key-btn').addEventListener('click', clearStoredKey);
 });
 
 function setAmountError(message) {
@@ -58,29 +40,15 @@ function handleSubmit(e) {
 async function submitDonation(data) {
     showMessage('Submitting…', 'loading');
 
-    const adminKey = getAdminKey();
-    if (!adminKey) {
-        showMessage('Admin key is required.', 'error');
-        return;
-    }
-
     try {
-        const response = await fetch(`${API_BASE_URL}/api/donations`, {
+        // The admin session's cookie goes along; a 401 sends us to sign-in (js/admin-session.js).
+        const response = await AdminSession.adminFetch(`${API_BASE_URL}/api/donations`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-Admin-Key': adminKey
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data)
         });
 
         const result = await response.json();
-
-        if (response.status === 401) {
-            localStorage.removeItem('adminKey');
-            showMessage('Invalid admin key. Please refresh the page and try again.', 'error');
-            return;
-        }
 
         if (response.ok && result.success) {
             resetFields();
