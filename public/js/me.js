@@ -349,6 +349,29 @@
         a.hidden = false;
     });
 
+    // Display: the footer's two switches as pill switches, on this device only. Each follows
+    // the other copy through the page events js/theme.js and js/sprites.js send.
+    function pillSwitch(box, choices, current, choose, eventName) {
+        if (!box) return;
+        box.innerHTML = choices.map(([value, text]) =>
+            `<button type="button" class="range-btn" role="radio" data-choice="${value}">${text}</button>`).join('');
+        const buttons = [...box.querySelectorAll('button')];
+        const mark = (value) => buttons.forEach((b) => {
+            const on = b.dataset.choice === value;
+            b.classList.toggle('active', on);
+            b.setAttribute('aria-checked', String(on));
+        });
+        buttons.forEach(b => b.addEventListener('click', () => choose(b.dataset.choice)));
+        document.addEventListener(eventName, e => mark(e.detail));
+        mark(current());
+    }
+    if (window.LilaiTheme) {
+        pillSwitch($('me-theme'), window.LilaiTheme.choices, window.LilaiTheme.get, window.LilaiTheme.set, 'lilai:theme');
+    }
+    if (window.Sprites) {
+        pillSwitch($('me-header'), [['icons', 'Icons'], ['text', 'Text']], window.Sprites.mode, window.Sprites.setMode, 'lilai:header');
+    }
+
     $('me-form').addEventListener('submit', sendLink);
     $('me-name-form').addEventListener('submit', saveName);
     $('me-other').addEventListener('click', () => {

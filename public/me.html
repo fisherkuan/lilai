@@ -133,6 +133,18 @@
         </section>
         <p class="field-error" id="me-list-error" role="alert" hidden></p>
 
+        <section class="me-card" aria-labelledby="me-display-title">
+            <h2 class="me-card-title" id="me-display-title">Display</h2>
+            <div class="me-setting">
+                <span class="me-setting-name" id="me-theme-label">Theme</span>
+                <div class="range-switch" role="radiogroup" aria-labelledby="me-theme-label" id="me-theme"></div>
+            </div>
+            <div class="me-setting">
+                <span class="me-setting-name" id="me-header-label">Header</span>
+                <div class="range-switch" role="radiogroup" aria-labelledby="me-header-label" id="me-header"></div>
+            </div>
+        </section>
+
         <section class="me-card me-account" aria-label="This device and your email">
             <button type="button" class="me-account-row" id="me-signout">Sign out of this device</button>
             <button type="button" class="me-account-row" id="me-delete">Delete my email</button>

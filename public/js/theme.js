@@ -4,7 +4,8 @@
  *
  * The saved choice is applied before first paint by a one-line script in each page's
  * <head>, so no page flashes the wrong theme; this file only draws the switch and saves.
- * The choice is per device (localStorage), like the remembered RSVP name.
+ * The choice is per device (localStorage), like the remembered RSVP name. Profile's Display
+ * card sets it too (window.LilaiTheme); every switch on the page follows 'lilai:theme'.
  */
 (() => {
     'use strict';
@@ -42,7 +43,10 @@
             /* private browsing: the choice holds for this page view only */
         }
         paintBar(choice);
+        document.dispatchEvent(new CustomEvent('lilai:theme', { detail: choice }));
     }
+
+    window.LilaiTheme = { get: saved, set: apply, choices: CHOICES };
 
     function render() {
         const footer = document.querySelector('.colophon');
@@ -58,10 +62,8 @@
 
         const buttons = [...group.querySelectorAll('.theme-btn')];
         const mark = choice => buttons.forEach(b => b.setAttribute('aria-pressed', String(b.dataset.themeChoice === choice)));
-        buttons.forEach(b => b.addEventListener('click', () => {
-            apply(b.dataset.themeChoice);
-            mark(b.dataset.themeChoice);
-        }));
+        buttons.forEach(b => b.addEventListener('click', () => apply(b.dataset.themeChoice)));
+        document.addEventListener('lilai:theme', e => mark(e.detail));
         const current = saved();
         mark(current);
         paintBar(current);

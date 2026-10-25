@@ -121,6 +121,7 @@
     function setMode(next) {
         try { root.localStorage.setItem(MODE_KEY, next); } catch (_) { /* private mode: this page only */ }
         document.querySelectorAll('[data-sprite]').forEach(draw);
+        document.dispatchEvent(new CustomEvent('lilai:header', { detail: next }));
     }
 
     function decorate() {
@@ -144,12 +145,13 @@
         footer.appendChild(group);
         const buttons = [...group.querySelectorAll('button')];
         const mark = () => buttons.forEach(b => b.setAttribute('aria-pressed', String(b.dataset.headerChoice === mode())));
-        buttons.forEach(b => b.addEventListener('click', () => { setMode(b.dataset.headerChoice); mark(); }));
+        buttons.forEach(b => b.addEventListener('click', () => setMode(b.dataset.headerChoice)));
+        document.addEventListener('lilai:header', mark);
         mark();
     }
 
     decorate();
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', renderSwitch);
     else renderSwitch();
-    root.Sprites = { svg, iconize, setMode };
+    root.Sprites = { svg, iconize, setMode, mode };
 })(window);

@@ -225,6 +225,12 @@
 .me-card[hidden] { display: none; }
 .me-card-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s3); }
 .me-card-title { margin: 0; font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-2); }
+/* Display: a name at left, the kit's pill switch at right (Theme, Header). */
+.me-setting { display: flex; align-items: center; justify-content: space-between; gap: var(--s3); }
+.me-setting-name { font-size: 15px; font-weight: 500; }
+.me-setting .range-switch { margin-right: 0; }
+.me-setting .range-btn { padding: 0 var(--s3); }
+@media (max-width: 359px) { .me-setting .range-btn { padding: 0 10px; font-size: 14px; } }
 .me-card-count { font-size: var(--meta); color: var(--ink-2); font-variant-numeric: tabular-nums; }
 .me-card .ev-hint { margin: 0; }
 
