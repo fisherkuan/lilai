@@ -1,14 +1,14 @@
 // Chat in an event (#56): one thread per event, for "running 10 min late" and "court 3".
 //
 // Reading and liking are open to anyone, like the guest list. Posting needs a signed-in email
-// (Find my events' lilai_session, server/contacts.js), so nobody can post under another
+// (the sign-in session, lilai_session, server/contacts.js), so nobody can post under another
 // person's name without leaving their own address behind, and a host's messages carry a Host
 // mark only when the address is the event's own. A message's author edits or removes it; the
 // host removes any message from the management page. A like belongs to a device (a random key
 // it keeps), stored as a hash, one per message.
 //
 // A name belongs to its address, not to a message. It is the one name an address has on Lilai
-// (contacts.name, set at sign-in or on Find my events; the chat only shows it), and every
+// (contacts.name, set on the sign-in page; the chat only shows it), and every
 // message shows it as it is now: changing it renames what the address already wrote, so
 // posting as someone and switching back renames that message too. A change shows as
 // "Bob (was Ann)" for RENAME_NOTE_DAYS, so a switch cannot pass unseen.
@@ -298,7 +298,7 @@ function createEventChat({ pool, now = () => new Date() }) {
         return { id, likes, liked: Boolean(on) };
     }
 
-    // How many messages the address wrote, so Find my events can say a new name renames them.
+    // How many messages the address wrote, so the sign-in page can say a new name renames them.
     async function countBy(email) {
         return (await pool.query('SELECT COUNT(*)::int AS n FROM event_messages WHERE author_email = $1', [email])).rows[0].n;
     }

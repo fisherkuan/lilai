@@ -1,4 +1,4 @@
-// Find my events (/me): type an email, open the emailed link (/me/signin/<token>), and this
+// The sign-in page (/me, the header's Sign in or My events): type an email, open the emailed link (/me/signin/<token>), and this
 // device lists the events that address hosts. Manage mints a fresh management link and keeps
 // it under "You manage" (js/device-links.js). Sign out ends this device's session; Delete my
 // email takes the address off every event and signs out every device.
@@ -89,7 +89,7 @@
             const { ok, result } = await api('/api/me/link', { method: 'POST', body: JSON.stringify({ email: typed }) });
             if (!ok) return showError('me-error', result.message || 'That did not go through. Try again.');
             $('me-form').hidden = true;
-            $('me-sent-text').textContent = `If ${typed} made an event on Lilai, a link is on its way. It works once, for 30 minutes.`;
+            $('me-sent-text').textContent = `If ${typed} is on Lilai, a link is on its way. It works once, for 30 minutes.`;
             $('me-sent').hidden = false;
             $('me-sent').focus();
         } catch (_) {

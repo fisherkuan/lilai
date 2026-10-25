@@ -1,5 +1,5 @@
 /*
- * Find my events: sign-in links by email and device sessions. The pure helpers always run;
+ * Sign-in: links by email and device sessions. The pure helpers always run;
  * the link, session and delete flow needs a scratch PostgreSQL (TEST_DATABASE_URL, see
  * booking-quota.integration.test.js) and is skipped without one.
  */

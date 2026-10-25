@@ -1,5 +1,5 @@
 // Chat in an event: the slide-in thread behind each card's chat button (index.html #chat-sheet).
-// Anyone reads and likes; posting needs this device signed in with an email (Find my events'
+// Anyone reads and likes; posting needs this device signed in with an email (the sign-in
 // session), so a name in the thread is backed by an address. The author edits or deletes their
 // own messages. Messages arrive live over Home's WebSocket (app.js calls EventChat.onBroadcast).
 // Opens from a card's [data-chat] button and from /#chat-<id>, where a chat sign-in link lands.
@@ -135,7 +135,7 @@
         if (stick || nearBottom) list.scrollTop = list.scrollHeight;
     }
 
-    // The name is the address's own, set on Find my events; the chat only shows it. Its
+    // The name is the address's own, set on the sign-in page; the chat only shows it. Its
     // links come back to this thread.
     function renderFoot() {
         const signedIn = Boolean(me);

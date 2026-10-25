@@ -128,7 +128,7 @@ const adminAuth = adminAuthLib.createAdminAuth({ pool });
 // Chat in an event (server/event-chat.js): anyone reads and likes, a signed-in email posts.
 const chat = chatLib.createEventChat({ pool });
 
-// Find my events: a sign-in link by email, then a device session (server/contacts.js). The
+// Sign-in: a link by email, then a device session (server/contacts.js). The
 // address's name is also its chat name, so changing it renames its messages.
 const contacts = contactsLib.createContacts({ pool, onRename: chat.renameAuthor });
 
@@ -1287,7 +1287,7 @@ app.delete('/api/host/:token/events/:eventId/messages/:messageId', async (req, r
 
 // ---------------------------------------------------------------------------
 // Chat in an event (event-chat.js). Reading and liking are open; posting, editing and
-// removing one's own message need the Find my events session.
+// removing one's own message need the sign-in session.
 // ---------------------------------------------------------------------------
 
 function chatError(res, error) {
@@ -2920,7 +2920,7 @@ app.get('/calendars/:token', (req, res) => {
     res.sendFile(path.join(__dirname, '../public/calendar.html'));
 });
 
-// Find my events: the page asks for an email, and the emailed link signs this device in.
+// The sign-in page (/me): it asks for an email, and the emailed link signs this device in.
 // The link carries its token in the path, so it gets the management page's headers.
 app.get(['/me', '/me/signin/:token'], (req, res) => {
     res.set('Referrer-Policy', 'no-referrer').set('Cache-Control', 'no-store');

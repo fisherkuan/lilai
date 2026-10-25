@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <!-- Old links to Home's lost-link sheet go to Find my events. -->
+    <!-- Old links to Home's lost-link sheet go to the sign-in page. -->
     <script>if(location.hash==="#lost-link")location.replace("/me")</script>
     <!-- Apply a saved theme before first paint; the switch itself is js/theme.js. -->
     <script>try{var t=localStorage.getItem("lilaiTheme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}</script>
@@ -108,7 +108,7 @@
                 <h2 class="side-subtitle">You manage</h2>
                 <ul class="hosted-rows" id="hosted-items"></ul>
             </div>
-            <a class="text-btn side-lost" href="/me" data-signed-out>Find my events</a>
+            <a class="text-btn side-lost" href="/me" data-signed-out>Sign in</a>
         </section>
 
         <section class="side-block" aria-labelledby="side-cal-title">

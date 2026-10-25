@@ -94,7 +94,7 @@ test('two people chat in an event, edit and delete their own, like, and the host
         const fetchImpl = async (url, init) => { mails.push(JSON.parse(init.body)); return { ok: true, text: async () => '' }; };
         const contacts = createContacts({ pool, env: { RESEND_API_KEY: 'k' }, fetchImpl });
         await contacts.requestSignIn('cleo@lilai.test', { ip: '1.1.1.1', baseUrl: 'https://lilai.test' });
-        assert.equal(mails.length, 0); // Find my events still mails only known addresses
+        assert.equal(mails.length, 0); // the sign-in page still mails only known addresses
         await contacts.requestSignIn('cleo@lilai.test', { ip: '1.1.1.1', baseUrl: 'https://lilai.test', anyAddress: true, next: '/#chat-e1' });
         assert.equal(mails.length, 1);
         assert.match(mails[0].text, /event chat/);

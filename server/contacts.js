@@ -1,4 +1,4 @@
-// Find my events: one optional email, proven by a link, is a person's way back to the events
+// Sign-in: one optional email, proven by a link, is a person's way back to the events
 // they host. Type an address on /me; if it made an event (events.host_email) or was confirmed
 // before, Resend mails a sign-in link that works once for 30 minutes. Opening it signs that
 // device in (cookie lilai_session, 90 days) and confirms the address. The signed-in device
@@ -109,7 +109,7 @@ async function createContactsSchema(client) {
             user_agent TEXT
         )`);
     await client.query('CREATE INDEX IF NOT EXISTS idx_device_sessions_email ON device_sessions(email)');
-    // Filled by "Email me about changes" on RSVP (phase 2 of #55); read by Find my events now.
+    // Filled by "Email me about changes" on RSVP (phase 2 of #55); read by the sign-in page now.
     await client.query('ALTER TABLE rsvps ADD COLUMN IF NOT EXISTS contact_email VARCHAR(254)');
     await client.query('CREATE INDEX IF NOT EXISTS idx_rsvps_contact_email ON rsvps (lower(contact_email)) WHERE contact_email IS NOT NULL');
     await client.query('CREATE INDEX IF NOT EXISTS idx_events_host_email ON events (lower(host_email)) WHERE host_email IS NOT NULL');
