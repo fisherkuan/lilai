@@ -177,19 +177,18 @@
         <section class="ev-card" data-part="you" aria-labelledby="${p}-c-you">
             <h3 class="ev-card-title" id="${p}-c-you">You</h3>
             <div class="field">
-                <label for="${p}-host">Your name</label>
-                <input type="text" id="${p}-host" class="input" maxlength="100" autocomplete="name">
-                <p class="field-error" data-error-for="hostName" role="alert" hidden></p>
+                <label for="${p}-email">Email</label>
+                <input type="email" id="${p}-email" class="input" autocomplete="email" inputmode="email" required>
+                <p class="field-error" data-error-for="hostEmail" role="alert" hidden></p>
             </div>
             <label class="ev-check">
                 <input type="checkbox" id="${p}-joins" checked>
                 <span>I'm coming too (takes a place)</span>
             </label>
-            <div class="field">
-                <label for="${p}-email">Email <span class="ev-optional">optional</span></label>
-                <input type="email" id="${p}-email" class="input" autocomplete="email" inputmode="email">
-                <p class="ev-hint">Your way back to this event if you lose the link.</p>
-                <p class="field-error" data-error-for="hostEmail" role="alert" hidden></p>
+            <div class="field" id="${p}-host-field">
+                <label for="${p}-host">Your name</label>
+                <input type="text" id="${p}-host" class="input" maxlength="100" autocomplete="name">
+                <p class="field-error" data-error-for="hostName" role="alert" hidden></p>
             </div>
         </section>` : ''}`;
     }
@@ -343,6 +342,8 @@
             });
             $('every').addEventListener('input', () => $('unit').dispatchEvent(new Event('change')));
             $('until').addEventListener('change', preview);
+            // The name is only asked of a host who takes a place.
+            $('joins').addEventListener('change', () => { $('host-field').hidden = !$('joins').checked; });
             $('date').addEventListener('change', () => {
                 // No weekday picked means the first day's own, as the server reads it.
                 preview();
@@ -509,6 +510,9 @@
             setHostName(name) {
                 if ($('host')) $('host').value = name || '';
             },
+            setHostEmail(email) {
+                if ($('email')) $('email').value = email || '';
+            },
             // The edit sheet opens on the event as it stands.
             set(values) {
                 $('title').value = values.title || '';
@@ -532,7 +536,10 @@
             reset() {
                 container.querySelectorAll('input[type="text"], input[type="date"], input[type="email"], textarea, select.ev-time')
                     .forEach(el => { el.value = ''; });
-                if ($('joins')) $('joins').checked = true;
+                if ($('joins')) {
+                    $('joins').checked = true;
+                    $('host-field').hidden = false;
+                }
                 $('limit').value = '8';
                 linkEditor.set([]);
                 setLimited(false, false);
@@ -571,7 +578,7 @@
                     Object.assign(body, {
                         calendar: state.calendar,
                         repeat: state.repeatOn ? repeatRule() : null,
-                        hostName: $('host').value,
+                        hostName: $('joins').checked ? $('host').value : '',
                         hostJoins: $('joins').checked,
                         hostEmail: $('email').value
                     });
@@ -595,7 +602,8 @@
                 if (mode === 'create') {
                     if (!body.calendar) return !showError('calendar', 'Pick a calendar.');
                     if (body.repeat && !body.repeat.until) return !showError('repeat', 'Say until when it repeats.', $('until'));
-                    if (!body.hostName.trim()) return !showError('hostName', 'Type your name, so people know who hosts.');
+                    if (!body.hostEmail.trim()) return !showError('hostEmail', 'Add your email.');
+                    if (body.hostJoins && !body.hostName.trim()) return !showError('hostName', 'Add your name for the guest list.');
                 }
                 return true;
             },
