@@ -27,6 +27,15 @@
     --rail-sel: #1f5c43;
     --on-rail-sel: #fafaf7;
     --rail-accent: #2f7d58;
+    /* An event's chat, in the rail's green: my bubbles are a green gradient, others' white
+       bubbles sit raised on a grey thread. Owner, 2026-10-25. */
+    --chat-thread: var(--fill);
+    --chat-theirs: var(--paper-raised);
+    --chat-mine-from: #2b8058;
+    --chat-mine-to: #1f5c43;
+    --on-chat-mine: #fafaf7;
+    --chat-mine-glow: 0 2px 8px rgb(31 92 67 / 0.25);
+    --chat-liked: #2f7d58;
 
     /* Jost (from the kit) for page titles and the big numerals only. Everything else, buttons
        and labels included, keeps the device's own UI font, which stays legible at 13-20px where
@@ -67,6 +76,13 @@
         --rail-sel: #2f7d58;
         --on-rail-sel: #ffffff;
         --rail-accent: #5cbf8c;
+        --chat-thread: var(--paper);
+        --chat-theirs: var(--stone);
+        --chat-mine-from: #2f7d58;
+        --chat-mine-to: #225c42;
+        --on-chat-mine: #ffffff;
+        --chat-mine-glow: 0 2px 8px rgb(0 0 0 / 0.4);
+        --chat-liked: #5cbf8c;
         color-scheme: dark;
     }
     :root:not([data-theme="light"]) .select {
@@ -83,6 +99,13 @@
     --rail-sel: #2f7d58;
     --on-rail-sel: #ffffff;
     --rail-accent: #5cbf8c;
+    --chat-thread: var(--paper);
+    --chat-theirs: var(--stone);
+    --chat-mine-from: #2f7d58;
+    --chat-mine-to: #225c42;
+    --on-chat-mine: #ffffff;
+    --chat-mine-glow: 0 2px 8px rgb(0 0 0 / 0.4);
+    --chat-liked: #5cbf8c;
     color-scheme: dark;
 }
 :root[data-theme="dark"] .select {
@@ -1724,7 +1747,7 @@ html.sheet-locked body {
     margin: var(--s3) calc(-1 * var(--sheet-pad)) 0;
     padding: var(--s3) var(--sheet-pad) var(--s4);
     list-style: none;
-    border-top: 1px solid var(--hair);
+    background: var(--chat-thread);
 }
 
 .chat-empty {
@@ -1759,22 +1782,33 @@ html.sheet-locked body {
     line-height: 16px;
 }
 
-/* Black on white: others' bubbles are grey fill, mine are ink. */
+/* Others' bubbles are white and raised on the grey thread; mine are the rail's green, a
+   gradient. A run's first bubble keeps the corner that points at its author. */
 .chat-bubble {
     max-width: min(85%, 34ch);
-    padding: var(--s2) var(--s3);
-    border-radius: 18px 18px 18px 4px;
-    background: var(--fill);
+    padding: 9px 14px;
+    border-radius: 6px 20px 20px 6px;
+    background: var(--chat-theirs);
     color: var(--ink);
+    box-shadow: var(--shadow-raised);
     font-size: 16px;
     line-height: 1.4;
     white-space: pre-wrap;
     overflow-wrap: anywhere;
 }
+.chat-msg.is-first .chat-bubble { border-top-left-radius: 20px; }
 .chat-msg.is-mine .chat-bubble {
-    border-radius: 18px 18px 4px 18px;
-    background: var(--ink);
-    color: var(--paper);
+    border-radius: 20px 6px 6px 20px;
+    background: linear-gradient(160deg, var(--chat-mine-from), var(--chat-mine-to));
+    color: var(--on-chat-mine);
+    box-shadow: var(--chat-mine-glow);
+}
+.chat-msg.is-mine.is-first .chat-bubble { border-top-right-radius: 20px; }
+.chat-msg.is-new .chat-bubble { animation: bubble-in 320ms var(--ease) both; transform-origin: bottom left; }
+.chat-msg.is-mine.is-new .chat-bubble { transform-origin: bottom right; }
+
+@keyframes bubble-in {
+    from { opacity: 0; transform: translateY(8px) scale(0.92); }
 }
 
 .chat-tools {
@@ -1805,8 +1839,8 @@ html.sheet-locked body {
     cursor: pointer;
 }
 .chat-like svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.75px; stroke-linejoin: round; }
-.chat-like[aria-pressed="true"] { color: var(--ink); }
-.chat-like[aria-pressed="true"] svg { fill: var(--ink); stroke: var(--ink); }
+.chat-like[aria-pressed="true"] { color: var(--chat-liked); }
+.chat-like[aria-pressed="true"] svg { fill: var(--chat-liked); stroke: var(--chat-liked); }
 .chat-like[aria-pressed="true"] svg { animation: shape-grow 360ms var(--ease); }
 .chat-like:hover { background: var(--wash); }
 

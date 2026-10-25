@@ -47,6 +47,9 @@
     let confirmDeleteId = null;
     let confirmTimer = null;
     let loadSeq = 0;
+    // Ids already drawn in this thread: a message not among them pops in. Null until the
+    // thread's first draw, so opening it does not animate every bubble.
+    let shownIds = null;
 
     function escapeHtml(value) {
         return String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -92,6 +95,7 @@
         const cls = ['chat-msg'];
         if (m.mine) cls.push('is-mine');
         if (first) cls.push('is-first');
+        if (shownIds && !shownIds.has(m.id)) cls.push('is-new');
         const head = first
             ? `<p class="chat-meta"><span class="chat-name">${escapeHtml(m.name)}</span>${m.host ? '<span class="chat-host">Host</span>' : ''}</p>`
             : '';
@@ -126,6 +130,7 @@
             const starts = groupStarts(messages);
             list.innerHTML = messages.map((m, i) => messageHtml(m, starts[i])).join('');
         }
+        shownIds = new Set(messages.map(m => m.id));
         if (stick || nearBottom) list.scrollTop = list.scrollHeight;
     }
 
@@ -195,6 +200,7 @@
         eventId = id;
         messages = [];
         me = null;
+        shownIds = null;
         editingId = null;
         confirmDeleteId = null;
         $('chat-title').textContent = 'Chat';
