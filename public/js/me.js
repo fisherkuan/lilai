@@ -67,6 +67,7 @@
     // ---------- Not signed in ----------
 
     function showAsk() {
+        AccountLink.remember('');
         showOnly('me-ask');
         $('me-form').hidden = false;
         $('me-sent').hidden = true;
@@ -133,6 +134,7 @@
 
     function render(data) {
         email = data.email;
+        AccountLink.remember(email);
         $('me-who').textContent = `Signed in as ${email}`;
         $('me-name').value = data.name || '';
         // This device fills in what it does not know yet; what it was told stays.
