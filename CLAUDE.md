@@ -135,7 +135,7 @@ Central configuration file with:
 - Waiting list (#57, `server/waiting-list.js`): a full event's Join reads "Join the waiting list", and so does any event with a list already, so nobody overtakes it. The card shows "N waiting" and, for the name this device remembers, "Ana is 2nd on the waiting list". When a place opens (someone leaves, the host removes someone, declines a request or raises or drops the limit), `promote` moves the first names up in the same transaction, under the event row lock: to `yes`, or on an approval event to `pending` while the open requests leave a seat for them. Automatic, no offer to confirm and no cut-off before the start; one list per date. The management page lists it in order with Move in (a place now, past the limit if need be) and Remove; Undo on a declined name puts it back on the list while the event is full. Remove a name on Home also leaves the list
 
 ### Chat in an event
-- `server/event-chat.js` - One thread per event (`event_messages`, `event_message_likes`). Posting needs a signed-in email (`lilai_session`), so a name in the thread is backed by an address; the address is never sent to anyone, and a message carries a Host mark only when its address is the event's `host_email`. The name is typed once and kept per address (`contacts.chat_name`). A name belongs to its address, not to a message: posting under a new name renames every message that address wrote (`author_name`), and for a week the messages read "Bob (was Ann)" (`chat_prev_name`, `chat_renamed_at`; within the week the note keeps the name from before the first change, changing back clears it, capitals alone add none). Other threads the address wrote in get an `event_message` `renamed` Any address may ask for a chat sign-in link (`requestSignIn(..., { anyAddress, next })`); Find my events itself still mails only known addresses
+- `server/event-chat.js` - One thread per event (`event_messages`, `event_message_likes`). Posting needs a signed-in email (`lilai_session`), so a name in the thread is backed by an address; the address is never sent to anyone, and a message carries a Host mark only when its address is the event's `host_email`. The name is the address's one name (`contacts.name`), never typed in the chat: the sign-in page asks for it right after the emailed link when there is none (Skip for now), and the chat shows "Posting as Ann · Change" (to `/me?next=/#chat-<id>`, which goes back after Save) or "Add your name to post." (a post without a name is 409 on `name`). A name belongs to its address, not to a message: changing it (Save on `/me`, or making an event while signed in) renames every message that address wrote (`author_name`, through `contacts.setName`'s `onRename` hook, `chat.renameAuthor`), and for a week the messages read "Bob (was Ann)" (`chat_prev_name`, `chat_renamed_at`; within the week the note keeps the name from before the first change, changing back clears it, capitals alone add none, and it is measured against the messages, so clearing the name first does not hide a change). The threads that changed get an `event_message` `renamed`. Any address may ask for a chat sign-in link (`requestSignIn(..., { anyAddress, next })`); Find my events itself still mails only known addresses
 - The author edits or deletes their own message; the host removes any from the management page. Likes are open to anyone, one per device key, stored as a hash. Limits: 10 posts a minute per address, 30 per network, 120 likes a minute per network
 - Messages are deleted 180 days after their event (checked every six hours). Delete my email keeps the messages under their name and takes the address off them, so nobody can change them any more
 - Readable by anyone, approval events included, like the guest list
@@ -221,7 +221,7 @@ Required in `.env`:
 ### Chat Endpoints
 `server/event-chat.js`. 404 for a missing or cancelled event.
 - `GET /api/events/:id/messages?liker=<device key>` - `{messages: [{id, name, wasName, body, at, editedAt, likes, liked, host, mine}], me: {email, name, host} | null}`
-- `POST /api/events/:id/messages` - Body `{body, name}`, signed in (401 otherwise); 429 over the limit
+- `POST /api/events/:id/messages` - Body `{body}`, signed in (401 otherwise), under the address's name (409 on `name` without one); 429 over the limit
 - `PUT /api/events/:id/messages/:messageId` - Body `{body}`; `DELETE` the same path. The author only (403)
 - `POST /api/events/:id/messages/:messageId/like` - Body `{liker, like: true|false}`; open to anyone
 - `POST /api/events/:id/messages/signin` - Body `{email}`. Mails a sign-in link to any address, back to `/#chat-<id>`
@@ -230,10 +230,10 @@ Required in `.env`:
 ### Find my events Endpoints
 `server/contacts.js`.
 - `POST /api/me/link` - Body `{email}`. Mails a sign-in link to a known address; the same `{success}` for any address. 400 bad address, 429 too many tries from one network, 503 without email
-- `POST /api/me/session` - Body `{token}`. Redeems the link once and sets `lilai_session`; 401 when used or expired
-- `GET /api/me` - `{email, name, upcoming, past, joined}` (a series shows once, with `count`), or 401
+- `POST /api/me/session` - Body `{token}`. Redeems the link once and sets `lilai_session`; answers `{email, name}`, so the page can ask for a missing name. 401 when used or expired
+- `GET /api/me` - `{email, name, chatMessages, upcoming, past, joined}` (a series shows once, with `count`), or 401
 - `POST /api/me/events/:eventId/manage` - A fresh management link (`created_via = 'email'`) for an event the address hosts; 404 otherwise
-- `PUT /api/me/name` - Body `{name}`; empty clears it
+- `PUT /api/me/name` - Body `{name}`; empty clears it. Renames the address's chat messages (see Chat in an event)
 - `DELETE /api/me/session` - Sign out this device. `DELETE /api/me` - Delete my email
 
 ### Donation Endpoints

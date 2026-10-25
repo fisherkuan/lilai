@@ -67,9 +67,27 @@
         <p class="field-error" id="me-redeem-error" role="alert" hidden></p>
     </section>
 
+    <!-- Just signed in, without a name yet: one name for this email, everywhere on Lilai -->
+    <section id="me-name-step" hidden>
+        <h1>Your name</h1>
+        <p class="ev-lede">Shown on your chat messages, and filled in when you join or make an event.</p>
+        <form id="me-first-name-form" class="me-form" novalidate>
+            <div class="field">
+                <label for="me-first-name">Name</label>
+                <input type="text" id="me-first-name" class="input" maxlength="100" autocomplete="name" enterkeyhint="done">
+                <p class="field-error" id="me-first-name-error" role="alert" hidden></p>
+            </div>
+            <div class="sheet-actions">
+                <button type="submit" class="btn btn-solid" id="me-first-name-save">Continue</button>
+                <button type="button" class="text-btn" id="me-first-name-skip">Skip for now</button>
+            </div>
+        </form>
+    </section>
+
     <!-- Signed in -->
     <article id="me-list" hidden>
         <p class="ev-eyebrow" id="me-who"></p>
+        <a class="text-link me-back" id="me-back" href="/" hidden>Back to the chat</a>
         <h1>Your events</h1>
 
         <form id="me-name-form" class="me-form me-name" novalidate>

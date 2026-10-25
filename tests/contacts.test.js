@@ -93,7 +93,7 @@ test('a host signs in by email, finds their events, manages one, and deletes the
         assert.ok(verified.rows[0].verified_at);
         // Signing in takes the name from the address's events; the person can change or clear it.
         assert.deepEqual(await contacts.profileOf('ann@lilai.test'), { email: 'ann@lilai.test', name: 'Ann' });
-        assert.equal(await contacts.setName('ann@lilai.test', '  Ann Lee '), 'Ann Lee');
+        assert.deepEqual(await contacts.setName('ann@lilai.test', '  Ann   Lee '), { name: 'Ann Lee', renamedIn: [] });
         assert.equal((await contacts.profileOf('ann@lilai.test')).name, 'Ann Lee');
 
         const req = { headers: { cookie: `${COOKIE}=${signedIn.session}` } };

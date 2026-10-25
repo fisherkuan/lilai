@@ -7,7 +7,6 @@
     'use strict';
 
     const LIKER_KEY = 'lilai.likerKey';
-    const NAME_KEY = 'lilai.attendeeName';
     const MAX_BODY = 1000;
 
     // "19:02" today, "Sat 3 Oct, 19:02" before. Pure, for the tests.
@@ -136,18 +135,18 @@
         if (stick || nearBottom) list.scrollTop = list.scrollHeight;
     }
 
+    // The name is the address's own, set on Find my events; the chat only shows it. Its
+    // links come back to this thread.
     function renderFoot() {
         const signedIn = Boolean(me);
-        $('chat-form').hidden = !signedIn;
+        const named = signedIn && Boolean(me.name);
+        $('chat-form').hidden = !named;
+        $('chat-noname').hidden = !signedIn || named;
         $('chat-signin').hidden = signedIn;
-        if (signedIn) {
-            const name = me.name || '';
-            $('chat-name').value = $('chat-name').value || name || stored(NAME_KEY);
-            $('chat-name-field').hidden = Boolean(name);
-            $('chat-name-hint').hidden = true;
-            $('chat-as').hidden = !name;
-            $('chat-as-name').textContent = name;
-        }
+        const back = `/me?next=${encodeURIComponent(`/#chat-${eventId}`)}`;
+        $('chat-rename').href = back;
+        $('chat-addname').href = back;
+        if (named) $('chat-as-name').textContent = me.name;
     }
 
     // ---------- Loading ----------
@@ -245,34 +244,21 @@
         showError('chat-error', '');
         const input = $('chat-input');
         const body = input.value.trim();
-        const name = ($('chat-name').value || '').trim() || (me && me.name) || '';
-        if (!name) {
-            $('chat-name-field').hidden = false;
-            $('chat-as').hidden = true;
-            $('chat-name').focus();
-            return showError('chat-error', 'Type your name, so people know who wrote.');
-        }
         if (!body) return input.focus();
         const button = $('chat-send');
         button.disabled = true;
         try {
-            const { status, ok, result } = await api('', { method: 'POST', body: JSON.stringify({ body, name }) });
-            if (status === 401) {
-                me = null;
+            const { status, ok, result } = await api('', { method: 'POST', body: JSON.stringify({ body }) });
+            if (status === 401 || (status === 409 && result.field === 'name')) {
+                me = status === 401 ? null : { ...me, name: '' };
                 renderFoot();
                 return;
             }
             if (!ok) return showError('chat-error', result.message || 'That did not go through. Try again.');
             input.value = '';
             autosize(input);
-            const renamed = Boolean(me.name) && me.name !== result.message.name;
-            me = { ...me, name: result.message.name };
-            $('chat-name').value = '';
             if (!messages.some(m => m.id === result.message.id)) messages.push(result.message);
             render({ stick: true });
-            renderFoot();
-            // A new name renamed my earlier messages too: draw them as the server has them.
-            if (renamed) load({ stick: true }).catch(() => {});
             setCount(eventId, result.count);
             input.focus();
         } catch (_) {
@@ -454,20 +440,6 @@
     });
     $('chat-form').addEventListener('submit', send);
     $('chat-signin').addEventListener('submit', askLink);
-    // Changing the name is a caveat worth a line: it renames what was already written.
-    $('chat-name').addEventListener('input', () => {
-        const typed = $('chat-name').value.trim();
-        const current = me && me.name;
-        const hint = $('chat-name-hint');
-        hint.hidden = !current || !typed || typed.toLowerCase() === current.toLowerCase();
-        if (!hint.hidden) hint.textContent = `Your earlier messages change to ${typed} too, marked "was ${current}" for a week.`;
-    });
-    $('chat-rename').addEventListener('click', () => {
-        $('chat-as').hidden = true;
-        $('chat-name-field').hidden = false;
-        $('chat-name').focus();
-        $('chat-name').select();
-    });
     const input = $('chat-input');
     input.addEventListener('input', () => autosize(input));
     // Enter sends on a keyboard; Shift+Enter is a new line. Phones keep Enter as a new line.

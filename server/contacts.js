@@ -115,7 +115,7 @@ async function createContactsSchema(client) {
     await client.query('CREATE INDEX IF NOT EXISTS idx_events_host_email ON events (lower(host_email)) WHERE host_email IS NOT NULL');
 }
 
-function createContacts({ pool, env = process.env, fetchImpl = fetch, now = () => new Date() }) {
+function createContacts({ pool, env = process.env, fetchImpl = fetch, now = () => new Date(), onRename = null }) {
     const secure = env.NODE_ENV === 'production';
     // Per network, in memory: one dyno, and a restart only forgives a few tries.
     const ipTries = new Map();
@@ -254,11 +254,28 @@ function createContacts({ pool, env = process.env, fetchImpl = fetch, now = () =
         return { email, name: row?.name || '' };
     }
 
-    // An empty name clears it.
+    /*
+     * The address's one name: filled in for RSVPs and new events, and what its chat messages
+     * show. An empty name clears it. `onRename(client, email, name)` (server/event-chat.js)
+     * renames what the address wrote, in the same transaction, and answers the events that
+     * changed: { name, renamedIn }.
+     */
     async function setName(email, nameInput) {
-        const name = String(nameInput ?? '').trim().slice(0, 100) || null;
-        await pool.query('UPDATE contacts SET name = $2 WHERE email = $1', [email, name]);
-        return name || '';
+        const name = String(nameInput ?? '').replace(/\s+/g, ' ').trim().slice(0, 100) || null;
+        const client = await pool.connect();
+        try {
+            await client.query('BEGIN');
+            await client.query('SELECT 1 FROM contacts WHERE email = $1 FOR UPDATE', [email]);
+            await client.query('UPDATE contacts SET name = $2 WHERE email = $1', [email, name]);
+            const renamedIn = onRename ? await onRename(client, email, name) : [];
+            await client.query('COMMIT');
+            return { name: name || '', renamedIn };
+        } catch (error) {
+            await client.query('ROLLBACK').catch(() => {});
+            throw error;
+        } finally {
+            client.release();
+        }
     }
 
     // Every event the address hosts (upcoming, and the last year's past ones) and every
