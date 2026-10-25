@@ -244,7 +244,7 @@ function createContacts({ pool, env = process.env, fetchImpl = fetch, now = () =
                 `SELECT DISTINCT ON (e.id) e.id, e.title, e.date, e.location, e.attendance_limit, e.series_id, e.source, r.attendance, ${counts}
                  FROM rsvps r JOIN events e ON e.id = r.event_id
                  WHERE lower(r.contact_email) = $1 AND e.cancelled_at IS NULL AND e.date >= $2::timestamptz - INTERVAL '12 hours'
-                   AND r.attendance IN ('yes', 'pending')
+                   AND r.attendance IN ('yes', 'pending', 'waiting')
                  ORDER BY e.id, r.timestamp DESC`,
                 [email, at]
             )

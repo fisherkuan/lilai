@@ -25,11 +25,13 @@ const MAX_LINK_LABEL = 40;
 const MAX_URL = 500;
 const MAX_OCCURRENCES = 52;
 
-// RSVP rows carry their state in the attendance column. Only 'yes' holds a seat.
-const STATUS = { YES: 'yes', PENDING: 'pending', DECLINED: 'declined' };
+// RSVP rows carry their state in the attendance column. Only 'yes' holds a seat; 'waiting' is
+// the waiting list of a full event (waiting-list.js).
+const STATUS = { YES: 'yes', PENDING: 'pending', DECLINED: 'declined', WAITING: 'waiting' };
 
-// Which way a host's decision moves a request. 'pending' is the undo.
-const DECISIONS = { accept: STATUS.YES, decline: STATUS.DECLINED, undo: STATUS.PENDING };
+// Which way a host's decision moves a request. 'pending' is the undo; 'wait' puts a declined
+// name back on the waiting list.
+const DECISIONS = { accept: STATUS.YES, decline: STATUS.DECLINED, undo: STATUS.PENDING, wait: STATUS.WAITING };
 
 // An edit or a cancellation of a repeating event reaches this date only, or later ones too.
 const SCOPES = ['this', 'later'];

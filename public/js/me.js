@@ -126,7 +126,7 @@
             : '<li class="ev-empty">No upcoming events made with this email.</li>';
         $('me-joined-block').hidden = !data.joined.length;
         $('me-joined').innerHTML = data.joined
-            .map(e => row(e, { manage: false, note: e.attendance === 'pending' ? ' · you asked to join' : '' })).join('');
+            .map(e => row(e, { manage: false, note: e.attendance === 'pending' ? ' · you asked to join' : e.attendance === 'waiting' ? ' · on the waiting list' : '' })).join('');
         $('me-past-block').hidden = !data.past.length;
         $('me-past').innerHTML = data.past.map(e => row(e)).join('');
         $('me-delete-confirm').hidden = true;

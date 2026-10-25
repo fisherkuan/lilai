@@ -860,6 +860,13 @@ button { font: inherit; color: inherit; }
     color: var(--ink-3);
 }
 
+/* "Ana is 2nd on the waiting list": this device's name, on a full event's list. */
+.waitlist-note {
+    margin-top: var(--s3);
+    font-size: var(--meta);
+    font-weight: 600;
+}
+
 .event-actions {
     display: flex;
     align-items: center;
