@@ -17,6 +17,12 @@ const KINDS = [
     'removed',   // the host took away a place
     'readded',   // the host gave a declined person a place after all
     'reasked',   // the host put a declined person back among the requests
+    'listed',    // joined the waiting list of a full event
+    'leftlist',  // took their own name off the waiting list
+    'promoted',  // moved up from the waiting list when a place opened; `detail` 'asking' on an approval event
+    'movedin',   // the host gave someone on the waiting list a place by hand
+    'delisted',  // the host took someone off the waiting list
+    'relisted',  // the host put a declined person back on the waiting list
     'edited',    // the host changed details; `detail` lists what
     'cancelled',
     'restored'
@@ -25,9 +31,10 @@ const KINDS = [
 // Which kind a host decision on an RSVP records, from its status before and after.
 function decisionKind(from, to) {
     if (from === to) return null;
-    if (to === 'yes') return from === 'declined' ? 'readded' : 'accepted';
-    if (to === 'declined') return from === 'yes' ? 'removed' : 'declined';
+    if (to === 'yes') return from === 'declined' ? 'readded' : from === 'waiting' ? 'movedin' : 'accepted';
+    if (to === 'declined') return from === 'yes' ? 'removed' : from === 'waiting' ? 'delisted' : 'declined';
     if (to === 'pending') return 'reasked';
+    if (to === 'waiting') return 'relisted';
     return null;
 }
 

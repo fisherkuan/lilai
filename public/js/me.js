@@ -12,6 +12,20 @@
     const nextRaw = new URLSearchParams(location.search).get('next') || '';
     const next = /^\/(?![\/\\])/.test(nextRaw) ? nextRaw : '';
     let email = '';
+    // The keys Home's RSVP sheet and Make an event fill in from (app.js, js/make-event.js).
+    const NAME_KEY = 'lilai.attendeeName';
+    const EMAIL_KEY = 'lilai.hostEmail';
+
+    function stored(key) {
+        try { return localStorage.getItem(key) || ''; } catch (_) { return ''; }
+    }
+
+    function store(key, value) {
+        try {
+            if (value) localStorage.setItem(key, value);
+            else localStorage.removeItem(key);
+        } catch (_) { /* private mode */ }
+    }
 
     function escapeHtml(value) {
         return String(value).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -56,6 +70,7 @@
     // ---------- Not signed in ----------
 
     function showAsk() {
+        AccountLink.remember('');
         showOnly('me-ask');
         $('me-form').hidden = false;
         $('me-sent').hidden = true;
@@ -126,14 +141,19 @@
 
     function render(data) {
         email = data.email;
+        AccountLink.remember(email);
         $('me-who').textContent = `Signed in as ${email}`;
+        $('me-name').value = data.name || '';
+        // This device fills in what it does not know yet; what it was told stays.
+        if (!stored(NAME_KEY) && data.name) store(NAME_KEY, data.name);
+        if (!stored(EMAIL_KEY)) store(EMAIL_KEY, email);
         $('me-upcoming-count').textContent = data.upcoming.length ? String(data.upcoming.length) : '';
         $('me-upcoming').innerHTML = data.upcoming.length
             ? data.upcoming.map(e => row(e)).join('')
             : '<li class="ev-empty">No upcoming events made with this email.</li>';
         $('me-joined-block').hidden = !data.joined.length;
         $('me-joined').innerHTML = data.joined
-            .map(e => row(e, { manage: false, note: e.attendance === 'pending' ? ' · you asked to join' : '' })).join('');
+            .map(e => row(e, { manage: false, note: e.attendance === 'pending' ? ' · you asked to join' : e.attendance === 'waiting' ? ' · on the waiting list' : '' })).join('');
         $('me-past-block').hidden = !data.past.length;
         $('me-past').innerHTML = data.past.map(e => row(e)).join('');
         $('me-delete-confirm').hidden = true;
@@ -174,6 +194,25 @@
         }
     }
 
+    async function saveName(e) {
+        e.preventDefault();
+        const button = $('me-name-save');
+        button.disabled = true;
+        try {
+            const { status, ok, result } = await api('/api/me/name', { method: 'PUT', body: JSON.stringify({ name: $('me-name').value }) });
+            if (status === 401) return showAsk();
+            if (!ok) throw new Error(result.message || 'That did not go through. Try again.');
+            $('me-name').value = result.name;
+            store(NAME_KEY, result.name);
+            $('me-name-hint').textContent = 'Saved.';
+            setTimeout(() => { $('me-name-hint').textContent = 'Filled in when you join or make an event.'; }, 2000);
+        } catch (error) {
+            showError('me-list-error', error.message);
+        } finally {
+            button.disabled = false;
+        }
+    }
+
     async function signOut() {
         await api('/api/me/session', { method: 'DELETE' }).catch(() => {});
         showAsk();
@@ -192,6 +231,7 @@
         try {
             const { ok, result } = await api('/api/me', { method: 'DELETE' });
             if (!ok) throw new Error(result.message || 'That did not go through. Try again.');
+            if (stored(EMAIL_KEY).toLowerCase() === email) store(EMAIL_KEY, '');
             showAsk();
             $('me-form').hidden = true;
             $('me-sent-text').textContent = `Deleted. Lilai no longer has ${email}.`;
@@ -204,6 +244,7 @@
     }
 
     $('me-form').addEventListener('submit', sendLink);
+    $('me-name-form').addEventListener('submit', saveName);
     $('me-other').addEventListener('click', () => {
         showAsk();
         $('me-email').value = '';

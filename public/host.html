@@ -39,6 +39,7 @@
     <nav class="app-header-links" aria-label="Site links">
         <a href="/faq.html">FAQ</a>
         <a href="/donate">Donate</a>
+        <a href="/me" data-account-link>Sign in</a>
     </nav>
 </header>
 
@@ -94,6 +95,14 @@
                 <span class="section-meta" id="coming-count"></span>
             </div>
             <ul class="ev-request-list" id="coming-list"></ul>
+        </section>
+
+        <section class="ev-requests" id="list-section" hidden aria-labelledby="list-title">
+            <div class="section-head">
+                <h2 class="section-title" id="list-title">Waiting list</h2>
+                <span class="section-meta" id="list-count"></span>
+            </div>
+            <ul class="ev-request-list" id="list-list"></ul>
         </section>
 
         <section class="ev-requests" id="declined-section" hidden aria-labelledby="declined-title">
@@ -203,6 +212,7 @@
     <p>Built by Fisher Kuan</p>
 </footer>
 <script src="/js/theme.js"></script>
+<script src="/js/account-link.js"></script>
 <script src="/js/feedback.js"></script>
 <script src="/js/sheet.js"></script>
 <script src="/js/event-links.js"></script>

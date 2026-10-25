@@ -126,6 +126,9 @@ test('two people chat in an event, edit and delete their own, like, and the host
         assert.equal(JSON.stringify(open).includes('@'), false);
         const asCleo = await chat.list('e1', { email: cleo });
         assert.deepEqual(asCleo.me, { email: cleo, name: 'Cleo', host: false });
+        // Before a first post, the chat offers the name the address fills in for RSVPs.
+        await pool.query("INSERT INTO contacts (email, name) VALUES ('eve@lilai.test', 'Eve') ON CONFLICT (email) DO UPDATE SET name = 'Eve'");
+        assert.equal((await chat.list('e1', { email: 'eve@lilai.test' })).me.name, 'Eve');
         assert.deepEqual(asCleo.messages.map(m => m.mine), [false, true]);
 
         // Only the author edits or deletes.
@@ -152,6 +155,7 @@ test('two people chat in an event, edit and delete their own, like, and the host
         // Delete my email: the message stays under its name, and nobody can change it any more.
         const kept = await chat.post('e1', cleo, { body: 'See you there', name: 'Cleo' });
         await chat.forget(cleo);
+        assert.equal((await pool.query('SELECT chat_name FROM contacts WHERE email = $1', [cleo])).rows[0].chat_name, null);
         await assert.rejects(chat.edit('e1', kept.message.id, cleo, { body: 'x' }), { status: 403 });
         assert.equal((await chat.list('e1', {})).messages[0].name, 'Cleo');
 

@@ -28,7 +28,7 @@ The server runs on `http://localhost:3000` by default (configurable via PORT env
 - PostgreSQL is used for production (connection via `DATABASE_URL` env var)
 - Database schema is auto-initialized on server startup via `initializeDatabase()` in server/app.js
 - Tables: `events`, `rsvps`, `places`, `admin_codes`, `admin_sessions`, `event_series`, `event_host_links`, `event_activity`, `calendar_keys`, `calendar_state`, `donations`, `feedback`, `booking_queue`, `booking_profiles`, `booking_series`, `contacts`, `contact_tokens`, `device_sessions`, `event_messages`, `event_message_likes`
-- `rsvps.attendance` is `yes` (holds a seat), `pending` (asked to join an approval event) or `declined` (the host said no). Every count of who is coming filters on `yes`
+- `rsvps.attendance` is `yes` (holds a seat), `pending` (asked to join an approval event), `waiting` (on a full event's waiting list, in `timestamp, id` order) or `declined` (the host said no). Every count of who is coming filters on `yes`
 - Schema migrations are idempotent and run automatically on startup
 
 ### Testing
@@ -74,6 +74,7 @@ Vanilla JavaScript with no build step.
 **Structure:**
 - `index.html` + `app.js` - Main event listing and RSVP interface
 - `admin-donations.html` + `js/admin-donations.js` - Donation management
+- `js/account-link.js` - The header's account link on every public page (Home, FAQ, Donate, host, calendar, Find my events): "Sign in", or "My events" once this device signed in on `/me`; both open `/me`. Home's sidebar "Find my events" (`[data-signed-out]`) hides once signed in. The cookie is HttpOnly, so `js/me.js` keeps the note in `lilai.signedIn`. Admin pages keep their own sign-in
 - `admin-login.html` + `js/admin-login.js` - Admin sign-in (`/admin/login?next=`): email, then the six-digit code (a full code signs in by itself)
 - `js/admin-session.js` - On Donations and Places: who is signed in, Sign out, and `AdminSession.adminFetch` (a 401 goes back to sign-in)
 - `admin-places.html` + `js/admin-places.js` - The saved places (`/admin/places`, signed in): add (with "Find on Google Maps" filling name and address), edit, reorder, remove
@@ -91,7 +92,7 @@ Vanilla JavaScript with no build step.
 - `js/device-links.js` - What this device holds: management links (`lilai.hostedEvents`, listed as "You manage" in Home's sidebar) and calendar keys (`lilai.calendarKeys`), plus `share()` (Web Share, else the clipboard)
 - `host.html` + `js/host.js` - An event's management page (`/host/:token`): the Google copy's status, Edit (the event form in a sheet), Copy management link (the page address, cut off, with a copy icon), Cancel / Restore, the dates of a series, and who is coming or asked to join (Accept / Decline / Undo). Live over WebSocket
 - `calendar.html` + `js/calendar-page.js` - A calendar key's page (`/calendars/:token`): stores the key on the device, lists the calendar's upcoming events with Manage (mints a management link), "Make a <calendar> event", Share
-- `me.html` + `js/me.js` - Find my events (`/me`, linked from Home's sidebar; `/#lost-link` redirects there): type an email, open the emailed link (`/me/signin/<token>`, one tap, because mail scanners open links), and this device lists the events that address hosts and joined. Manage mints a management link and keeps it under "You manage"; Sign out; Delete my email
+- `me.html` + `js/me.js` - Find my events (`/me`, linked from Home's sidebar; `/#lost-link` redirects there): type an email, open the emailed link (`/me/signin/<token>`, one tap, because mail scanners open links), and this device lists the events that address hosts and joined. Manage mints a management link and keeps it under "You manage"; "Your name" (the email's name, Save); Sign out; Delete my email. Signing in fills this device's empty `lilai.attendeeName` and `lilai.hostEmail`, which the RSVP sheet and Make an event read
 - `js/event-chat.js` - Chat in an event (#56): the chat button on every card (past ones too, with its count) opens a slide-in thread (`#chat-sheet`) of bubbles, mine in ink on the right. Anyone reads and likes (a like belongs to a device key, `lilai.likerKey`); posting needs the Find my events session, so the panel asks for an email first and the emailed link lands back on `/#chat-<id>`. The author edits or deletes their own messages; live over `event_message`. `stampText`, `groupStarts` tested in `tests/event-chat.test.js`
 - `sw.js` - Service worker for PWA support. It never caches `/host/`, `/calendars/`, `/me`, their APIs or an event's messages: those carry secret links, a person's events or who is signed in
 
@@ -126,11 +127,12 @@ Central configuration file with:
 - `server/calendar-access.js` + `scripts/calendar-link.js` - Calendar keys (`calendar_keys`, hash only). `heroku run -a lilai-eu node scripts/calendar-link.js TSA --label "TSA admins"` prints a `/calendars/<token>` link once; `--revoke` stops the earlier ones. A key lets a device make events in a restricted calendar and mint a management link for any event in that calendar
 - Management links: `event_host_links` maps a token hash to one event or one series. Made when an event is made (emailed to the host's required email when Resend is set) and when a calendar key holder opens Manage. No accounts, in line with the RSVP trust model; whoever has the link is a host
 - Every event has a host email (required since 2026-10-25), so Find my events is the one way back to a lost link; there is no admin recovery. The host name is only the host's place on the guest list, asked only when they join.
-- Find my events (`server/contacts.js`, #55 phase 1): an address that made an event (`events.host_email`, any case) or was confirmed before gets a sign-in link (30 minutes, once, 3 an hour per address, 20 an hour per network; the answer is the same for every address). Opening it confirms the address in `contacts` and sets the `lilai_session` cookie (90 days, `device_sessions`, hashes only). `rsvps.contact_email` exists for phase 2's "Email me about changes" and is already listed under "You joined". Delete my email clears the address from events and RSVPs and ends its sessions; names stay. Design: `.plans/VERIFIED_CONTACT_plan.md`
-- Activity: `event_activity` (`server/event-activity.js`) logs what happened to each event: made, joined, asked, left, accepted, declined, removed, readded, reasked, edited (with the fields that changed), cancelled, restored. Each row is written in the transaction of the change it records. A row names the person a change was about, never who made it. When the table is first created it is seeded from the places and requests already in `rsvps`. The management page shows it (`activity` in `GET /api/host/:token`)
+- Find my events (`server/contacts.js`, #55 phase 1): an address that made an event (`events.host_email`, any case) or was confirmed before gets a sign-in link (30 minutes, once, 3 an hour per address, 20 an hour per network; the answer is the same for every address). Opening it confirms the address in `contacts` and sets the `lilai_session` cookie (90 days, `device_sessions`, hashes only). `rsvps.contact_email` exists for phase 2's "Email me about changes" and is already listed under "You joined". Delete my email clears the address from events and RSVPs, the contact's name, and its sessions; event and RSVP names stay. `contacts.name` is set only through a proven address: on sign-in from the latest event's host name, by Save on `/me` (`PUT /api/me/name`), or when a signed-in device makes an event with that email. Design: `.plans/VERIFIED_CONTACT_plan.md`
+- Activity: `event_activity` (`server/event-activity.js`) logs what happened to each event: made, joined, asked, left, accepted, declined, removed, readded, reasked, edited (with the fields that changed), cancelled, restored, and for the waiting list listed, leftlist, promoted, movedin, delisted, relisted. Each row is written in the transaction of the change it records. A row names the person a change was about, never who made it. When the table is first created it is seeded from the places and requests already in `rsvps`. The management page shows it (`activity` in `GET /api/host/:token`)
 - Repeating events: a repeat rule (`server/booking-repeat.js`: every N days / weeks on chosen weekdays / months, until a date, at most 52) expands into ordinary rows sharing `series_id` (`event_series.rule`). Each date has its own RSVPs, approval queue and single Google copy. Edit and Cancel take `scope: this | later`; later dates keep their own day and take the new clock times and everything else. The rule is fixed once made
 - Cancel sets `cancelled_at` (hidden from every public read, RSVPs kept, Google copy deleted); Restore clears it
 - Approval events ("I approve each person"): Join reads "Ask to join", requests hold no seat, the card shows "N asking" and "<host> confirms each place"
+- Waiting list (#57, `server/waiting-list.js`): a full event's Join reads "Join the waiting list", and so does any event with a list already, so nobody overtakes it. The card shows "N waiting" and, for the name this device remembers, "Ana is 2nd on the waiting list". When a place opens (someone leaves, the host removes someone, declines a request or raises or drops the limit), `promote` moves the first names up in the same transaction, under the event row lock: to `yes`, or on an approval event to `pending` while the open requests leave a seat for them. Automatic, no offer to confirm and no cut-off before the start; one list per date. The management page lists it in order with Move in (a place now, past the limit if need be) and Remove; Undo on a declined name puts it back on the list while the event is full. Remove a name on Home also leaves the list
 
 ### Chat in an event
 - `server/event-chat.js` - One thread per event (`event_messages`, `event_message_likes`). Posting needs a signed-in email (`lilai_session`), so a name in the thread is backed by an address; the address is never sent to anyone, and a message carries a Host mark only when its address is the event's `host_email`. The name is typed once and kept per address (`contacts.chat_name`). Any address may ask for a chat sign-in link (`requestSignIn(..., { anyAddress, next })`); Find my events itself still mails only known addresses
@@ -144,10 +146,11 @@ Central configuration file with:
 - Capacity checking: if attendance_limit is set, prevents RSVPs when full
 - Real-time updates via WebSocket broadcast after each RSVP action
 - Only `yes` holds a seat; `pending` (asked to join) and `declined` exist for approval events
+- A full event puts `add` on the waiting list instead of refusing it; `remove` gives up a place, else a spot on the list, and the first name waiting moves up. The whole route runs in one transaction with the event row locked
 
 ### WebSocket Real-Time Updates
 WebSocket server runs on same HTTP server as Express. Broadcast messages:
-- `attendance_update` - Sent when an RSVP or a host decision changes who is coming (eventId, attendingCount, attendees, pendingCount)
+- `attendance_update` - Sent when an RSVP or a host decision changes who is coming (eventId, attendingCount, attendees, pendingCount, waitlist)
 - `event_created`, `event_update`, `event_cancelled` - `{ ids }` of events made, edited or restored, cancelled; Home reloads its lists
 - `event_published` - `{ id }` after the publisher tried an event's Google copy; its management page reloads the status
 - `event_message` - `{ action: posted|edited|deleted|liked, eventId, message?, id?, likes?, count? }`. An open thread reloads (likes only update the count); cards update their chat count
@@ -206,13 +209,13 @@ Required in `.env`:
 - `PUT /api/host/:token/events/:eventId` - Edit (the event form's fields plus `scope`); broadcasts `event_update`
 - `POST /api/host/:token/events/:eventId/cancel` - Body `{scope}`; broadcasts `event_cancelled`
 - `POST /api/host/:token/events/:eventId/restore`
-- `POST /api/host/:token/events/:eventId/requests/:rsvpId` - Body `{decision: accept|decline|undo}`. Accept respects the limit under a row lock (409 when full)
+- `POST /api/host/:token/events/:eventId/requests/:rsvpId` - Body `{decision: accept|decline|undo|wait}`. Accept respects the limit under a row lock (409 when full), except for a name on the waiting list (Move in). `wait` puts a declined name back on the list. Whatever a decision frees goes to the waiting list
 - `GET /api/calendar-access/:token` - A calendar key's calendar and its upcoming events
 - `POST /api/calendar-access/:token/events/:eventId/manage` - Mints a management link for one of that calendar's events (a series gets one link for all its dates)
 - `GET /api/places` - The saved places in the owner's order (`{places: [{id, name, address, aliases, placeId}], google}`); `google` says whether Google Maps search is on. The form ranks them itself
 - `GET /api/places/search?q=&session=` - Google Maps suggestions (`server/place-autocomplete.js`: Places API (New) Autocomplete, biased to Leuven, at most five, cached a day, 30 a minute per visitor). `[]` without `GOOGLE_MAPS_API_KEY`
 - `POST /api/places`, `PUT /api/places/:id`, `DELETE /api/places/:id`, `PUT /api/places/order` (`{ids}`) - The saved places' admin, behind `X-Admin-Key`. A second place with the same name (any case) is 409 on `name`. Removing a place never touches events already there
-- `POST /api/rsvp` - Submit RSVP (body: `{eventId, action: "add"|"remove", attendeeName}`). A cancelled event is not found. On an approval event, `add` asks to join: the row is `pending`, the answer carries `pending: true`, and one open request per name. Answers and the `attendance_update` broadcast carry `attendees`, `attendingCount` and `pendingCount`
+- `POST /api/rsvp` - Submit RSVP (body: `{eventId, action: "add"|"remove", attendeeName}`). A cancelled event is not found. On an approval event, `add` asks to join: the row is `pending`, the answer carries `pending: true`, and one open request per name. On a full event `add` joins the waiting list: `listed: true` and `position`, one spot per name. Answers and the `attendance_update` broadcast carry `attendees`, `attendingCount`, `pendingCount` and `waitlist` (names in order); `GET /api/events` carries `waitlist` too
 - Public event JSON never includes `host_email` or the publishing bookkeeping (`publicEvent` in `server/event-hosting.js`), and never a cancelled event
 
 ### Chat Endpoints
@@ -228,8 +231,9 @@ Required in `.env`:
 `server/contacts.js`.
 - `POST /api/me/link` - Body `{email}`. Mails a sign-in link to a known address; the same `{success}` for any address. 400 bad address, 429 too many tries from one network, 503 without email
 - `POST /api/me/session` - Body `{token}`. Redeems the link once and sets `lilai_session`; 401 when used or expired
-- `GET /api/me` - `{email, upcoming, past, joined}` (a series shows once, with `count`), or 401
+- `GET /api/me` - `{email, name, upcoming, past, joined}` (a series shows once, with `count`), or 401
 - `POST /api/me/events/:eventId/manage` - A fresh management link (`created_via = 'email'`) for an event the address hosts; 404 otherwise
+- `PUT /api/me/name` - Body `{name}`; empty clears it
 - `DELETE /api/me/session` - Sign out this device. `DELETE /api/me` - Delete my email
 
 ### Donation Endpoints

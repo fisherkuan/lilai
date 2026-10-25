@@ -185,6 +185,11 @@
 .me-form .input { background-color: var(--paper-raised); }
 .me-form[hidden] { display: none; }
 #me-sent .text-btn { margin-top: var(--s2); }
+.me-name { margin-top: var(--s4); }
+.me-name .field { margin-top: 0; }
+.me-name-row { display: flex; gap: var(--s3); align-items: center; }
+.me-name-row .input { flex: 1 1 auto; min-width: 0; }
+.me-name-row .btn { flex: none; }
 #me-sent[hidden], #me-delete-confirm[hidden] { display: none; }
 
 /* ---------- Calendar page ---------- */

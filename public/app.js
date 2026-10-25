@@ -346,13 +346,10 @@ function renderAgenda() {
         const detail = ev.location || styleFor(ev).name || '';
         const seats = seatsLabel(ev, { isPast });
         const meta = [detail, seats].filter(Boolean).join(' · ');
-        const hasLimit = ev.attendance_limit !== null && ev.attendance_limit !== undefined;
-        const isFull = hasLimit && (ev.attendingCount || 0) >= ev.attendance_limit;
         let action = '';
         if (!isPast) {
-            action = isFull
-                ? '<button type="button" class="btn btn-line agenda-join" disabled>Full</button>'
-                : `<button type="button" class="btn btn-line agenda-join" data-event-id="${escapeAttribute(ev.id)}" aria-label="${escapeAttribute(`${joinLabel(ev)}: ${ev.title}`)}">${joinLabel(ev)}</button>`;
+            const label = joinsWaitlist(ev) ? 'Waiting list' : joinLabel(ev);
+            action = `<button type="button" class="btn btn-line agenda-join" data-event-id="${escapeAttribute(ev.id)}" aria-label="${escapeAttribute(`${joinLabel(ev)}: ${ev.title}`)}">${label}</button>`;
         }
         const open = ev.id === openAgendaRow;
         const revealId = `agenda-reveal-${ev.id}`;
@@ -794,8 +791,10 @@ function seatsLabel(event, { isPast }) {
     const count = event.attendingCount || 0;
     const hasLimit = event.attendance_limit !== null && event.attendance_limit !== undefined;
     const limit = hasLimit ? event.attendance_limit : null;
-    // Requests waiting on the host hold no seat, so they ride after the count.
-    const asking = !isPast && event.pendingCount > 0 ? ` · ${event.pendingCount} asking` : '';
+    // Requests waiting on the host and the waiting list hold no seat, so they ride after the count.
+    const waiting = Array.isArray(event.waitlist) ? event.waitlist.length : 0;
+    const asking = (!isPast && event.pendingCount > 0 ? ` · ${event.pendingCount} asking` : '')
+        + (!isPast && waiting > 0 ? ` · ${waiting} waiting` : '');
     if (!hasLimit && count === 0) return asking ? `0 going${asking}` : '';
     if (isPast) return `${count} went`;
     if (hasLimit && count >= limit) return `Full · ${count} of ${limit}${asking}`;
@@ -803,9 +802,24 @@ function seatsLabel(event, { isPast }) {
     return `${count} going${asking}`;
 }
 
+// A full event takes new names on its waiting list. So does one with a list already, so
+// nobody overtakes it (on an approval event a seat can be free while the host decides).
+function joinsWaitlist(event) {
+    const hasLimit = event.attendance_limit !== null && event.attendance_limit !== undefined;
+    const waiting = Array.isArray(event.waitlist) && event.waitlist.length > 0;
+    return waiting || (hasLimit && (event.attendingCount || 0) >= event.attendance_limit);
+}
+
 // On an approval event, Join asks the host instead of taking a seat.
 function joinLabel(event) {
+    if (joinsWaitlist(event)) return 'Join the waiting list';
     return event.approval_required ? 'Ask to join' : 'Join';
+}
+
+// "1st", "2nd", "3rd", "11th": a place on the waiting list.
+function ordinal(n) {
+    const teen = n % 100 >= 11 && n % 100 <= 13;
+    return `${n}${teen ? 'th' : ({ 1: 'st', 2: 'nd', 3: 'rd' }[n % 10] || 'th')}`;
 }
 
 // Seats: one slot per place, drawn only for a small limited event. With no limit, or more
@@ -889,13 +903,19 @@ function renderEventCard(event, { isPast, isToday, prevNames }) {
         + '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5h16v10.5H10l-4.5 3.5V16H4Z"/></svg>'
         + `<span class="chat-count">${messageCount || ''}</span></button>`;
 
+    // This device's name on the waiting list, and where it stands.
+    const waitlist = Array.isArray(event.waitlist) ? event.waitlist : [];
+    const mine = getRememberedName();
+    const place = !isPast && mine ? waitlist.indexOf(mine) + 1 : 0;
+    const waitNote = place > 0
+        ? `<p class="waitlist-note">${escapeHtml(mine)} is ${ordinal(place)} on the waiting list</p>`
+        : '';
+
     let actions = `<div class="event-actions">${chat}</div>`;
     if (!isPast) {
         // Every event carries the same weight: no lead event, no solid Join.
-        const join = isFull
-            ? '<button type="button" class="btn btn-line" disabled>Full</button>'
-            : `<button type="button" class="btn btn-line rsvp-trigger-add" data-event-id="${sanitizedEventId}">${joinLabel(event)}</button>`;
-        const remove = attendingCount > 0
+        const join = `<button type="button" class="btn btn-line rsvp-trigger-add" data-event-id="${sanitizedEventId}">${joinLabel(event)}</button>`;
+        const remove = attendingCount > 0 || waitlist.length > 0
             ? `<button type="button" class="text-btn rsvp-trigger-remove" data-event-id="${sanitizedEventId}">Remove a name</button>`
             : '';
         actions = `<div class="event-actions">${join}${remove}${chat}</div>`;
@@ -921,6 +941,7 @@ function renderEventCard(event, { isPast, isToday, prevNames }) {
                 ` : ''}
                 ${renderSeats(event, st, { isPast, hasLimit, isFull, newFrom })}
                 ${names}
+                ${waitNote}
                 ${actions}
             </div>
         </article>
@@ -928,7 +949,7 @@ function renderEventCard(event, { isPast, isToday, prevNames }) {
 }
 
 // One place to apply a new attendee list, whether it came from our own RSVP or a broadcast.
-function applyAttendance(eventId, attendees, pendingCount) {
+function applyAttendance(eventId, attendees, pendingCount, waitlist) {
     if (!Array.isArray(attendees)) return; // an older server answered without a list; the broadcast still brings it
     const count = attendees.length;
     [currentEvents, allCalendarEvents].forEach(list => {
@@ -937,6 +958,7 @@ function applyAttendance(eventId, attendees, pendingCount) {
             ev.attendees = attendees.slice();
             ev.attendingCount = count;
             if (typeof pendingCount === 'number') ev.pendingCount = pendingCount;
+            if (Array.isArray(waitlist)) ev.waitlist = waitlist.slice();
         }
     });
     displayEvents();
@@ -990,12 +1012,19 @@ function openRsvpModal(eventId) {
     linksEl.hidden = !linksEl.innerHTML;
 
     const asks = Boolean(event.approval_required);
+    const waits = joinsWaitlist(event);
     const approvalNote = document.getElementById('modal-approval-note');
-    approvalNote.textContent = asks
-        ? `${event.host_name || 'The host'} confirms each place. Your name shows under who is coming once they accept.`
-        : '';
-    approvalNote.hidden = !asks;
-    document.querySelector('.rsvp-add-btn .text').textContent = asks ? 'Ask to join' : 'Confirm';
+    if (waits) {
+        approvalNote.textContent = asks
+            ? `Every place is taken. When one opens, the first name on the waiting list goes to ${event.host_name || 'the host'}, who confirms each place.`
+            : 'Every place is taken. When one opens, it goes to the first name on the waiting list.';
+    } else {
+        approvalNote.textContent = asks
+            ? `${event.host_name || 'The host'} confirms each place. Your name shows under who is coming once they accept.`
+            : '';
+    }
+    approvalNote.hidden = !asks && !waits;
+    document.querySelector('.rsvp-add-btn .text').textContent = waits ? 'Join the waiting list' : asks ? 'Ask to join' : 'Confirm';
     setRsvpSent(false);
 
     // Pre-fill the remembered name and select it, so overtyping is a single action.
@@ -1016,14 +1045,17 @@ function restoreSheetFocus() {
     lastSheetTrigger = null;
 }
 
-// After a request to an approval event, the sheet says so instead of closing: no name prints.
-function setRsvpSent(sent, name = '') {
+// After a request to an approval event, or a name on the waiting list, the sheet says so
+// instead of closing: no name prints under who is coming.
+function setRsvpSent(sent, name = '', position = 0) {
     document.getElementById('rsvp-form-part').hidden = sent;
     const done = document.getElementById('rsvp-sent');
     done.hidden = !sent;
     if (sent) {
-        document.getElementById('rsvp-sent-text').textContent =
-            `${name} is on the host's list. Your name shows under who is coming once they accept.`;
+        document.getElementById('rsvp-sent-title').textContent = position ? 'On the waiting list' : 'Request sent';
+        document.getElementById('rsvp-sent-text').textContent = position
+            ? `${name} is ${ordinal(position)} on the waiting list. When a place opens, it goes to the first name on the list.`
+            : `${name} is on the host's list. Your name shows under who is coming once they accept.`;
         document.getElementById('rsvp-sent-done').focus();
     }
 }
@@ -1053,11 +1085,19 @@ function openRemoveRsvpModal(eventId) {
         option.textContent = name;
         selector.appendChild(option);
     });
+    // Names on the waiting list leave it the same way. A name both coming and waiting gives
+    // up the place first, so it appears once.
+    (event.waitlist || []).filter(name => !(event.attendees || []).includes(name)).forEach(name => {
+        const option = document.createElement('option');
+        option.value = name;
+        option.textContent = `${name} (waiting list)`;
+        selector.appendChild(option);
+    });
 
     // Default to whoever this browser last RSVP'd as. Everyone else stays selectable —
     // this is a starting point, not a restriction.
     const remembered = getRememberedName();
-    if (remembered && (event.attendees || []).includes(remembered)) {
+    if (remembered && [...(event.attendees || []), ...(event.waitlist || [])].includes(remembered)) {
         selector.value = remembered;
     }
     setTimeout(() => selector.focus(), 50);
@@ -1083,7 +1123,7 @@ function submitRsvp(action) {
     const textEl = submitBtn.querySelector('.text');
     const originalText = textEl.textContent;
     submitBtn.disabled = true;
-    textEl.textContent = event.approval_required ? 'Asking…' : 'Joining…';
+    textEl.textContent = event.approval_required && !joinsWaitlist(event) ? 'Asking…' : 'Joining…';
 
     fetch(`${API_BASE_URL}/api/rsvp`, {
         method: 'POST',
@@ -1097,16 +1137,16 @@ function submitRsvp(action) {
         if (result.success) {
             if (navigator.vibrate) navigator.vibrate(30);
             rememberName(attendeeName);
-            if (result.pending) {
-                setRsvpSent(true, attendeeName);
-                applyAttendance(event.id, result.attendees, result.pendingCount);
+            if (result.pending || result.listed) {
+                setRsvpSent(true, attendeeName, result.listed ? result.position : 0);
+                applyAttendance(event.id, result.attendees, result.pendingCount, result.waitlist);
                 return;
             }
             closeRsvpModal();
             // No toast: the name printing into the list is the confirmation.
             // Apply the server's list, never a patch of ours: the broadcast often lands
             // first, and adding the name again would show it twice.
-            applyAttendance(event.id, result.attendees, result.pendingCount);
+            applyAttendance(event.id, result.attendees, result.pendingCount, result.waitlist);
         } else {
             showFieldError('rsvp-error', result.message || 'That did not go through. Try again.');
         }
@@ -1142,7 +1182,7 @@ function submitRemoveRsvp() {
             closeRemoveRsvpModal();
             // The server's list, not ours minus one name: when the broadcast lands first,
             // subtracting again would hide a second person with the same name.
-            applyAttendance(event.id, result.attendees, result.pendingCount);
+            applyAttendance(event.id, result.attendees, result.pendingCount, result.waitlist);
         } else {
             showFieldError('remove-error', result.message || 'That did not go through. Try again.');
         }
@@ -1239,8 +1279,8 @@ function setupWebSocket() {
         try {
             const data = JSON.parse(message.data);
             if (data.type === 'attendance_update') {
-                const { eventId, attendees, pendingCount } = data.payload;
-                applyAttendance(eventId, Array.isArray(attendees) ? attendees : [], pendingCount);
+                const { eventId, attendees, pendingCount, waitlist } = data.payload;
+                applyAttendance(eventId, Array.isArray(attendees) ? attendees : [], pendingCount, waitlist);
             } else if (data.type === 'event_message') {
                 if (typeof EventChat !== 'undefined') EventChat.onBroadcast(data.payload);
             } else if (['event_created', 'event_update', 'event_cancelled'].includes(data.type)) {

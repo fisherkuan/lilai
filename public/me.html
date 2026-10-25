@@ -30,6 +30,7 @@
     <nav class="app-header-links" aria-label="Site links">
         <a href="/faq.html">FAQ</a>
         <a href="/donate">Donate</a>
+        <a href="/me" data-account-link aria-current="page">Sign in</a>
     </nav>
 </header>
 
@@ -70,6 +71,17 @@
     <article id="me-list" hidden>
         <p class="ev-eyebrow" id="me-who"></p>
         <h1>Your events</h1>
+
+        <form id="me-name-form" class="me-form me-name" novalidate>
+            <div class="field">
+                <label for="me-name">Your name</label>
+                <div class="me-name-row">
+                    <input type="text" id="me-name" class="input" maxlength="100" autocomplete="name">
+                    <button type="submit" class="btn btn-line" id="me-name-save">Save</button>
+                </div>
+                <p class="ev-hint" id="me-name-hint">Filled in when you join or make an event.</p>
+            </div>
+        </form>
 
         <section class="ev-requests" aria-labelledby="me-upcoming-title">
             <div class="section-head">
@@ -112,6 +124,7 @@
     <p>Built by Fisher Kuan</p>
 </footer>
 <script src="/js/theme.js"></script>
+<script src="/js/account-link.js"></script>
 <script src="/js/feedback.js"></script>
 <script src="/js/sheet.js"></script>
 <script src="/js/device-links.js"></script>

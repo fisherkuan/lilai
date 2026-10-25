@@ -49,6 +49,7 @@
     <nav class="app-header-links" aria-label="Site links">
         <a href="faq.html">FAQ</a>
         <a href="/donate">Donate</a>
+        <a href="/me" data-account-link>Sign in</a>
     </nav>
 </header>
 
@@ -107,7 +108,7 @@
                 <h2 class="side-subtitle">You manage</h2>
                 <ul class="hosted-rows" id="hosted-items"></ul>
             </div>
-            <a class="text-btn side-lost" href="/me">Find my events</a>
+            <a class="text-btn side-lost" href="/me" data-signed-out>Find my events</a>
         </section>
 
         <section class="side-block" aria-labelledby="side-cal-title">
@@ -154,7 +155,7 @@
             </div>
         </div>
         <div class="sheet-sent" id="rsvp-sent" hidden>
-            <p class="sheet-sent-title">Request sent</p>
+            <p class="sheet-sent-title" id="rsvp-sent-title">Request sent</p>
             <p class="sheet-desc" id="rsvp-sent-text"></p>
             <div class="sheet-actions">
                 <button type="button" class="btn btn-solid" id="rsvp-sent-done" onclick="closeRsvpModal()">Done</button>
@@ -269,6 +270,7 @@
     <p>Built by Fisher Kuan</p>
 </footer>
 <script src="/js/theme.js"></script>
+<script src="/js/account-link.js"></script>
 <script src="/js/feedback.js"></script>
 <script src="/js/sheet.js"></script>
 

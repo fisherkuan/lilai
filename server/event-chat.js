@@ -140,8 +140,10 @@ function createEventChat({ pool, now = () => new Date() }) {
         );
         let me = null;
         if (email) {
-            const contact = (await pool.query('SELECT chat_name FROM contacts WHERE email = $1', [email])).rows[0];
-            me = { email, name: contact?.chat_name || '', host: email === String(event.host_email || '').toLowerCase() };
+            // The name last posted under, else the one this address fills in for RSVPs.
+            const contact = (await pool.query('SELECT chat_name, name FROM contacts WHERE email = $1', [email])).rows[0];
+            const name = contact?.chat_name || String(contact?.name || '').slice(0, MAX_NAME);
+            me = { email, name, host: email === String(event.host_email || '').toLowerCase() };
         }
         return { messages: rows.rows.map(r => publicMessage(r, { email, hostEmail: event.host_email })), me };
     }
@@ -240,6 +242,7 @@ function createEventChat({ pool, now = () => new Date() }) {
     // Delete my email: messages keep their name and text, and nobody can change them any more.
     async function forget(email) {
         await pool.query('UPDATE event_messages SET author_email = NULL WHERE author_email = $1', [email]);
+        await pool.query('UPDATE contacts SET chat_name = NULL WHERE email = $1', [email]);
     }
 
     // Threads end KEEP_DAYS after their event.

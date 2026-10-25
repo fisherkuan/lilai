@@ -72,13 +72,21 @@
 
     // ---------- Drawing ----------
 
-    function row(request, actions) {
+    // "1st", "2nd", "3rd", "11th": a place on the waiting list.
+    function ordinal(n) {
+        const teen = n % 100 >= 11 && n % 100 <= 13;
+        return `${n}${teen ? 'th' : ({ 1: 'st', 2: 'nd', 3: 'rd' }[n % 10] || 'th')}`;
+    }
+
+    const ROW_VERB = { yes: 'joined', waiting: 'joined the list' };
+
+    function row(request, actions, prefix = '') {
         const buttons = actions.map(([decision, label, style = 'line']) =>
             `<button type="button" class="btn btn-${style}" data-id="${escapeHtml(request.id)}" data-name="${escapeHtml(request.name)}" data-decision="${decision}"${style === 'danger' ? ' data-confirm' : ''} aria-label="${escapeHtml(`${label}: ${request.name}`)}">${label}</button>`
         ).join('');
         return `<li class="ev-request${request.status === 'declined' ? ' is-declined' : ''}">`
             + `<span class="ev-request-who"><span class="ev-request-name">${escapeHtml(request.name)}</span>`
-            + `<span class="ev-request-at">${request.status === 'yes' ? 'joined' : 'asked'} ${escapeHtml(askedText(request.at))}</span></span>`
+            + `<span class="ev-request-at">${prefix}${ROW_VERB[request.status] || 'asked'} ${escapeHtml(askedText(request.at))}</span></span>`
             + `<span class="ev-request-actions">${buttons}</span></li>`;
     }
 
@@ -143,6 +151,12 @@
         removed: n => `${n} was removed`,
         readded: n => `${n} got a place back`,
         reasked: n => `${n} is asking again`,
+        listed: n => `${n} joined the waiting list`,
+        leftlist: n => `${n} left the waiting list`,
+        promoted: (n, detail) => detail === 'asking' ? `${n} moved up from the waiting list and asks to join` : `${n} moved up from the waiting list`,
+        movedin: n => `${n} was moved in from the waiting list`,
+        delisted: n => `${n} was taken off the waiting list`,
+        relisted: n => `${n} is back on the waiting list`,
         edited: (n, detail) => `Changed ${detail || 'details'}`,
         cancelled: () => 'Event cancelled',
         restored: () => 'Event restored'
@@ -151,7 +165,8 @@
     const ACTIVITY_MARK = {
         joined: 'in', accepted: 'in', readded: 'in',
         left: 'out', removed: 'out', declined: 'out',
-        asked: 'ask', reasked: 'ask'
+        asked: 'ask', reasked: 'ask',
+        promoted: 'in', movedin: 'in', leftlist: 'out', delisted: 'out', listed: 'ask', relisted: 'ask'
     };
     const PHONE_ACTIVITY = 6;
     let activityOpen = false;
@@ -222,6 +237,7 @@
         const waiting = requests.filter(r => r.status === 'pending');
         const coming = requests.filter(r => r.status === 'yes');
         const declined = requests.filter(r => r.status === 'declined');
+        const listed = requests.filter(r => r.status === 'waiting');
         const full = limit !== null && coming.length >= limit;
         const editable = !event.cancelled;
 
@@ -266,10 +282,19 @@
             ? coming.map(r => row(r, act ? [['decline', 'Remove', 'danger']] : [])).join('')
             : '<li class="ev-empty">No one yet.</li>';
 
-        // A declined name can come back: to the queue on an approval event, else straight in.
+        // The waiting list, in order. The first name moves up by itself when a place opens;
+        // Move in gives someone a place now, past the limit if need be.
+        $('list-section').hidden = listed.length === 0;
+        $('list-count').textContent = String(listed.length);
+        $('list-list').innerHTML = listed.map((r, i) =>
+            row(r, act ? [['accept', 'Move in'], ['decline', 'Remove']] : [], `${ordinal(i + 1)} · `)).join('');
+
+        // A declined name can come back: to the queue on an approval event, else straight in,
+        // and back on the waiting list, in their old place, once the event is full.
+        const undo = full || listed.length > 0 ? 'wait' : approval ? 'undo' : 'accept';
         $('declined-section').hidden = declined.length === 0;
         $('declined-count').textContent = String(declined.length);
-        $('declined-list').innerHTML = declined.map(r => row(r, act ? [[approval ? 'undo' : 'accept', 'Undo']] : [])).join('');
+        $('declined-list').innerHTML = declined.map(r => row(r, act ? [[undo, 'Undo']] : [])).join('');
 
         $('host-foot').textContent = series
             ? 'Anyone with this link can manage every date of this event.'
