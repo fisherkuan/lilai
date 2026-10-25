@@ -349,27 +349,40 @@
         a.hidden = false;
     });
 
-    // Display: the footer's two switches as pill switches, on this device only. Each follows
-    // the other copy through the page events js/theme.js and js/sprites.js send.
-    function pillSwitch(box, choices, current, choose, eventName) {
-        if (!box) return;
-        box.innerHTML = choices.map(([value, text]) =>
-            `<button type="button" class="range-btn" role="radio" data-choice="${value}">${text}</button>`).join('');
-        const buttons = [...box.querySelectorAll('button')];
-        const mark = (value) => buttons.forEach((b) => {
-            const on = b.dataset.choice === value;
-            b.classList.toggle('active', on);
-            b.setAttribute('aria-checked', String(on));
+    // Display: the footer's choices as iOS switches, on this device only. Match device is the
+    // theme's Auto; Dark picks Light or Dark and, while Match device is on, shows the device's
+    // own setting greyed out. Header icons is the sprites (off: short words). Each follows the
+    // footer through the page events js/theme.js and js/sprites.js send.
+    const deviceDark = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
+    function setSwitch(button, on, disabled = false) {
+        button.setAttribute('aria-checked', String(on));
+        button.disabled = disabled;
+    }
+    function showTheme(choice) {
+        const auto = choice === 'auto';
+        setSwitch($('me-auto'), auto);
+        setSwitch($('me-dark'), auto ? Boolean(deviceDark && deviceDark.matches) : choice === 'dark', auto);
+    }
+    if (window.LilaiTheme && $('me-auto')) {
+        $('me-auto').addEventListener('click', () => {
+            const on = $('me-auto').getAttribute('aria-checked') === 'true';
+            // Off: keep what the device shows now, as a fixed choice.
+            window.LilaiTheme.set(on ? (deviceDark && deviceDark.matches ? 'dark' : 'light') : 'auto');
         });
-        buttons.forEach(b => b.addEventListener('click', () => choose(b.dataset.choice)));
-        document.addEventListener(eventName, e => mark(e.detail));
-        mark(current());
+        $('me-dark').addEventListener('click', () => {
+            window.LilaiTheme.set($('me-dark').getAttribute('aria-checked') === 'true' ? 'light' : 'dark');
+        });
+        document.addEventListener('lilai:theme', e => showTheme(e.detail));
+        if (deviceDark) deviceDark.addEventListener('change', () => showTheme(window.LilaiTheme.get()));
+        showTheme(window.LilaiTheme.get());
     }
-    if (window.LilaiTheme) {
-        pillSwitch($('me-theme'), window.LilaiTheme.choices, window.LilaiTheme.get, window.LilaiTheme.set, 'lilai:theme');
-    }
-    if (window.Sprites) {
-        pillSwitch($('me-header'), [['icons', 'Icons'], ['text', 'Text']], window.Sprites.mode, window.Sprites.setMode, 'lilai:header');
+    if (window.Sprites && $('me-icons')) {
+        const showIcons = mode => setSwitch($('me-icons'), mode === 'icons');
+        $('me-icons').addEventListener('click', () => {
+            window.Sprites.setMode($('me-icons').getAttribute('aria-checked') === 'true' ? 'text' : 'icons');
+        });
+        document.addEventListener('lilai:header', e => showIcons(e.detail));
+        showIcons(window.Sprites.mode());
     }
 
     $('me-form').addEventListener('submit', sendLink);
