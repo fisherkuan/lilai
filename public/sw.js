@@ -1,4 +1,4 @@
-const CACHE_NAME = 'lilai-cache-v76'; // Bumped version
+const CACHE_NAME = 'lilai-cache-v77'; // Bumped version
 const urlsToCache = [
   '/',
   '/index.html',

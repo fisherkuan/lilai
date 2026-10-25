@@ -27,6 +27,7 @@ const contactsLib = require('./contacts');
 const { importCalendar, createImportSchema, importedCalendarIds } = require('./calendar-import');
 const access = require('./calendar-access');
 const activity = require('./event-activity');
+const waitingList = require('./waiting-list');
 const { sanitizeHtmlText } = require('./html-text');
 const { mergeContact, sendAfterForEdit } = require('./booking-edit');
 const {
@@ -697,14 +698,16 @@ app.get('/api/events', async (req, res) => {
                 e.*,
                 COALESCE(r.attendingCount, 0) as "attendingCount",
                 r.attendees,
-                COALESCE(r.pendingCount, 0) as "pendingCount"
+                COALESCE(r.pendingCount, 0) as "pendingCount",
+                r.waitlist
             FROM events e
             LEFT JOIN (
                 SELECT
                     event_id,
                     COUNT(*) FILTER (WHERE attendance = 'yes') as attendingCount,
                     array_agg(attendee_name ORDER BY timestamp) FILTER (WHERE attendance = 'yes') as attendees,
-                    COUNT(*) FILTER (WHERE attendance = 'pending') as pendingCount
+                    COUNT(*) FILTER (WHERE attendance = 'pending') as pendingCount,
+                    array_agg(attendee_name ORDER BY timestamp, id) FILTER (WHERE attendance = 'waiting') as waitlist
                 FROM rsvps
                 GROUP BY event_id
             ) r ON e.id = r.event_id
@@ -717,7 +720,8 @@ app.get('/api/events', async (req, res) => {
             ...hosting.publicEvent(event),
             attendingCount: parseInt(event.attendingCount, 10),
             pendingCount: parseInt(event.pendingCount, 10),
-            attendees: event.attendees || []
+            attendees: event.attendees || [],
+            waitlist: event.waitlist || []
         }));
 
         res.json(eventsWithAttendance);
@@ -756,117 +760,125 @@ app.get('/api/events/:id', async (req, res) => {
     res.json(hosting.publicEvent(event));
 });
 
-// Who holds a seat, and how many requests wait for the host. One shape for the RSVP answer,
-// the broadcast and the host page.
+// Who holds a seat, how many requests wait for the host, and the waiting list in order. One
+// shape for the RSVP answer, the broadcast and the host page.
 async function attendanceOf(client, eventId) {
     const result = await client.query(
         `SELECT attendee_name, attendance FROM rsvps
-         WHERE event_id = $1 AND attendance IN ('yes', 'pending') ORDER BY timestamp`,
+         WHERE event_id = $1 AND attendance IN ('yes', 'pending', 'waiting') ORDER BY ${waitingList.ORDER}`,
         [eventId]
     );
-    const attendees = result.rows.filter(r => r.attendance === hosting.STATUS.YES).map(r => r.attendee_name);
+    const named = status => result.rows.filter(r => r.attendance === status).map(r => r.attendee_name);
+    const attendees = named(hosting.STATUS.YES);
     return {
         eventId,
         attendingCount: attendees.length,
         attendees,
-        pendingCount: result.rows.length - attendees.length
+        pendingCount: named(hosting.STATUS.PENDING).length,
+        waitlist: named(hosting.STATUS.WAITING)
     };
 }
 
-// Submit RSVP. On an event whose host approves each person, "add" asks to join: the name
-// waits as 'pending' and takes no seat until the host accepts it.
+// An RSVP refused inside the transaction: rolled back, answered with its status and message.
+class RsvpRefusal extends Error {
+    constructor(status, message) {
+        super(message);
+        this.status = status;
+    }
+}
+
+const JOIN_KIND = { yes: 'joined', pending: 'asked', waiting: 'listed' };
+
+// Submit RSVP. "add" takes a place; on an event whose host approves each person it asks to
+// join instead ('pending', no seat until the host accepts). On a full event it joins the
+// waiting list. "remove" gives up a place or a spot on the list, and the first name waiting
+// moves up into what opened. All of it under the event row's lock, so two people cannot both
+// take the last place.
 app.post('/api/rsvp', async (req, res) => {
+    const { eventId, action, attendeeName } = req.body;
+
+    if (!eventId || !action) {
+        return res.status(400).json({ success: false, message: 'Event ID and action are required' });
+    }
+
+    if (!['add', 'remove'].includes(action)) {
+        return res.status(400).json({ success: false, message: 'Invalid action. Must be "add" or "remove"' });
+    }
+
+    const validatedName = validateAttendeeName(attendeeName);
+    if (!validatedName) {
+        return res.status(400).json({
+            success: false,
+            message: action === 'add'
+                ? 'Invalid attendee name. Name must be 1-100 characters and contain no scripts.'
+                : 'Invalid attendee name'
+        });
+    }
+
     const client = await pool.connect();
+    let status = null;
+    let attendance;
     try {
-        const { eventId, action, attendeeName } = req.body;
-
-        if (!eventId || !action) {
-            return res.status(400).json({ success: false, message: 'Event ID and action are required' });
-        }
-
-        if (!['add', 'remove'].includes(action)) {
-            return res.status(400).json({ success: false, message: 'Invalid action. Must be "add" or "remove"' });
-        }
-
-        const validatedName = validateAttendeeName(attendeeName);
-        if (!validatedName) {
-            return res.status(400).json({
-                success: false,
-                message: action === 'add'
-                    ? 'Invalid attendee name. Name must be 1-100 characters and contain no scripts.'
-                    : 'Invalid attendee name'
-            });
-        }
-
-        const eventResult = await client.query('SELECT * FROM events WHERE id = $1 AND cancelled_at IS NULL', [eventId]);
-        if (eventResult.rows.length === 0) {
-            return res.status(404).json({ success: false, message: 'Event not found' });
-        }
-
+        await client.query('BEGIN');
+        const eventResult = await client.query('SELECT * FROM events WHERE id = $1 AND cancelled_at IS NULL FOR UPDATE', [eventId]);
         const event = eventResult.rows[0];
-        let pending = false;
+        if (!event) throw new RsvpRefusal(404, 'Event not found');
 
-        if (action === 'add' && event.approval_required) {
-            // One open request per name: asking twice would only show the host a duplicate.
-            const existing = await client.query(
-                `SELECT attendance FROM rsvps WHERE event_id = $1 AND attendee_name = $2
-                 AND attendance IN ('yes', 'pending') LIMIT 1`,
+        if (action === 'add') {
+            const counts = await waitingList.counts(client, eventId);
+            status = waitingList.joinStatus({ limit: event.attendance_limit, approval: event.approval_required, ...counts });
+            // One open request and one spot on the list per name: a second would only show the
+            // host a duplicate. Two people may share a name in the places themselves.
+            const watched = event.approval_required ? ['yes', 'pending', 'waiting'] : status === hosting.STATUS.WAITING ? ['waiting'] : [];
+            const existing = watched.length ? await client.query(
+                'SELECT attendance FROM rsvps WHERE event_id = $1 AND attendee_name = $2 AND attendance = ANY($3) LIMIT 1',
+                [eventId, validatedName, watched]
+            ) : { rows: [] };
+            const already = existing.rows[0]?.attendance;
+            if (already === hosting.STATUS.YES) throw new RsvpRefusal(400, `${validatedName} already has a place.`);
+            if (already === hosting.STATUS.PENDING) throw new RsvpRefusal(400, `${validatedName} has already asked. The host decides.`);
+            if (already === hosting.STATUS.WAITING) throw new RsvpRefusal(400, `${validatedName} is already on the waiting list.`);
+            await client.query(
+                'INSERT INTO rsvps (id, event_id, attendee_name, attendance, timestamp) VALUES ($1, $2, $3, $4, $5)',
+                [uuidv4(), eventId, validatedName, status, new Date()]
+            );
+            await activity.logActivity(client, eventId, JOIN_KIND[status], { name: validatedName });
+        } else {
+            // A place first, else a spot on the list: someone holding both left the place.
+            const gone = await client.query(
+                `DELETE FROM rsvps WHERE id IN (
+                    SELECT id FROM rsvps WHERE event_id = $1 AND attendee_name = $2 AND attendance IN ('yes', 'waiting')
+                    ORDER BY (attendance = 'yes') DESC, timestamp DESC LIMIT 1)
+                 RETURNING attendance`,
                 [eventId, validatedName]
             );
-            if (existing.rows[0]?.attendance === hosting.STATUS.YES) {
-                return res.status(400).json({ success: false, message: `${validatedName} already has a place.` });
-            }
-            if (existing.rows[0]) {
-                return res.status(400).json({ success: false, message: `${validatedName} has already asked. The host decides.` });
-            }
-            await client.query(
-                'INSERT INTO rsvps (id, event_id, attendee_name, attendance, timestamp) VALUES ($1, $2, $3, $4, $5)',
-                [uuidv4(), eventId, validatedName, hosting.STATUS.PENDING, new Date()]
-            );
-            await activity.logActivity(client, eventId, 'asked', { name: validatedName });
-            pending = true;
-        } else if (action === 'add') {
-            if (event.attendance_limit !== null) {
-                const rsvpsResult = await client.query('SELECT COUNT(*) FROM rsvps WHERE event_id = $1 AND attendance = $2', [eventId, 'yes']);
-                const attendingCount = parseInt(rsvpsResult.rows[0].count, 10);
-                if (attendingCount >= event.attendance_limit) {
-                    return res.status(400).json({ success: false, message: 'Event is full' });
-                }
-            }
-
-            await client.query(
-                'INSERT INTO rsvps (id, event_id, attendee_name, attendance, timestamp) VALUES ($1, $2, $3, $4, $5)',
-                [uuidv4(), eventId, validatedName, 'yes', new Date()]
-            );
-            await activity.logActivity(client, eventId, 'joined', { name: validatedName });
-        } else if (action === 'remove') {
-            const gone = await client.query(
-                'DELETE FROM rsvps WHERE id IN (SELECT id FROM rsvps WHERE event_id = $1 AND attendee_name = $2 AND attendance = $3 LIMIT 1)',
-                [eventId, validatedName, 'yes']
-            );
-            if (gone.rowCount > 0) await activity.logActivity(client, eventId, 'left', { name: validatedName });
+            const left = gone.rows[0]?.attendance;
+            if (left) await activity.logActivity(client, eventId, left === hosting.STATUS.WAITING ? 'leftlist' : 'left', { name: validatedName });
+            await waitingList.promote(client, event);
         }
-
-        // After action, fetch updated attendance data and broadcast
-        const attendance = await attendanceOf(client, eventId);
-        broadcast({ type: 'attendance_update', payload: attendance });
-
-        // The list goes back in the response too. The broadcast above usually reaches the
-        // caller first, so a client that patched its own copy would apply the change twice.
-        res.json({
-            success: true,
-            pending,
-            message: pending
-                ? 'Request sent. The host decides.'
-                : `RSVP ${action === 'add' ? 'added' : 'removed'} successfully`,
-            ...attendance
-        });
+        attendance = await attendanceOf(client, eventId);
+        await client.query('COMMIT');
     } catch (error) {
+        try { await client.query('ROLLBACK'); } catch (rollbackError) { /* connection gone */ }
+        if (error instanceof RsvpRefusal) return res.status(error.status).json({ success: false, message: error.message });
         console.error('Error submitting RSVP:', error);
-        res.status(500).json({ success: false, message: 'Internal server error' });
+        return res.status(500).json({ success: false, message: 'Internal server error' });
     } finally {
         client.release();
     }
+
+    broadcast({ type: 'attendance_update', payload: attendance });
+
+    const pending = status === hosting.STATUS.PENDING;
+    const listed = status === hosting.STATUS.WAITING;
+    const position = listed ? attendance.waitlist.lastIndexOf(validatedName) + 1 : null;
+    let message = `RSVP ${action === 'add' ? 'added' : 'removed'} successfully`;
+    if (pending) message = 'Request sent. The host decides.';
+    if (listed) message = `${validatedName} is ${waitingList.ordinal(position)} on the waiting list.`;
+
+    // The list goes back in the response too. The broadcast above usually reaches the
+    // caller first, so a client that patched its own copy would apply the change twice.
+    res.json({ success: true, pending, listed, position, message, ...attendance });
 });
 
 
@@ -1032,7 +1044,7 @@ async function linkedEvent(db, scope, eventId, { lock = false } = {}) {
 // Everything the management page draws, for one event (and its series).
 async function hostView(event) {
     const requests = await pool.query(
-        'SELECT id, attendee_name, attendance, timestamp FROM rsvps WHERE event_id = $1 ORDER BY timestamp',
+        `SELECT id, attendee_name, attendance, timestamp FROM rsvps WHERE event_id = $1 ORDER BY ${waitingList.ORDER}`,
         [event.id]
     );
     const calendar = calendarById(event.source);
@@ -1156,6 +1168,10 @@ app.put('/api/host/:token/events/:eventId', async (req, res) => {
                 changed.push(row.id);
             }
         }
+        // A raised limit, or one taken away, opens places for the waiting list.
+        for (const id of changed) {
+            await waitingList.promote(client, (await client.query('SELECT * FROM events WHERE id = $1', [id])).rows[0]);
+        }
         return changed;
     });
     if (!result) return;
@@ -1197,12 +1213,14 @@ app.post('/api/host/:token/events/:eventId/restore', async (req, res) => {
     res.json(await hostView(result.fresh));
 });
 
-// Accept, decline, or put back to waiting. Accepting respects the limit, under the row lock,
-// so two quick taps cannot both take the last seat.
+// Accept, decline, or put back among the requests or on the waiting list. Accepting respects
+// the limit, under the row lock, so two quick taps cannot both take the last seat; moving
+// someone in from the waiting list is the host's own call and may go past it. Whatever a
+// decision frees goes to the first name waiting.
 app.post('/api/host/:token/events/:eventId/requests/:rsvpId', async (req, res) => {
     const status = hosting.DECISIONS[req.body?.decision];
     if (!status) {
-        return res.status(400).json({ success: false, message: 'Decision must be accept, decline or undo.' });
+        return res.status(400).json({ success: false, message: 'Decision must be accept, decline, undo or wait.' });
     }
     const result = await withLinkedEvent(req, res, async (client, event) => {
         const found = await client.query('SELECT attendance, attendee_name FROM rsvps WHERE id = $1 AND event_id = $2', [req.params.rsvpId, event.id]);
@@ -1210,7 +1228,8 @@ app.post('/api/host/:token/events/:eventId/requests/:rsvpId', async (req, res) =
             res.status(404).json({ success: false, message: 'That request is gone. Its owner may have withdrawn it.' });
             return null;
         }
-        if (status === hosting.STATUS.YES && found.rows[0].attendance !== hosting.STATUS.YES && event.attendance_limit !== null) {
+        const from = found.rows[0].attendance;
+        if (status === hosting.STATUS.YES && from !== hosting.STATUS.YES && from !== hosting.STATUS.WAITING && event.attendance_limit !== null) {
             const taken = await client.query('SELECT COUNT(*) FROM rsvps WHERE event_id = $1 AND attendance = $2', [event.id, hosting.STATUS.YES]);
             if (parseInt(taken.rows[0].count, 10) >= event.attendance_limit) {
                 res.status(409).json({
@@ -1221,8 +1240,9 @@ app.post('/api/host/:token/events/:eventId/requests/:rsvpId', async (req, res) =
             }
         }
         await client.query('UPDATE rsvps SET attendance = $1 WHERE id = $2', [status, req.params.rsvpId]);
-        const kind = activity.decisionKind(found.rows[0].attendance, status);
+        const kind = activity.decisionKind(from, status);
         if (kind) await activity.logActivity(client, event.id, kind, { name: found.rows[0].attendee_name });
+        await waitingList.promote(client, event);
         return [event.id];
     });
     if (!result) return;

@@ -25,7 +25,7 @@ The booking queue has a separate job: KU Leuven opens sports-court booking at mi
 ## Positioning
 
 - No login anywhere. RSVP is a typed name. Anyone can cancel anyone's RSVP. This trust model is deliberate: friction costs this community more than abuse would.
-- Lilai is where events live (since 2026-10-24): its database is the source of truth, and it publishes each calendar to Google as a read-only copy so people can subscribe from any calendar app. Nothing flows back from Google. Lilai adds RSVP, seat limits, host approval, repeating events, live attendance and a 14-day view.
+- Lilai is where events live (since 2026-10-24): its database is the source of truth, and it publishes each calendar to Google as a read-only copy so people can subscribe from any calendar app. Nothing flows back from Google. Lilai adds RSVP, seat limits with a waiting list, host approval, repeating events, live attendance and a 14-day view.
 - The booking queue does a timed submission that the KU Leuven form cannot do by itself.
 
 ## Operating Context
