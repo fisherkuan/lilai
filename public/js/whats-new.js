@@ -254,10 +254,14 @@
     }
 
     // Once per device. A visit that lands on a link (#new, #event-…, #chat-…) has somewhere to
-    // be, so the tour waits for a later visit. Without storage it never opens by itself, rather
-    // than on every visit.
+    // be, so the tour waits for a later visit. Make an event and the chat read their link and
+    // clear it before this script runs, so an open sheet counts as a link too (it also covers a
+    // sheet reopened for a sign-in code). Without storage it never opens by itself, rather than
+    // on every visit.
+    const landedOnLink = Boolean(location.hash);
     function openOnFirstVisit() {
-        if (location.hash) return;
+        if (landedOnLink || location.hash) return;
+        if (document.querySelector('.modal:not(.hidden)')) return;
         if (read(SEEN_KEY) === VERSION) return;
         if (!write(SEEN_KEY, VERSION)) return;
         open();
