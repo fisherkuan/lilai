@@ -41,11 +41,12 @@
         return config;
     }
 
-    // Open calendars, and restricted ones this device holds a key for.
-    function writableCalendars() {
-        const keys = DeviceLinks.calendarKeys();
+    // The calendars the signed-in email may write to (/api/me): open ones, and restricted ones
+    // whose list holds it.
+    function writableCalendars(me) {
+        const allowed = new Set(me.writableCalendars || []);
         return ((config && config.eventCreation && config.eventCreation.calendars) || [])
-            .filter(c => !c.restricted || keys[c.name]);
+            .filter(c => allowed.has(c.name));
     }
 
     function showFormError(message) {
@@ -137,7 +138,7 @@
             }
             await loadConfig();
             const draft = takeDraft();
-            fields.setCalendars(writableCalendars().map(c => ({ ...c, shape: shapeFor(c.name) })), (draft && draft.calendar) || preferredCalendar || config.events?.defaultCreateCalendar);
+            fields.setCalendars(writableCalendars(me).map(c => ({ ...c, shape: shapeFor(c.name) })), (draft && draft.calendar) || preferredCalendar || config.events?.defaultCreateCalendar);
             if (draft) {
                 fields.set(draft);
                 if (draft.hostName) fields.setHostName(draft.hostName);
@@ -176,7 +177,7 @@
         e.preventDefault();
         showFormError('');
         if (!fields.check()) return;
-        const body = { ...fields.value(), calendarKeys: Object.values(DeviceLinks.calendarKeys()) };
+        const body = fields.value();
         const text = submitBtn.querySelector('.text');
         submitBtn.disabled = true;
         text.textContent = 'Making…';
