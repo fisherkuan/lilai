@@ -12,11 +12,15 @@
  * (already gone counts as done). A failure waits a little longer each time, up to six hours,
  * and the management page shows the reason.
  *
+ * A copy someone made in their own calendar and added to Lilai's has them as organiser, and
+ * Google lets only the organiser change it. Such a copy is replaced once: Lilai inserts its own
+ * under a new id, points the row at it, and removes the old one (best effort).
+ *
  * Without Google credentials nothing is pushed. Events still work in Lilai; their copies go
  * out once credentials exist.
  */
 
-const { googleEventResource } = require('./event-hosting');
+const { googleEventResource, newGoogleEventId } = require('./event-hosting');
 
 const BATCH = 25;
 const MAX_RETRY_SECONDS = 6 * 3600;
@@ -24,6 +28,12 @@ const MAX_RETRY_SECONDS = 6 * 3600;
 // 30 s, 1 min, 2 min … capped at six hours.
 function retryDelaySeconds(attempts) {
     return Math.min(30 * 2 ** Math.max(0, attempts - 1), MAX_RETRY_SECONDS);
+}
+
+// Google's answer to a change only the event's organiser may make.
+function notOrganizer(error) {
+    return error.status === 403
+        && (error.reason === 'forbiddenForNonOrganizer' || /creator of the event|organizer/i.test(error.message || ''));
 }
 
 // What a push does for a row: delete the copy, insert a first copy, or replace it.
@@ -52,9 +62,27 @@ function createPublisher({ pool, googleCalendar, publicUrl, places = [], broadca
         try {
             return await googleCalendar.updateEvent(calendarId, eventId, resource);
         } catch (error) {
+            if (notOrganizer(error)) return replaceCopy(row, resource);
             if (error.status !== 404) throw error;
             return googleCalendar.insertEvent(calendarId, { ...resource, id: eventId });
         }
+    }
+
+    // A copy Lilai may not change: insert its own, point the row at it, remove the old one.
+    async function replaceCopy(row, resource) {
+        const calendarId = row.google_calendar_id;
+        const newId = newGoogleEventId();
+        const copy = await googleCalendar.insertEvent(calendarId, { ...resource, id: newId });
+        await pool.query('UPDATE events SET google_event_id = $2 WHERE id = $1', [row.id, newId]);
+        try {
+            await googleCalendar.deleteEvent(calendarId, row.google_event_id);
+        } catch (error) {
+            if (error.status !== 404 && error.status !== 410) {
+                console.error(`[publish] ${row.id}: new copy ${newId} made, but the old copy ${row.google_event_id} stays:`, error.message);
+            }
+        }
+        console.log(`[publish] ${row.id}: replaced a copy organised by someone else with ${newId}`);
+        return copy;
     }
 
     async function pushOne(row) {
@@ -136,4 +164,4 @@ function createPublisher({ pool, googleCalendar, publicUrl, places = [], broadca
     };
 }
 
-module.exports = { createPublisher, retryDelaySeconds, pushAction };
+module.exports = { createPublisher, retryDelaySeconds, pushAction, notOrganizer };

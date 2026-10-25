@@ -18,9 +18,10 @@ const TOKEN_URL = 'https://oauth2.googleapis.com/token';
 const API = 'https://www.googleapis.com/calendar/v3';
 
 class GoogleCalendarError extends Error {
-    constructor(message, status) {
+    constructor(message, status, reason = null) {
         super(message);
         this.status = status;
+        this.reason = reason;
     }
 }
 
@@ -95,7 +96,8 @@ function createGoogleCalendar(account, { fetchImpl = fetch, now = Date.now } = {
         if (res.status === 204) return null;
         const json = await res.json().catch(() => ({}));
         if (!res.ok) {
-            throw new GoogleCalendarError(json.error?.message || `Google Calendar answered ${res.status}`, res.status);
+            throw new GoogleCalendarError(json.error?.message || `Google Calendar answered ${res.status}`, res.status,
+                json.error?.errors?.[0]?.reason || null);
         }
         return json;
     }

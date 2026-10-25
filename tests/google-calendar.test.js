@@ -75,4 +75,7 @@ test('a refused insert carries Google\'s status', async () => {
     const { fetchImpl } = fakeGoogle(() => [403, { error: { message: 'Forbidden' } }]);
     const gc = createGoogleCalendar(account, { fetchImpl });
     await assert.rejects(gc.insertEvent('cal', {}), (error) => error.status === 403 && /Forbidden/.test(error.message));
+    const organiser = fakeGoogle(() => [403, { error: { message: 'The operation can only be performed by the creator of the event.', errors: [{ reason: 'forbiddenForNonOrganizer' }] } }]);
+    await assert.rejects(createGoogleCalendar(account, { fetchImpl: organiser.fetchImpl }).updateEvent('cal', 'a', {}),
+        (error) => error.reason === 'forbiddenForNonOrganizer');
 });
