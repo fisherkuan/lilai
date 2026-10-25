@@ -15,7 +15,8 @@ const base = {
     start: '19:00',
     end: '22:00',
     location: 'Optimist',
-    hostName: 'Mei'
+    hostName: 'Mei',
+    hostEmail: 'mei@lilai.test'
 };
 const make = (body) => validateEvent(body, { mode: 'create', calendars, now: NOW });
 
@@ -68,6 +69,8 @@ test('the form refuses what it cannot make', () => {
     assert.equal(fieldOf({ ...base, links: [{ url: 'javascript:alert(1)' }] }), 'links');
     assert.equal(fieldOf({ ...base, hostName: '' }), 'hostName');
     assert.equal(fieldOf({ ...base, hostEmail: 'mei' }), 'hostEmail');
+    assert.equal(fieldOf({ ...base, hostEmail: '' }), 'hostEmail');
+    assert.equal(make({ ...base, hostName: '', hostJoins: false }).hostName, null); // a host who stays home needs no name
     assert.equal(fieldOf({ ...base, date: '2027-03-28', start: '02:30', end: '04:00' }), 'start'); // DST gap
 });
 

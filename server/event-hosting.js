@@ -181,10 +181,15 @@ function validateEvent(body, { mode = 'create', calendars = [], places = null, a
     const calendar = String(body?.calendar ?? '').trim();
     if (!calendars.includes(calendar)) throw new EventInputError('calendar', 'Pick a calendar.');
 
+    // The host's way back in (Find my events, server/contacts.js), so every event has one.
     const hostEmail = String(body?.hostEmail ?? '').trim().slice(0, 254);
-    if (hostEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(hostEmail)) {
+    if (!hostEmail) throw new EventInputError('hostEmail', 'Add your email.');
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(hostEmail)) {
         throw new EventInputError('hostEmail', 'That email address does not look right.');
     }
+    // The name is only the host's place on the guest list, so it is asked only of a host who joins.
+    const hostJoins = body?.hostJoins !== false && body?.hostJoins !== 'false';
+    const hostName = text(body?.hostName, MAX_NAME, 'hostName', 'Your name', { required: hostJoins });
 
     // Every date the repeat lands on, each with its own start and end.
     let repeat = readRepeat(body?.repeat);
@@ -210,9 +215,9 @@ function validateEvent(body, { mode = 'create', calendars = [], places = null, a
         calendar,
         repeat,
         occurrences,
-        hostName: text(body?.hostName, MAX_NAME, 'hostName', 'Your name', { required: true }),
-        hostEmail: hostEmail || null,
-        hostJoins: body?.hostJoins !== false && body?.hostJoins !== 'false'
+        hostName: hostName || null,
+        hostEmail,
+        hostJoins
     };
 }
 

@@ -5,6 +5,7 @@
     'use strict';
 
     const NAME_KEY = 'lilai.attendeeName';
+    const EMAIL_KEY = 'lilai.hostEmail';
     const sheet = document.getElementById('event-sheet');
     const form = document.getElementById('event-sheet-form');
     const made = document.getElementById('event-made');
@@ -13,8 +14,8 @@
     let config = null;
     let returnFocus = null;
 
-    function rememberedName() {
-        try { return localStorage.getItem(NAME_KEY) || ''; } catch (_) { return ''; }
+    function remembered(key) {
+        try { return localStorage.getItem(key) || ''; } catch (_) { return ''; }
     }
 
     function escapeHtml(value) {
@@ -57,7 +58,8 @@
         }
         fields.setMinDate();
         if (!document.getElementById('event-form-fields').dataset.named) {
-            fields.setHostName(rememberedName());
+            fields.setHostName(remembered(NAME_KEY));
+            fields.setHostEmail(remembered(EMAIL_KEY));
             document.getElementById('event-form-fields').dataset.named = '1';
         }
         try {
@@ -96,7 +98,10 @@
                 }
                 return;
             }
-            try { localStorage.setItem(NAME_KEY, body.hostName.trim()); } catch (_) { /* private mode */ }
+            try {
+                if (body.hostName.trim()) localStorage.setItem(NAME_KEY, body.hostName.trim());
+                localStorage.setItem(EMAIL_KEY, body.hostEmail.trim());
+            } catch (_) { /* private mode */ }
             DeviceLinks.rememberHosted({ hostPath: result.hostPath, eventId: result.id, calendar: body.calendar, title: body.title.trim(), date: result.date, count: result.count });
             renderHosted();
             showMade(body, result);
@@ -120,9 +125,8 @@
         document.getElementById('event-made-share').hidden = !navigator.share;
         const email = body.hostEmail.trim();
         const emailed = document.getElementById('event-made-emailed');
-        emailed.textContent = result.emailed ? `Emailed to ${email}.` : 'Could not email it. Copy it now.';
+        emailed.textContent = result.emailed ? `Sent to ${email}. Wrong address? Copy the link now.` : 'Could not email it. Copy it now.';
         emailed.classList.toggle('ev-warn', !result.emailed);
-        emailed.hidden = !email;
         // Only the caveat: a working publish needs no line.
         const publish = document.getElementById('event-made-publish');
         publish.hidden = result.publishing;
