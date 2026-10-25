@@ -967,6 +967,11 @@ app.post('/api/events', async (req, res) => {
 
     publisher.nudge();
     broadcast({ type: 'event_created', payload: { ids } });
+    // A signed-in host's new name follows their email to their other devices.
+    if (input.hostName) {
+        const signedIn = await contacts.emailOf(req).catch(() => null);
+        if (signedIn && signedIn === contactsLib.normalEmail(input.hostEmail)) await contacts.setName(signedIn, input.hostName);
+    }
 
     const hostPath = `/host/${token}`;
     const emailed = input.hostEmail
@@ -2824,7 +2829,14 @@ app.get('/api/me', async (req, res) => {
     const email = await contacts.emailOf(req);
     res.set('Cache-Control', 'no-store');
     if (!email) return res.status(401).json({ success: false, message: 'Not signed in.' });
-    res.json({ success: true, email, ...(await contacts.eventsOf(email)) });
+    res.json({ success: true, ...(await contacts.profileOf(email)), ...(await contacts.eventsOf(email)) });
+});
+
+// The name a signed-in device fills in for RSVPs and new events (js/me.js).
+app.put('/api/me/name', async (req, res) => {
+    const email = await contacts.emailOf(req);
+    if (!email) return res.status(401).json({ success: false, message: 'Sign in again.' });
+    res.json({ success: true, name: await contacts.setName(email, req.body?.name) });
 });
 
 app.post('/api/me/events/:eventId/manage', async (req, res) => {
