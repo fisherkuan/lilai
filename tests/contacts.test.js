@@ -120,6 +120,11 @@ test('a host signs in by email, finds their events, manages one, and deletes the
             [hosting.hashToken(hostPath.split('/')[2])]);
         assert.deepEqual(link.rows[0], { event_id: 'e1', created_via: 'email' });
         assert.equal(await contacts.manageLink('ann@lilai.test', 'e2'), null); // Bob's event
+        // An admin manages anyone's event, under a link marked 'admin'.
+        const adminPath = await contacts.manageLink('ann@lilai.test', 'e2', { anyEvent: true });
+        const adminLink = await pool.query('SELECT event_id, created_via FROM event_host_links WHERE token_hash = $1',
+            [hosting.hashToken(adminPath.split('/')[2])]);
+        assert.deepEqual(adminLink.rows[0], { event_id: 'e2', created_via: 'admin' });
 
         // Three links an hour per address; the fourth is dropped silently.
         await ask('ann@lilai.test');

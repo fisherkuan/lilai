@@ -27,6 +27,7 @@ const contactsLib = require('./contacts');
 const chatLib = require('./event-chat');
 const { importCalendar, createImportSchema, importedCalendarIds } = require('./calendar-import');
 const access = require('./calendar-access');
+const organizersLib = require('./organizers');
 const activity = require('./event-activity');
 const waitingList = require('./waiting-list');
 const { sanitizeHtmlText } = require('./html-text');
@@ -89,8 +90,15 @@ app.use(bodyParser.urlencoded({ extended: true }));
 
 // Serve static files from public directory
 // The admin pages' files open only through their gated routes.
-app.get(['/admin-donations.html', '/admin-places.html'], (req, res) => {
-    res.redirect(302, req.path === '/admin-places.html' ? '/admin/places' : '/admin/donations');
+const GATED_FILES = {
+    '/admin-donations.html': '/admin/donations',
+    '/admin-places.html': '/admin/places',
+    '/admin-organisers.html': '/admin/organisers',
+    '/admin-bookings.html': '/admin/bookings',
+    '/admin-booking-detail.html': '/admin/bookings'
+};
+app.get(Object.keys(GATED_FILES), (req, res) => {
+    res.redirect(302, GATED_FILES[req.path]);
 });
 app.use(express.static(path.join(__dirname, '../public')));
 
@@ -121,6 +129,34 @@ pool.on('error', (error) => {
 
 // The saved places, held in memory (server/places.js); loaded once the schema exists.
 const placeStore = places.createPlaceStore(pool);
+const organizers = organizersLib.createOrganizers(pool);
+
+// The booking queue is for its organisers (since 2026-10-25; it was open to anyone with the
+// address before): an admin, an address on the organisers list signed in on /me, or a script
+// with ADMIN_API_KEY. 'ok', 'signed-out' or 'not-listed'.
+async function bookingAccess(req) {
+    if (adminAuth.hasApiKey(req) || await adminAuth.adminOf(req)) return 'ok';
+    const email = await contacts.emailOf(req);
+    if (!email) return 'signed-out';
+    return (await organizers.has(email)) ? 'ok' : 'not-listed';
+}
+
+function requireOrganizer(req, res, next) {
+    bookingAccess(req).then(access => {
+        if (access === 'ok') return next();
+        if (access === 'signed-out') return res.status(401).json({ success: false, message: 'Sign in again.' });
+        res.status(403).json({ success: false, message: 'The booking queue is for its organisers.' });
+    }, next);
+}
+
+// A page: sign in on /me first and come back; an address not on the list is told so.
+function requireOrganizerPage(req, res, next) {
+    bookingAccess(req).then(access => {
+        if (access === 'ok') return next();
+        if (access === 'signed-out') return res.redirect(302, `/me?next=${encodeURIComponent(req.originalUrl)}`);
+        res.status(403).sendFile(path.join(__dirname, '../public/not-organiser.html'));
+    }, next);
+}
 
 // Admin sign-in by emailed code (server/admin-auth.js), for Donations and Places.
 const adminAuth = adminAuthLib.createAdminAuth({ pool, emailOf: (req) => contacts.emailOf(req) });
@@ -205,8 +241,12 @@ const wss = new WebSocket.Server({ server });
  */
 const HEARTBEAT_MS = 30000;
 
-wss.on('connection', ws => {
+wss.on('connection', (ws, req) => {
     console.log('Client connected');
+    // Booking updates go only to the booking queue's organisers (bookingAccess); the upgrade
+    // request carries the cookies.
+    ws.bookings = false;
+    bookingAccess(req).then(access => { ws.bookings = access === 'ok'; }, () => {});
     ws.isAlive = true;
     ws.on('pong', () => { ws.isAlive = true; });
     // A malformed frame is an 'error' on this socket; unheard, it ends the process. ws closes
@@ -235,7 +275,9 @@ heartbeat.unref();
 wss.on('close', () => clearInterval(heartbeat));
 
 function broadcast(data) {
+    const bookingsOnly = data.type === 'booking_update';
     wss.clients.forEach(client => {
+        if (bookingsOnly && !client.bookings) return;
         if (client.readyState === WebSocket.OPEN) {
             client.send(JSON.stringify(data));
         }
@@ -353,6 +395,7 @@ async function initializeDatabase() {
         await adminAuthLib.createAdminAuthSchema(client);
         await contactsLib.createContactsSchema(client);
         await chatLib.createChatSchema(client);
+        await organizersLib.createOrganizersSchema(client);
         const placesSeeded = await places.createPlacesSchema(client, appConfig.places || []);
         if (placesSeeded) console.log(`📍 Saved ${placesSeeded} places from config/app.json`);
         const seeded = await createProfileSchema(client, uuidv4);
@@ -1690,6 +1733,8 @@ async function queueOccurrence(client, entry, { queuedBy, profileId, seriesId })
 }
 
 // List the board: everything still owed a submission, plus a page of what has gone out.
+app.use(['/api/bookings', '/api/booking-profiles', '/api/booking-series'], requireOrganizer);
+
 app.get('/api/bookings', async (req, res) => {
     const client = await pool.connect();
     try {
@@ -2877,11 +2922,11 @@ app.get(['/admin', '/admin/events'], (req, res) => {
     res.redirect(302, '/admin/bookings');
 });
 
-app.get('/admin/bookings', (req, res) => {
+app.get('/admin/bookings', requireOrganizerPage, (req, res) => {
     res.sendFile(path.join(__dirname, '../public/admin-bookings.html'));
 });
 
-app.get('/admin/bookings/:id', (req, res) => {
+app.get('/admin/bookings/:id', requireOrganizerPage, (req, res) => {
     res.sendFile(path.join(__dirname, '../public/admin-booking-detail.html'));
 });
 
@@ -2956,6 +3001,16 @@ app.get('/api/me', async (req, res) => {
     });
 });
 
+// What this signed-in device may see: admin (ADMIN_EMAILS: Manage on every card, the admin
+// pages) and organizer (the booking queue's list). Either shows the header's Admin link.
+app.get('/api/me/roles', async (req, res) => {
+    res.set('Cache-Control', 'no-store');
+    const email = await contacts.emailOf(req);
+    const admin = Boolean(await adminAuth.adminOf(req));
+    if (!email && !admin) return res.status(401).json({ success: false, message: 'Not signed in.' });
+    res.json({ success: true, admin, organizer: admin || await organizers.has(email) });
+});
+
 // The name a signed-in device fills in for RSVPs and new events (js/me.js).
 app.put('/api/me/name', async (req, res) => {
     const email = await contacts.emailOf(req);
@@ -2965,11 +3020,16 @@ app.put('/api/me/name', async (req, res) => {
     res.json({ success: true, name });
 });
 
+// An admin (ADMIN_EMAILS, signed in on /me or the admin) may manage any event: Home's cards
+// show them Manage.
 app.post('/api/me/events/:eventId/manage', async (req, res) => {
-    const email = await contacts.emailOf(req);
+    const admin = await adminAuth.adminOf(req);
+    const email = admin || await contacts.emailOf(req);
     if (!email) return res.status(401).json({ success: false, message: 'Sign in again.' });
-    const hostPath = await contacts.manageLink(email, req.params.eventId);
-    if (!hostPath) return res.status(404).json({ success: false, message: 'That event is not one of yours.' });
+    const hostPath = await contacts.manageLink(email, req.params.eventId, { anyEvent: Boolean(admin) });
+    if (!hostPath) {
+        return res.status(404).json({ success: false, message: admin ? 'Lilai does not own that event yet.' : 'That event is not one of yours.' });
+    }
     res.status(201).json({ success: true, hostPath });
 });
 
@@ -3019,6 +3079,26 @@ app.delete('/api/admin/session', async (req, res) => {
 
 app.get('/admin/places', adminAuth.requireAdminPage, (req, res) => {
     res.sendFile(path.join(__dirname, '../public/admin-places.html'));
+});
+
+app.get('/admin/organisers', adminAuth.requireAdminPage, (req, res) => {
+    res.sendFile(path.join(__dirname, '../public/admin-organisers.html'));
+});
+
+// The booking organisers (server/organizers.js), edited by an admin on /admin/organisers.
+app.get('/api/organizers', adminAuth.requireAdmin, async (req, res) => {
+    res.set('Cache-Control', 'no-store').json({ organizers: await organizers.list() });
+});
+
+app.post('/api/organizers', adminAuth.requireAdmin, async (req, res) => {
+    const result = await organizers.add(req.body?.email, req.adminEmail || null);
+    if (result.error) return res.status(400).json({ success: false, field: 'email', message: result.error });
+    res.status(201).json({ success: true, organizers: await organizers.list() });
+});
+
+app.delete('/api/organizers/:email', adminAuth.requireAdmin, async (req, res) => {
+    await organizers.remove(req.params.email);
+    res.json({ success: true, organizers: await organizers.list() });
 });
 
 app.get('/admin/donations', adminAuth.requireAdminPage, (req, res) => {

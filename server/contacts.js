@@ -349,16 +349,20 @@ function createContacts({ pool, env = process.env, fetchImpl = fetch, now = () =
     }
 
     // A fresh management link for an event the address hosts (a series: one for every date).
-    async function manageLink(email, eventId) {
+    // An admin (anyEvent) gets one for any event Lilai owns, as a silent co-host: the link is
+    // marked 'admin' and nothing on the event names them.
+    async function manageLink(email, eventId, { anyEvent = false } = {}) {
         const event = (await pool.query(
-            'SELECT id, series_id FROM events WHERE id = $1 AND lower(host_email) = $2',
-            [eventId, email]
+            anyEvent
+                ? 'SELECT id, series_id FROM events WHERE id = $1 AND managed'
+                : 'SELECT id, series_id FROM events WHERE id = $1 AND lower(host_email) = $2',
+            anyEvent ? [eventId] : [eventId, email]
         )).rows[0];
         if (!event) return null;
         const token = hosting.newToken();
         await pool.query(
             'INSERT INTO event_host_links (id, token_hash, event_id, series_id, created_via) VALUES ($1, $2, $3, $4, $5)',
-            [crypto.randomUUID(), hosting.hashToken(token), event.series_id ? null : event.id, event.series_id, 'email']
+            [crypto.randomUUID(), hosting.hashToken(token), event.series_id ? null : event.id, event.series_id, anyEvent ? 'admin' : 'email']
         );
         return `/host/${token}`;
     }
