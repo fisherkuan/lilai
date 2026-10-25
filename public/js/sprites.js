@@ -87,27 +87,33 @@
         try { return root.localStorage.getItem(MODE_KEY) === 'text' ? 'text' : 'icons'; } catch (_) { return 'icons'; }
     }
 
-    // Draw one header link (or the bug button) as its sprite or its short word. The full word
-    // stays as aria-label either way, and as the tooltip under a sprite.
+    // A link may keep a line icon in text mode instead of a word (the bug, owner 2026-10-25).
+    const textIcons = new WeakMap();
+
+    // Draw one header link (or the bug button) as its sprite, or in text mode as its short word
+    // or line icon. The full word stays as aria-label always, and as the tooltip under an icon.
     function draw(link) {
         const { sprite, label, short } = link.dataset;
         const now = mode();
         link.setAttribute('aria-label', label);
         if (link.dataset.drawn === `${sprite}:${now}`) return;
         link.dataset.drawn = `${sprite}:${now}`;
+        const glyph = now === 'text' ? textIcons.get(link) : null;
         link.classList.toggle('hdr-icon', now === 'icons');
-        link.classList.toggle('hdr-text', now === 'text');
-        if (now === 'icons') {
+        link.classList.toggle('hdr-text', now === 'text' && !glyph);
+        link.classList.toggle('hdr-glyph', Boolean(glyph));
+        if (now === 'icons' || glyph) {
             link.title = label;
-            link.innerHTML = svg(sprite);
+            link.innerHTML = glyph || svg(sprite);
         } else {
             link.removeAttribute('title');
             link.textContent = short;
         }
     }
 
-    function iconize(link, name, label, short = label) {
+    function iconize(link, name, label, short = label, textIcon = null) {
         if (!link) return;
+        if (textIcon) textIcons.set(link, textIcon);
         Object.assign(link.dataset, { sprite: name, label, short });
         draw(link);
     }

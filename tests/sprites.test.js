@@ -53,4 +53,9 @@ test('a header link shows its sprite by default and its short word in text mode'
     assert.strictEqual(text.textContent, 'Bug');
     assert.strictEqual(text.attrs['aria-label'], 'Report a bug');
     assert.ok(text.classList.has('hdr-text'));
+
+    const bug = fakeLink();
+    load({ 'lilai.headerStyle': 'text' }).iconize(bug, 'goomba', 'Report a bug', 'Bug', '<svg class="line"></svg>');
+    assert.strictEqual(bug.innerHTML, '<svg class="line"></svg>');
+    assert.ok(bug.classList.has('hdr-glyph') && !bug.classList.has('hdr-text'));
 });
