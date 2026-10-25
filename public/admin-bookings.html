@@ -35,7 +35,12 @@
         <span class="wordmark-name">Lilai</span>
     </a>
 </header>
-<nav class="admin-nav" aria-label="Admin"><a href="/admin/donations">Donations</a><a href="/admin/bookings" aria-current="page">Booking queue</a><a href="/admin/places">Places</a></nav>
+<nav class="admin-nav" aria-label="Admin">
+    <a href="/admin/donations" data-admin-only>Donations</a>
+    <a href="/admin/bookings" aria-current="page">Bookings</a>
+    <a href="/admin/places" data-admin-only>Places</a>
+    <a href="/admin/organisers" data-admin-only>Organisers</a>
+</nav>
 
 <main class="admin bq-page">
     <header class="admin-head">
@@ -132,6 +137,7 @@
 <script src="/js/feedback.js"></script>
 <script src="/js/sheet.js"></script>
 
+<script src="/js/admin-nav.js"></script>
 <script src="/js/booking-shared.js"></script>
 <script src="/js/booking-people.js"></script>
 <script src="/js/admin-bookings.js"></script>

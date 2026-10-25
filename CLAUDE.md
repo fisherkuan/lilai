@@ -27,7 +27,7 @@ The server runs on `http://localhost:3000` by default (configurable via PORT env
 ### Database
 - PostgreSQL is used for production (connection via `DATABASE_URL` env var)
 - Database schema is auto-initialized on server startup via `initializeDatabase()` in server/app.js
-- Tables: `events`, `rsvps`, `places`, `admin_codes`, `admin_sessions`, `event_series`, `event_host_links`, `event_activity`, `calendar_keys`, `calendar_state`, `donations`, `feedback`, `booking_queue`, `booking_profiles`, `booking_series`, `contacts`, `contact_tokens`, `device_sessions`, `event_messages`, `event_message_likes`
+- Tables: `events`, `rsvps`, `places`, `admin_codes`, `admin_sessions`, `event_series`, `event_host_links`, `event_activity`, `calendar_keys`, `calendar_state`, `donations`, `feedback`, `booking_queue`, `booking_profiles`, `booking_series`, `contacts`, `contact_tokens`, `device_sessions`, `event_messages`, `event_message_likes`, `organizers`
 - `rsvps.attendance` is `yes` (holds a seat), `pending` (asked to join an approval event), `waiting` (on a full event's waiting list, in `timestamp, id` order) or `declined` (the host said no). Every count of who is coming filters on `yes`
 - Schema migrations are idempotent and run automatically on startup
 
@@ -74,9 +74,10 @@ Vanilla JavaScript with no build step.
 **Structure:**
 - `index.html` + `app.js` - Main event listing and RSVP interface
 - `admin-donations.html` + `js/admin-donations.js` - Donation management
-- `js/account-link.js` - The header's account link on every public page (Home, FAQ, Donate, host, calendar, sign-in): "Sign in", or "Profile" once this device signed in on `/me`; both open `/me`. It also adds "Admin" (to `/admin/bookings`, the star sprite, at the very end of the header) on all of them while the device carries the organiser flag (`lilaiOrganizer`, set on Home by `?admin=1` or five taps on its heading); below 360px the wordmark drops its name to make room. Home's sidebar "Sign in" link (`[data-signed-out]`) hides once signed in. The cookie is HttpOnly, so `js/me.js` keeps the note in `lilai.signedIn`. Admin pages keep their own sign-in
+- `js/account-link.js` - The header's account link on every public page (Home, FAQ, Donate, host, calendar, sign-in): "Sign in", or "Profile" once this device signed in on `/me`; both open `/me`. It also adds "Admin" (to `/admin/bookings`, the star sprite, at the very end of the header) on all of them when the signed-in address is an admin or a booking organiser (`AccountLink.roles()`, `GET /api/me/roles`, asked only when the device notes a sign-in; the old `lilaiOrganizer` flag, `?admin=1` and five taps on Home's heading were retired 2026-10-25); below 360px the wordmark drops its name to make room. Home's sidebar "Sign in" link (`[data-signed-out]`) hides once signed in. The cookie is HttpOnly, so `js/me.js` keeps the note in `lilai.signedIn`. Admin pages keep their own sign-in
 - `admin-login.html` + `js/admin-login.js` - Admin sign-in (`/admin/login?next=`): email, then the six-digit code (a full code signs in by itself)
 - `js/admin-session.js` - On Donations and Places: who is signed in, Sign out, and `AdminSession.adminFetch` (a 401 goes back to sign-in)
+- `admin-organisers.html` + `js/admin-organisers.js` - The booking organisers (`/admin/organisers`, admins only): add and remove the addresses that see the Admin link to the booking queue. Kept in the database (`server/organizers.js`), so the owner changes it without a deploy. `js/admin-nav.js` hides the admin-only tabs (Donations, Places, Organisers) on the booking pages for a device that is not an admin
 - `admin-places.html` + `js/admin-places.js` - The saved places (`/admin/places`, signed in): add (with "Find on Google Maps" filling name and address), edit, reorder, remove
 - `donations.html` + `js/donation.js` - Public donation submission page
 - `faq.html` + `js/faq.js` - FAQ page
@@ -239,6 +240,7 @@ Required in `.env`:
 - `GET /api/me` - `{email, name, chatMessages, upcoming, past, joined}` (a series shows once, with `count`), or 401
 - `POST /api/me/events/:eventId/manage` - A fresh management link (`created_via = 'email'`) for an event the address hosts; 404 otherwise. An admin (`ADMIN_EMAILS`, signed in on `/me` or the admin) gets one for any managed event (`created_via = 'admin'`): a silent co-host, named nowhere on the event. Home shows admins a key on every card for it (`checkAdminDevice` asks `/api/admin/session` only when the device notes a sign-in)
 - `PUT /api/me/name` - Body `{name}`; empty clears it. Renames the address's chat messages (see Chat in an event)
+- `GET /api/me/roles` - `{admin, organizer}` for the signed-in device (an admin counts as an organiser), or 401
 - `DELETE /api/me/session` - Sign out this device. `DELETE /api/me` - Delete my email
 
 ### Donation Endpoints
@@ -273,6 +275,7 @@ Required in `.env`:
 - `POST /api/admin/code` - Body `{email}`. An address on `ADMIN_EMAILS` gets a six-digit code valid ten minutes (five an hour); every other address gets the same answer and no mail. 503 `{message}` when the mail cannot go out
 - `POST /api/admin/session` - Body `{email, code}`. The right code (used once; five wrong tries spend it) sets the `lilai_admin` cookie: HttpOnly, SameSite=Lax, Secure in production, 30 days. 401 otherwise
 - `GET /api/admin/session` - `{email}` of the signed-in admin, or 401
+- `GET /api/organizers`, `POST /api/organizers` (`{email}`), `DELETE /api/organizers/:email` - The booking organisers, admins only; each answers the list
 - `DELETE /api/admin/session` - Sign out: the session row is deleted and the cookie cleared, and this device's `/me` session with it
 - A device signed in on `/me` (`lilai_session`) with an address on `ADMIN_EMAILS` is an admin too, with no code (`createAdminAuth({ emailOf })`)
 

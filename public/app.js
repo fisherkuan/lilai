@@ -86,7 +86,6 @@ if ('serviceWorker' in navigator) {
 document.addEventListener('DOMContentLoaded', initializeApp);
 
 function initializeApp() {
-    setupAdminLink();
     wireAgenda();
 
     // Both event requests leave now instead of after /api/config answers,
@@ -114,17 +113,15 @@ function initializeApp() {
 }
 
 // An admin (ADMIN_EMAILS) signed in on this device sees Manage on every card, as a silent
-// co-host. Asked only when the device notes a sign-in, so nobody else sends a request for it.
+// co-host (AccountLink.roles asks only when the device notes a sign-in).
 let adminDevice = false;
 function checkAdminDevice() {
-    if (!window.AccountLink || !AccountLink.signedIn()) return;
-    fetch(`${API_BASE_URL}/api/admin/session`, { cache: 'no-store' })
-        .then(r => {
-            if (!r.ok) return;
-            adminDevice = true;
-            if (currentEvents.length) displayEvents();
-        })
-        .catch(() => {});
+    if (!window.AccountLink) return;
+    AccountLink.roles().then(r => {
+        if (!r.admin) return;
+        adminDevice = true;
+        if (currentEvents.length) displayEvents();
+    });
 }
 
 async function manageEvent(button) {
@@ -547,82 +544,6 @@ function setupFilterPills() {
             setRangePill(pill);
             loadEvents();
         });
-    });
-}
-
-// ---------- Organizer entry point ----------
-/*
- * The admin pages stay ungated on purpose: the handful of people who run events should not
- * have to log in to fix a typo. What is protected is discovery, not access. The string
- * "/admin" never appears in any served HTML, so view-source shows nothing and a crawler has
- * no link to follow. The header grows an Admin link only on a device that has been told once.
- *
- * Telling a device: open the site as /?admin=1. /?admin=0 makes it forget again, which is
- * what you use on a borrowed phone. The flag lives in localStorage, so it is per device and
- * per browser, and it survives nothing you did not do yourself.
- *
- * A home-screen app is a separate browser as far as storage goes: iOS gives it its own
- * localStorage, so the flag set in Safari does not follow it, and there is no address bar to
- * type ?admin=1 into. For that, five quick taps on the "Upcoming" heading flip the flag in
- * whatever browser the page is running in, the installed app included. Five more flip it back.
- *
- * Anyone who reads this file learns the path. That is the accepted cost, and it is the same
- * audience that would have typed /admin anyway.
- */
-const ADMIN_FLAG_KEY = 'lilaiOrganizer';
-const ORGANIZER_TAPS = 5;
-const ORGANIZER_TAP_WINDOW_MS = 3000;
-
-function isRememberedOrganizer() {
-    try {
-        return localStorage.getItem(ADMIN_FLAG_KEY) === '1';
-    } catch (error) {
-        return false;
-    }
-}
-
-function rememberOrganizer(on) {
-    try {
-        if (on) localStorage.setItem(ADMIN_FLAG_KEY, '1');
-        else localStorage.removeItem(ADMIN_FLAG_KEY);
-    } catch (error) {
-        /* private browsing: this visit still works, the device just will not remember */
-    }
-}
-
-function setupAdminLink() {
-    const params = new URLSearchParams(window.location.search);
-
-    if (params.has('admin')) {
-        rememberOrganizer(params.get('admin') !== '0');
-        // Drop the switch from the address bar so a shared or bookmarked URL does not carry it.
-        params.delete('admin');
-        const query = params.toString();
-        history.replaceState(null, '', window.location.pathname + (query ? `?${query}` : ''));
-    }
-
-    showAdminLink(isRememberedOrganizer());
-    listenForOrganizerTaps();
-}
-
-// The link itself lives in js/account-link.js, so every page with the header shows it.
-function showAdminLink(on) {
-    if (window.AccountLink) window.AccountLink.showAdmin(on);
-}
-
-function listenForOrganizerTaps() {
-    const heading = document.getElementById('rail-title');
-    if (!heading) return;
-    let taps = [];
-    heading.addEventListener('click', () => {
-        const now = Date.now();
-        taps = taps.filter(t => now - t < ORGANIZER_TAP_WINDOW_MS);
-        taps.push(now);
-        if (taps.length < ORGANIZER_TAPS) return;
-        taps = [];
-        const on = !isRememberedOrganizer();
-        rememberOrganizer(on);
-        showAdminLink(on);
     });
 }
 

@@ -27,6 +27,7 @@ const contactsLib = require('./contacts');
 const chatLib = require('./event-chat');
 const { importCalendar, createImportSchema, importedCalendarIds } = require('./calendar-import');
 const access = require('./calendar-access');
+const organizersLib = require('./organizers');
 const activity = require('./event-activity');
 const waitingList = require('./waiting-list');
 const { sanitizeHtmlText } = require('./html-text');
@@ -89,8 +90,9 @@ app.use(bodyParser.urlencoded({ extended: true }));
 
 // Serve static files from public directory
 // The admin pages' files open only through their gated routes.
-app.get(['/admin-donations.html', '/admin-places.html'], (req, res) => {
-    res.redirect(302, req.path === '/admin-places.html' ? '/admin/places' : '/admin/donations');
+const GATED_FILES = { '/admin-donations.html': '/admin/donations', '/admin-places.html': '/admin/places', '/admin-organisers.html': '/admin/organisers' };
+app.get(Object.keys(GATED_FILES), (req, res) => {
+    res.redirect(302, GATED_FILES[req.path]);
 });
 app.use(express.static(path.join(__dirname, '../public')));
 
@@ -121,6 +123,7 @@ pool.on('error', (error) => {
 
 // The saved places, held in memory (server/places.js); loaded once the schema exists.
 const placeStore = places.createPlaceStore(pool);
+const organizers = organizersLib.createOrganizers(pool);
 
 // Admin sign-in by emailed code (server/admin-auth.js), for Donations and Places.
 const adminAuth = adminAuthLib.createAdminAuth({ pool, emailOf: (req) => contacts.emailOf(req) });
@@ -353,6 +356,7 @@ async function initializeDatabase() {
         await adminAuthLib.createAdminAuthSchema(client);
         await contactsLib.createContactsSchema(client);
         await chatLib.createChatSchema(client);
+        await organizersLib.createOrganizersSchema(client);
         const placesSeeded = await places.createPlacesSchema(client, appConfig.places || []);
         if (placesSeeded) console.log(`📍 Saved ${placesSeeded} places from config/app.json`);
         const seeded = await createProfileSchema(client, uuidv4);
@@ -2956,6 +2960,16 @@ app.get('/api/me', async (req, res) => {
     });
 });
 
+// What this signed-in device may see: admin (ADMIN_EMAILS: Manage on every card, the admin
+// pages) and organizer (the booking queue's list). Either shows the header's Admin link.
+app.get('/api/me/roles', async (req, res) => {
+    res.set('Cache-Control', 'no-store');
+    const email = await contacts.emailOf(req);
+    const admin = Boolean(await adminAuth.adminOf(req));
+    if (!email && !admin) return res.status(401).json({ success: false, message: 'Not signed in.' });
+    res.json({ success: true, admin, organizer: admin || await organizers.has(email) });
+});
+
 // The name a signed-in device fills in for RSVPs and new events (js/me.js).
 app.put('/api/me/name', async (req, res) => {
     const email = await contacts.emailOf(req);
@@ -3024,6 +3038,26 @@ app.delete('/api/admin/session', async (req, res) => {
 
 app.get('/admin/places', adminAuth.requireAdminPage, (req, res) => {
     res.sendFile(path.join(__dirname, '../public/admin-places.html'));
+});
+
+app.get('/admin/organisers', adminAuth.requireAdminPage, (req, res) => {
+    res.sendFile(path.join(__dirname, '../public/admin-organisers.html'));
+});
+
+// The booking organisers (server/organizers.js), edited by an admin on /admin/organisers.
+app.get('/api/organizers', adminAuth.requireAdmin, async (req, res) => {
+    res.set('Cache-Control', 'no-store').json({ organizers: await organizers.list() });
+});
+
+app.post('/api/organizers', adminAuth.requireAdmin, async (req, res) => {
+    const result = await organizers.add(req.body?.email, req.adminEmail || null);
+    if (result.error) return res.status(400).json({ success: false, field: 'email', message: result.error });
+    res.status(201).json({ success: true, organizers: await organizers.list() });
+});
+
+app.delete('/api/organizers/:email', adminAuth.requireAdmin, async (req, res) => {
+    await organizers.remove(req.params.email);
+    res.json({ success: true, organizers: await organizers.list() });
 });
 
 app.get('/admin/donations', adminAuth.requireAdminPage, (req, res) => {

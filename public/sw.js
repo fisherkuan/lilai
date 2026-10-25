@@ -1,4 +1,4 @@
-const CACHE_NAME = 'lilai-cache-v107'; // Bumped version
+const CACHE_NAME = 'lilai-cache-v108'; // Bumped version
 const urlsToCache = [
   '/',
   '/index.html',
@@ -89,7 +89,7 @@ function isOurCode(url) {
 // person's events: never into Cache Storage. Nor does an event's chat, which says who is signed in.
 function isHostTraffic(url) {
     return url.origin === self.location.origin
-        && (['/host/', '/api/host/', '/calendars/', '/api/calendar-access/', '/me', '/api/me'].some(p => url.pathname.startsWith(p))
+        && (['/host/', '/api/host/', '/calendars/', '/api/calendar-access/', '/me', '/api/me', '/api/admin/', '/api/organizers'].some(p => url.pathname.startsWith(p))
             || /^\/api\/events\/[^/]+\/messages/.test(url.pathname));
 }
 
