@@ -11,6 +11,8 @@
     // A link asked for from an event's chat goes back to that thread once signed in.
     const nextRaw = new URLSearchParams(location.search).get('next') || '';
     const next = /^\/(?![\/\\])/.test(nextRaw) ? nextRaw : '';
+    const backText = next.startsWith('/#chat-') ? 'Back to the chat'
+        : next.startsWith('/#new') ? 'Back to your event' : '';
     let email = '';
     // The keys Home's RSVP sheet and Make an event fill in from (app.js, js/make-event.js).
     const NAME_KEY = 'lilai.attendeeName';
@@ -87,7 +89,7 @@
         button.disabled = true;
         text.textContent = 'Sending…';
         try {
-            const { ok, result } = await api('/api/me/link', { method: 'POST', body: JSON.stringify({ email: typed }) });
+            const { ok, result } = await api('/api/me/link', { method: 'POST', body: JSON.stringify(next ? { email: typed, next } : { email: typed }) });
             if (!ok) return showError('me-error', result.message || 'That did not go through. Try again.');
             $('me-form').hidden = true;
             $('me-sent-text').textContent = `A link is on its way to ${typed}. It works for 30 minutes.`;
@@ -163,15 +165,50 @@
 
     // ---------- Signed in ----------
 
+    // The calendar's shape, in config order like Home (circle, square, triangle, then diamond).
+    let shapeBySource = {};
+    async function loadShapes() {
+        try {
+            const config = await (await fetch('/api/config')).json();
+            const names = ['circle', 'square', 'triangle'];
+            let i = 0;
+            for (const cal of config.calendars || []) {
+                if (!cal.enabled) continue;
+                let id = null;
+                try { id = new URL(cal.url).searchParams.get('src'); } catch (_) { /* no id */ }
+                if (id) shapeBySource[id] = names[i] || 'diamond';
+                i += 1;
+            }
+        } catch (_) {
+            shapeBySource = {};
+        }
+    }
+
+    // One event as a day block, like "You manage" on Home: the whole row opens it. Hosted rows
+    // open the management page, joined ones the event on Home.
     function row(e, { manage = true, note = '' } = {}) {
-        const label = e.cancelled ? `${e.title} (cancelled)` : e.title;
-        const repeats = e.count > 1 ? ` · ${e.count} dates` : '';
-        return `<li class="ev-request${e.cancelled ? ' is-declined' : ''}"><span class="ev-request-who">`
-            + `<span class="ev-request-name">${escapeHtml(label)}</span>`
-            + `<span class="ev-request-at">${escapeHtml(whenText(e.date))} · ${escapeHtml(seats(e))}${repeats}${note}</span></span>`
-            + `<span class="ev-request-actions">${manage
-                ? `<button type="button" class="btn btn-line" data-manage="${escapeHtml(e.id)}" aria-label="${escapeHtml(`Manage ${e.title}`)}">Manage</button>`
-                : `<a class="btn btn-line" href="/#event-${encodeURIComponent(e.id)}" aria-label="${escapeHtml(`Open ${e.title}`)}">Open</a>`}</span></li>`;
+        const d = new Date(e.date);
+        const shape = shapeBySource[e.source] || 'diamond';
+        const time = d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false });
+        const meta = [time, seats(e)];
+        if (e.count > 1) meta.push(`${e.count} dates`);
+        const inner = `<span class="hosted-day"><b>${d.getDate()}</b><span>${escapeHtml(d.toLocaleDateString('en-GB', { weekday: 'short' }))}</span></span>`
+            + `<span class="hosted-main"><span class="hosted-title"><svg class="shape s-${shape}" aria-hidden="true" focusable="false"><use href="#shape-${shape}"/></svg><span>${escapeHtml(e.title)}</span></span>`
+            + `<span class="hosted-meta">${e.cancelled ? '<b>Cancelled</b> · ' : ''}${escapeHtml(meta.join(' · '))}${escapeHtml(note)}</span></span>`
+            + '<svg class="hosted-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>';
+        const cls = `hosted-row${e.cancelled ? ' is-cancelled' : ''}`;
+        const month = d.toLocaleDateString('en-GB', { month: 'long' });
+        return manage
+            ? `<li><button type="button" class="${cls}" data-manage="${escapeHtml(e.id)}" data-title="${escapeHtml(e.title)}" aria-label="${escapeHtml(`Manage ${e.title}, ${d.getDate()} ${month}`)}">${inner}</button></li>`
+            : `<li><a class="${cls}" href="/#event-${encodeURIComponent(e.id)}" aria-label="${escapeHtml(`Open ${e.title}, ${d.getDate()} ${month}`)}">${inner}</a></li>`;
+    }
+
+    // The header: an initial in an ink disc, the name, the email.
+    function renderIdentity(name) {
+        const shown = (name || '').trim();
+        $('me-avatar').textContent = (shown || email || '?').charAt(0).toUpperCase();
+        $('me-id-name').textContent = shown || 'No name yet';
+        $('me-id-name').classList.toggle('is-empty', !shown);
     }
 
     function render(data) {
@@ -179,6 +216,7 @@
         AccountLink.remember(email);
         $('me-who').textContent = email;
         document.title = 'Profile — Lilai';
+        renderIdentity(data.name);
         $('me-name').value = data.name || '';
         savedName = data.name || '';
         chatMessages = data.chatMessages || 0;
@@ -189,7 +227,7 @@
         $('me-upcoming-count').textContent = data.upcoming.length ? String(data.upcoming.length) : '';
         $('me-upcoming').innerHTML = data.upcoming.length
             ? data.upcoming.map(e => row(e)).join('')
-            : '<li class="ev-empty">No events made with this email yet.</li>';
+            : '<li class="me-empty">No events made with this email yet.</li>';
         $('me-joined-block').hidden = !data.joined.length;
         $('me-joined').innerHTML = data.joined
             .map(e => row(e, { manage: false, note: e.attendance === 'pending' ? ' · you asked to join' : e.attendance === 'waiting' ? ' · on the waiting list' : '' })).join('');
@@ -201,7 +239,7 @@
 
     async function load() {
         try {
-            const { status, ok, result } = await api('/api/me');
+            const [{ status, ok, result }] = await Promise.all([api('/api/me'), loadShapes()]);
             if (status === 401) return showAsk();
             if (!ok) return showState(result.message || 'Could not load your events. Reload to try again.', true);
             render(result);
@@ -224,7 +262,7 @@
             const { status, ok, result } = await api(`/api/me/events/${encodeURIComponent(id)}/manage`, { method: 'POST' });
             if (status === 401) return showAsk();
             if (!ok) throw new Error(result.message || 'That did not go through. Try again.');
-            const name = button.closest('.ev-request').querySelector('.ev-request-name').textContent;
+            const name = button.dataset.title;
             DeviceLinks.rememberHosted({ hostPath: result.hostPath, eventId: id, title: name, date: new Date().toISOString() });
             location.href = result.hostPath;
         } catch (error) {
@@ -243,9 +281,10 @@
             if (!ok) throw new Error(result.message || 'That did not go through. Try again.');
             $('me-name').value = result.name;
             savedName = result.name;
+            renderIdentity(result.name);
             store(NAME_KEY, result.name);
-            // Came from a chat to set the name: back to it.
-            if (next.startsWith('/#chat-') && result.name) {
+            // Came from a chat or Make an event to set the name: back to it.
+            if (backText && result.name) {
                 location.replace(next);
                 return;
             }
@@ -302,10 +341,13 @@
     $('me-name').addEventListener('input', nameHint);
     $('me-first-name-form').addEventListener('submit', saveFirstName);
     $('me-first-name-skip').addEventListener('click', goOn);
-    if (next.startsWith('/#chat-')) {
-        $('me-back').href = next;
-        $('me-back').hidden = false;
-    }
+    // Back where /me was opened from: the chat, or Make an event (its Change link).
+    document.querySelectorAll('[data-me-back]').forEach((a) => {
+        if (!backText) return;
+        a.href = next;
+        a.textContent = backText;
+        a.hidden = false;
+    });
 
     $('me-form').addEventListener('submit', sendLink);
     $('me-name-form').addEventListener('submit', saveName);

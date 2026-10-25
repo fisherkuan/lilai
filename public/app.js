@@ -537,7 +537,6 @@ function setupFilterPills() {
  * Anyone who reads this file learns the path. That is the accepted cost, and it is the same
  * audience that would have typed /admin anyway.
  */
-const ADMIN_HOME = '/admin/bookings';
 const ADMIN_FLAG_KEY = 'lilaiOrganizer';
 const ORGANIZER_TAPS = 5;
 const ORGANIZER_TAP_WINDOW_MS = 3000;
@@ -574,20 +573,9 @@ function setupAdminLink() {
     listenForOrganizerTaps();
 }
 
+// The link itself lives in js/account-link.js, so every page with the header shows it.
 function showAdminLink(on) {
-    document.querySelectorAll('.app-header-links').forEach(nav => {
-        const existing = nav.querySelector('[data-admin-link]');
-        if (!on) {
-            if (existing) existing.remove();
-            return;
-        }
-        if (existing) return;
-        const link = document.createElement('a');
-        link.href = ADMIN_HOME;
-        link.textContent = 'Admin';
-        link.dataset.adminLink = 'true';
-        nav.appendChild(link);
-    });
+    if (window.AccountLink) window.AccountLink.showAdmin(on);
 }
 
 function listenForOrganizerTaps() {
@@ -728,10 +716,24 @@ function displayEvents(options = {}) {
         pieces.push('<div class="load-earlier-wrap"><button type="button" class="text-btn load-earlier-btn">Load earlier events</button></div>');
     }
 
+    // A month name where the cards cross into a new month (owner, 2026-10-25), and above the
+    // first card when it is not in this month. The year shows only when it is not this one.
+    const monthKey = d => `${d.getFullYear()}-${d.getMonth()}`;
+    let lastMonth = monthKey(now);
+    let firstCard = true;
+
     filtered.forEach(event => {
         const eventDate = new Date(event.date);
         const isPast = eventDate < now;
         const isToday = eventDate >= today && eventDate < new Date(today.getTime() + 86400000);
+
+        const month = monthKey(eventDate);
+        if (month !== lastMonth || (firstCard && month !== monthKey(now))) {
+            const label = eventDate.toLocaleDateString('en-GB', eventDate.getFullYear() === now.getFullYear() ? { month: 'long' } : { month: 'long', year: 'numeric' });
+            pieces.push(`<h3 class="month-head">${escapeHtml(label)}</h3>`);
+        }
+        lastMonth = month;
+        firstCard = false;
 
         // Insert today divider between last past and first future event (all range)
         if (currentRange === 'all' && !insertedTodayDivider && !isPast) {
@@ -916,7 +918,10 @@ function renderEventCard(event, { isPast, isToday, prevNames }) {
         // Every event carries the same weight: no lead event, no solid Join.
         const join = `<button type="button" class="btn btn-line rsvp-trigger-add" data-event-id="${sanitizedEventId}">${joinLabel(event)}</button>`;
         const remove = attendingCount > 0 || waitlist.length > 0
-            ? `<button type="button" class="text-btn rsvp-trigger-remove" data-event-id="${sanitizedEventId}">Remove a name</button>`
+            // An icon, so the row keeps to one line on a phone (owner, 2026-10-25): leave, an
+            // arrow out of a door. The name stays for screen readers and the hover tip.
+            ? `<button type="button" class="icon-action rsvp-trigger-remove" data-event-id="${sanitizedEventId}" aria-label="Remove a name" title="Remove a name">`
+                + '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 4.5H5.5v15H13M10 12h10M16.5 8.5 20 12l-3.5 3.5"/></svg></button>'
             : '';
         actions = `<div class="event-actions">${join}${remove}${chat}</div>`;
     }
@@ -1067,6 +1072,23 @@ function closeRsvpModal() {
     restoreSheetFocus();
 }
 
+// Remove a name asks twice, like Remove on the management page: pick the name, then
+// "Remove Ana?" with the name on the button. Keep them closes the sheet.
+let removeConfirming = false;
+
+function setRemoveStep(confirming) {
+    const event = currentEventForRsvp;
+    const name = document.getElementById('attendee-to-remove').value;
+    removeConfirming = confirming;
+    document.getElementById('remove-pick').hidden = confirming;
+    document.getElementById('remove-modal-event-title').textContent = confirming ? `Remove ${name}?` : event.title;
+    document.getElementById('remove-modal-event-date').textContent = confirming
+        ? `${event.title}, ${formatSheetDate(event)}`
+        : formatSheetDate(event);
+    document.querySelector('.rsvp-remove-btn .text').textContent = confirming ? `Remove ${name}` : 'Remove';
+    document.querySelector('#remove-rsvp-modal .sheet-actions .text-btn').textContent = confirming ? 'Keep them' : 'Keep it';
+}
+
 function openRemoveRsvpModal(eventId) {
     const event = findEvent(eventId);
     if (!event) return;
@@ -1075,8 +1097,6 @@ function openRemoveRsvpModal(eventId) {
     showFieldError('remove-error', '');
     const modal = document.getElementById('remove-rsvp-modal');
     modal.classList.remove('hidden');
-    document.getElementById('remove-modal-event-title').textContent = event.title;
-    document.getElementById('remove-modal-event-date').textContent = formatSheetDate(event);
     const selector = document.getElementById('attendee-to-remove');
     selector.innerHTML = '';
     (event.attendees || []).forEach(name => {
@@ -1100,6 +1120,7 @@ function openRemoveRsvpModal(eventId) {
     if (remembered && [...(event.attendees || []), ...(event.waitlist || [])].includes(remembered)) {
         selector.value = remembered;
     }
+    setRemoveStep(false);
     setTimeout(() => selector.focus(), 50);
 }
 
@@ -1161,6 +1182,11 @@ function submitRsvp(action) {
 
 function submitRemoveRsvp() {
     if (!currentEventForRsvp) return;
+    if (!removeConfirming) {
+        setRemoveStep(true);
+        document.querySelector('.rsvp-remove-btn').focus();
+        return;
+    }
     const event = currentEventForRsvp;
     const attendeeName = document.getElementById('attendee-to-remove').value;
     const submitBtn = document.querySelector('.rsvp-remove-btn');

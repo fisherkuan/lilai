@@ -15,6 +15,11 @@
     let config = null;
     let returnFocus = null;
     let wanted = null; // the calendar asked for, kept through a sign-in
+    // What was typed, kept while Change takes the host to /me and back to /#new. In
+    // localStorage, because a sign-in link with another email often opens in a new tab; it
+    // lasts as long as that link (30 minutes).
+    const DRAFT_KEY = 'lilai.eventDraft';
+    const DRAFT_MS = 30 * 60 * 1000;
 
     function remembered(key) {
         try { return localStorage.getItem(key) || ''; } catch (_) { return ''; }
@@ -131,12 +136,35 @@
                 document.getElementById('event-form-fields').dataset.named = '1';
             }
             await loadConfig();
-            fields.setCalendars(writableCalendars().map(c => ({ ...c, shape: shapeFor(c.name) })), preferredCalendar || config.events?.defaultCreateCalendar);
+            const draft = takeDraft();
+            fields.setCalendars(writableCalendars().map(c => ({ ...c, shape: shapeFor(c.name) })), (draft && draft.calendar) || preferredCalendar || config.events?.defaultCreateCalendar);
+            if (draft) {
+                fields.set(draft);
+                if (draft.hostName) fields.setHostName(draft.hostName);
+            }
         } catch (_) {
             showFormError('Could not reach Lilai. Check your network and try again.');
         }
         setTimeout(() => fields.focus(), 60);
     }
+
+    function takeDraft() {
+        try {
+            const raw = localStorage.getItem(DRAFT_KEY);
+            localStorage.removeItem(DRAFT_KEY);
+            const draft = raw ? JSON.parse(raw) : null;
+            return draft && Date.now() - draft.at < DRAFT_MS ? draft : null;
+        } catch (_) { return null; }
+    }
+
+    // Change (the email) leaves for /me; keep the form so Back finds it as it was.
+    document.getElementById('event-form-fields').addEventListener('click', (e) => {
+        if (!e.target.closest('[data-change-email]')) return;
+        try {
+            const { hostEmail, ...draft } = fields.value();
+            localStorage.setItem(DRAFT_KEY, JSON.stringify({ ...draft, at: Date.now() }));
+        } catch (_) { /* private mode: the form starts empty */ }
+    });
 
     function close() {
         sheet.classList.add('hidden');
@@ -236,6 +264,23 @@
         return `<svg class="shape s-${shape}" aria-hidden="true" focusable="false"><use href="#shape-${shape}"/></svg>`;
     }
 
+    // Whether a held event is cancelled. Home's lists leave cancelled events out, so a row with
+    // no loaded event asks its management link once per page load.
+    const cancelledState = new Map();
+    function checkCancelled(e) {
+        if (cancelledState.has(e.hostPath)) return;
+        cancelledState.set(e.hostPath, null);
+        const query = e.count > 1 || !e.eventId ? '' : `?event=${encodeURIComponent(e.eventId)}`;
+        fetch(`/api${e.hostPath}${query}`)
+            .then(r => (r.ok ? r.json() : null))
+            .then(data => {
+                if (!data || !data.event) return;
+                cancelledState.set(e.hostPath, Boolean(data.event.cancelled));
+                if (data.event.cancelled) renderHosted();
+            })
+            .catch(() => {});
+    }
+
     // "You manage" in the sidebar: events whose management link this device holds, soonest
     // first, each as a day block like Home's cards. Home's loaded events add the clock range and
     // who is coming; app.js calls this again once they are in.
@@ -253,14 +298,16 @@
             const d = new Date(e.date);
             const time = live && live.enddate ? `${clock(live.date)}–${clock(live.enddate)}` : clock(e.date);
             const meta = [e.count > 1 ? `${e.count} dates · next ${clock(e.date)}` : time];
+            if (!live) checkCancelled(e);
+            const cancelled = !live && cancelledState.get(e.hostPath) === true;
             if (live) {
                 meta.push(`${live.attendingCount || 0} coming`);
                 if (live.pendingCount) meta.push(`${live.pendingCount} asking`);
             }
-            return `<li><a class="hosted-row" href="${escapeHtml(e.hostPath)}">`
+            return `<li><a class="hosted-row${cancelled ? ' is-cancelled' : ''}" href="${escapeHtml(e.hostPath)}">`
                 + `<span class="hosted-day"><b>${d.getDate()}</b><span>${d.toLocaleDateString('en-GB', { weekday: 'short' })}</span></span>`
                 + `<span class="hosted-main"><span class="hosted-title">${shapeMark(shapeFor(e.calendar))}<span>${escapeHtml(live ? live.title : e.title)}</span></span>`
-                + `<span class="hosted-meta">${escapeHtml(meta.join(' · '))}</span></span>`
+                + `<span class="hosted-meta">${cancelled ? '<b>Cancelled</b> · ' : ''}${escapeHtml(meta.join(' · '))}</span></span>`
                 + '<svg class="hosted-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></a></li>';
         }).join('');
     }

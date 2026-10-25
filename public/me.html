@@ -20,6 +20,14 @@
     <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
 </head>
 <body>
+<svg width="0" height="0" class="shape-defs" aria-hidden="true" focusable="false">
+    <defs>
+        <symbol id="shape-circle" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10.5" vector-effect="non-scaling-stroke"/></symbol>
+        <symbol id="shape-square" viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20" vector-effect="non-scaling-stroke"/></symbol>
+        <symbol id="shape-triangle" viewBox="0 0 24 24"><path d="M12 1.8 22.6 21.6H1.4Z" vector-effect="non-scaling-stroke"/></symbol>
+        <symbol id="shape-diamond" viewBox="0 0 24 24"><path d="M12 1.5 22.5 12 12 22.5 1.5 12Z" vector-effect="non-scaling-stroke"/></symbol>
+    </defs>
+</svg>
 <header class="masthead">
     <a class="wordmark" href="/" aria-label="Lilai, home">
         <span class="wordmark-mark" aria-hidden="true">
@@ -39,6 +47,7 @@
 
     <!-- Not signed in: ask for the email -->
     <section id="me-ask" hidden>
+        <a class="text-link me-back" href="/" data-me-back hidden>Back</a>
         <h1>Sign in</h1>
         <p class="ev-lede">Lilai emails you a link that signs this device in.</p>
         <form id="me-form" class="me-form" novalidate>
@@ -83,60 +92,58 @@
         </form>
     </section>
 
-    <!-- Signed in: the profile -->
-    <article id="me-list" hidden>
-        <a class="text-link me-back" id="me-back" href="/" hidden>Back to the chat</a>
-        <h1>Profile</h1>
+    <!-- Signed in: the profile, in grouped cards like Make an event (owner, 2026-10-25) -->
+    <article id="me-list" class="me-profile" hidden>
+        <a class="text-link me-back" href="/" data-me-back hidden>Back</a>
+        <h1 class="sr-only">Profile</h1>
 
-        <div class="field me-email">
-            <p class="ev-label">Email</p>
-            <p id="me-who"></p>
-        </div>
-        <form id="me-name-form" class="me-form me-name" novalidate>
-            <div class="field">
-                <label for="me-name">Name</label>
-                <div class="me-name-row">
-                    <input type="text" id="me-name" class="input" maxlength="100" autocomplete="name">
-                    <button type="submit" class="btn btn-line" id="me-name-save">Save</button>
-                </div>
-                <p class="ev-hint" id="me-name-hint">Filled in when you join or make an event.</p>
+        <header class="me-id">
+            <span class="me-avatar" id="me-avatar" aria-hidden="true"></span>
+            <div class="me-id-text">
+                <p class="me-id-name" id="me-id-name"></p>
+                <p class="me-id-email" id="me-who"></p>
             </div>
+        </header>
+
+        <form id="me-name-form" class="me-card" novalidate>
+            <label class="me-card-title" for="me-name">Name</label>
+            <div class="me-name-row">
+                <input type="text" id="me-name" class="input" maxlength="100" autocomplete="name">
+                <button type="submit" class="btn btn-line" id="me-name-save">Save</button>
+            </div>
+            <p class="ev-hint" id="me-name-hint">Filled in when you join or make an event.</p>
         </form>
 
-        <section class="ev-requests" aria-labelledby="me-upcoming-title">
-            <div class="section-head">
-                <h2 class="section-title" id="me-upcoming-title">You host</h2>
-                <span class="section-meta" id="me-upcoming-count"></span>
+        <section class="me-card" aria-labelledby="me-upcoming-title">
+            <div class="me-card-head">
+                <h2 class="me-card-title" id="me-upcoming-title">You host</h2>
+                <span class="me-card-count" id="me-upcoming-count"></span>
             </div>
-            <ul class="ev-request-list" id="me-upcoming"></ul>
+            <ul class="me-rows" id="me-upcoming"></ul>
         </section>
 
-        <section class="ev-requests" aria-labelledby="me-joined-title" id="me-joined-block" hidden>
-            <div class="section-head">
-                <h2 class="section-title" id="me-joined-title">You joined</h2>
-            </div>
-            <ul class="ev-request-list" id="me-joined"></ul>
+        <section class="me-card" aria-labelledby="me-joined-title" id="me-joined-block" hidden>
+            <h2 class="me-card-title" id="me-joined-title">You joined</h2>
+            <ul class="me-rows" id="me-joined"></ul>
         </section>
 
-        <section class="ev-requests" aria-labelledby="me-past-title" id="me-past-block" hidden>
-            <div class="section-head">
-                <h2 class="section-title" id="me-past-title">Past</h2>
-            </div>
-            <ul class="ev-request-list" id="me-past"></ul>
+        <section class="me-card" aria-labelledby="me-past-title" id="me-past-block" hidden>
+            <h2 class="me-card-title" id="me-past-title">Past</h2>
+            <ul class="me-rows" id="me-past"></ul>
         </section>
         <p class="field-error" id="me-list-error" role="alert" hidden></p>
 
-        <div class="ev-manage-actions">
-            <button type="button" class="btn btn-line" id="me-signout">Sign out</button>
-            <button type="button" class="text-btn" id="me-delete">Delete my email</button>
-        </div>
-        <div id="me-delete-confirm" class="ev-notice" hidden tabindex="-1">
-            <p id="me-delete-text"></p>
-            <div class="ev-manage-actions">
-                <button type="button" class="btn btn-solid" id="me-delete-yes">Delete my email</button>
-                <button type="button" class="text-btn" id="me-delete-no">Keep it</button>
+        <section class="me-card me-account" aria-label="This device and your email">
+            <button type="button" class="me-account-row" id="me-signout">Sign out of this device</button>
+            <button type="button" class="me-account-row" id="me-delete">Delete my email</button>
+            <div id="me-delete-confirm" class="me-delete-confirm" hidden tabindex="-1">
+                <p id="me-delete-text"></p>
+                <div class="ev-manage-actions">
+                    <button type="button" class="btn btn-danger" id="me-delete-yes">Delete my email</button>
+                    <button type="button" class="text-btn" id="me-delete-no">Keep it</button>
+                </div>
             </div>
-        </div>
+        </section>
     </article>
 </main>
 

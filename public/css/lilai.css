@@ -193,8 +193,9 @@ button { font: inherit; color: inherit; }
     height: 1em;
     overflow: visible;
     fill: var(--tone, var(--ink));
-    /* Filled shapes are borderless, like the wordmark; an outline-only state sets its stroke */
-    stroke: none;
+    /* A filled shape's border is its own colour, so it is the same size as an outline-only
+       one (owner, 2026-10-25); an outline-only state sets its own stroke */
+    stroke: var(--tone, var(--ink));
     stroke-width: 1.5px;
     stroke-linejoin: miter;
 }
@@ -202,7 +203,7 @@ button { font: inherit; color: inherit; }
 .s-circle { --tone: var(--blue); }
 .s-square { --tone: var(--red); }
 .s-triangle { --tone: var(--yellow); }
-[class*="tone-"] .shape { fill: var(--tone); }
+[class*="tone-"] .shape { fill: var(--tone); stroke: var(--tone); }
 
 @keyframes shape-grow {
     from { transform: scale(0); }
@@ -276,6 +277,12 @@ button { font: inherit; color: inherit; }
     padding: var(--s3) 0;
 }
 .app-header-links a:hover { text-decoration: underline; }
+/* A 320px phone cannot fit four links beside the wordmark: with Admin there, the shapes alone
+   stand for Lilai (they still link home and keep its name for screen readers). */
+@media (max-width: 359px) {
+    .app-header-links { gap: var(--s3); }
+    .masthead:has([data-admin-link]) .wordmark-name { display: none; }
+}
 
 .icon-btn {
     display: inline-grid;
@@ -851,9 +858,9 @@ button { font: inherit; color: inherit; }
 
 .slot { display: block; }
 .slot .shape { font-size: 16px; fill: var(--paper); stroke: var(--ink); transform-origin: center; }
-.slot.is-taken .shape { fill: var(--tone); stroke: none; }
+.slot.is-taken .shape { fill: var(--tone); stroke: var(--tone); }
 .slot.is-new .shape { animation: shape-grow 480ms var(--ease) both; }
-.seats.is-full .slot .shape { fill: var(--ink); }
+.seats.is-full .slot .shape { fill: var(--ink); stroke: var(--ink); }
 
 .seats-label {
     font-size: var(--meta);
@@ -918,6 +925,17 @@ button { font: inherit; color: inherit; }
 }
 
 .today-rule + .event { margin-top: 0; }
+
+/* Where the cards cross into a new month: its name, in the title face, no rule. */
+.month-head {
+    margin: var(--s6) 0 0;
+    padding: 0 0 var(--s1) var(--s1);
+    font-family: var(--font-display);
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+}
+.month-head + .today-rule { margin-top: var(--s2); }
 
 .load-earlier-wrap { padding: var(--s2) 0 var(--s4); }
 
@@ -1269,6 +1287,67 @@ html.sheet-locked body {
 .ev-card > [hidden] { display: none; }
 .ev-card-title { margin: 0 0 calc(-1 * var(--s1)); font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-2); }
 
+/* ---------- Time wheel (js/time-wheel.js) ----------
+   A time field opens two snapping columns, hours and minutes, under it (owner, 2026-10-25).
+   The middle row, on a raised band, is the time; rows fade out above and below. */
+.tw-button { width: 100%; text-align: left; cursor: pointer; font-variant-numeric: tabular-nums; }
+.tw-button.is-empty { color: var(--ink-3); }
+.tw-button[aria-expanded="true"] { outline: var(--stroke-2) solid var(--focus); outline-offset: 2px; }
+.tw-panel {
+    display: grid;
+    gap: var(--s2);
+    margin-top: var(--s2);
+    padding: var(--s2);
+    border-radius: var(--radius-control);
+    background: var(--fill);
+    /* Scrolled into view, it clears the sheet's pinned Make event bar. */
+    scroll-margin-bottom: 96px;
+}
+.tw-cols { position: relative; display: flex; align-items: center; justify-content: center; gap: var(--s1); }
+.tw-band {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 40px;
+    height: 40px;
+    border-radius: 10px;
+    background: var(--paper-raised);
+    box-shadow: var(--shadow-raised);
+    pointer-events: none;
+}
+.tw-col {
+    position: relative;
+    width: 56px;
+    height: 120px;
+    padding: 40px 0;
+    overflow-y: auto;
+    scroll-snap-type: y mandatory;
+    overscroll-behavior: contain;
+    scrollbar-width: none;
+    -webkit-mask-image: linear-gradient(transparent, #000 35%, #000 65%, transparent);
+    mask-image: linear-gradient(transparent, #000 35%, #000 65%, transparent);
+    box-sizing: border-box;
+    outline: none;
+}
+.tw-col::-webkit-scrollbar { display: none; }
+.tw-col:focus-visible { box-shadow: inset 0 0 0 var(--stroke-2) var(--focus); border-radius: 10px; }
+.tw-cell {
+    display: grid;
+    place-items: center;
+    height: 40px;
+    scroll-snap-align: center;
+    font-family: var(--font-display);
+    font-size: 20px;
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+    color: var(--ink-3);
+    cursor: pointer;
+    user-select: none;
+}
+.tw-cell[aria-selected="true"] { color: var(--ink); font-weight: 700; }
+.tw-colon { position: relative; font-family: var(--font-display); font-size: 20px; font-weight: 700; }
+.tw-done { min-height: 40px; }
+
 /* ---------- Event form ----------
    Make an event (Home's sheet) and Edit (the management page's sheet) share one form,
    js/event-form.js. */
@@ -1319,6 +1398,9 @@ html.sheet-locked body {
 /* Where: a search over the owner's places, best match first (js/place-search.js). The list
    sits in the flow under the field, so the sheet's own scroll and the iOS keyboard never
    clip it. */
+/* Scrolled to the top of a sheet while typing (js/sheet.js), it keeps clear of the grabber and title. */
+.sheet [role="combobox"], .bs-sheet [role="combobox"] { scroll-margin-top: var(--s7); }
+.sheet .input, .sheet textarea, .bs-sheet .bs-input { scroll-margin-bottom: var(--s8); }
 .ev-place-list {
     list-style: none;
     margin: var(--s2) 0 0;
@@ -1477,7 +1559,7 @@ html.sheet-locked body {
 .ev-cal .shape { width: 32px; height: 32px; fill: none; stroke: var(--ink); }
 .ev-cal:hover { background: var(--stone); }
 .ev-cal[aria-checked="true"] { border-color: var(--ink); background: var(--paper-raised); }
-.ev-cal[aria-checked="true"] .shape { fill: var(--tone); stroke: none; }
+.ev-cal[aria-checked="true"] .shape { fill: var(--tone); stroke: var(--tone); }
 
 /* Two answers with a sentence each: a stacked choice, the chosen one inked. */
 .ev-choice-list {
@@ -1606,6 +1688,13 @@ html.sheet-locked body {
 .hosted-title .shape { flex: none; font-size: 12px; }
 .hosted-meta { font-size: var(--meta); color: var(--ink-2); font-variant-numeric: tabular-nums; }
 .hosted-chev { width: 18px; height: 18px; fill: none; stroke: var(--ink-2); stroke-width: 2px; }
+/* A cancelled event stays in the list, struck through in grey with a hollow shape like a past
+   one, and says Cancelled first (owner, 2026-10-25). */
+.hosted-row.is-cancelled .hosted-day b,
+.hosted-row.is-cancelled .hosted-day span { color: var(--ink-3); }
+.hosted-row.is-cancelled .hosted-title span { color: var(--ink-3); font-weight: 500; text-decoration: line-through; text-decoration-thickness: 1.5px; }
+.hosted-row.is-cancelled .hosted-title .shape { fill: none; stroke: var(--past); }
+.hosted-row.is-cancelled .hosted-meta b { font-weight: 600; color: var(--ink-2); }
 
 
 /* ---------- Colophon ---------- */
@@ -1740,6 +1829,23 @@ html.sheet-locked body {
     font-variant-numeric: tabular-nums;
     cursor: pointer;
 }
+/* A card action drawn as an icon, in the chat icon's line (Remove a name). */
+.icon-action {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    min-height: 40px;
+    border: 0;
+    border-radius: var(--radius-full);
+    background: none;
+    color: var(--ink);
+    cursor: pointer;
+}
+.icon-action svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.5px; stroke-linecap: round; stroke-linejoin: round; }
+.icon-action:hover { background: var(--wash); }
+.icon-action:focus-visible { outline: var(--stroke-2) solid var(--focus); outline-offset: 2px; }
+
 .chat-trigger svg { width: 22px; height: 22px; fill: none; stroke: var(--ink); stroke-width: 1.5px; stroke-linejoin: round; }
 .chat-trigger:hover { background: var(--wash); }
 .chat-count:empty { display: none; }

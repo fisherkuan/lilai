@@ -178,7 +178,7 @@
             <h3 class="ev-card-title" id="${p}-c-you">You</h3>
             <div class="field">
                 <p class="ev-label">Email</p>
-                <p class="ev-signed-as"><span id="${p}-email"></span> <a class="text-link" href="/me">Change</a></p>
+                <p class="ev-signed-as"><span id="${p}-email"></span> <a class="text-link" href="/me?next=%2F%23new" data-change-email>Change</a></p>
                 <p class="field-error" data-error-for="hostEmail" role="alert" hidden></p>
             </div>
             <label class="ev-check">
@@ -213,7 +213,10 @@
             input.addEventListener('click', () => { try { input.showPicker(); } catch (_) { /* not supported */ } });
         });
 
-        const state = { calendar: null, limited: false, approval: false, repeatOn: false, weekdays: [], endTouched: false, keptPlace: '', pickedPlace: null };
+        // Starts and Ends scroll as a wheel instead of a list of 48 times (js/time-wheel.js).
+        if (root.TimeWheel) { TimeWheel.attach($('start')); TimeWheel.attach($('end')); }
+
+        const state = { calendar: null, limited: false, approval: false, repeatOn: false, weekdays: [], weekdaysTouched: false, endTouched: false, keptPlace: '', pickedPlace: null };
         const linkEditor = EventLinks.create(part('links'));
 
         // ---------- Radio groups of buttons, with arrow keys like native radios ----------
@@ -289,8 +292,16 @@
                 $('until').value = localDate(d);
                 showDates();
             }
+            if (on) startDayFirst();
             syncWeekdays();
             preview();
+        }
+        // The first day's own weekday starts ticked (owner, 2026-10-25), and follows the date
+        // until the host picks days themselves.
+        const weekdayOf = (iso) => new Date(`${iso}T12:00:00`).getDay();
+        function startDayFirst() {
+            if (state.weekdaysTouched || !$('date').value) return;
+            state.weekdays = [weekdayOf($('date').value)];
         }
         function syncWeekdays() {
             if (!hint('weekdays')) return;
@@ -327,9 +338,15 @@
                     return;
                 }
                 const n = body.dates.length;
-                out.textContent = n === 1
+                const dates = n === 1
                     ? `1 date: ${shortDay(body.dates[0])}.`
                     : `${n} dates, ${shortDay(body.dates[0])} to ${shortDay(body.dates[n - 1])}.`;
+                // The first day is left out when its weekday is not ticked: say so.
+                const first = $('date').value;
+                const skipped = n > 0 && body.dates[0] !== first;
+                out.textContent = skipped
+                    ? `${shortDay(first)} is not one of the days, so it starts ${shortDay(body.dates[0])}. ${dates}`
+                    : dates;
             } catch (_) {
                 if (seq === previewSeq) out.textContent = '';
             }
@@ -346,6 +363,8 @@
             $('joins').addEventListener('change', () => { $('host-field').hidden = !$('joins').checked; });
             $('date').addEventListener('change', () => {
                 // No weekday picked means the first day's own, as the server reads it.
+                startDayFirst();
+                syncWeekdays();
                 preview();
             });
             hint('weekdays').addEventListener('click', (e) => {
@@ -353,6 +372,7 @@
                 if (!b) return;
                 const day = Number(b.dataset.day);
                 state.weekdays = state.weekdays.includes(day) ? state.weekdays.filter(d => d !== day) : [...state.weekdays, day];
+                state.weekdaysTouched = true;
                 syncWeekdays();
                 preview();
             });
@@ -464,9 +484,29 @@
                 openPlaces(false);
             }
         });
-        // pointerdown keeps the focus in the field, so the tap lands before the list closes.
-        placeBox.addEventListener('pointerdown', (e) => e.preventDefault());
+        // A tap picks on pointerup, before the field's blur closes the list. Safari on iPhone
+        // drops the click after a cancelled touch pointerdown, so only a mouse cancels it (to
+        // keep the focus in the field). A finger that moved was scrolling the list, not picking.
+        let placePress = null;
+        let placePicked = false;
+        placeBox.addEventListener('pointerdown', (e) => {
+            if (e.pointerType === 'mouse') e.preventDefault();
+            placePress = { id: e.pointerId, x: e.clientX, y: e.clientY };
+            placePicked = false;
+        });
+        placeBox.addEventListener('pointerup', (e) => {
+            const press = placePress;
+            placePress = null;
+            if (!press || press.id !== e.pointerId || Math.hypot(e.clientX - press.x, e.clientY - press.y) > 8) return;
+            const li = e.target.closest('[role="option"]');
+            if (!li) return;
+            placePicked = true;
+            choosePlace(placeMatches[Number(li.dataset.index)]);
+        });
+        placeBox.addEventListener('pointercancel', () => { placePress = null; });
+        // Keyboards and screen readers still pick by click.
         placeBox.addEventListener('click', (e) => {
+            if (placePicked) { placePicked = false; return; }
             const li = e.target.closest('[role="option"]');
             if (li) choosePlace(placeMatches[Number(li.dataset.index)]);
         });
@@ -487,7 +527,7 @@
             if (!el) return false;
             el.textContent = message;
             el.hidden = false;
-            const target = focusEl || el.closest('.field')?.querySelector('input, textarea, select, button');
+            const target = focusEl || el.closest('.field')?.querySelector('input:not([hidden]), textarea, select:not([hidden]), button');
             if (target) target.focus();
             return true;
         }
@@ -551,6 +591,7 @@
                 state.pickedPlace = null;
                 if (mode === 'create') {
                     state.weekdays = [];
+                    state.weekdaysTouched = false;
                     $('every').value = '1';
                     $('unit').value = 'week';
                     pick('repeat', 'repeat', 'off');

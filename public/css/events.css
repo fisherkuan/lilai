@@ -185,16 +185,90 @@
 .me-form .input { background-color: var(--paper-raised); }
 .me-form[hidden] { display: none; }
 #me-sent .text-btn { margin-top: var(--s2); }
-.me-name { margin-top: var(--s4); }
-.me-back { margin-top: var(--s2); }
-.me-email { margin-top: var(--s4); }
-.me-email .ev-label { font-size: 17px; font-weight: 600; color: var(--ink); }
-.me-email p:last-child { margin: 0; overflow-wrap: anywhere; }
-.me-name .field { margin-top: 0; }
+.me-back { display: inline-flex; margin-top: var(--s2); }
+#me-ask .me-back { margin-bottom: var(--s3); }
+#me-sent[hidden], #me-delete-confirm[hidden] { display: none; }
+
+/* The profile (owner, 2026-10-25): who you are on top, then grouped cards as in Make an event,
+   each list a stack of day blocks like "You manage" on Home. */
+.me-profile { display: grid; gap: var(--s3); }
+.me-profile[hidden] { display: none; }
+
+.me-id { display: flex; align-items: center; gap: var(--s4); padding: var(--s4) 0 var(--s3); }
+.me-avatar {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background: var(--ink);
+    color: var(--paper-raised);
+    font-family: var(--font-display);
+    font-size: 30px;
+    font-weight: 700;
+    line-height: 1;
+}
+.me-id-text { min-width: 0; }
+.me-id-name { margin: 0; font-family: var(--font-display); font-size: 28px; font-weight: 700; line-height: 1.15; letter-spacing: -0.01em; overflow-wrap: anywhere; }
+.me-id-name.is-empty { color: var(--ink-3); font-weight: 600; }
+.me-id-email { margin: 2px 0 0; font-size: 15px; color: var(--ink-2); overflow-wrap: anywhere; }
+
+.me-card {
+    display: grid;
+    gap: var(--s3);
+    padding: var(--s4);
+    border-radius: var(--radius-card);
+    background: var(--paper-raised);
+    box-shadow: var(--shadow-raised);
+}
+.me-card[hidden] { display: none; }
+.me-card-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s3); }
+.me-card-title { margin: 0; font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-2); }
+.me-card-count { font-size: var(--meta); color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.me-card .ev-hint { margin: 0; }
+
 .me-name-row { display: flex; gap: var(--s3); align-items: center; }
 .me-name-row .input { flex: 1 1 auto; min-width: 0; }
-.me-name-row .btn { flex: none; }
-#me-sent[hidden], #me-delete-confirm[hidden] { display: none; }
+.me-name-row .btn { flex: none; background-color: var(--fill); }
+.me-name-row .btn:hover { background-color: var(--stone); }
+
+.me-rows { list-style: none; margin: calc(-1 * var(--s2)) 0 calc(-1 * var(--s3)); padding: 0; }
+.me-rows li + li { border-top: 1px solid var(--hair); }
+.me-rows button.hosted-row {
+    width: 100%;
+    border: 0;
+    background: none;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+.me-rows .hosted-row:focus-visible { outline: var(--stroke-2) solid var(--focus); outline-offset: 2px; border-radius: 6px; }
+.me-rows .hosted-row:disabled { opacity: 0.6; cursor: progress; }
+.me-empty { padding: var(--s2) 0 var(--s3); font-size: 15px; color: var(--ink-2); }
+
+/* Sign out and Delete my email: two quiet rows, like the end of iPhone Settings. */
+.me-account { gap: 0; padding-top: var(--s1); padding-bottom: var(--s1); }
+.me-account-row {
+    display: flex;
+    align-items: center;
+    min-height: 48px;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--ink);
+    font: inherit;
+    font-size: 16px;
+    font-weight: 500;
+    text-align: left;
+    cursor: pointer;
+}
+.me-account-row + .me-account-row { border-top: 1px solid var(--hair); }
+.me-account-row:hover { text-decoration: underline; text-underline-offset: 3px; }
+.me-account-row:focus-visible { outline: var(--stroke-2) solid var(--focus); outline-offset: 2px; }
+.me-delete-confirm { padding: var(--s3) 0; border-top: 1px solid var(--hair); }
+.me-delete-confirm p { margin: 0 0 var(--s3); font-size: 15px; color: var(--ink-2); }
+.me-delete-confirm .ev-manage-actions { margin-top: 0; }
 
 /* ---------- Calendar page ---------- */
 
