@@ -1613,13 +1613,16 @@ html.sheet-locked body {
 .ev-first { margin-top: var(--s4); }
 [data-part="calendar"]:not([hidden]) + .ev-first { margin-top: var(--s5); }
 
-/* Calendar as shape tiles: the shape is the calendar, as on Home. Outlined until picked. */
-.ev-cals { display: grid; grid-template-columns: repeat(auto-fit, minmax(92px, 1fr)); gap: var(--s2); }
+/* Calendar as shape tiles: the shape is the calendar, as on Home. Outlined until picked.
+   A tile never narrows below its name, so a name never breaks mid-word; tiles that do not
+   fit move to the next row. */
+.ev-cals { display: flex; flex-wrap: wrap; gap: var(--s2); }
 .ev-cal {
     display: grid;
     justify-items: center;
     gap: var(--s2);
-    min-width: 0;
+    flex: 1 1 0;
+    min-width: max-content;
     padding: var(--s4) var(--s2) var(--s3);
     border: var(--stroke-2) solid transparent;
     border-radius: var(--radius-control);
