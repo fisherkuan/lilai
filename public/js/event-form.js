@@ -213,7 +213,7 @@
             input.addEventListener('click', () => { try { input.showPicker(); } catch (_) { /* not supported */ } });
         });
 
-        const state = { calendar: null, limited: false, approval: false, repeatOn: false, weekdays: [], endTouched: false, keptPlace: '', pickedPlace: null };
+        const state = { calendar: null, limited: false, approval: false, repeatOn: false, weekdays: [], weekdaysTouched: false, endTouched: false, keptPlace: '', pickedPlace: null };
         const linkEditor = EventLinks.create(part('links'));
 
         // ---------- Radio groups of buttons, with arrow keys like native radios ----------
@@ -289,8 +289,16 @@
                 $('until').value = localDate(d);
                 showDates();
             }
+            if (on) startDayFirst();
             syncWeekdays();
             preview();
+        }
+        // The first day's own weekday starts ticked (owner, 2026-10-25), and follows the date
+        // until the host picks days themselves.
+        const weekdayOf = (iso) => new Date(`${iso}T12:00:00`).getDay();
+        function startDayFirst() {
+            if (state.weekdaysTouched || !$('date').value) return;
+            state.weekdays = [weekdayOf($('date').value)];
         }
         function syncWeekdays() {
             if (!hint('weekdays')) return;
@@ -327,9 +335,15 @@
                     return;
                 }
                 const n = body.dates.length;
-                out.textContent = n === 1
+                const dates = n === 1
                     ? `1 date: ${shortDay(body.dates[0])}.`
                     : `${n} dates, ${shortDay(body.dates[0])} to ${shortDay(body.dates[n - 1])}.`;
+                // The first day is left out when its weekday is not ticked: say so.
+                const first = $('date').value;
+                const skipped = n > 0 && body.dates[0] !== first;
+                out.textContent = skipped
+                    ? `${shortDay(first)} is not one of the days, so it starts ${shortDay(body.dates[0])}. ${dates}`
+                    : dates;
             } catch (_) {
                 if (seq === previewSeq) out.textContent = '';
             }
@@ -346,6 +360,8 @@
             $('joins').addEventListener('change', () => { $('host-field').hidden = !$('joins').checked; });
             $('date').addEventListener('change', () => {
                 // No weekday picked means the first day's own, as the server reads it.
+                startDayFirst();
+                syncWeekdays();
                 preview();
             });
             hint('weekdays').addEventListener('click', (e) => {
@@ -353,6 +369,7 @@
                 if (!b) return;
                 const day = Number(b.dataset.day);
                 state.weekdays = state.weekdays.includes(day) ? state.weekdays.filter(d => d !== day) : [...state.weekdays, day];
+                state.weekdaysTouched = true;
                 syncWeekdays();
                 preview();
             });
@@ -571,6 +588,7 @@
                 state.pickedPlace = null;
                 if (mode === 'create') {
                     state.weekdays = [];
+                    state.weekdaysTouched = false;
                     $('every').value = '1';
                     $('unit').value = 'week';
                     pick('repeat', 'repeat', 'off');
