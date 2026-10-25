@@ -91,6 +91,10 @@ test('a host signs in by email, finds their events, manages one, and deletes the
         assert.equal(await contacts.redeem(token, 'test'), null); // a link works once
         const verified = await pool.query('SELECT verified_at FROM contacts WHERE email = $1', ['ann@lilai.test']);
         assert.ok(verified.rows[0].verified_at);
+        // Signing in takes the name from the address's events; the person can change or clear it.
+        assert.deepEqual(await contacts.profileOf('ann@lilai.test'), { email: 'ann@lilai.test', name: 'Ann' });
+        assert.equal(await contacts.setName('ann@lilai.test', '  Ann Lee '), 'Ann Lee');
+        assert.equal((await contacts.profileOf('ann@lilai.test')).name, 'Ann Lee');
 
         const req = { headers: { cookie: `${COOKIE}=${signedIn.session}` } };
         assert.equal(await contacts.emailOf(req), 'ann@lilai.test');
@@ -118,6 +122,7 @@ test('a host signs in by email, finds their events, manages one, and deletes the
             (SELECT host_name FROM events WHERE id = 'e1') AS name,
             (SELECT contact_email FROM rsvps WHERE id = 'r1') AS rsvp`);
         assert.deepEqual(left.rows[0], { host: null, name: 'Ann', rsvp: null });
+        assert.equal((await contacts.profileOf('ann@lilai.test')).name, ''); // the name goes with the email
         // Deleted, the address no longer gets a link.
         await pool.query('DELETE FROM contact_tokens');
         await ask('ann@lilai.test');
