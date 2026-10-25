@@ -1781,6 +1781,7 @@ html.sheet-locked body {
     font-size: 13px;
     font-weight: 600;
 }
+.chat-was { font-weight: 400; color: var(--ink-2); }
 .chat-host {
     padding: 0 var(--s2);
     border: 1px solid var(--ink);
@@ -1867,6 +1868,8 @@ html.sheet-locked body {
 .chat-as { margin-bottom: var(--s2); font-size: 13px; color: var(--ink-2); }
 .chat-as strong { color: var(--ink); }
 .chat-as .text-btn { min-height: 28px; margin-left: var(--s2); font-size: 13px; }
+.chat-noname { font-size: var(--meta); color: var(--ink-2); }
+.chat-noname .text-btn { min-height: 36px; }
 
 .chat-compose { display: flex; align-items: flex-end; gap: var(--s2); }
 .chat-compose .input { flex: 1 1 auto; min-width: 0; }

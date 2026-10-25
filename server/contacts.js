@@ -1,4 +1,4 @@
-// Find my events: one optional email, proven by a link, is a person's way back to the events
+// Sign-in: one optional email, proven by a link, is a person's way back to the events
 // they host. Type an address on /me; if it made an event (events.host_email) or was confirmed
 // before, Resend mails a sign-in link that works once for 30 minutes. Opening it signs that
 // device in (cookie lilai_session, 90 days) and confirms the address. The signed-in device
@@ -109,13 +109,13 @@ async function createContactsSchema(client) {
             user_agent TEXT
         )`);
     await client.query('CREATE INDEX IF NOT EXISTS idx_device_sessions_email ON device_sessions(email)');
-    // Filled by "Email me about changes" on RSVP (phase 2 of #55); read by Find my events now.
+    // Filled by "Email me about changes" on RSVP (phase 2 of #55); read by the sign-in page now.
     await client.query('ALTER TABLE rsvps ADD COLUMN IF NOT EXISTS contact_email VARCHAR(254)');
     await client.query('CREATE INDEX IF NOT EXISTS idx_rsvps_contact_email ON rsvps (lower(contact_email)) WHERE contact_email IS NOT NULL');
     await client.query('CREATE INDEX IF NOT EXISTS idx_events_host_email ON events (lower(host_email)) WHERE host_email IS NOT NULL');
 }
 
-function createContacts({ pool, env = process.env, fetchImpl = fetch, now = () => new Date() }) {
+function createContacts({ pool, env = process.env, fetchImpl = fetch, now = () => new Date(), onRename = null }) {
     const secure = env.NODE_ENV === 'production';
     // Per network, in memory: one dyno, and a restart only forgives a few tries.
     const ipTries = new Map();
@@ -254,11 +254,28 @@ function createContacts({ pool, env = process.env, fetchImpl = fetch, now = () =
         return { email, name: row?.name || '' };
     }
 
-    // An empty name clears it.
+    /*
+     * The address's one name: filled in for RSVPs and new events, and what its chat messages
+     * show. An empty name clears it. `onRename(client, email, name)` (server/event-chat.js)
+     * renames what the address wrote, in the same transaction, and answers the events that
+     * changed: { name, renamedIn }.
+     */
     async function setName(email, nameInput) {
-        const name = String(nameInput ?? '').trim().slice(0, 100) || null;
-        await pool.query('UPDATE contacts SET name = $2 WHERE email = $1', [email, name]);
-        return name || '';
+        const name = String(nameInput ?? '').replace(/\s+/g, ' ').trim().slice(0, 100) || null;
+        const client = await pool.connect();
+        try {
+            await client.query('BEGIN');
+            await client.query('SELECT 1 FROM contacts WHERE email = $1 FOR UPDATE', [email]);
+            await client.query('UPDATE contacts SET name = $2 WHERE email = $1', [email, name]);
+            const renamedIn = onRename ? await onRename(client, email, name) : [];
+            await client.query('COMMIT');
+            return { name: name || '', renamedIn };
+        } catch (error) {
+            await client.query('ROLLBACK').catch(() => {});
+            throw error;
+        } finally {
+            client.release();
+        }
     }
 
     // Every event the address hosts (upcoming, and the last year's past ones) and every

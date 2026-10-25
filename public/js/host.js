@@ -101,7 +101,7 @@
         $('chat-section').hidden = list.length === 0;
         $('chat-section-count').textContent = list.length ? String(list.length) : '';
         $('chat-section-list').innerHTML = list.map(m => `<li class="ev-request ev-chat-row">`
-            + `<span class="ev-request-who"><span class="ev-request-name">${escapeHtml(m.name)}${m.host ? ' · Host' : ''}</span>`
+            + `<span class="ev-request-who"><span class="ev-request-name">${escapeHtml(m.name)}${m.wasName ? ` (was ${escapeHtml(m.wasName)})` : ''}${m.host ? ' · Host' : ''}</span>`
             + `<span class="ev-chat-body">${escapeHtml(m.body)}</span>`
             + `<span class="ev-request-at">${escapeHtml(askedText(m.at))}${m.likes ? ` · ${m.likes} ${m.likes === 1 ? 'like' : 'likes'}` : ''}</span></span>`
             + `<span class="ev-request-actions"><button type="button" class="btn btn-line" data-message="${escapeHtml(m.id)}" aria-label="${escapeHtml(`Remove the message from ${m.name}`)}">${confirmMessage === m.id ? 'Remove it?' : 'Remove'}</button></span></li>`

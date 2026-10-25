@@ -125,11 +125,17 @@ const placeStore = places.createPlaceStore(pool);
 // Admin sign-in by emailed code (server/admin-auth.js), for Donations and Places.
 const adminAuth = adminAuthLib.createAdminAuth({ pool });
 
-// Find my events: a sign-in link by email, then a device session (server/contacts.js).
-const contacts = contactsLib.createContacts({ pool });
-
 // Chat in an event (server/event-chat.js): anyone reads and likes, a signed-in email posts.
 const chat = chatLib.createEventChat({ pool });
+
+// Sign-in: a link by email, then a device session (server/contacts.js). The
+// address's name is also its chat name, so changing it renames its messages.
+const contacts = contactsLib.createContacts({ pool, onRename: chat.renameAuthor });
+
+// Threads that read differently after a name change redraw.
+function broadcastRenamed(renamedIn) {
+    for (const eventId of renamedIn) broadcast({ type: 'event_message', payload: { action: 'renamed', eventId } });
+}
 
 // Read once at startup: an invalid IBAN stops the server rather than reaching a donor.
 const bankDetails = readBankDetails();
@@ -992,7 +998,9 @@ app.post('/api/events', async (req, res) => {
     // A signed-in host's new name follows their email to their other devices.
     if (input.hostName) {
         const signedIn = await contacts.emailOf(req).catch(() => null);
-        if (signedIn && signedIn === contactsLib.normalEmail(input.hostEmail)) await contacts.setName(signedIn, input.hostName);
+        if (signedIn && signedIn === contactsLib.normalEmail(input.hostEmail)) {
+            broadcastRenamed((await contacts.setName(signedIn, input.hostName)).renamedIn);
+        }
     }
 
     const hostPath = `/host/${token}`;
@@ -1279,7 +1287,7 @@ app.delete('/api/host/:token/events/:eventId/messages/:messageId', async (req, r
 
 // ---------------------------------------------------------------------------
 // Chat in an event (event-chat.js). Reading and liking are open; posting, editing and
-// removing one's own message need the Find my events session.
+// removing one's own message need the sign-in session.
 // ---------------------------------------------------------------------------
 
 function chatError(res, error) {
@@ -2912,7 +2920,7 @@ app.get('/calendars/:token', (req, res) => {
     res.sendFile(path.join(__dirname, '../public/calendar.html'));
 });
 
-// Find my events: the page asks for an email, and the emailed link signs this device in.
+// The sign-in page (/me): it asks for an email, and the emailed link signs this device in.
 // The link carries its token in the path, so it gets the management page's headers.
 app.get(['/me', '/me/signin/:token'], (req, res) => {
     res.set('Referrer-Policy', 'no-referrer').set('Cache-Control', 'no-store');
@@ -2933,7 +2941,8 @@ app.post('/api/me/session', async (req, res) => {
     const signedIn = await contacts.redeem(req.body?.token, req.get('user-agent'));
     if (!signedIn) return res.status(401).json({ success: false, message: 'This link has been used or has run out. Ask for a new one.' });
     contacts.signIn(res, signedIn.session);
-    res.json({ success: true, email: signedIn.email });
+    // Without a name yet, the page asks for one before going on (js/me.js).
+    res.json({ success: true, ...(await contacts.profileOf(signedIn.email)) });
 });
 
 app.delete('/api/me/session', async (req, res) => {
@@ -2945,14 +2954,16 @@ app.get('/api/me', async (req, res) => {
     const email = await contacts.emailOf(req);
     res.set('Cache-Control', 'no-store');
     if (!email) return res.status(401).json({ success: false, message: 'Not signed in.' });
-    res.json({ success: true, ...(await contacts.profileOf(email)), ...(await contacts.eventsOf(email)) });
+    res.json({ success: true, ...(await contacts.profileOf(email)), chatMessages: await chat.countBy(email), ...(await contacts.eventsOf(email)) });
 });
 
 // The name a signed-in device fills in for RSVPs and new events (js/me.js).
 app.put('/api/me/name', async (req, res) => {
     const email = await contacts.emailOf(req);
     if (!email) return res.status(401).json({ success: false, message: 'Sign in again.' });
-    res.json({ success: true, name: await contacts.setName(email, req.body?.name) });
+    const { name, renamedIn } = await contacts.setName(email, req.body?.name);
+    broadcastRenamed(renamedIn);
+    res.json({ success: true, name });
 });
 
 app.post('/api/me/events/:eventId/manage', async (req, res) => {

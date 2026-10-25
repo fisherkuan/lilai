@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <!-- Old links to Home's lost-link sheet go to Find my events. -->
+    <!-- Old links to Home's lost-link sheet go to the sign-in page. -->
     <script>if(location.hash==="#lost-link")location.replace("/me")</script>
     <!-- Apply a saved theme before first paint; the switch itself is js/theme.js. -->
     <script>try{var t=localStorage.getItem("lilaiTheme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}</script>
@@ -108,7 +108,7 @@
                 <h2 class="side-subtitle">You manage</h2>
                 <ul class="hosted-rows" id="hosted-items"></ul>
             </div>
-            <a class="text-btn side-lost" href="/me" data-signed-out>Find my events</a>
+            <a class="text-btn side-lost" href="/me" data-signed-out>Sign in</a>
         </section>
 
         <section class="side-block" aria-labelledby="side-cal-title">
@@ -240,17 +240,14 @@
         <ol class="chat-list" id="chat-list" aria-live="polite" aria-label="Messages"></ol>
         <div class="chat-foot">
             <form id="chat-form" novalidate hidden>
-                <p class="chat-as" id="chat-as" hidden>Posting as <strong id="chat-as-name"></strong> <button type="button" class="text-btn" id="chat-rename">Change</button></p>
-                <div class="field chat-name-field" id="chat-name-field" hidden>
-                    <label for="chat-name">Your name</label>
-                    <input type="text" id="chat-name" class="input" maxlength="60" autocomplete="name" enterkeyhint="next">
-                </div>
+                <p class="chat-as" id="chat-as">Posting as <strong id="chat-as-name"></strong> <a class="text-btn" id="chat-rename" href="/me">Change</a></p>
                 <div class="chat-compose">
                     <textarea id="chat-input" class="input chat-input" rows="1" maxlength="1000" placeholder="Message" aria-label="Message"></textarea>
                     <button type="submit" class="btn btn-solid chat-send" id="chat-send">Send</button>
                 </div>
                 <p class="field-error" id="chat-error" role="alert" hidden></p>
             </form>
+            <p class="chat-noname" id="chat-noname" hidden><a class="text-btn" id="chat-addname" href="/me">Add your name</a> to post.</p>
             <form id="chat-signin" novalidate hidden>
                 <div id="chat-signin-fields">
                     <p class="chat-signin-lede">Sign in with your email to post, so nobody can post as you. Others see only your name.</p>

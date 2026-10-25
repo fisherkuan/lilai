@@ -183,7 +183,7 @@ function validateEvent(body, { mode = 'create', calendars = [], places = null, a
     const calendar = String(body?.calendar ?? '').trim();
     if (!calendars.includes(calendar)) throw new EventInputError('calendar', 'Pick a calendar.');
 
-    // The host's way back in (Find my events, server/contacts.js), so every event has one.
+    // The host's way back in (the sign-in page, server/contacts.js), so every event has one.
     const hostEmail = String(body?.hostEmail ?? '').trim().slice(0, 254);
     if (!hostEmail) throw new EventInputError('hostEmail', 'Add your email.');
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(hostEmail)) {

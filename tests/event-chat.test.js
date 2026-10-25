@@ -15,8 +15,6 @@ test('a message is 1 to 1000 characters, trimmed', () => {
     assert.equal(chatLib.validateBody('  court 3 \r\n'), 'court 3');
     assert.throws(() => chatLib.validateBody('   '), { status: 400, field: 'body' });
     assert.throws(() => chatLib.validateBody('x'.repeat(1001)), { status: 400 });
-    assert.equal(chatLib.validateName('  Ann   Lee '), 'Ann Lee');
-    assert.throws(() => chatLib.validateName(''), { field: 'name' });
 });
 
 test('a like key is the browser\'s random key, stored only as a hash', () => {
@@ -96,7 +94,7 @@ test('two people chat in an event, edit and delete their own, like, and the host
         const fetchImpl = async (url, init) => { mails.push(JSON.parse(init.body)); return { ok: true, text: async () => '' }; };
         const contacts = createContacts({ pool, env: { RESEND_API_KEY: 'k' }, fetchImpl });
         await contacts.requestSignIn('cleo@lilai.test', { ip: '1.1.1.1', baseUrl: 'https://lilai.test' });
-        assert.equal(mails.length, 0); // Find my events still mails only known addresses
+        assert.equal(mails.length, 0); // the sign-in page still mails only known addresses
         await contacts.requestSignIn('cleo@lilai.test', { ip: '1.1.1.1', baseUrl: 'https://lilai.test', anyAddress: true, next: '/#chat-e1' });
         assert.equal(mails.length, 1);
         assert.match(mails[0].text, /event chat/);
@@ -108,14 +106,18 @@ test('two people chat in an event, edit and delete their own, like, and the host
         const annLiker = 'aaaaaaaaaaaaaaaaaaaaaaaa';
         const bobLiker = 'bbbbbbbbbbbbbbbbbbbbbbbb';
 
-        await assert.rejects(chat.post('e1', null, { body: 'hi', name: 'Ann' }), { status: 401 });
-        await assert.rejects(chat.post('gone', ann, { body: 'hi', name: 'Ann' }), { status: 404 });
+        // A message goes out under the address's one name; without one there is nothing to post as.
+        await pool.query(`INSERT INTO contacts (email, name) VALUES ('ann@lilai.test', 'Ann'), ('cleo@lilai.test', 'Cleo'), ('nameless@lilai.test', NULL)
+                          ON CONFLICT (email) DO UPDATE SET name = EXCLUDED.name`);
+        await assert.rejects(chat.post('e1', 'nameless@lilai.test', { body: 'hi' }), { status: 409, field: 'name' });
+        await assert.rejects(chat.post('e1', null, { body: 'hi' }), { status: 401 });
+        await assert.rejects(chat.post('gone', ann, { body: 'hi' }), { status: 404 });
 
-        const first = await chat.post('e1', ann, { body: 'Running 10 min late', name: 'Ann' });
+        const first = await chat.post('e1', ann, { body: 'Running 10 min late' });
         assert.equal(first.count, 1);
         assert.equal(first.message.host, true);
         assert.equal(first.message.mine, true);
-        const second = await chat.post('e1', cleo, { body: 'Who brings the ball?', name: 'Cleo' });
+        const second = await chat.post('e1', cleo, { body: 'Who brings the ball?' });
         assert.equal(second.count, 2);
         assert.equal(second.message.host, false);
 
@@ -126,9 +128,9 @@ test('two people chat in an event, edit and delete their own, like, and the host
         assert.equal(JSON.stringify(open).includes('@'), false);
         const asCleo = await chat.list('e1', { email: cleo });
         assert.deepEqual(asCleo.me, { email: cleo, name: 'Cleo', host: false });
-        // Before a first post, the chat offers the name the address fills in for RSVPs.
-        await pool.query("INSERT INTO contacts (email, name) VALUES ('eve@lilai.test', 'Eve') ON CONFLICT (email) DO UPDATE SET name = 'Eve'");
-        assert.equal((await chat.list('e1', { email: 'eve@lilai.test' })).me.name, 'Eve');
+        // A name sent with a post is not used: the address's own name is.
+        assert.equal((await chat.post('e1', cleo, { body: 'x', name: 'Ann' })).message.name, 'Cleo');
+        await pool.query("DELETE FROM event_messages WHERE body = 'x'");
         assert.deepEqual(asCleo.messages.map(m => m.mine), [false, true]);
 
         // Only the author edits or deletes.
@@ -153,9 +155,9 @@ test('two people chat in an event, edit and delete their own, like, and the host
         assert.equal((await chat.remove('e1', first.message.id, ann)).count, 0);
 
         // Delete my email: the message stays under its name, and nobody can change it any more.
-        const kept = await chat.post('e1', cleo, { body: 'See you there', name: 'Cleo' });
+        const kept = await chat.post('e1', cleo, { body: 'See you there' });
         await chat.forget(cleo);
-        assert.equal((await pool.query('SELECT chat_name FROM contacts WHERE email = $1', [cleo])).rows[0].chat_name, null);
+        assert.equal((await pool.query('SELECT chat_prev_name FROM contacts WHERE email = $1', [cleo])).rows[0].chat_prev_name, null);
         await assert.rejects(chat.edit('e1', kept.message.id, cleo, { body: 'x' }), { status: 403 });
         assert.equal((await chat.list('e1', {})).messages[0].name, 'Cleo');
 
@@ -173,8 +175,85 @@ test('one address posts ten messages a minute', { skip: !scratch && 'no TEST_DAT
     try {
         await pool.query('TRUNCATE event_messages CASCADE');
         const chat = chatLib.createEventChat({ pool });
+        await pool.query("INSERT INTO contacts (email, name) VALUES ('dan@lilai.test', 'Dan') ON CONFLICT (email) DO UPDATE SET name = 'Dan'");
         for (let i = 0; i < 10; i++) await chat.post('e1', 'dan@lilai.test', { body: `m${i}`, name: 'Dan' }, { ip: '2.2.2.2' });
         await assert.rejects(chat.post('e1', 'dan@lilai.test', { body: 'one more', name: 'Dan' }, { ip: '2.2.2.2' }), { status: 429 });
+    } finally {
+        await pool.end();
+    }
+});
+
+test('a change of name shows as "was" for a week, then not', () => {
+    const at = new Date('2026-10-25T12:00:00Z');
+    const row = { chat_prev_name: 'Ann', chat_renamed_at: '2026-10-20T12:00:00Z' };
+    assert.equal(chatLib.previousName(row, at), 'Ann');
+    assert.equal(chatLib.previousName({ ...row, chat_renamed_at: '2026-10-17T12:00:00Z' }, at), null);
+    assert.equal(chatLib.previousName({ chat_prev_name: null, chat_renamed_at: null }, at), null);
+    // A message whose address was deleted shows no note.
+    assert.equal(chatLib.publicMessage({ ...row, id: 'm', author_name: 'Bob', author_email: null }, { at }).wasName, null);
+});
+
+test('a name belongs to its address: a new name renames every message and says what it was', { skip: !scratch && 'no TEST_DATABASE_URL' }, async () => {
+    const pool = new Pool({ connectionString: CONNECTION });
+    try {
+        await pool.query('TRUNCATE event_message_likes, event_messages, contacts CASCADE');
+        const soon = new Date(Date.now() + 3 * 24 * 3600 * 1000);
+        await pool.query(
+            `INSERT INTO events (id, title, date, host_email, managed) VALUES ('r1', 'Run', $1, 'h@lilai.test', TRUE), ('r2', 'Swim', $1, 'h@lilai.test', TRUE)
+             ON CONFLICT (id) DO UPDATE SET cancelled_at = NULL`,
+            [soon]
+        );
+        let clock = new Date();
+        const chat = chatLib.createEventChat({ pool, now: () => clock });
+        const contacts = createContacts({ pool, now: () => clock, onRename: chat.renameAuthor });
+        const bob = 'bob@lilai.test';
+        const names = async (id) => (await chat.list(id, {})).messages.map(m => [m.name, m.wasName]);
+        const rename = (name) => contacts.setName(bob, name);
+        await pool.query("INSERT INTO contacts (email, name) VALUES ($1, 'Bob')", [bob]);
+
+        await chat.post('r1', bob, { body: 'hi' });
+        await chat.post('r2', bob, { body: 'me too' });
+        assert.deepEqual(await names('r1'), [['Bob', null]]);
+
+        // Changing the name renames Bob's messages in both threads, and says so.
+        const asAnn = await rename('Ann');
+        assert.deepEqual(asAnn.renamedIn.sort(), ['r1', 'r2']);
+        await chat.post('r1', bob, { body: 'I am Ann now' });
+        assert.deepEqual(await names('r1'), [['Ann', 'Bob'], ['Ann', 'Bob']]);
+        assert.deepEqual(await names('r2'), [['Ann', 'Bob']]);
+
+        // A chain of changes within the week still shows where it started.
+        await rename('Carol');
+        assert.equal((await chat.list('r2', {})).messages[0].wasName, 'Bob');
+        // Capitals only: renamed, no new note.
+        await rename('CAROL');
+        assert.deepEqual(await names('r2'), [['CAROL', 'Bob']]);
+        // Back to the first name: the note goes.
+        await rename('Bob');
+        assert.deepEqual(await names('r2'), [['Bob', null]]);
+        // The same name again changes nothing.
+        assert.deepEqual((await rename('Bob')).renamedIn, []);
+
+        // Clearing the name renames nothing; a new name later is still noted against the messages.
+        await rename('');
+        assert.deepEqual(await names('r2'), [['Bob', null]]);
+        await assert.rejects(chat.post('r1', bob, { body: 'no name' }), { status: 409 });
+        await rename('Dan');
+        assert.deepEqual(await names('r2'), [['Dan', 'Bob']]);
+
+        // A week after the change the note is gone.
+        clock = new Date(clock.getTime() + 8 * 24 * 3600 * 1000);
+        assert.deepEqual(await names('r2'), [['Dan', null]]);
+        // A change after that starts a new note from the current name.
+        await rename('Eve');
+        assert.equal((await chat.list('r1', {})).messages[0].wasName, 'Dan');
+
+        // An address that never posted renames nothing.
+        assert.deepEqual((await contacts.setName('quiet@lilai.test', 'Q')).renamedIn, []);
+
+        // Delete my email: the names stay as they are, the note goes.
+        await chat.forget(bob);
+        assert.deepEqual((await names('r2')).map(([, was]) => was), [null]);
     } finally {
         await pool.end();
     }

@@ -178,7 +178,7 @@
 .ev-date-chip.is-cancelled span:first-child { text-decoration: line-through; }
 .ev-date-chip-count { font-size: 12px; color: var(--ink-2); }
 
-/* ---------- Find my events (/me) ---------- */
+/* ---------- Sign in (/me) ---------- */
 
 .me-form { margin-top: var(--s5); }
 /* On the bare page the field needs the raised paper, like .btn-line above. */
@@ -186,6 +186,7 @@
 .me-form[hidden] { display: none; }
 #me-sent .text-btn { margin-top: var(--s2); }
 .me-name { margin-top: var(--s4); }
+.me-back { margin-top: var(--s2); }
 .me-name .field { margin-top: 0; }
 .me-name-row { display: flex; gap: var(--s3); align-items: center; }
 .me-name-row .input { flex: 1 1 auto; min-width: 0; }

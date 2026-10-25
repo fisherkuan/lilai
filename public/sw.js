@@ -81,7 +81,7 @@ function isOurCode(url) {
             || url.pathname.startsWith('/api/'));
 }
 
-// Management, calendar and Find my events pages, and their answers, carry a secret link or a
+// Management, calendar and sign-in pages, and their answers, carry a secret link or a
 // person's events: never into Cache Storage. Nor does an event's chat, which says who is signed in.
 function isHostTraffic(url) {
     return url.origin === self.location.origin

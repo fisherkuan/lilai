@@ -1,5 +1,5 @@
 // Chat in an event: the slide-in thread behind each card's chat button (index.html #chat-sheet).
-// Anyone reads and likes; posting needs this device signed in with an email (Find my events'
+// Anyone reads and likes; posting needs this device signed in with an email (the sign-in
 // session), so a name in the thread is backed by an address. The author edits or deletes their
 // own messages. Messages arrive live over Home's WebSocket (app.js calls EventChat.onBroadcast).
 // Opens from a card's [data-chat] button and from /#chat-<id>, where a chat sign-in link lands.
@@ -7,7 +7,6 @@
     'use strict';
 
     const LIKER_KEY = 'lilai.likerKey';
-    const NAME_KEY = 'lilai.attendeeName';
     const MAX_BODY = 1000;
 
     // "19:02" today, "Sat 3 Oct, 19:02" before. Pure, for the tests.
@@ -23,7 +22,7 @@
         return messages.map((m, i) => {
             const prev = messages[i - 1];
             if (!prev) return true;
-            const sameAuthor = prev.name === m.name && prev.mine === m.mine && prev.host === m.host;
+            const sameAuthor = prev.name === m.name && prev.wasName === m.wasName && prev.mine === m.mine && prev.host === m.host;
             return !sameAuthor || new Date(m.at) - new Date(prev.at) > 5 * 60 * 1000;
         });
     }
@@ -97,7 +96,9 @@
         if (first) cls.push('is-first');
         if (shownIds && !shownIds.has(m.id)) cls.push('is-new');
         const head = first
-            ? `<p class="chat-meta"><span class="chat-name">${escapeHtml(m.name)}</span>${m.host ? '<span class="chat-host">Host</span>' : ''}</p>`
+            ? `<p class="chat-meta"><span class="chat-name">${escapeHtml(m.name)}</span>`
+              + `${m.wasName ? `<span class="chat-was">was ${escapeHtml(m.wasName)}</span>` : ''}`
+              + `${m.host ? '<span class="chat-host">Host</span>' : ''}</p>`
             : '';
         const editing = m.id === editingId;
         const bubble = editing
@@ -134,17 +135,18 @@
         if (stick || nearBottom) list.scrollTop = list.scrollHeight;
     }
 
+    // The name is the address's own, set on the sign-in page; the chat only shows it. Its
+    // links come back to this thread.
     function renderFoot() {
         const signedIn = Boolean(me);
-        $('chat-form').hidden = !signedIn;
+        const named = signedIn && Boolean(me.name);
+        $('chat-form').hidden = !named;
+        $('chat-noname').hidden = !signedIn || named;
         $('chat-signin').hidden = signedIn;
-        if (signedIn) {
-            const name = me.name || '';
-            $('chat-name').value = $('chat-name').value || name || stored(NAME_KEY);
-            $('chat-name-field').hidden = Boolean(name);
-            $('chat-as').hidden = !name;
-            $('chat-as-name').textContent = name;
-        }
+        const back = `/me?next=${encodeURIComponent(`/#chat-${eventId}`)}`;
+        $('chat-rename').href = back;
+        $('chat-addname').href = back;
+        if (named) $('chat-as-name').textContent = me.name;
     }
 
     // ---------- Loading ----------
@@ -242,30 +244,21 @@
         showError('chat-error', '');
         const input = $('chat-input');
         const body = input.value.trim();
-        const name = ($('chat-name').value || '').trim() || (me && me.name) || '';
-        if (!name) {
-            $('chat-name-field').hidden = false;
-            $('chat-as').hidden = true;
-            $('chat-name').focus();
-            return showError('chat-error', 'Type your name, so people know who wrote.');
-        }
         if (!body) return input.focus();
         const button = $('chat-send');
         button.disabled = true;
         try {
-            const { status, ok, result } = await api('', { method: 'POST', body: JSON.stringify({ body, name }) });
-            if (status === 401) {
-                me = null;
+            const { status, ok, result } = await api('', { method: 'POST', body: JSON.stringify({ body }) });
+            if (status === 401 || (status === 409 && result.field === 'name')) {
+                me = status === 401 ? null : { ...me, name: '' };
                 renderFoot();
                 return;
             }
             if (!ok) return showError('chat-error', result.message || 'That did not go through. Try again.');
             input.value = '';
             autosize(input);
-            me = { ...me, name: result.message.name };
             if (!messages.some(m => m.id === result.message.id)) messages.push(result.message);
             render({ stick: true });
-            renderFoot();
             setCount(eventId, result.count);
             input.focus();
         } catch (_) {
@@ -447,12 +440,6 @@
     });
     $('chat-form').addEventListener('submit', send);
     $('chat-signin').addEventListener('submit', askLink);
-    $('chat-rename').addEventListener('click', () => {
-        $('chat-as').hidden = true;
-        $('chat-name-field').hidden = false;
-        $('chat-name').focus();
-        $('chat-name').select();
-    });
     const input = $('chat-input');
     input.addEventListener('input', () => autosize(input));
     // Enter sends on a keyboard; Shift+Enter is a new line. Phones keep Enter as a new line.

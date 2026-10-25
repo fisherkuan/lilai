@@ -1,4 +1,4 @@
-// Find my events (/me): type an email, open the emailed link (/me/signin/<token>), and this
+// The sign-in page (/me, the header's Sign in or My events): type an email, open the emailed link (/me/signin/<token>), and this
 // device lists the events that address hosts. Manage mints a fresh management link and keeps
 // it under "You manage" (js/device-links.js). Sign out ends this device's session; Delete my
 // email takes the address off every event and signs out every device.
@@ -48,7 +48,7 @@
     }
 
     function showOnly(id) {
-        for (const section of ['me-ask', 'me-redeem', 'me-list']) $(section).hidden = section !== id;
+        for (const section of ['me-ask', 'me-redeem', 'me-name-step', 'me-list']) $(section).hidden = section !== id;
         showState('');
     }
 
@@ -89,7 +89,7 @@
             const { ok, result } = await api('/api/me/link', { method: 'POST', body: JSON.stringify({ email: typed }) });
             if (!ok) return showError('me-error', result.message || 'That did not go through. Try again.');
             $('me-form').hidden = true;
-            $('me-sent-text').textContent = `If ${typed} made an event on Lilai, a link is on its way. It works once, for 30 minutes.`;
+            $('me-sent-text').textContent = `If ${typed} is on Lilai, a link is on its way. It works once, for 30 minutes.`;
             $('me-sent').hidden = false;
             $('me-sent').focus();
         } catch (_) {
@@ -114,14 +114,46 @@
                 button.disabled = false;
                 return;
             }
-            if (next) {
-                location.replace(next);
+            // The header's "My events" link, even when this goes straight back to a chat.
+            AccountLink.remember(result.email);
+            // The email's one name is asked here, once, not in each chat.
+            if (!result.name) {
+                showOnly('me-name-step');
+                $('me-first-name').value = stored(NAME_KEY);
+                $('me-first-name').focus();
                 return;
             }
-            history.replaceState(null, '', '/me');
-            await load();
+            await goOn();
         } catch (_) {
             showError('me-redeem-error', 'No connection. Check your network and try again.');
+            button.disabled = false;
+        }
+    }
+
+    // After sign-in: back to the chat the link came from, else this device's events.
+    async function goOn() {
+        if (next) {
+            location.replace(next);
+            return;
+        }
+        history.replaceState(null, '', '/me');
+        await load();
+    }
+
+    async function saveFirstName(e) {
+        e.preventDefault();
+        showError('me-first-name-error', '');
+        const typed = $('me-first-name').value.trim();
+        if (!typed) return showError('me-first-name-error', 'Type your name, or skip for now.');
+        const button = $('me-first-name-save');
+        button.disabled = true;
+        try {
+            const { ok, result } = await api('/api/me/name', { method: 'PUT', body: JSON.stringify({ name: typed }) });
+            if (!ok) throw new Error(result.message || 'That did not go through. Try again.');
+            store(NAME_KEY, result.name);
+            await goOn();
+        } catch (error) {
+            showError('me-first-name-error', error.message === 'Failed to fetch' ? 'No connection. Check your network and try again.' : error.message);
             button.disabled = false;
         }
     }
@@ -144,6 +176,9 @@
         AccountLink.remember(email);
         $('me-who').textContent = `Signed in as ${email}`;
         $('me-name').value = data.name || '';
+        savedName = data.name || '';
+        chatMessages = data.chatMessages || 0;
+        nameHint();
         // This device fills in what it does not know yet; what it was told stays.
         if (!stored(NAME_KEY) && data.name) store(NAME_KEY, data.name);
         if (!stored(EMAIL_KEY)) store(EMAIL_KEY, email);
@@ -203,9 +238,15 @@
             if (status === 401) return showAsk();
             if (!ok) throw new Error(result.message || 'That did not go through. Try again.');
             $('me-name').value = result.name;
+            savedName = result.name;
             store(NAME_KEY, result.name);
+            // Came from a chat to set the name: back to it.
+            if (next.startsWith('/#chat-') && result.name) {
+                location.replace(next);
+                return;
+            }
             $('me-name-hint').textContent = 'Saved.';
-            setTimeout(() => { $('me-name-hint').textContent = 'Filled in when you join or make an event.'; }, 2000);
+            setTimeout(nameHint, 2000);
         } catch (error) {
             showError('me-list-error', error.message);
         } finally {
@@ -241,6 +282,25 @@
         } finally {
             button.disabled = false;
         }
+    }
+
+    // The name field says what a change does: a caveat, so it earns a line.
+    let savedName = '';
+    let chatMessages = 0;
+    function nameHint() {
+        const typed = $('me-name').value.trim();
+        const renames = chatMessages > 0 && savedName && typed && typed.toLowerCase() !== savedName.toLowerCase();
+        $('me-name-hint').textContent = renames
+            ? `Your chat messages change to ${typed} too, marked "was ${savedName}" for a week.`
+            : chatMessages > 0 ? 'Shown on your chat messages, and filled in when you join or make an event.'
+                : 'Filled in when you join or make an event, and shown when you post in a chat.';
+    }
+    $('me-name').addEventListener('input', nameHint);
+    $('me-first-name-form').addEventListener('submit', saveFirstName);
+    $('me-first-name-skip').addEventListener('click', goOn);
+    if (next.startsWith('/#chat-')) {
+        $('me-back').href = next;
+        $('me-back').hidden = false;
     }
 
     $('me-form').addEventListener('submit', sendLink);
