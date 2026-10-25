@@ -537,7 +537,6 @@ function setupFilterPills() {
  * Anyone who reads this file learns the path. That is the accepted cost, and it is the same
  * audience that would have typed /admin anyway.
  */
-const ADMIN_HOME = '/admin/bookings';
 const ADMIN_FLAG_KEY = 'lilaiOrganizer';
 const ORGANIZER_TAPS = 5;
 const ORGANIZER_TAP_WINDOW_MS = 3000;
@@ -574,20 +573,9 @@ function setupAdminLink() {
     listenForOrganizerTaps();
 }
 
+// The link itself lives in js/account-link.js, so every page with the header shows it.
 function showAdminLink(on) {
-    document.querySelectorAll('.app-header-links').forEach(nav => {
-        const existing = nav.querySelector('[data-admin-link]');
-        if (!on) {
-            if (existing) existing.remove();
-            return;
-        }
-        if (existing) return;
-        const link = document.createElement('a');
-        link.href = ADMIN_HOME;
-        link.textContent = 'Admin';
-        link.dataset.adminLink = 'true';
-        nav.appendChild(link);
-    });
+    if (window.AccountLink) window.AccountLink.showAdmin(on);
 }
 
 function listenForOrganizerTaps() {

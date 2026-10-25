@@ -74,7 +74,7 @@ Vanilla JavaScript with no build step.
 **Structure:**
 - `index.html` + `app.js` - Main event listing and RSVP interface
 - `admin-donations.html` + `js/admin-donations.js` - Donation management
-- `js/account-link.js` - The header's account link on every public page (Home, FAQ, Donate, host, calendar, sign-in): "Sign in", or "Profile" once this device signed in on `/me`; both open `/me`. Home's sidebar "Sign in" link (`[data-signed-out]`) hides once signed in. The cookie is HttpOnly, so `js/me.js` keeps the note in `lilai.signedIn`. Admin pages keep their own sign-in
+- `js/account-link.js` - The header's account link on every public page (Home, FAQ, Donate, host, calendar, sign-in): "Sign in", or "Profile" once this device signed in on `/me`; both open `/me`. It also adds "Admin" (to `/admin/bookings`) on all of them while the device carries the organiser flag (`lilaiOrganizer`, set on Home by `?admin=1` or five taps on its heading); below 360px the wordmark drops its name to make room. Home's sidebar "Sign in" link (`[data-signed-out]`) hides once signed in. The cookie is HttpOnly, so `js/me.js` keeps the note in `lilai.signedIn`. Admin pages keep their own sign-in
 - `admin-login.html` + `js/admin-login.js` - Admin sign-in (`/admin/login?next=`): email, then the six-digit code (a full code signs in by itself)
 - `js/admin-session.js` - On Donations and Places: who is signed in, Sign out, and `AdminSession.adminFetch` (a 401 goes back to sign-in)
 - `admin-places.html` + `js/admin-places.js` - The saved places (`/admin/places`, signed in): add (with "Find on Google Maps" filling name and address), edit, reorder, remove
