@@ -71,6 +71,17 @@
         <p class="ev-eyebrow" id="me-who"></p>
         <h1>Your events</h1>
 
+        <form id="me-name-form" class="me-form me-name" novalidate>
+            <div class="field">
+                <label for="me-name">Your name</label>
+                <div class="me-name-row">
+                    <input type="text" id="me-name" class="input" maxlength="100" autocomplete="name">
+                    <button type="submit" class="btn btn-line" id="me-name-save">Save</button>
+                </div>
+                <p class="ev-hint" id="me-name-hint">Filled in when you join or make an event.</p>
+            </div>
+        </form>
+
         <section class="ev-requests" aria-labelledby="me-upcoming-title">
             <div class="section-head">
                 <h2 class="section-title" id="me-upcoming-title">You host</h2>

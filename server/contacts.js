@@ -86,6 +86,9 @@ async function createContactsSchema(client) {
             used_at TIMESTAMPTZ
         )`);
     await client.query('CREATE INDEX IF NOT EXISTS idx_contact_tokens_email ON contact_tokens(email, created_at)');
+    // The name a signed-in device fills in for RSVPs and new events. Set only through a proven
+    // address: on sign-in from the latest event's host name, then by the person.
+    await client.query('ALTER TABLE contacts ADD COLUMN IF NOT EXISTS name VARCHAR(100)');
     await client.query(`
         CREATE TABLE IF NOT EXISTS device_sessions (
             token_hash CHAR(64) PRIMARY KEY,
@@ -188,6 +191,12 @@ function createContacts({ pool, env = process.env, fetchImpl = fetch, now = () =
                  ON CONFLICT (email) DO UPDATE SET verified_at = COALESCE(contacts.verified_at, $2), deleted_at = NULL`,
                 [email, now()]
             );
+            await client.query(
+                `UPDATE contacts SET name = (SELECT host_name FROM events WHERE lower(host_email) = $1 AND host_name IS NOT NULL
+                                             ORDER BY created_in_app_at DESC NULLS LAST, date DESC LIMIT 1)
+                 WHERE email = $1 AND name IS NULL`,
+                [email]
+            );
             const session = hosting.newToken();
             await client.query(
                 'INSERT INTO device_sessions (token_hash, email, created_at, last_seen_at, expires_at, user_agent) VALUES ($1, $2, $3, $3, $4, $5)',
@@ -224,6 +233,19 @@ function createContacts({ pool, env = process.env, fetchImpl = fetch, now = () =
         const token = parseCookies(req.headers.cookie)[COOKIE];
         if (hosting.looksLikeToken(token)) await pool.query('DELETE FROM device_sessions WHERE token_hash = $1', [hosting.hashToken(token)]);
         res.set('Set-Cookie', sessionCookie('', { secure, maxAgeMs: 0 }));
+    }
+
+    // What a signed-in device fills in: { email, name }.
+    async function profileOf(email) {
+        const row = (await pool.query('SELECT name FROM contacts WHERE email = $1', [email])).rows[0];
+        return { email, name: row?.name || '' };
+    }
+
+    // An empty name clears it.
+    async function setName(email, nameInput) {
+        const name = String(nameInput ?? '').trim().slice(0, 100) || null;
+        await pool.query('UPDATE contacts SET name = $2 WHERE email = $1', [email, name]);
+        return name || '';
     }
 
     // Every event the address hosts (upcoming, and the last year's past ones) and every
@@ -285,7 +307,7 @@ function createContacts({ pool, env = process.env, fetchImpl = fetch, now = () =
             await client.query('DELETE FROM contact_tokens WHERE email = $1', [email]);
             await client.query(
                 `INSERT INTO contacts (email, deleted_at) VALUES ($1, $2)
-                 ON CONFLICT (email) DO UPDATE SET verified_at = NULL, deleted_at = $2`,
+                 ON CONFLICT (email) DO UPDATE SET verified_at = NULL, deleted_at = $2, name = NULL`,
                 [email, now()]
             );
             await client.query('COMMIT');
@@ -297,7 +319,7 @@ function createContacts({ pool, env = process.env, fetchImpl = fetch, now = () =
         }
     }
 
-    return { requestSignIn, redeem, emailOf, signIn, signOut, eventsOf, manageLink, forget };
+    return { requestSignIn, redeem, emailOf, signIn, signOut, profileOf, setName, eventsOf, manageLink, forget };
 }
 
 module.exports = {
