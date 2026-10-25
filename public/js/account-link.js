@@ -39,7 +39,7 @@
         const yes = signedIn();
         document.querySelectorAll('[data-account-link]').forEach((a) => {
             const label = yes ? 'Profile' : 'Sign in';
-            if (root.Sprites) root.Sprites.iconize(a, 'head', label);
+            if (root.Sprites) root.Sprites.iconize(a, yes ? 'head' : 'ghost', label);
             else a.textContent = label;
         });
         document.querySelectorAll('[data-signed-out]').forEach((a) => { a.hidden = yes; });

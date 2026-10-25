@@ -1,7 +1,7 @@
 /*
  * The header's icons as 16x16 pixel sprites, in a Super Mario spirit (owner, 2026-10-25):
- * FAQ a ? block, Donate a coin over a brick, Sign in / Profile a capped head, Report a bug a
- * Goomba-like critter, Admin a star. Drawn for Lilai, not traced from the games.
+ * Report a bug a Goomba-like critter (first), FAQ a ? block, Donate a coin, Sign in a ghost
+ * and Profile a capped head (the account link swaps them), Admin a star (last). Drawn for Lilai, not traced from the games.
  *
  * Each sprite is rows of palette letters ('.' is empty); `Sprites.svg(name)` turns one into an
  * inline SVG of 1x1 squares, one path per colour. The colours are fixed: a sprite looks the
@@ -46,6 +46,15 @@
                 '.RRRRWRWRWRWRRRr', '.rrrrrrrrrrrrrrr', '..HKKKSSSSKKKH..', '.SHSSESSSSESSHS.',
                 '.SHSSESSSSESSHS.', '..HSSSSWsSSSSH..', '..SKKKKssKKKKS..', '..SKKKKKKKKKKS..',
                 '...SSKKKKKKSS...', '....ssSSSSss....', '..RRBBRRRRBBRR..', '.RRRBYBBBBYBRRR.'
+            ]
+        },
+        ghost: {
+            pal: { K: '#111111', W: '#ffffff', G: '#a8a8a8', R: '#f0283c' },
+            rows: [
+                '.....KKKKKK.....', '...KKWWWWWWKK...', '..KGWWWWWWWWWK..', '.KGWWWWWWWKWKWK.',
+                '.KGWWWWWWWKWKWK.', 'KGWKKWWWWWWWWWWK', 'KGKWWKWWWRWRWRWK', 'KGKWWWWWRRRRRRWK',
+                'KGWKWWWWRRRRRRWK', 'KGWWWWWWRRWRRWWK', '.KGWWWWWWRWWRWK.', '.KGGGWWWWWWWWK..',
+                '..KKGGGWWWWWKK..', '....KKGGGGKK....', '......KKKK......', '................'
             ]
         },
         goomba: {

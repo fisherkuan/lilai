@@ -193,7 +193,7 @@
     function render() {
         const footer = document.querySelector('.colophon');
         if (!footer) return;
-        // At the end of the header, after the links (and Admin, which account-link.js adds).
+        // In the header: the bug leads the icons.
         const masthead = document.querySelector('.masthead');
         if (masthead) {
             const bug = document.createElement('button');
@@ -204,8 +204,8 @@
             bug.innerHTML = window.Sprites ? window.Sprites.svg('goomba') : BUG_ICON;
             bug.classList.toggle('hdr-icon', Boolean(window.Sprites));
             bug.addEventListener('click', open);
-            // Admin, when account-link.js has added it, stays the very last.
-            masthead.insertBefore(bug, masthead.querySelector('[data-admin-link]'));
+            // First after the wordmark, ahead of the links (owner, 2026-10-25).
+            masthead.insertBefore(bug, masthead.querySelector('.app-header-links') || masthead.querySelector('[data-admin-link]'));
         }
         const btn = document.createElement('button');
         btn.type = 'button';

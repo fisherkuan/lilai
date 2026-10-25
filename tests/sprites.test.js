@@ -15,7 +15,7 @@ function load() {
 
 test('every header sprite draws on a 16x16 grid with its own colours', () => {
     const Sprites = load();
-    for (const name of ['star', 'question', 'coin', 'head', 'goomba']) {
+    for (const name of ['star', 'question', 'coin', 'head', 'ghost', 'goomba']) {
         const svg = Sprites.svg(name);
         assert.match(svg, /viewBox="0 0 16 16"/, name);
         assert.doesNotMatch(svg, /fill="undefined"/, `${name} uses a letter missing from its palette`);
