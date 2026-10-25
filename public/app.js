@@ -94,6 +94,8 @@ function initializeApp() {
     prefetchedEvents = fetchFutureEvents();
     prefetchedRail = fetchRailEvents();
 
+    checkAdminDevice();
+
     loadConfig().then(() => {
         buildCalendarStyles();
         setupCalendar();
@@ -109,6 +111,36 @@ function initializeApp() {
     if (document.fonts && document.fonts.ready) {
         document.fonts.ready.then(syncDescriptionToggles);
     }
+}
+
+// An admin (ADMIN_EMAILS) signed in on this device sees Manage on every card, as a silent
+// co-host. Asked only when the device notes a sign-in, so nobody else sends a request for it.
+let adminDevice = false;
+function checkAdminDevice() {
+    if (!window.AccountLink || !AccountLink.signedIn()) return;
+    fetch(`${API_BASE_URL}/api/admin/session`, { cache: 'no-store' })
+        .then(r => {
+            if (!r.ok) return;
+            adminDevice = true;
+            if (currentEvents.length) displayEvents();
+        })
+        .catch(() => {});
+}
+
+async function manageEvent(button) {
+    button.disabled = true;
+    try {
+        const res = await fetch(`${API_BASE_URL}/api/me/events/${encodeURIComponent(button.dataset.eventId)}/manage`, { method: 'POST' });
+        const body = await res.json().catch(() => ({}));
+        if (res.ok && body.hostPath) {
+            window.location.href = body.hostPath;
+            return;
+        }
+        alert(body.message || 'Could not open its management page.');
+    } catch (_) {
+        alert('Could not open its management page. Check your connection.');
+    }
+    button.disabled = false;
 }
 
 // ---------- Config ----------
@@ -913,7 +945,12 @@ function renderEventCard(event, { isPast, isToday, prevNames }) {
         ? `<p class="waitlist-note">${escapeHtml(mine)} is ${ordinal(place)} on the waiting list</p>`
         : '';
 
-    let actions = `<div class="event-actions">${chat}</div>`;
+    // Admins only: a key opens the event's management page (checkAdminDevice).
+    const manage = adminDevice
+        ? `<button type="button" class="icon-action manage-trigger" data-event-id="${sanitizedEventId}" aria-label="Manage" title="Manage">`
+            + '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="12" r="3.5"/><path d="M11.5 12H21M18 12v3M15 12v2"/></svg></button>'
+        : '';
+    let actions = `<div class="event-actions">${chat}${manage}</div>`;
     if (!isPast) {
         // Every event carries the same weight: no lead event, no solid Join.
         const join = `<button type="button" class="btn btn-line rsvp-trigger-add" data-event-id="${sanitizedEventId}">${joinLabel(event)}</button>`;
@@ -923,7 +960,7 @@ function renderEventCard(event, { isPast, isToday, prevNames }) {
             ? `<button type="button" class="icon-action rsvp-trigger-remove" data-event-id="${sanitizedEventId}" aria-label="Remove a name" title="Remove a name">`
                 + '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 4.5H5.5v15H13M10 12h10M16.5 8.5 20 12l-3.5 3.5"/></svg></button>'
             : '';
-        actions = `<div class="event-actions">${join}${remove}${chat}</div>`;
+        actions = `<div class="event-actions">${join}${remove}${chat}${manage}</div>`;
     }
 
     const classes = ['event', `tone-${st.tone}`];
@@ -1243,6 +1280,12 @@ function setupEventListeners() {
             const ev = currentEvents.find(x => x.id === addBtn.dataset.eventId);
             if (!ev || new Date(ev.date) < new Date()) return;
             openRsvpModal(ev.id);
+            return;
+        }
+
+        const manageBtn = e.target.closest('.manage-trigger');
+        if (manageBtn) {
+            manageEvent(manageBtn);
             return;
         }
 

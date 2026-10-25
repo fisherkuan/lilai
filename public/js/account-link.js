@@ -55,5 +55,5 @@
 
     refresh();
     showAdmin();
-    root.AccountLink = { remember, refresh, showAdmin };
+    root.AccountLink = { remember, refresh, showAdmin, signedIn };
 })(window);

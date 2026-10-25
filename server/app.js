@@ -2965,11 +2965,16 @@ app.put('/api/me/name', async (req, res) => {
     res.json({ success: true, name });
 });
 
+// An admin (ADMIN_EMAILS, signed in on /me or the admin) may manage any event: Home's cards
+// show them Manage.
 app.post('/api/me/events/:eventId/manage', async (req, res) => {
-    const email = await contacts.emailOf(req);
+    const admin = await adminAuth.adminOf(req);
+    const email = admin || await contacts.emailOf(req);
     if (!email) return res.status(401).json({ success: false, message: 'Sign in again.' });
-    const hostPath = await contacts.manageLink(email, req.params.eventId);
-    if (!hostPath) return res.status(404).json({ success: false, message: 'That event is not one of yours.' });
+    const hostPath = await contacts.manageLink(email, req.params.eventId, { anyEvent: Boolean(admin) });
+    if (!hostPath) {
+        return res.status(404).json({ success: false, message: admin ? 'Lilai does not own that event yet.' : 'That event is not one of yours.' });
+    }
     res.status(201).json({ success: true, hostPath });
 });
 
