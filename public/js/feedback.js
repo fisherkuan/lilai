@@ -17,7 +17,7 @@
         too_large: 'Files must add up to under 10 MB',
         bad_email: 'That email address does not look right'
     };
-    // splitly's bug (src/components/icons.tsx, 2026-10): body, head, legs, on a 24 grid.
+    // Without js/sprites.js (the Goomba): splitly's bug (src/components/icons.tsx, 2026-10).
     const BUG_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 9h8v6a4 4 0 0 1-8 0zM9.5 9V7a2.5 2.5 0 0 1 5 0v2M12 12v7M4 13h4M16 13h4M5 7l3 2M19 7l-3 2M5 19l3-2M19 19l-3-2"/></svg>';
     const CLOSE_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>';
 
@@ -201,9 +201,11 @@
             bug.className = 'icon-btn report-bug';
             bug.setAttribute('aria-label', 'Report a bug');
             bug.title = 'Report a bug';
-            bug.innerHTML = BUG_ICON;
+            bug.innerHTML = window.Sprites ? window.Sprites.svg('goomba') : BUG_ICON;
+            bug.classList.toggle('hdr-icon', Boolean(window.Sprites));
             bug.addEventListener('click', open);
-            masthead.appendChild(bug);
+            // Admin, when account-link.js has added it, stays the very last.
+            masthead.insertBefore(bug, masthead.querySelector('[data-admin-link]'));
         }
         const btn = document.createElement('button');
         btn.type = 'button';
