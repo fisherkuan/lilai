@@ -1748,6 +1748,23 @@ html.sheet-locked body {
     font-variant-numeric: tabular-nums;
     cursor: pointer;
 }
+/* A card action drawn as an icon, in the chat icon's line (Remove a name). */
+.icon-action {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    min-height: 40px;
+    border: 0;
+    border-radius: var(--radius-full);
+    background: none;
+    color: var(--ink);
+    cursor: pointer;
+}
+.icon-action svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.5px; stroke-linecap: round; stroke-linejoin: round; }
+.icon-action:hover { background: var(--wash); }
+.icon-action:focus-visible { outline: var(--stroke-2) solid var(--focus); outline-offset: 2px; }
+
 .chat-trigger svg { width: 22px; height: 22px; fill: none; stroke: var(--ink); stroke-width: 1.5px; stroke-linejoin: round; }
 .chat-trigger:hover { background: var(--wash); }
 .chat-count:empty { display: none; }

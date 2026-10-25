@@ -916,7 +916,10 @@ function renderEventCard(event, { isPast, isToday, prevNames }) {
         // Every event carries the same weight: no lead event, no solid Join.
         const join = `<button type="button" class="btn btn-line rsvp-trigger-add" data-event-id="${sanitizedEventId}">${joinLabel(event)}</button>`;
         const remove = attendingCount > 0 || waitlist.length > 0
-            ? `<button type="button" class="text-btn rsvp-trigger-remove" data-event-id="${sanitizedEventId}">Remove a name</button>`
+            // An icon, so the row keeps to one line on a phone (owner, 2026-10-25): leave, an
+            // arrow out of a door. The name stays for screen readers and the hover tip.
+            ? `<button type="button" class="icon-action rsvp-trigger-remove" data-event-id="${sanitizedEventId}" aria-label="Remove a name" title="Remove a name">`
+                + '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 4.5H5.5v15H13M10 12h10M16.5 8.5 20 12l-3.5 3.5"/></svg></button>'
             : '';
         actions = `<div class="event-actions">${join}${remove}${chat}</div>`;
     }

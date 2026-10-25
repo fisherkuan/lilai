@@ -365,7 +365,8 @@ Soft, sentence case, outlined or filled in ink, as in the kit. Hover swaps fills
 - **Event buttons:** inside an event the button steps down to 40px tall with 16px side padding, since every event carries one.
 - **Hover:** the fills swap. Solid turns paper with an ink label; line turns ink with a paper label. 140ms on the system ease.
 - **Disabled:** clear ground, line-grey border, ink-muted label. A full event shows a disabled "Full" button in place of Join.
-- **Text button:** 14px 500 ink with a 1px underline offset 3px, 2px on hover, 44px tall. Used for Refresh, Remove a name, Show more, Load earlier events, Cancel, Keep it and the visible booking row actions.
+- **Icon action:** a 44 by 40px round tap area holding a 22px icon in the chat icon's 1.5px line, with its name as `aria-label` and hover tip. Remove a name on a card is the leave icon, an arrow out of a door, so the card's row keeps to one line on a phone (owner, 2026-10-25).
+- **Text button:** 14px 500 ink with a 1px underline offset 3px, 2px on hover, 44px tall. Used for Refresh, Show more, Load earlier events, Cancel, Keep it and the visible booking row actions.
 - **Icon button:** a 44px square holding a 22px ink line SVG (1.5px, square caps), with a stone ground on hover.
 - **Focus:** every control gets a 2px focus-blue outline offset 2px.
 
