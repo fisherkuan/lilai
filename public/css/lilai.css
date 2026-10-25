@@ -1781,6 +1781,8 @@ html.sheet-locked body {
     font-size: 13px;
     font-weight: 600;
 }
+.chat-was { font-weight: 400; color: var(--ink-2); }
+.chat-name-hint { margin-top: var(--s2); font-size: 13px; color: var(--ink-2); }
 .chat-host {
     padding: 0 var(--s2);
     border: 1px solid var(--ink);

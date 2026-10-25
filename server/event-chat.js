@@ -7,6 +7,10 @@
 // host removes any message from the management page. A like belongs to a device (a random key
 // it keeps), stored as a hash, one per message.
 //
+// A name belongs to its address, not to a message: every message shows the name its address
+// uses now, so posting as someone and switching back renames that message too. A change of name
+// shows as "Bob (was Ann)" for RENAME_NOTE_DAYS, so a switch cannot pass unseen.
+//
 // Messages are kept until 180 days after the event, then deleted with their likes.
 
 const crypto = require('crypto');
@@ -14,6 +18,8 @@ const crypto = require('crypto');
 const MAX_BODY = 1000;
 const MAX_NAME = 60;
 const KEEP_DAYS = 180;
+const RENAME_NOTE_DAYS = 7;
+const DAY_MS = 24 * 3600 * 1000;
 const MINUTE_MS = 60 * 1000;
 const POSTS_PER_MINUTE = 10;      // per address
 const IP_POSTS_PER_MINUTE = 30;   // per network
@@ -48,13 +54,20 @@ function likerHash(key) {
     return crypto.createHash('sha256').update(`liker:${text}`).digest('hex');
 }
 
+// The name an address used before, while its change is recent enough to show.
+function previousName(row, at = new Date()) {
+    if (!row.chat_prev_name || !row.chat_renamed_at) return null;
+    return at - new Date(row.chat_renamed_at) < RENAME_NOTE_DAYS * DAY_MS ? row.chat_prev_name : null;
+}
+
 // What anyone may see of a message. The author's address never leaves the server.
-function publicMessage(row, { email = null, hostEmail = null } = {}) {
+function publicMessage(row, { email = null, hostEmail = null, at = new Date() } = {}) {
     const author = row.author_email || null;
     return {
         id: row.id,
         eventId: row.event_id,
         name: row.author_name,
+        wasName: author ? previousName(row, at) : null,
         body: row.body,
         at: row.created_at,
         editedAt: row.edited_at || null,
@@ -87,6 +100,9 @@ async function createChatSchema(client) {
         )`);
     // The name a signed-in address last posted under, offered the next time.
     await client.query(`ALTER TABLE contacts ADD COLUMN IF NOT EXISTS chat_name VARCHAR(${MAX_NAME})`);
+    // The name before the latest change and when it changed, for "(was Ann)".
+    await client.query(`ALTER TABLE contacts ADD COLUMN IF NOT EXISTS chat_prev_name VARCHAR(${MAX_NAME})`);
+    await client.query('ALTER TABLE contacts ADD COLUMN IF NOT EXISTS chat_renamed_at TIMESTAMPTZ');
 }
 
 function createEventChat({ pool, now = () => new Date() }) {
@@ -118,12 +134,13 @@ function createEventChat({ pool, now = () => new Date() }) {
 
     const SELECT = `SELECT m.*,
             (SELECT COUNT(*) FROM event_message_likes l WHERE l.message_id = m.id)::int AS likes,
-            EXISTS (SELECT 1 FROM event_message_likes l WHERE l.message_id = m.id AND l.liker_hash = $2) AS liked
-        FROM event_messages m`;
+            EXISTS (SELECT 1 FROM event_message_likes l WHERE l.message_id = m.id AND l.liker_hash = $2) AS liked,
+            c.chat_prev_name, c.chat_renamed_at
+        FROM event_messages m LEFT JOIN contacts c ON c.email = m.author_email`;
 
     async function one(db, id, { email, hostEmail, liker = null }) {
         const row = (await db.query(`${SELECT} WHERE m.id = $1`, [id, liker])).rows[0];
-        return row ? publicMessage(row, { email, hostEmail }) : null;
+        return row ? publicMessage(row, { email, hostEmail, at: now() }) : null;
     }
 
     async function count(eventId, db = pool) {
@@ -145,7 +162,7 @@ function createEventChat({ pool, now = () => new Date() }) {
             const name = contact?.chat_name || String(contact?.name || '').slice(0, MAX_NAME);
             me = { email, name, host: email === String(event.host_email || '').toLowerCase() };
         }
-        return { messages: rows.rows.map(r => publicMessage(r, { email, hostEmail: event.host_email })), me };
+        return { messages: rows.rows.map(r => publicMessage(r, { email, hostEmail: event.host_email, at: now() })), me };
     }
 
     async function post(eventId, email, input, { ip } = {}) {
@@ -157,16 +174,72 @@ function createEventChat({ pool, now = () => new Date() }) {
         }
         const event = await openEvent(pool, eventId);
         const id = crypto.randomUUID();
-        await pool.query(
-            'INSERT INTO event_messages (id, event_id, author_email, author_name, body, created_at) VALUES ($1, $2, $3, $4, $5, $6)',
-            [id, event.id, email, name, body, now()]
+        const client = await pool.connect();
+        let renamedIn = [];
+        try {
+            await client.query('BEGIN');
+            renamedIn = await useName(client, email, name);
+            await client.query(
+                'INSERT INTO event_messages (id, event_id, author_email, author_name, body, created_at) VALUES ($1, $2, $3, $4, $5, $6)',
+                [id, event.id, email, name, body, now()]
+            );
+            await client.query('COMMIT');
+        } catch (error) {
+            await client.query('ROLLBACK').catch(() => {});
+            throw error;
+        } finally {
+            client.release();
+        }
+        return {
+            message: await one(pool, id, { email, hostEmail: event.host_email }),
+            count: await count(event.id),
+            renamedIn: renamedIn.filter(e => e !== event.id)
+        };
+    }
+
+    /*
+     * The address now goes by `name`. A different name renames every message it wrote and
+     * notes the name it had before the change; within RENAME_NOTE_DAYS of an earlier change
+     * the note keeps the name from before that one, so a chain of changes still shows where it
+     * started, and changing back clears it. A change of capitals only renames, without a note.
+     * Answers the other events whose threads now read differently.
+     */
+    async function useName(client, email, name) {
+        const at = now();
+        const contact = (await client.query(
+            'SELECT chat_name, chat_prev_name, chat_renamed_at FROM contacts WHERE email = $1 FOR UPDATE',
+            [email]
+        )).rows[0];
+        if (!contact) {
+            await client.query('INSERT INTO contacts (email, chat_name) VALUES ($1, $2) ON CONFLICT (email) DO UPDATE SET chat_name = $2', [email, name]);
+            return [];
+        }
+        const old = contact.chat_name;
+        if (old === name) return [];
+        if (!old) {
+            await client.query('UPDATE contacts SET chat_name = $2 WHERE email = $1', [email, name]);
+            return [];
+        }
+        const same = (a, b) => String(a || '').toLowerCase() === String(b || '').toLowerCase();
+        let prev = contact.chat_prev_name;
+        let renamedAt = contact.chat_renamed_at;
+        if (!same(old, name)) {
+            prev = previousName(contact, at) || old;
+            renamedAt = at;
+            if (same(prev, name)) {
+                prev = null;
+                renamedAt = null;
+            }
+        }
+        await client.query(
+            'UPDATE contacts SET chat_name = $2, chat_prev_name = $3, chat_renamed_at = $4 WHERE email = $1',
+            [email, name, prev, renamedAt]
         );
-        await pool.query(
-            `INSERT INTO contacts (email, chat_name) VALUES ($1, $2)
-             ON CONFLICT (email) DO UPDATE SET chat_name = $2`,
+        const touched = await client.query(
+            'UPDATE event_messages SET author_name = $2 WHERE author_email = $1 RETURNING event_id',
             [email, name]
         );
-        return { message: await one(pool, id, { email, hostEmail: event.host_email }), count: await count(event.id) };
+        return [...new Set(touched.rows.map(r => r.event_id))];
     }
 
     // The author's own message in this event, else a 404 that names nothing about it.
@@ -215,7 +288,7 @@ function createEventChat({ pool, now = () => new Date() }) {
             `${SELECT} WHERE m.event_id = $1 ORDER BY m.created_at, m.id LIMIT 500`,
             [event.id, null]
         );
-        return rows.rows.map(r => publicMessage(r, { hostEmail: event.host_email }));
+        return rows.rows.map(r => publicMessage(r, { hostEmail: event.host_email, at: now() }));
     }
 
     async function like(eventId, id, likerKey, on, { ip } = {}) {
@@ -242,7 +315,7 @@ function createEventChat({ pool, now = () => new Date() }) {
     // Delete my email: messages keep their name and text, and nobody can change them any more.
     async function forget(email) {
         await pool.query('UPDATE event_messages SET author_email = NULL WHERE author_email = $1', [email]);
-        await pool.query('UPDATE contacts SET chat_name = NULL WHERE email = $1', [email]);
+        await pool.query('UPDATE contacts SET chat_name = NULL, chat_prev_name = NULL, chat_renamed_at = NULL WHERE email = $1', [email]);
     }
 
     // Threads end KEEP_DAYS after their event.
@@ -259,6 +332,6 @@ function createEventChat({ pool, now = () => new Date() }) {
 }
 
 module.exports = {
-    ChatError, MAX_BODY, MAX_NAME, KEEP_DAYS,
-    validateBody, validateName, likerHash, publicMessage, createChatSchema, createEventChat
+    ChatError, MAX_BODY, MAX_NAME, KEEP_DAYS, RENAME_NOTE_DAYS,
+    validateBody, validateName, likerHash, previousName, publicMessage, createChatSchema, createEventChat
 };

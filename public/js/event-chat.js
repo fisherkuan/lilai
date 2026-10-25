@@ -23,7 +23,7 @@
         return messages.map((m, i) => {
             const prev = messages[i - 1];
             if (!prev) return true;
-            const sameAuthor = prev.name === m.name && prev.mine === m.mine && prev.host === m.host;
+            const sameAuthor = prev.name === m.name && prev.wasName === m.wasName && prev.mine === m.mine && prev.host === m.host;
             return !sameAuthor || new Date(m.at) - new Date(prev.at) > 5 * 60 * 1000;
         });
     }
@@ -97,7 +97,9 @@
         if (first) cls.push('is-first');
         if (shownIds && !shownIds.has(m.id)) cls.push('is-new');
         const head = first
-            ? `<p class="chat-meta"><span class="chat-name">${escapeHtml(m.name)}</span>${m.host ? '<span class="chat-host">Host</span>' : ''}</p>`
+            ? `<p class="chat-meta"><span class="chat-name">${escapeHtml(m.name)}</span>`
+              + `${m.wasName ? `<span class="chat-was">was ${escapeHtml(m.wasName)}</span>` : ''}`
+              + `${m.host ? '<span class="chat-host">Host</span>' : ''}</p>`
             : '';
         const editing = m.id === editingId;
         const bubble = editing
@@ -142,6 +144,7 @@
             const name = me.name || '';
             $('chat-name').value = $('chat-name').value || name || stored(NAME_KEY);
             $('chat-name-field').hidden = Boolean(name);
+            $('chat-name-hint').hidden = true;
             $('chat-as').hidden = !name;
             $('chat-as-name').textContent = name;
         }
@@ -262,10 +265,14 @@
             if (!ok) return showError('chat-error', result.message || 'That did not go through. Try again.');
             input.value = '';
             autosize(input);
+            const renamed = Boolean(me.name) && me.name !== result.message.name;
             me = { ...me, name: result.message.name };
+            $('chat-name').value = '';
             if (!messages.some(m => m.id === result.message.id)) messages.push(result.message);
             render({ stick: true });
             renderFoot();
+            // A new name renamed my earlier messages too: draw them as the server has them.
+            if (renamed) load({ stick: true }).catch(() => {});
             setCount(eventId, result.count);
             input.focus();
         } catch (_) {
@@ -447,6 +454,14 @@
     });
     $('chat-form').addEventListener('submit', send);
     $('chat-signin').addEventListener('submit', askLink);
+    // Changing the name is a caveat worth a line: it renames what was already written.
+    $('chat-name').addEventListener('input', () => {
+        const typed = $('chat-name').value.trim();
+        const current = me && me.name;
+        const hint = $('chat-name-hint');
+        hint.hidden = !current || !typed || typed.toLowerCase() === current.toLowerCase();
+        if (!hint.hidden) hint.textContent = `Your earlier messages change to ${typed} too, marked "was ${current}" for a week.`;
+    });
     $('chat-rename').addEventListener('click', () => {
         $('chat-as').hidden = true;
         $('chat-name-field').hidden = false;

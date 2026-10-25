@@ -1307,8 +1307,10 @@ app.get('/api/events/:id/messages', chatRoute(async (req, res) => {
 
 app.post('/api/events/:id/messages', chatRoute(async (req, res) => {
     const email = await contacts.emailOf(req);
-    const { message, count } = await chat.post(req.params.id, email, req.body, { ip: req.ip });
+    const { message, count, renamedIn } = await chat.post(req.params.id, email, req.body, { ip: req.ip });
     broadcast({ type: 'event_message', payload: { action: 'posted', eventId: message.eventId, message: { ...message, mine: false, liked: false }, count } });
+    // A new name renames the author's messages everywhere: those threads redraw too.
+    for (const eventId of renamedIn) broadcast({ type: 'event_message', payload: { action: 'renamed', eventId } });
     res.status(201).json({ success: true, message, count });
 }));
 

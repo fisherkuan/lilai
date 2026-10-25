@@ -179,3 +179,65 @@ test('one address posts ten messages a minute', { skip: !scratch && 'no TEST_DAT
         await pool.end();
     }
 });
+
+test('a change of name shows as "was" for a week, then not', () => {
+    const at = new Date('2026-10-25T12:00:00Z');
+    const row = { chat_prev_name: 'Ann', chat_renamed_at: '2026-10-20T12:00:00Z' };
+    assert.equal(chatLib.previousName(row, at), 'Ann');
+    assert.equal(chatLib.previousName({ ...row, chat_renamed_at: '2026-10-17T12:00:00Z' }, at), null);
+    assert.equal(chatLib.previousName({ chat_prev_name: null, chat_renamed_at: null }, at), null);
+    // A message whose address was deleted shows no note.
+    assert.equal(chatLib.publicMessage({ ...row, id: 'm', author_name: 'Bob', author_email: null }, { at }).wasName, null);
+});
+
+test('a name belongs to its address: a new name renames every message and says what it was', { skip: !scratch && 'no TEST_DATABASE_URL' }, async () => {
+    const pool = new Pool({ connectionString: CONNECTION });
+    try {
+        await pool.query('TRUNCATE event_message_likes, event_messages, contacts CASCADE');
+        const soon = new Date(Date.now() + 3 * 24 * 3600 * 1000);
+        await pool.query(
+            `INSERT INTO events (id, title, date, host_email, managed) VALUES ('r1', 'Run', $1, 'h@lilai.test', TRUE), ('r2', 'Swim', $1, 'h@lilai.test', TRUE)
+             ON CONFLICT (id) DO UPDATE SET cancelled_at = NULL`,
+            [soon]
+        );
+        let clock = new Date();
+        const chat = chatLib.createEventChat({ pool, now: () => clock });
+        const bob = 'bob@lilai.test';
+        const names = async (id) => (await chat.list(id, {})).messages.map(m => [m.name, m.wasName]);
+
+        await chat.post('r1', bob, { body: 'hi', name: 'Bob' });
+        await chat.post('r2', bob, { body: 'me too', name: 'Bob' });
+        assert.deepEqual(await names('r1'), [['Bob', null]]);
+
+        // Posting as Ann renames Bob's earlier messages, in both threads, and says so.
+        const asAnn = await chat.post('r1', bob, { body: 'I am Ann now', name: 'Ann' });
+        assert.deepEqual(asAnn.renamedIn, ['r2']);
+        assert.deepEqual(await names('r1'), [['Ann', 'Bob'], ['Ann', 'Bob']]);
+        assert.deepEqual(await names('r2'), [['Ann', 'Bob']]);
+
+        // A chain of changes within the week still shows where it started.
+        await chat.post('r1', bob, { body: 'now Carol', name: 'Carol' });
+        assert.equal((await chat.list('r2', {})).messages[0].wasName, 'Bob');
+        // Capitals only: renamed, no new note.
+        await chat.post('r1', bob, { body: 'caps', name: 'CAROL' });
+        assert.deepEqual(await names('r2'), [['CAROL', 'Bob']]);
+        // Back to the first name: the note goes.
+        await chat.post('r1', bob, { body: 'back', name: 'Bob' });
+        assert.deepEqual(await names('r2'), [['Bob', null]]);
+
+        // A week after the change the note is gone.
+        await chat.post('r1', bob, { body: 'Dan', name: 'Dan' });
+        assert.equal((await chat.list('r2', {})).messages[0].wasName, 'Bob');
+        clock = new Date(clock.getTime() + 8 * 24 * 3600 * 1000);
+        assert.deepEqual(await names('r2'), [['Dan', null]]);
+        // A change after that starts a new note from the current name.
+        await chat.post('r2', bob, { body: 'Eve', name: 'Eve' });
+        assert.equal((await chat.list('r1', {})).messages[0].wasName, 'Dan');
+
+        // Delete my email: the names stay as they are, the note goes.
+        await chat.forget(bob);
+        assert.deepEqual((await names('r2')).map(([, was]) => was), [null, null]);
+    } finally {
+        await pool.end();
+    }
+});
