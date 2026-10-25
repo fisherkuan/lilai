@@ -377,7 +377,7 @@ function renderAgenda() {
         const meta = [detail, seats].filter(Boolean).join(' · ');
         let action = '';
         if (!isPast) {
-            const label = joinsWaitlist(ev) ? 'Waiting list' : joinLabel(ev);
+            const label = joinsWaitlist(ev) ? 'Waitlist' : joinLabel(ev);
             action = `<button type="button" class="btn btn-line agenda-join" data-event-id="${escapeAttribute(ev.id)}" aria-label="${escapeAttribute(`${joinLabel(ev)}: ${ev.title}`)}">${label}</button>`;
         }
         const open = ev.id === openAgendaRow;
@@ -878,7 +878,10 @@ function renderEventCard(event, { isPast, isToday, prevNames }) {
     let actions = `<div class="event-actions">${chat}${manage}</div>`;
     if (!isPast) {
         // Every event carries the same weight: no lead event, no solid Join.
-        const join = `<button type="button" class="btn btn-line rsvp-trigger-add" data-event-id="${sanitizedEventId}">${joinLabel(event)}</button>`;
+        // "Waitlist", as in the Rows view: the full label wrapped to four lines on a phone.
+        const join = joinsWaitlist(event)
+            ? `<button type="button" class="btn btn-line rsvp-trigger-add" data-event-id="${sanitizedEventId}" aria-label="Join the waiting list">Waitlist</button>`
+            : `<button type="button" class="btn btn-line rsvp-trigger-add" data-event-id="${sanitizedEventId}">${joinLabel(event)}</button>`;
         const remove = attendingCount > 0 || waitlist.length > 0
             // An icon, so the row keeps to one line on a phone (owner, 2026-10-25): leave, an
             // arrow out of a door. The name stays for screen readers and the hover tip.

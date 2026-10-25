@@ -897,8 +897,10 @@ body:has(.to-top) .colophon { padding-bottom: calc(48px + max(var(--s5), env(saf
 
 /* Inside an event the pill steps down a size, since every event carries one. */
 .event-actions .btn {
+    flex-shrink: 0;
     min-height: 40px;
     padding: 0 var(--s4);
+    white-space: nowrap;
 }
 
 .event-desc {
@@ -982,9 +984,17 @@ body:has(.to-top) .colophon { padding-bottom: calc(48px + max(var(--s5), env(saf
 
 .event-actions {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
-    gap: var(--s5);
+    gap: var(--s2) var(--s5);
     margin-top: var(--s5);
+}
+/* A phone: the icons close up to 40px targets, so the row stays one line at 390px with
+   the admin key; narrower, the icons drop under the pill instead of crushing it. */
+@media (max-width: 480px) {
+    .event-actions { column-gap: var(--s1); }
+    .event-actions .icon-action { width: 40px; }
+    .event-actions .chat-trigger { min-width: 40px; padding: 0 var(--s2); }
 }
 
 /* Past: every shape drains to a grey outline. */
