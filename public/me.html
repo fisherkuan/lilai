@@ -49,7 +49,7 @@
     <section id="me-ask" hidden>
         <a class="text-link me-back" href="/" data-me-back hidden>Back</a>
         <h1>Sign in</h1>
-        <p class="ev-lede">Lilai emails you a link and a code. Either one signs this device in.</p>
+        <p class="ev-lede">Lilai emails you a six-digit code that signs this device in.</p>
         <form id="me-form" class="me-form" novalidate>
             <div class="field">
                 <label for="me-email">Email</label>
@@ -57,16 +57,16 @@
                 <p class="field-error" id="me-error" role="alert" hidden></p>
             </div>
             <div class="sheet-actions">
-                <button type="submit" class="btn btn-solid" id="me-send"><span class="text">Email me a link</span></button>
+                <button type="submit" class="btn btn-solid" id="me-send"><span class="text">Email me a code</span></button>
             </div>
         </form>
         <div id="me-sent" class="ev-notice" hidden tabindex="-1">
             <p id="me-sent-text"></p>
-            <!-- On an iPhone home-screen app, Mail opens the link in Safari: the code signs in here -->
+            <!-- The code first (js/signin-code.js); the email's link is the fallback -->
             <form id="me-code-form" class="me-form" novalidate hidden>
                 <div class="field">
                     <label for="me-code">Code from the email</label>
-                    <input type="text" id="me-code" class="input login-code" autocomplete="one-time-code" inputmode="numeric" maxlength="6" pattern="[0-9]*">
+                    <input type="text" id="me-code" class="input signin-code" autocomplete="one-time-code" inputmode="numeric" maxlength="6" pattern="[0-9]*">
                     <p class="field-error" id="me-code-error" role="alert" hidden></p>
                 </div>
                 <div class="sheet-actions">
@@ -82,7 +82,7 @@
         <h1>Not signed in</h1>
         <p class="field-error" id="me-redeem-error" role="alert" hidden></p>
         <div class="ev-manage-actions">
-            <button type="button" class="btn btn-solid" id="me-redeem-btn">Email me a new link</button>
+            <button type="button" class="btn btn-solid" id="me-redeem-btn">Email me a new code</button>
         </div>
     </section>
 
@@ -179,6 +179,7 @@
 <script src="/js/feedback.js"></script>
 <script src="/js/sheet.js"></script>
 <script src="/js/device-links.js"></script>
+<script src="/js/signin-code.js"></script>
 <script src="/js/me.js"></script>
 </body>
 </html>

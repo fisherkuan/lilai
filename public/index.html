@@ -200,17 +200,26 @@
             <section class="ev-card" aria-labelledby="event-signin-title">
                 <h3 class="ev-card-title" id="event-signin-title">Sign in first</h3>
                 <div id="event-signin-fields">
-                    <p class="ev-hint">Lilai emails you a link. Open it on this device and you come back here.</p>
+                    <p class="ev-hint">Lilai emails you a six-digit code. Type it here and you carry on.</p>
                     <div class="field">
                         <label for="event-signin-email">Email</label>
                         <input type="email" id="event-signin-email" class="input" autocomplete="email" inputmode="email" required>
                         <p class="field-error" id="event-signin-error" role="alert" hidden></p>
                     </div>
                 </div>
-                <p class="ev-hint" id="event-signin-sent" role="status" hidden></p>
+                <!-- The code first (js/signin-code.js); the email's link is the fallback -->
+                <div id="event-signin-code" hidden>
+                    <p class="ev-hint" id="event-signin-sent" role="status"></p>
+                    <div class="field">
+                        <label for="event-code">Code from the email</label>
+                        <input type="text" id="event-code" class="input signin-code" autocomplete="one-time-code" inputmode="numeric" maxlength="6" pattern="[0-9]*">
+                        <p class="field-error" id="event-code-error" role="alert" hidden></p>
+                    </div>
+                    <button type="button" class="text-btn" id="event-signin-other">Use another email</button>
+                </div>
             </section>
             <div class="sheet-actions">
-                <button type="submit" class="btn btn-solid" id="event-signin-send"><span class="text">Email me a link</span></button>
+                <button type="submit" class="btn btn-solid" id="event-signin-send"><span class="text">Email me a code</span></button>
                 <button type="button" class="text-btn" data-close>Cancel</button>
             </div>
         </form>
@@ -269,20 +278,21 @@
             <p class="chat-noname" id="chat-noname" hidden><a class="text-btn" id="chat-addname" href="/me">Add your name</a> to post.</p>
             <form id="chat-signin" novalidate hidden>
                 <div id="chat-signin-fields">
-                    <p class="chat-signin-lede">Sign in with your email to post, so nobody can post as you. Others see only your name.</p>
+                    <p class="chat-signin-lede">Sign in with your email to post, so nobody can post as you. Others see only your name. Lilai emails you a six-digit code.</p>
                     <div class="chat-compose">
                         <input type="email" id="chat-email" class="input" autocomplete="email" inputmode="email" placeholder="Email" aria-label="Email">
-                        <button type="submit" class="btn btn-solid" id="chat-email-send">Email me a link</button>
+                        <button type="submit" class="btn btn-solid" id="chat-email-send">Email me a code</button>
                     </div>
                     <p class="field-error" id="chat-signin-error" role="alert" hidden></p>
                 </div>
                 <p class="chat-sent" id="chat-signin-sent" role="status" hidden></p>
                 <div id="chat-signin-code" hidden>
                     <div class="chat-compose">
-                        <input type="text" id="chat-code" class="input" autocomplete="one-time-code" inputmode="numeric" maxlength="6" pattern="[0-9]*" placeholder="Code" aria-label="Code from the email">
+                        <input type="text" id="chat-code" class="input signin-code" autocomplete="one-time-code" inputmode="numeric" maxlength="6" pattern="[0-9]*" placeholder="Code" aria-label="Code from the email">
                         <button type="submit" class="btn btn-solid" id="chat-code-send">Sign in</button>
                     </div>
                     <p class="field-error" id="chat-code-error" role="alert" hidden></p>
+                    <button type="button" class="text-btn" id="chat-signin-other">Use another email</button>
                 </div>
             </form>
         </div>
@@ -306,6 +316,7 @@
 <script src="/js/pull-to-refresh.js"></script>
 <script src="app.js"></script>
 <script src="/js/device-links.js"></script>
+<script src="/js/signin-code.js"></script>
 <script src="/js/make-event.js"></script>
 <script src="/js/event-chat.js"></script>
 <script src="/js/whats-new.js"></script>

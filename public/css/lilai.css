@@ -2085,7 +2085,12 @@ html.sheet-locked body {
 .chat-sent { margin-bottom: 0; color: var(--ink); }
 #chat-signin-code { margin-top: var(--s3); }
 #chat-signin-code[hidden] { display: none; }
-#chat-code { font-variant-numeric: tabular-nums; letter-spacing: 0.2em; }
+#chat-signin-code .text-btn { margin-top: var(--s2); }
+/* The emailed sign-in code (js/signin-code.js), on /me, in Make an event and in a chat */
+.signin-code { font-variant-numeric: tabular-nums; letter-spacing: 0.3em; font-size: 22px; }
+#event-code { max-width: 12ch; }
+#event-signin-code[hidden] { display: none; }
+#event-signin-code .text-btn { margin-top: var(--s2); }
 
 @media (min-width: 640px) {
     .sheet.sheet-chat { height: auto; max-width: 460px; padding-bottom: 0; }

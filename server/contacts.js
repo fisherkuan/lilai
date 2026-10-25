@@ -50,13 +50,25 @@ function buildSignInMail(to, url, code, env = process.env, { purpose = 'signin' 
         from: mailFrom(env),
         to: [to],
         subject: `${code} is your Lilai sign-in code`,
+        // The code first, as its own line: Gmail and iOS Mail offer to copy or fill it. The link
+        // is the fallback.
+        html: [
+            `<p>${purpose === 'chat' ? 'Your code to post in an event chat on Lilai:' : 'Your Lilai sign-in code:'}</p>`,
+            `<p style="font-size:28px;font-weight:600;letter-spacing:4px;font-family:monospace">${code}</p>`,
+            '<p>Type it where Lilai asked for it. It works for 30 minutes.</p>',
+            `<p>Or open this link on the device you want to sign in on:<br><a href="${url}">${url}</a></p>`,
+            '<p>If you did not ask for it, ignore this email.</p>'
+        ].join('\n'),
         text: [
-            purpose === 'chat' ? 'Open this link to post in an event chat on Lilai:' : 'Open this link to sign in to Lilai:',
+            purpose === 'chat' ? 'Your code to post in an event chat on Lilai:' : 'Your Lilai sign-in code:',
+            '',
+            code,
+            '',
+            'Type it where Lilai asked for it. It works for 30 minutes.',
+            '',
+            'Or open this link on the device you want to sign in on:',
             url,
             '',
-            `Or type this code where Lilai asked for it: ${code}`,
-            '',
-            'Both work for 30 minutes and sign in the device you use them on.',
             'If you did not ask for it, ignore this email.'
         ].join('\n')
     };
