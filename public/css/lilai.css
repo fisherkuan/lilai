@@ -2080,6 +2080,9 @@ html.sheet-locked body {
 .chat-signin-lede,
 .chat-sent { margin-bottom: var(--s3); font-size: var(--meta); color: var(--ink-2); }
 .chat-sent { margin-bottom: 0; color: var(--ink); }
+#chat-signin-code { margin-top: var(--s3); }
+#chat-signin-code[hidden] { display: none; }
+#chat-code { font-variant-numeric: tabular-nums; letter-spacing: 0.2em; }
 
 @media (min-width: 640px) {
     .sheet.sheet-chat { height: auto; max-width: 460px; padding-bottom: 0; }

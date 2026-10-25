@@ -185,6 +185,8 @@
 .me-form .input { background-color: var(--paper-raised); }
 .me-form[hidden] { display: none; }
 #me-sent .text-btn { margin-top: var(--s2); }
+#me-code-form { margin-top: var(--s3); }
+#me-code { font-variant-numeric: tabular-nums; letter-spacing: 0.3em; font-size: 22px; max-width: 12ch; }
 .me-back { display: inline-flex; margin-top: var(--s2); }
 #me-ask .me-back { margin-bottom: var(--s3); }
 #me-sent[hidden], #me-delete-confirm[hidden] { display: none; }

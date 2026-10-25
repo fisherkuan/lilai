@@ -77,6 +77,7 @@
         showOnly('me-ask');
         $('me-form').hidden = false;
         $('me-sent').hidden = true;
+        $('me-code-form').hidden = true;
     }
 
     async function sendLink(e) {
@@ -92,9 +93,12 @@
             const { ok, result } = await api('/api/me/link', { method: 'POST', body: JSON.stringify(next ? { email: typed, next } : { email: typed }) });
             if (!ok) return showError('me-error', result.message || 'That did not go through. Try again.');
             $('me-form').hidden = true;
-            $('me-sent-text').textContent = `A link is on its way to ${typed}. It works for 30 minutes.`;
+            $('me-sent-text').textContent = `A link and a code are on their way to ${typed}. Open the link, or type the code here. Both work for 30 minutes.`;
+            $('me-code').value = '';
+            showError('me-code-error', '');
+            $('me-code-form').hidden = false;
             $('me-sent').hidden = false;
-            $('me-sent').focus();
+            $('me-code').focus();
         } catch (_) {
             showError('me-error', 'No connection. Check your network and try again.');
         } finally {
@@ -120,19 +124,47 @@
         try {
             const { ok, result } = await api('/api/me/session', { method: 'POST', body: JSON.stringify({ token: signinToken }) });
             if (!ok) return redeemFailed(result.message || 'That did not go through.', false);
-            // The header's "Profile" link, even when this goes straight back to a chat.
-            AccountLink.remember(result.email);
-            // The email's one name is asked here, once, not in each chat.
-            if (!result.name) {
-                showOnly('me-name-step');
-                $('me-first-name').value = stored(NAME_KEY);
-                $('me-first-name').focus();
-                return;
-            }
-            await goOn();
+            await signedIn(result);
         } catch (_) {
             redeemFailed('No connection. Check your network.', true);
         }
+    }
+
+    // The emailed code, for a device the link does not open on (an iPhone home-screen app:
+    // Mail opens links in Safari, which keeps its own cookies). Six digits sign in by themselves.
+    async function redeemCode(e) {
+        if (e) e.preventDefault();
+        showError('me-code-error', '');
+        const code = $('me-code').value.replace(/\s/g, '');
+        if (!/^\d{6}$/.test(code)) return showError('me-code-error', 'Type the six digits from the email.');
+        const button = $('me-code-btn');
+        const text = button.querySelector('.text');
+        if (button.disabled) return;
+        button.disabled = true;
+        text.textContent = 'Signing in…';
+        try {
+            const { ok, result } = await api('/api/me/session', { method: 'POST', body: JSON.stringify({ email: $('me-email').value.trim(), code }) });
+            if (!ok) return showError('me-code-error', result.message || 'That did not go through. Try again.');
+            await signedIn(result);
+        } catch (_) {
+            showError('me-code-error', 'No connection. Check your network and try again.');
+        } finally {
+            button.disabled = false;
+            text.textContent = 'Sign in';
+        }
+    }
+
+    async function signedIn(result) {
+        // The header's "Profile" link, even when this goes straight back to a chat.
+        AccountLink.remember(result.email);
+        // The email's one name is asked here, once, not in each chat.
+        if (!result.name) {
+            showOnly('me-name-step');
+            $('me-first-name').value = stored(NAME_KEY);
+            $('me-first-name').focus();
+            return;
+        }
+        await goOn();
     }
 
     // After sign-in: back to the chat the link came from, else this device's events.
@@ -319,6 +351,7 @@
             showAsk();
             $('me-form').hidden = true;
             $('me-sent-text').textContent = `Deleted. Lilai no longer has ${email}.`;
+            $('me-code-form').hidden = true;
             $('me-sent').hidden = false;
         } catch (error) {
             showError('me-list-error', error.message);
@@ -373,6 +406,10 @@
     }
 
     $('me-form').addEventListener('submit', sendLink);
+    $('me-code-form').addEventListener('submit', redeemCode);
+    $('me-code').addEventListener('input', () => {
+        if (/^\d{6}$/.test($('me-code').value.trim())) redeemCode();
+    });
     $('me-name-form').addEventListener('submit', saveName);
     $('me-other').addEventListener('click', () => {
         showAsk();

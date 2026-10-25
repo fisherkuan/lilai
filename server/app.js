@@ -2927,9 +2927,20 @@ app.post('/api/me/link', async (req, res) => {
     res.json({ success: true });
 });
 
+// Body {token} from the emailed link, or {email, code} typed where the link cannot go (an
+// iPhone home-screen app: Mail opens links in Safari).
 app.post('/api/me/session', async (req, res) => {
-    const signedIn = await contacts.redeem(req.body?.token, req.get('user-agent'));
-    if (!signedIn) return res.status(401).json({ success: false, message: 'This link has run out. Ask for a new one.' });
+    const byCode = req.body?.code !== undefined;
+    const signedIn = byCode
+        ? await contacts.redeemCode(req.body?.email, req.body?.code, req.get('user-agent'))
+        : await contacts.redeem(req.body?.token, req.get('user-agent'));
+    if (!signedIn) {
+        return res.status(401).json({
+            success: false,
+            field: byCode ? 'code' : undefined,
+            message: byCode ? 'That code does not work. Check it, or ask for a new one.' : 'This link has run out. Ask for a new one.'
+        });
+    }
     contacts.signIn(res, signedIn.session);
     // Without a name yet, the page asks for one before going on (js/me.js).
     res.json({ success: true, ...(await contacts.profileOf(signedIn.email)) });

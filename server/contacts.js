@@ -1,8 +1,9 @@
 // Sign-in: one email, proven by a link, is a person's way back to the events they host and
-// what they post under. Type an address on /me and Resend mails a sign-in link that works for
-// 30 minutes. Opening it signs that
-// device in (cookie lilai_session, 90 days) and confirms the address. The signed-in device
-// lists the address's events and mints fresh management links on request. "Delete my email"
+// what they post under. Type an address on /me and Resend mails a sign-in link and a six-digit
+// code, both good for 30 minutes. Opening the link, or typing the code where it was asked for,
+// signs that device in. The code is for an iPhone home-screen app: Mail opens links in Safari,
+// whose cookies the app does not share. Signing in sets the cookie lilai_session (90 days)
+// and confirms the address. The signed-in device lists the address's events and mints fresh management links on request. "Delete my email"
 // takes the address off every row and ends its sessions; names and RSVPs stay.
 //
 // No passwords, no profile: a "person" is only the rows whose email matches. Tokens and
@@ -17,6 +18,7 @@ const SIGNIN_MS = 30 * 60 * 1000;
 const SESSION_MS = 90 * 24 * 3600 * 1000;
 const LINKS_PER_HOUR = 3;
 const IP_TRIES_PER_HOUR = 20;
+const CODE_TRIES = 5;
 const HOUR_MS = 3600 * 1000;
 
 const normalEmail = (value) => String(value ?? '').trim().toLowerCase().slice(0, 254);
@@ -40,16 +42,21 @@ function mailFrom(env) {
     return env.NOTIFY_EMAIL_FROM || env.FEEDBACK_EMAIL_FROM || 'Lilai <onboarding@resend.dev>';
 }
 
-function buildSignInMail(to, url, env = process.env, { purpose = 'signin' } = {}) {
+const newCode = () => String(crypto.randomInt(0, 1000000)).padStart(6, '0');
+const hashCode = (email, code) => crypto.createHash('sha256').update(`${email}:${code}`).digest('hex');
+
+function buildSignInMail(to, url, code, env = process.env, { purpose = 'signin' } = {}) {
     return {
         from: mailFrom(env),
         to: [to],
-        subject: 'Your Lilai sign-in link',
+        subject: `${code} is your Lilai sign-in code`,
         text: [
             purpose === 'chat' ? 'Open this link to post in an event chat on Lilai:' : 'Open this link to sign in to Lilai:',
             url,
             '',
-            'It works for 30 minutes and signs in the device you open it on.',
+            `Or type this code where Lilai asked for it: ${code}`,
+            '',
+            'Both work for 30 minutes and sign in the device you use them on.',
             'If you did not ask for it, ignore this email.'
         ].join('\n')
     };
@@ -95,6 +102,9 @@ async function createContactsSchema(client) {
             expires_at TIMESTAMPTZ NOT NULL,
             used_at TIMESTAMPTZ
         )`);
+    // The six-digit code mailed with the link; five wrong tries spend it.
+    await client.query('ALTER TABLE contact_tokens ADD COLUMN IF NOT EXISTS code_hash CHAR(64)');
+    await client.query('ALTER TABLE contact_tokens ADD COLUMN IF NOT EXISTS code_tries INT NOT NULL DEFAULT 0');
     await client.query('CREATE INDEX IF NOT EXISTS idx_contact_tokens_email ON contact_tokens(email, created_at)');
     // The name a signed-in device fills in for RSVPs and new events. Set only through a proven
     // address: on sign-in from the latest event's host name, then by the person.
@@ -157,14 +167,15 @@ function createContacts({ pool, env = process.env, fetchImpl = fetch, now = () =
 
         const back = safeNext(next);
         const token = hosting.newToken();
+        const code = newCode();
         await pool.query(
-            'INSERT INTO contact_tokens (token_hash, email, purpose, created_at, expires_at) VALUES ($1, $2, $3, $4, $5)',
-            [hosting.hashToken(token), email, 'signin', now(), new Date(now().getTime() + SIGNIN_MS)]
+            'INSERT INTO contact_tokens (token_hash, email, purpose, created_at, expires_at, code_hash) VALUES ($1, $2, $3, $4, $5, $6)',
+            [hosting.hashToken(token), email, 'signin', now(), new Date(now().getTime() + SIGNIN_MS), hashCode(email, code)]
         );
         const res = await fetchImpl('https://api.resend.com/emails', {
             method: 'POST',
             headers: { Authorization: `Bearer ${env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify(buildSignInMail(email, signInUrl(baseUrl, token, back), env, { purpose: back.startsWith('/#chat-') ? 'chat' : 'signin' }))
+            body: JSON.stringify(buildSignInMail(email, signInUrl(baseUrl, token, back), code, env, { purpose: back.startsWith('/#chat-') ? 'chat' : 'signin' }))
         });
         if (!res.ok) console.error('[contacts] sign-in mail', res.status, await res.text());
     }
@@ -173,14 +184,41 @@ function createContacts({ pool, env = process.env, fetchImpl = fetch, now = () =
     // times until it runs out (30 minutes): mail scanners open links first. Opening it proves the address, so the contact is confirmed (and brought back if it was deleted).
     async function redeem(tokenInput, userAgent) {
         if (!hosting.looksLikeToken(tokenInput)) return null;
+        return startSession(userAgent, (client) => client.query(
+            `UPDATE contact_tokens SET used_at = COALESCE(used_at, $2)
+             WHERE token_hash = $1 AND expires_at > $2 RETURNING email`,
+            [hosting.hashToken(tokenInput), now()]
+        ));
+    }
+
+    // The emailed code, typed with its address -> a new device session token, else null. Any
+    // of the address's codes still running counts; a wrong one costs each of them a try, and
+    // five wrong tries spend a code.
+    async function redeemCode(emailInput, codeInput, userAgent) {
+        const email = normalEmail(emailInput);
+        const code = String(codeInput ?? '').replace(/\s/g, '');
+        if (!looksLikeEmail(email) || !/^\d{6}$/.test(code)) return null;
+        const signedIn = await startSession(userAgent, (client) => client.query(
+            `UPDATE contact_tokens SET used_at = COALESCE(used_at, $3)
+             WHERE email = $1 AND code_hash = $2 AND expires_at > $3 AND code_tries < $4 RETURNING email`,
+            [email, hashCode(email, code), now(), CODE_TRIES]
+        ));
+        if (!signedIn) {
+            await pool.query(
+                'UPDATE contact_tokens SET code_tries = code_tries + 1 WHERE email = $1 AND expires_at > $2 AND code_hash IS NOT NULL',
+                [email, now()]
+            );
+        }
+        return signedIn;
+    }
+
+    // Opening a link or typing a code proves the address: `claim` marks it used and answers its
+    // email, and the contact is confirmed (and brought back if it was deleted).
+    async function startSession(userAgent, claim) {
         const client = await pool.connect();
         try {
             await client.query('BEGIN');
-            const used = await client.query(
-                `UPDATE contact_tokens SET used_at = COALESCE(used_at, $2)
-                 WHERE token_hash = $1 AND expires_at > $2 RETURNING email`,
-                [hosting.hashToken(tokenInput), now()]
-            );
+            const used = await claim(client);
             const email = used.rows[0]?.email;
             if (!email) {
                 await client.query('ROLLBACK');
@@ -336,7 +374,7 @@ function createContacts({ pool, env = process.env, fetchImpl = fetch, now = () =
         }
     }
 
-    return { requestSignIn, redeem, emailOf, signIn, signOut, profileOf, setName, eventsOf, manageLink, forget };
+    return { requestSignIn, redeem, redeemCode, emailOf, signIn, signOut, profileOf, setName, eventsOf, manageLink, forget };
 }
 
 module.exports = {
