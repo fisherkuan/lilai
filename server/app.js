@@ -168,7 +168,10 @@ try {
 if (process.env.PUBLIC_URL) appConfig.publicUrl = process.env.PUBLIC_URL;
 
 // Google Maps search for the event form's Where field; off without a key.
-const placeAutocomplete = createPlaceAutocomplete({ apiKey: process.env.GOOGLE_MAPS_API_KEY || '' });
+const placeAutocomplete = createPlaceAutocomplete({
+    apiKey: process.env.GOOGLE_MAPS_API_KEY || '',
+    referer: appConfig.publicUrl ? `${String(appConfig.publicUrl).replace(/\/+$/, '')}/` : ''
+});
 
 // Create HTTP server
 const server = http.createServer(app);

@@ -38,6 +38,14 @@ test('asks Places Autocomplete near Leuven and keeps name, address and id', asyn
     assert.ok(calls[0].body.locationBias.circle.radius > 0);
 });
 
+test('names the site as Referer when given, for a key restricted to the website', async () => {
+    const { calls, fetchImpl } = stub();
+    await createPlaceAutocomplete({ apiKey: 'k', referer: 'https://lilai.fisherkuan.com/', fetchImpl }).search('het moment');
+    assert.equal(calls[0].init.headers.Referer, 'https://lilai.fisherkuan.com/');
+    await createPlaceAutocomplete({ apiKey: 'k', fetchImpl }).search('het moment');
+    assert.equal(calls[1].init.headers.Referer, undefined);
+});
+
 test('the same query is answered from the cache', async () => {
     const { calls, fetchImpl } = stub();
     const places = createPlaceAutocomplete({ apiKey: 'k', fetchImpl });

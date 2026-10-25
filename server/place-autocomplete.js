@@ -5,6 +5,9 @@
 //
 // Each request is one billed Autocomplete call (no Place Details follows), so answers are
 // cached and each address gets a small budget per minute.
+//
+// The key may be restricted to the site in Cloud Console ("Websites"). A server request has no
+// Referer of its own, so it names the site's address (`referer`, from publicUrl).
 
 const ENDPOINT = 'https://places.googleapis.com/v1/places:autocomplete';
 const LEUVEN = { latitude: 50.8798, longitude: 4.7005 };
@@ -12,7 +15,7 @@ const CACHE_MAX = 500;
 const CACHE_MS = 24 * 3600 * 1000;
 const PER_MINUTE = 30;
 
-function createPlaceAutocomplete({ apiKey, fetchImpl = fetch, now = () => Date.now() } = {}) {
+function createPlaceAutocomplete({ apiKey, referer = '', fetchImpl = fetch, now = () => Date.now() } = {}) {
     const cache = new Map();
     const budgets = new Map();
 
@@ -47,7 +50,7 @@ function createPlaceAutocomplete({ apiKey, fetchImpl = fetch, now = () => Date.n
         if (sessionToken && /^[A-Za-z0-9-]{8,64}$/.test(sessionToken)) body.sessionToken = sessionToken;
         const res = await fetchImpl(ENDPOINT, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-Goog-Api-Key': apiKey },
+            headers: { 'Content-Type': 'application/json', 'X-Goog-Api-Key': apiKey, ...(referer ? { Referer: referer } : {}) },
             body: JSON.stringify(body)
         });
         if (!res.ok) throw new Error(`Places autocomplete answered ${res.status}`);
