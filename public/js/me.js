@@ -8,6 +8,9 @@
     const $ = (id) => document.getElementById(id);
     const parts = location.pathname.split('/').filter(Boolean);
     const signinToken = parts[1] === 'signin' ? decodeURIComponent(parts[2] || '') : '';
+    // A link asked for from an event's chat goes back to that thread once signed in.
+    const nextRaw = new URLSearchParams(location.search).get('next') || '';
+    const next = /^\/(?![\/\\])/.test(nextRaw) ? nextRaw : '';
     let email = '';
     // The keys Home's RSVP sheet and Make an event fill in from (app.js, js/make-event.js).
     const NAME_KEY = 'lilai.attendeeName';
@@ -109,6 +112,10 @@
             if (!ok) {
                 showError('me-redeem-error', result.message || 'That did not go through. Try again.');
                 button.disabled = false;
+                return;
+            }
+            if (next) {
+                location.replace(next);
                 return;
             }
             history.replaceState(null, '', '/me');
@@ -253,6 +260,11 @@
     $('me-delete-no').addEventListener('click', () => { $('me-delete-confirm').hidden = true; });
     $('me-delete-yes').addEventListener('click', deleteEmail);
 
-    if (signinToken) showOnly('me-redeem');
-    else load();
+    if (signinToken) {
+        if (next.startsWith('/#chat-')) {
+            $('me-redeem-lede').textContent = 'Then you can post in the event chat from this phone or browser.';
+            $('me-redeem-btn').textContent = 'Sign in and go to the chat';
+        }
+        showOnly('me-redeem');
+    } else load();
 })();

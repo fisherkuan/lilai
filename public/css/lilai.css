@@ -27,6 +27,15 @@
     --rail-sel: #1f5c43;
     --on-rail-sel: #fafaf7;
     --rail-accent: #2f7d58;
+    /* An event's chat, in the rail's green: my bubbles are a green gradient, others' white
+       bubbles sit raised on a grey thread. Owner, 2026-10-25. */
+    --chat-thread: var(--fill);
+    --chat-theirs: var(--paper-raised);
+    --chat-mine-from: #2b8058;
+    --chat-mine-to: #1f5c43;
+    --on-chat-mine: #fafaf7;
+    --chat-mine-glow: 0 2px 8px rgb(31 92 67 / 0.25);
+    --chat-liked: #2f7d58;
 
     /* Jost (from the kit) for page titles and the big numerals only. Everything else, buttons
        and labels included, keeps the device's own UI font, which stays legible at 13-20px where
@@ -67,6 +76,13 @@
         --rail-sel: #2f7d58;
         --on-rail-sel: #ffffff;
         --rail-accent: #5cbf8c;
+        --chat-thread: var(--paper);
+        --chat-theirs: var(--stone);
+        --chat-mine-from: #2f7d58;
+        --chat-mine-to: #225c42;
+        --on-chat-mine: #ffffff;
+        --chat-mine-glow: 0 2px 8px rgb(0 0 0 / 0.4);
+        --chat-liked: #5cbf8c;
         color-scheme: dark;
     }
     :root:not([data-theme="light"]) .select {
@@ -83,6 +99,13 @@
     --rail-sel: #2f7d58;
     --on-rail-sel: #ffffff;
     --rail-accent: #5cbf8c;
+    --chat-thread: var(--paper);
+    --chat-theirs: var(--stone);
+    --chat-mine-from: #2f7d58;
+    --chat-mine-to: #225c42;
+    --on-chat-mine: #ffffff;
+    --chat-mine-glow: 0 2px 8px rgb(0 0 0 / 0.4);
+    --chat-liked: #5cbf8c;
     color-scheme: dark;
 }
 :root[data-theme="dark"] .select {
@@ -1684,6 +1707,187 @@ html.sheet-locked body {
 .feedback-files .icon-btn svg { width: 16px; height: 16px; stroke-width: 2px; }
 .feedback-attach { margin-top: var(--s3); }
 .feedback-attach[hidden] { display: none; }
+
+/* ---------- Chat in an event (js/event-chat.js) ---------- */
+
+/* The card's chat button: a speech outline and its count, at the end of the actions row. */
+.chat-trigger {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--s1);
+    min-width: 44px;
+    min-height: 40px;
+    margin-left: auto;
+    padding: 0 var(--s3);
+    border: 0;
+    border-radius: var(--radius-full);
+    background: none;
+    color: var(--ink);
+    font: inherit;
+    font-size: var(--meta);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    cursor: pointer;
+}
+.chat-trigger svg { width: 22px; height: 22px; fill: none; stroke: var(--ink); stroke-width: 1.5px; stroke-linejoin: round; }
+.chat-trigger:hover { background: var(--wash); }
+.chat-count:empty { display: none; }
+
+/* The thread: a column that fills the sheet, the list scrolling between head and composer. */
+.sheet.sheet-chat {
+    display: flex;
+    flex-direction: column;
+    height: 92%;
+    overflow: hidden;
+    padding-bottom: 0;
+}
+.sheet-chat > .sheet-head,
+.sheet-chat > .sheet-grip { flex: none; }
+.chat-head { min-width: 0; }
+.chat-head .sheet-title { overflow-wrap: anywhere; }
+
+.chat-list {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    margin: var(--s3) calc(-1 * var(--sheet-pad)) 0;
+    padding: var(--s3) var(--sheet-pad) var(--s4);
+    list-style: none;
+    background: var(--chat-thread);
+}
+
+.chat-empty {
+    padding: var(--s6) 0;
+    font-size: var(--meta);
+    color: var(--ink-3);
+    text-align: center;
+}
+
+.chat-msg {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    margin-top: var(--s1);
+}
+.chat-msg.is-first { margin-top: var(--s4); }
+.chat-msg.is-mine { align-items: flex-end; }
+
+.chat-meta {
+    display: flex;
+    align-items: center;
+    gap: var(--s2);
+    margin: 0 var(--s3) var(--s1);
+    font-size: 13px;
+    font-weight: 600;
+}
+.chat-host {
+    padding: 0 var(--s2);
+    border: 1px solid var(--ink);
+    border-radius: var(--radius-full);
+    font-size: 11px;
+    line-height: 16px;
+}
+
+/* Others' bubbles are white and raised on the grey thread; mine are the rail's green, a
+   gradient. A run's first bubble keeps the corner that points at its author. */
+.chat-bubble {
+    max-width: min(85%, 34ch);
+    padding: 9px 14px;
+    border-radius: 6px 20px 20px 6px;
+    background: var(--chat-theirs);
+    color: var(--ink);
+    box-shadow: var(--shadow-raised);
+    font-size: 16px;
+    line-height: 1.4;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+.chat-msg.is-first .chat-bubble { border-top-left-radius: 20px; }
+.chat-msg.is-mine .chat-bubble {
+    border-radius: 20px 6px 6px 20px;
+    background: linear-gradient(160deg, var(--chat-mine-from), var(--chat-mine-to));
+    color: var(--on-chat-mine);
+    box-shadow: var(--chat-mine-glow);
+}
+.chat-msg.is-mine.is-first .chat-bubble { border-top-right-radius: 20px; }
+.chat-msg.is-new .chat-bubble { animation: bubble-in 320ms var(--ease) both; transform-origin: bottom left; }
+.chat-msg.is-mine.is-new .chat-bubble { transform-origin: bottom right; }
+
+@keyframes bubble-in {
+    from { opacity: 0; transform: translateY(8px) scale(0.92); }
+}
+
+.chat-tools {
+    display: flex;
+    align-items: center;
+    gap: var(--s3);
+    min-height: 32px;
+    padding: 0 var(--s2);
+}
+.chat-time { font-size: 12px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.chat-tool.text-btn { min-height: 32px; font-size: 12px; }
+
+.chat-like {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    min-width: 32px;
+    min-height: 32px;
+    padding: 0 var(--s1);
+    border: 0;
+    border-radius: var(--radius-full);
+    background: none;
+    color: var(--ink-2);
+    font: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    cursor: pointer;
+}
+.chat-like svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.75px; stroke-linejoin: round; }
+.chat-like[aria-pressed="true"] { color: var(--chat-liked); }
+.chat-like[aria-pressed="true"] svg { fill: var(--chat-liked); stroke: var(--chat-liked); }
+.chat-like[aria-pressed="true"] svg { animation: shape-grow 360ms var(--ease); }
+.chat-like:hover { background: var(--wash); }
+
+.chat-edit { width: min(100%, 34ch + 2 * var(--s3)); }
+.chat-edit-actions { display: flex; align-items: center; justify-content: flex-end; gap: var(--s4); margin-top: var(--s2); }
+.chat-edit-actions .btn { min-height: 36px; padding: 0 var(--s4); }
+
+/* The composer stays at the foot, above the home indicator. */
+.chat-foot {
+    flex: none;
+    margin: 0 calc(-1 * var(--sheet-pad));
+    padding: var(--s3) var(--sheet-pad) calc(var(--s3) + env(safe-area-inset-bottom));
+    border-top: 1px solid var(--hair);
+    background: var(--paper-raised);
+}
+.chat-foot .field { margin-top: 0; margin-bottom: var(--s3); }
+.chat-as { margin-bottom: var(--s2); font-size: 13px; color: var(--ink-2); }
+.chat-as strong { color: var(--ink); }
+.chat-as .text-btn { min-height: 28px; margin-left: var(--s2); font-size: 13px; }
+
+.chat-compose { display: flex; align-items: flex-end; gap: var(--s2); }
+.chat-compose .input { flex: 1 1 auto; min-width: 0; }
+.chat-compose .btn { flex: none; }
+.chat-input {
+    min-height: 44px;
+    max-height: 160px;
+    padding-top: 10px;
+    padding-bottom: 10px;
+    line-height: 1.4;
+    resize: none;
+}
+.chat-signin-lede,
+.chat-sent { margin-bottom: var(--s3); font-size: var(--meta); color: var(--ink-2); }
+.chat-sent { margin-bottom: 0; color: var(--ink); }
+
+@media (min-width: 640px) {
+    .sheet.sheet-chat { height: auto; max-width: 460px; padding-bottom: 0; }
+    .chat-foot { padding-bottom: var(--s5); }
+    .sheet .chat-input { min-height: 40px; padding-top: 8px; padding-bottom: 8px; }
+}
 
 /* ---------- Breakpoints ---------- */
 

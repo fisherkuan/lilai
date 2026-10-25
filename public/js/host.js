@@ -90,6 +90,53 @@
             + `<span class="ev-request-actions">${buttons}</span></li>`;
     }
 
+    // ---------- Chat ----------
+
+    // Every message in the event's chat, each with Remove. A second tap removes: nobody is told.
+    let confirmMessage = null;
+    let confirmMessageTimer = null;
+
+    function renderChat(messages) {
+        const list = messages || [];
+        $('chat-section').hidden = list.length === 0;
+        $('chat-section-count').textContent = list.length ? String(list.length) : '';
+        $('chat-section-list').innerHTML = list.map(m => `<li class="ev-request ev-chat-row">`
+            + `<span class="ev-request-who"><span class="ev-request-name">${escapeHtml(m.name)}${m.host ? ' · Host' : ''}</span>`
+            + `<span class="ev-chat-body">${escapeHtml(m.body)}</span>`
+            + `<span class="ev-request-at">${escapeHtml(askedText(m.at))}${m.likes ? ` · ${m.likes} ${m.likes === 1 ? 'like' : 'likes'}` : ''}</span></span>`
+            + `<span class="ev-request-actions"><button type="button" class="btn btn-line" data-message="${escapeHtml(m.id)}" aria-label="${escapeHtml(`Remove the message from ${m.name}`)}">${confirmMessage === m.id ? 'Remove it?' : 'Remove'}</button></span></li>`
+        ).join('');
+    }
+
+    async function removeMessage(button) {
+        const id = button.dataset.message;
+        if (confirmMessage !== id) {
+            confirmMessage = id;
+            clearTimeout(confirmMessageTimer);
+            confirmMessageTimer = setTimeout(() => { confirmMessage = null; renderChat(view.messages); }, 4000);
+            renderChat(view.messages);
+            return;
+        }
+        confirmMessage = null;
+        clearTimeout(confirmMessageTimer);
+        if (busy) return;
+        busy = true;
+        showError('host-error', '');
+        button.disabled = true;
+        try {
+            const { ok, result } = await send(`/messages/${encodeURIComponent(id)}`, 'DELETE');
+            if (!ok) {
+                showError('host-error', result.message || 'That did not go through. Try again.');
+                button.disabled = false;
+            }
+        } catch (error) {
+            showError('host-error', 'No connection. Check your network and try again.');
+            button.disabled = false;
+        } finally {
+            busy = false;
+        }
+    }
+
     // ---------- Activity ----------
 
     // A person's name in bold, then what happened to them. Nobody signs in, so a host action
@@ -212,6 +259,7 @@
 
         renderSeries(series, event);
         renderActivity(view.activity);
+        renderChat(view.messages);
 
         $('edit-btn').hidden = !editable;
         $('cancel-btn').hidden = !editable;
@@ -488,6 +536,8 @@
 
     async function init() {
         $('host-event').addEventListener('click', (e) => {
+            const message = e.target.closest('button[data-message]');
+            if (message) return removeMessage(message);
             const decision = e.target.closest('button[data-decision]');
             if (decision && decision.hasAttribute('data-confirm')) return openRemove(decision);
             if (decision) return decide(decision);

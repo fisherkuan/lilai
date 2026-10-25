@@ -896,6 +896,13 @@ function renderEventCard(event, { isPast, isToday, prevNames }) {
         names = `<p class="names-empty">${isPast ? 'No one signed up.' : 'No one yet. Be the first.'}</p>`;
     }
 
+    // The chat sits on every card, past ones too: a thread outlives its event (js/event-chat.js).
+    const messageCount = event.messageCount || 0;
+    const chatLabel = messageCount ? `Chat, ${messageCount} ${messageCount === 1 ? 'message' : 'messages'}` : 'Chat';
+    const chat = `<button type="button" class="chat-trigger" data-event-id="${sanitizedEventId}" aria-label="${chatLabel}" title="Chat">`
+        + '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5h16v10.5H10l-4.5 3.5V16H4Z"/></svg>'
+        + `<span class="chat-count">${messageCount || ''}</span></button>`;
+
     // This device's name on the waiting list, and where it stands.
     const waitlist = Array.isArray(event.waitlist) ? event.waitlist : [];
     const mine = getRememberedName();
@@ -904,14 +911,14 @@ function renderEventCard(event, { isPast, isToday, prevNames }) {
         ? `<p class="waitlist-note">${escapeHtml(mine)} is ${ordinal(place)} on the waiting list</p>`
         : '';
 
-    let actions = '';
+    let actions = `<div class="event-actions">${chat}</div>`;
     if (!isPast) {
         // Every event carries the same weight: no lead event, no solid Join.
         const join = `<button type="button" class="btn btn-line rsvp-trigger-add" data-event-id="${sanitizedEventId}">${joinLabel(event)}</button>`;
         const remove = attendingCount > 0 || waitlist.length > 0
             ? `<button type="button" class="text-btn rsvp-trigger-remove" data-event-id="${sanitizedEventId}">Remove a name</button>`
             : '';
-        actions = `<div class="event-actions">${join}${remove}</div>`;
+        actions = `<div class="event-actions">${join}${remove}${chat}</div>`;
     }
 
     const classes = ['event', `tone-${st.tone}`];
@@ -1274,6 +1281,8 @@ function setupWebSocket() {
             if (data.type === 'attendance_update') {
                 const { eventId, attendees, pendingCount, waitlist } = data.payload;
                 applyAttendance(eventId, Array.isArray(attendees) ? attendees : [], pendingCount, waitlist);
+            } else if (data.type === 'event_message') {
+                if (typeof EventChat !== 'undefined') EventChat.onBroadcast(data.payload);
             } else if (['event_created', 'event_update', 'event_cancelled'].includes(data.type)) {
                 // An event was made, edited or cancelled: pick it up without a pull to refresh.
                 loadEvents({ quiet: true });

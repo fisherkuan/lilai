@@ -24,6 +24,7 @@ const { createPlaceAutocomplete } = require('./place-autocomplete');
 const places = require('./places');
 const adminAuthLib = require('./admin-auth');
 const contactsLib = require('./contacts');
+const chatLib = require('./event-chat');
 const { importCalendar, createImportSchema, importedCalendarIds } = require('./calendar-import');
 const access = require('./calendar-access');
 const activity = require('./event-activity');
@@ -126,6 +127,9 @@ const adminAuth = adminAuthLib.createAdminAuth({ pool });
 
 // Find my events: a sign-in link by email, then a device session (server/contacts.js).
 const contacts = contactsLib.createContacts({ pool });
+
+// Chat in an event (server/event-chat.js): anyone reads and likes, a signed-in email posts.
+const chat = chatLib.createEventChat({ pool });
 
 // Read once at startup: an invalid IBAN stops the server rather than reaching a donor.
 const bankDetails = readBankDetails();
@@ -342,6 +346,7 @@ async function initializeDatabase() {
         await feedback.createFeedbackSchema(client);
         await adminAuthLib.createAdminAuthSchema(client);
         await contactsLib.createContactsSchema(client);
+        await chatLib.createChatSchema(client);
         const placesSeeded = await places.createPlacesSchema(client, appConfig.places || []);
         if (placesSeeded) console.log(`📍 Saved ${placesSeeded} places from config/app.json`);
         const seeded = await createProfileSchema(client, uuidv4);
@@ -699,7 +704,8 @@ app.get('/api/events', async (req, res) => {
                 COALESCE(r.attendingCount, 0) as "attendingCount",
                 r.attendees,
                 COALESCE(r.pendingCount, 0) as "pendingCount",
-                r.waitlist
+                r.waitlist,
+                COALESCE(m.messageCount, 0) as "messageCount"
             FROM events e
             LEFT JOIN (
                 SELECT
@@ -711,6 +717,9 @@ app.get('/api/events', async (req, res) => {
                 FROM rsvps
                 GROUP BY event_id
             ) r ON e.id = r.event_id
+            LEFT JOIN (
+                SELECT event_id, COUNT(*) as messageCount FROM event_messages GROUP BY event_id
+            ) m ON e.id = m.event_id
             ${whereClause}
             ${orderClause}
             ${limitClause}
@@ -721,7 +730,8 @@ app.get('/api/events', async (req, res) => {
             attendingCount: parseInt(event.attendingCount, 10),
             pendingCount: parseInt(event.pendingCount, 10),
             attendees: event.attendees || [],
-            waitlist: event.waitlist || []
+            waitlist: event.waitlist || [],
+            messageCount: parseInt(event.messageCount, 10)
         }));
 
         res.json(eventsWithAttendance);
@@ -1078,6 +1088,7 @@ async function hostView(event) {
         },
         requests: requests.rows.map(r => ({ id: r.id, name: r.attendee_name, status: r.attendance, at: r.timestamp })),
         activity: await activity.listActivity(pool, event.id),
+        messages: await chat.forHost(event),
         series
     };
 }
@@ -1249,6 +1260,91 @@ app.post('/api/host/:token/events/:eventId/requests/:rsvpId', async (req, res) =
     broadcast({ type: 'attendance_update', payload: await attendanceOf(pool, result.fresh.id) });
     res.json(await hostView(result.fresh));
 });
+
+// The host removes a message from the event's chat.
+app.delete('/api/host/:token/events/:eventId/messages/:messageId', async (req, res) => {
+    const scope = await hostScope(req.params.token);
+    const event = scope ? await linkedEvent(pool, scope, req.params.eventId) : null;
+    if (!event) return res.status(404).json({ success: false, message: 'This link does not open that event.' });
+    let done;
+    try {
+        done = await chat.hostRemove(event.id, req.params.messageId);
+    } catch (error) {
+        if (chatError(res, error)) return;
+        throw error;
+    }
+    broadcast({ type: 'event_message', payload: { action: 'deleted', eventId: event.id, id: done.id, count: done.count } });
+    res.json(await hostView(event));
+});
+
+// ---------------------------------------------------------------------------
+// Chat in an event (event-chat.js). Reading and liking are open; posting, editing and
+// removing one's own message need the Find my events session.
+// ---------------------------------------------------------------------------
+
+function chatError(res, error) {
+    if (!(error instanceof chatLib.ChatError)) return false;
+    res.status(error.status).json({ success: false, field: error.field, message: error.message });
+    return true;
+}
+
+// Every chat route answers through here, so a ChatError becomes its own status.
+function chatRoute(handler) {
+    return async (req, res) => {
+        try {
+            await handler(req, res);
+        } catch (error) {
+            if (!chatError(res, error)) throw error;
+        }
+    };
+}
+
+app.get('/api/events/:id/messages', chatRoute(async (req, res) => {
+    const email = await contacts.emailOf(req);
+    const thread = await chat.list(req.params.id, { email, likerKey: req.query.liker });
+    res.set('Cache-Control', 'no-store').json({ success: true, ...thread });
+}));
+
+app.post('/api/events/:id/messages', chatRoute(async (req, res) => {
+    const email = await contacts.emailOf(req);
+    const { message, count } = await chat.post(req.params.id, email, req.body, { ip: req.ip });
+    broadcast({ type: 'event_message', payload: { action: 'posted', eventId: message.eventId, message: { ...message, mine: false, liked: false }, count } });
+    res.status(201).json({ success: true, message, count });
+}));
+
+app.put('/api/events/:id/messages/:messageId', chatRoute(async (req, res) => {
+    const email = await contacts.emailOf(req);
+    const { message } = await chat.edit(req.params.id, req.params.messageId, email, req.body);
+    broadcast({ type: 'event_message', payload: { action: 'edited', eventId: message.eventId, message: { ...message, mine: false, liked: false } } });
+    res.json({ success: true, message });
+}));
+
+app.delete('/api/events/:id/messages/:messageId', chatRoute(async (req, res) => {
+    const email = await contacts.emailOf(req);
+    const done = await chat.remove(req.params.id, req.params.messageId, email);
+    broadcast({ type: 'event_message', payload: { action: 'deleted', eventId: req.params.id, id: done.id, count: done.count } });
+    res.json({ success: true, ...done });
+}));
+
+app.post('/api/events/:id/messages/:messageId/like', chatRoute(async (req, res) => {
+    const done = await chat.like(req.params.id, req.params.messageId, req.body?.liker, req.body?.like !== false, { ip: req.ip });
+    broadcast({ type: 'event_message', payload: { action: 'liked', eventId: req.params.id, id: done.id, likes: done.likes } });
+    res.json({ success: true, ...done });
+}));
+
+// A sign-in link for the chat: any address may have one, and it comes back to the thread.
+app.post('/api/events/:id/messages/signin', chatRoute(async (req, res) => {
+    const eventId = String(req.params.id);
+    try {
+        await contacts.requestSignIn(req.body?.email, {
+            ip: req.ip, baseUrl: publicUrl(req), anyAddress: true, next: `/#chat-${encodeURIComponent(eventId)}`
+        });
+    } catch (error) {
+        if (!error.status) throw error;
+        return res.status(error.status).json({ success: false, field: error.field, message: error.message });
+    }
+    res.json({ success: true });
+}));
 
 // ---------------------------------------------------------------------------
 // Calendar keys (calendar-access.js): a calendar's page, and a way into each of its events.
@@ -2872,6 +2968,7 @@ app.delete('/api/me', async (req, res) => {
     const email = await contacts.emailOf(req);
     if (!email) return res.status(401).json({ success: false, message: 'Sign in again.' });
     await contacts.forget(email);
+    await chat.forget(email);
     await contacts.signOut(req, res);
     res.json({ success: true });
 });
@@ -3018,6 +3115,12 @@ initializeDatabaseWithRetry().then(() => {
         return importCalendars();
     }).catch((error) => console.error('Calendar takeover failed to start:', error.message));
     publisher.start();
+    // Chat threads end 180 days after their event; checked at boot and every six hours.
+    const expireChats = () => chat.expire()
+        .then((n) => { if (n) console.log(`[chat] ${n} old messages deleted`); })
+        .catch((error) => console.error('[chat] expiry failed:', error.message));
+    expireChats();
+    setInterval(expireChats, 6 * 3600 * 1000).unref();
     if (bookingScheduler) {
         bookingScheduler.start().catch((error) => {
             console.error('Booking scheduler failed to start:', error.message);

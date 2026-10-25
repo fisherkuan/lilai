@@ -225,6 +225,47 @@
     </div>
 </div>
 
+<!-- Chat in an event: a thread that slides in from a card's chat button (js/event-chat.js) -->
+<div id="chat-sheet" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="chat-title">
+    <div class="sheet sheet-chat">
+        <div class="sheet-head">
+            <div class="chat-head">
+                <h3 class="sheet-title" id="chat-title">Chat</h3>
+                <p class="sheet-when" id="chat-when"></p>
+            </div>
+            <button type="button" class="icon-btn" data-close aria-label="Close">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
+            </button>
+        </div>
+        <ol class="chat-list" id="chat-list" aria-live="polite" aria-label="Messages"></ol>
+        <div class="chat-foot">
+            <form id="chat-form" novalidate hidden>
+                <p class="chat-as" id="chat-as" hidden>Posting as <strong id="chat-as-name"></strong> <button type="button" class="text-btn" id="chat-rename">Change</button></p>
+                <div class="field chat-name-field" id="chat-name-field" hidden>
+                    <label for="chat-name">Your name</label>
+                    <input type="text" id="chat-name" class="input" maxlength="60" autocomplete="name" enterkeyhint="next">
+                </div>
+                <div class="chat-compose">
+                    <textarea id="chat-input" class="input chat-input" rows="1" maxlength="1000" placeholder="Message" aria-label="Message"></textarea>
+                    <button type="submit" class="btn btn-solid chat-send" id="chat-send">Send</button>
+                </div>
+                <p class="field-error" id="chat-error" role="alert" hidden></p>
+            </form>
+            <form id="chat-signin" novalidate hidden>
+                <div id="chat-signin-fields">
+                    <p class="chat-signin-lede">Sign in with your email to post, so nobody can post as you. Others see only your name.</p>
+                    <div class="chat-compose">
+                        <input type="email" id="chat-email" class="input" autocomplete="email" inputmode="email" placeholder="Email" aria-label="Email">
+                        <button type="submit" class="btn btn-solid" id="chat-email-send">Email me a link</button>
+                    </div>
+                    <p class="field-error" id="chat-signin-error" role="alert" hidden></p>
+                </div>
+                <p class="chat-sent" id="chat-signin-sent" role="status" hidden></p>
+            </form>
+        </div>
+    </div>
+</div>
+
 <footer class="colophon">
     <p>Built by Fisher Kuan</p>
 </footer>
@@ -241,5 +282,6 @@
 <script src="app.js"></script>
 <script src="/js/device-links.js"></script>
 <script src="/js/make-event.js"></script>
+<script src="/js/event-chat.js"></script>
 </body>
 </html>

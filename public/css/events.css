@@ -89,6 +89,7 @@
 .ev-request-who { min-width: 0; }
 .ev-request-name { font-size: 16px; font-weight: 500; overflow-wrap: anywhere; }
 .ev-request-at { display: block; font-size: 13px; color: var(--ink-3); }
+.ev-chat-body { display: block; margin: 2px 0; font-size: 15px; white-space: pre-wrap; overflow-wrap: anywhere; }
 
 .ev-request-actions {
     display: flex;
