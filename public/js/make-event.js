@@ -218,10 +218,6 @@
         document.getElementById('event-made-url').textContent = url;
         document.getElementById('event-made-open').href = result.hostPath;
         document.getElementById('event-made-share').hidden = !navigator.share;
-        const email = body.hostEmail.trim();
-        const emailed = document.getElementById('event-made-emailed');
-        emailed.textContent = result.emailed ? `Sent to ${email}. Wrong address? Copy the link now.` : 'Could not email it. Copy it now.';
-        emailed.classList.toggle('ev-warn', !result.emailed);
         // Only the caveat: a working publish needs no line.
         const publish = document.getElementById('event-made-publish');
         publish.hidden = result.publishing;

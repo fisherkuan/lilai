@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const {
     validateEvent, googleEventResource, googleDescription, EventInputError, validateLinks,
     convertLegacyDescription, linkFromLegacyDescription, laterTimes, formValues, publishState,
-    newToken, hashToken, looksLikeToken, publicEvent, mailHostLink, newGoogleEventId, eventIdForGoogleId
+    newToken, hashToken, looksLikeToken, publicEvent, newGoogleEventId, eventIdForGoogleId
 } = require('../server/event-hosting');
 
 const NOW = new Date('2026-10-24T10:00:00Z');
@@ -195,11 +195,3 @@ test('the public view drops the host email and the publishing bookkeeping', () =
     assert.deepEqual(publicEvent(row), { id: 'x', title: 'T', host_name: 'Mei' });
 });
 
-test('the management link mail goes out only with a Resend key', async () => {
-    let sent = null;
-    const fetchImpl = async (url, init) => { sent = JSON.parse(init.body); return { ok: true }; };
-    assert.equal(await mailHostLink({ to: 'm@x.be', title: 'Hot pot', url: 'https://l/host/t' }, {}, fetchImpl), false);
-    assert.equal(await mailHostLink({ to: 'm@x.be', title: 'Hot pot', url: 'https://l/host/t', count: 6 }, { RESEND_API_KEY: 'k' }, fetchImpl), true);
-    assert.match(sent.text, /on 6 dates/);
-    assert.match(sent.text, /https:\/\/l\/host\/t/);
-});

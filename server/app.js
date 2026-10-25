@@ -1000,14 +1000,8 @@ app.post('/api/events', async (req, res) => {
     // The host's new name follows their email to their other devices.
     if (input.hostName) broadcastRenamed((await contacts.setName(signedIn, input.hostName)).renamedIn);
 
+    // No email: the host is signed in, and Profile lists every event that email hosts.
     const hostPath = `/host/${token}`;
-    const emailed = input.hostEmail
-        ? await hosting.mailHostLink({ to: input.hostEmail, title: input.title, url: publicUrl(req) + hostPath, count: ids.length })
-            .catch((error) => {
-                console.error('Host link mail failed:', error.message);
-                return false;
-            })
-        : false;
 
     res.status(201).json({
         success: true,
@@ -1016,7 +1010,6 @@ app.post('/api/events', async (req, res) => {
         count: ids.length,
         date: input.occurrences[0].start.toISOString(),
         hostPath,
-        emailed,
         publishing: Boolean(googleCalendar)
     });
 });
