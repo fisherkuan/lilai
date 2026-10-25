@@ -27,7 +27,7 @@ The server runs on `http://localhost:3000` by default (configurable via PORT env
 ### Database
 - PostgreSQL is used for production (connection via `DATABASE_URL` env var)
 - Database schema is auto-initialized on server startup via `initializeDatabase()` in server/app.js
-- Tables: `events`, `rsvps`, `places`, `admin_codes`, `admin_sessions`, `event_series`, `event_host_links`, `event_activity`, `calendar_keys`, `calendar_state`, `donations`, `feedback`, `booking_queue`, `booking_profiles`, `booking_series`, `contacts`, `contact_tokens`, `device_sessions`, `event_messages`, `event_message_likes`
+- Tables: `events`, `rsvps`, `places`, `admin_codes`, `admin_sessions`, `event_series`, `event_host_links`, `event_activity`, `calendar_keys`, `calendar_state`, `donations`, `feedback`, `booking_queue`, `booking_profiles`, `booking_series`, `contacts`, `contact_tokens`, `device_sessions`, `event_messages`, `event_message_likes`, `organizers`
 - `rsvps.attendance` is `yes` (holds a seat), `pending` (asked to join an approval event), `waiting` (on a full event's waiting list, in `timestamp, id` order) or `declined` (the host said no). Every count of who is coming filters on `yes`
 - Schema migrations are idempotent and run automatically on startup
 
@@ -74,9 +74,10 @@ Vanilla JavaScript with no build step.
 **Structure:**
 - `index.html` + `app.js` - Main event listing and RSVP interface
 - `admin-donations.html` + `js/admin-donations.js` - Donation management
-- `js/account-link.js` - The header's account link on every public page (Home, FAQ, Donate, host, calendar, sign-in): "Sign in", or "Profile" once this device signed in on `/me`; both open `/me`. It also adds "Admin" (to `/admin/bookings`, the star sprite, at the very end of the header) on all of them while the device carries the organiser flag (`lilaiOrganizer`, set on Home by `?admin=1` or five taps on its heading); below 360px the wordmark drops its name to make room. Home's sidebar "Sign in" link (`[data-signed-out]`) hides once signed in. The cookie is HttpOnly, so `js/me.js` keeps the note in `lilai.signedIn`. Admin pages keep their own sign-in
+- `js/account-link.js` - The header's account link on every public page (Home, FAQ, Donate, host, calendar, sign-in): "Sign in", or "Profile" once this device signed in on `/me`; both open `/me`. It also adds "Admin" (to `/admin/bookings`, the star sprite, at the very end of the header) on all of them when the signed-in address is an admin or a booking organiser (`AccountLink.roles()`, `GET /api/me/roles`, asked only when the device notes a sign-in; the old `lilaiOrganizer` flag, `?admin=1` and five taps on Home's heading were retired 2026-10-25); below 360px the wordmark drops its name to make room. Home's sidebar "Sign in" link (`[data-signed-out]`) hides once signed in. The cookie is HttpOnly, so `js/me.js` keeps the note in `lilai.signedIn`. Admin pages keep their own sign-in
 - `admin-login.html` + `js/admin-login.js` - Admin sign-in (`/admin/login?next=`): email, then the six-digit code (a full code signs in by itself)
 - `js/admin-session.js` - On Donations and Places: who is signed in, Sign out, and `AdminSession.adminFetch` (a 401 goes back to sign-in)
+- `admin-organisers.html` + `js/admin-organisers.js` - The booking organisers (`/admin/organisers`, admins only): add and remove the addresses that see the Admin link to the booking queue. Kept in the database (`server/organizers.js`), so the owner changes it without a deploy. Only they (and admins) may use the booking queue. `js/admin-nav.js` hides the admin-only tabs (Donations, Places, Organisers) on the booking pages for a device that is not an admin
 - `admin-places.html` + `js/admin-places.js` - The saved places (`/admin/places`, signed in): add (with "Find on Google Maps" filling name and address), edit, reorder, remove
 - `donations.html` + `js/donation.js` - Public donation submission page
 - `faq.html` + `js/faq.js` - FAQ page
@@ -129,7 +130,7 @@ Central configuration file with:
 - Places: an event stores the place's name in `location`, plus `location_address` and `place_id` when it was picked from the saved list or Google Maps. `validateEvent` takes a saved place (its spelling and address), a Google pick (a `placeId`), the place an edited event already had, or, with Google search off (`allowAnyPlace`), anything typed. `server/places.js` holds the saved list (table `places`, in memory, reloaded after each change). The Google copy's location is "name, address"
 - `server/google-calendar.js` - Service-account JWT sign-in and `insertEvent` / `updateEvent` / `deleteEvent` / `listEvents`, no SDK
 - `server/calendar-access.js` + `scripts/calendar-link.js` - Calendar keys (`calendar_keys`, hash only). `heroku run -a lilai-eu node scripts/calendar-link.js TSA --label "TSA admins"` prints a `/calendars/<token>` link once; `--revoke` stops the earlier ones. A key lets a device mint a management link for any event in that calendar; it no longer opens a restricted calendar for making events (since 2026-10-25). `writableCalendars` decides who makes events where; `/api/me` returns them as `writableCalendars`, which Make an event lists
-- Management links: `event_host_links` maps a token hash to one event or one series. Made when an event is made (shown on the made screen, never emailed since 2026-10-25: the host is signed in, and Profile mints a fresh one), when Profile's Manage is used, and when a calendar key holder opens Manage. No accounts, in line with the RSVP trust model; whoever has the link is a host
+- Management links: `event_host_links` maps a token hash to one event or one series. Made when an event is made (shown on the made screen, never emailed since 2026-10-25: the host is signed in, and Profile mints a fresh one), when Profile's Manage is used, when a calendar key holder opens Manage, and when an admin taps the key on a Home card (any event). No accounts, in line with the RSVP trust model; whoever has the link is a host
 - Every event has a host email (required since 2026-10-25, and since PR #70 the signed-in email: Make an event asks for a sign-in first, its link comes back to `/#new`, and the form shows the address with Change instead of an email field), so signing in is the one way back to a lost link; there is no admin recovery. The host name is only the host's place on the guest list, asked only when they join.
 - Sign-in (`server/contacts.js`, #55 phase 1; once called Find my events): any address gets a sign-in link and a six-digit code in one email (30 minutes, reusable until then; five wrong tries spend a code, stored as a hash in `contact_tokens.code_hash`, 3 an hour per address, 20 an hour per network), so one can sign in only to chat; the page then lists whatever events the address hosts (`events.host_email`, any case) or joined. Opening it confirms the address in `contacts` and sets the `lilai_session` cookie (90 days, `device_sessions`, hashes only). `rsvps.contact_email` exists for phase 2's "Email me about changes" and is already listed under "You joined". Delete my email clears the address from events and RSVPs, the contact's name, and its sessions; event and RSVP names stay. `contacts.name` is set only through a proven address: on sign-in from the latest event's host name, by Save on `/me` (`PUT /api/me/name`), or when a signed-in device makes an event with that email. Design: `.plans/VERIFIED_CONTACT_plan.md`
 - Activity: `event_activity` (`server/event-activity.js`) logs what happened to each event: made, joined, asked, left, accepted, declined, removed, readded, reasked, edited (with the fields that changed), cancelled, restored, and for the waiting list listed, leftlist, promoted, movedin, delisted, relisted. Each row is written in the transaction of the change it records. A row names the person a change was about, never who made it. When the table is first created it is seeded from the places and requests already in `rsvps`. The management page shows it (`activity` in `GET /api/host/:token`)
@@ -237,8 +238,9 @@ Required in `.env`:
 - `POST /api/me/link` - Body `{email}`. Mails a sign-in link to any address. 400 bad address, 429 too many tries from one network, 503 without email
 - `POST /api/me/session` - Body `{token}` (the link) or `{email, code}` (the six digits). Signs in and sets `lilai_session`; answers `{email, name}`, so the page can ask for a missing name. 401 when expired, or on `code` for a wrong or spent code
 - `GET /api/me` - `{email, name, chatMessages, upcoming, past, joined}` (a series shows once, with `count`), or 401
-- `POST /api/me/events/:eventId/manage` - A fresh management link (`created_via = 'email'`) for an event the address hosts; 404 otherwise
+- `POST /api/me/events/:eventId/manage` - A fresh management link (`created_via = 'email'`) for an event the address hosts; 404 otherwise. An admin (`ADMIN_EMAILS`, signed in on `/me` or the admin) gets one for any managed event (`created_via = 'admin'`): a silent co-host, named nowhere on the event. Home shows admins a key on every card for it (`checkAdminDevice` asks `/api/admin/session` only when the device notes a sign-in)
 - `PUT /api/me/name` - Body `{name}`; empty clears it. Renames the address's chat messages (see Chat in an event)
+- `GET /api/me/roles` - `{admin, organizer}` for the signed-in device (an admin counts as an organiser), or 401
 - `DELETE /api/me/session` - Sign out this device. `DELETE /api/me` - Delete my email
 
 ### Donation Endpoints
@@ -269,10 +271,11 @@ Required in `.env`:
 - `POST /api/bookings/:id/report-failure` - Mark a `sent` or `unconfirmed` request as `failed` by hand (KU Leuven refuses by email, which the app never sees). `failed` holds no quota, so the person's slot that week comes back. No undo
 
 ### Admin Sign-in Endpoints
-`server/admin-auth.js`. Guards `/admin/donations`, `/admin/places` (a page redirects to `/admin/login?next=`), `POST /api/donations` and the places writes (401). The booking queue stays open by design. Codes and sessions are stored as SHA-256 hashes; mail goes through Resend with `FEEDBACK_EMAIL_FROM`, so sign-in needs `RESEND_API_KEY` like the feedback mail.
+`server/admin-auth.js`. Guards `/admin/donations`, `/admin/places` (a page redirects to `/admin/login?next=`), `POST /api/donations` and the places writes (401). The booking queue takes its organisers too (see Booking Queue). Codes and sessions are stored as SHA-256 hashes; mail goes through Resend with `FEEDBACK_EMAIL_FROM`, so sign-in needs `RESEND_API_KEY` like the feedback mail.
 - `POST /api/admin/code` - Body `{email}`. An address on `ADMIN_EMAILS` gets a six-digit code valid ten minutes (five an hour); every other address gets the same answer and no mail. 503 `{message}` when the mail cannot go out
 - `POST /api/admin/session` - Body `{email, code}`. The right code (used once; five wrong tries spend it) sets the `lilai_admin` cookie: HttpOnly, SameSite=Lax, Secure in production, 30 days. 401 otherwise
 - `GET /api/admin/session` - `{email}` of the signed-in admin, or 401
+- `GET /api/organizers`, `POST /api/organizers` (`{email}`), `DELETE /api/organizers/:email` - The booking organisers, admins only; each answers the list
 - `DELETE /api/admin/session` - Sign out: the session row is deleted and the cookie cleared, and this device's `/me` session with it
 - A device signed in on `/me` (`lilai_session`) with an address on `ADMIN_EMAILS` is an admin too, with no code (`createAdminAuth({ emailOf })`)
 
@@ -281,6 +284,8 @@ Required in `.env`:
 - `GET /api/health` - Health check
 
 ## Booking Queue
+
+**Organisers only (since 2026-10-25; open to anyone with the address before).** `/admin/bookings`, `/admin/bookings/:id`, every `/api/bookings*`, `/api/booking-profiles*`, `/api/booking-series*` route and the `booking_update` broadcast take an admin, an address on the organisers list (`server/organizers.js`, edited on `/admin/organisers`) signed in on `/me`, or `X-Admin-Key` (`bookingAccess`, `requireOrganizer`, `requireOrganizerPage` in `app.js`). A signed-out page goes to `/me?next=`; a signed-in address not on the list gets `not-organiser.html` (403). A WebSocket is checked once, when it connects. `js/admin-nav.js` sends a booking request answered 401 to sign-in and 403 to that page.
 
 Queues KU Leuven sports-facility requests and submits them when the booking window
 opens — midnight Brussels, 14 days before the play date.

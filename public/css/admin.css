@@ -37,6 +37,13 @@
 }
 
 .admin-nav a:hover { color: var(--ink); }
+.admin-nav a[hidden] { display: none; }
+@media (max-width: 400px) {
+    .admin-nav a { padding: 0 var(--s2); }
+}
+@media (max-width: 340px) {
+    .admin-nav a { padding: 0 6px; font-size: 13px; }
+}
 
 .admin-nav a[aria-current="page"] {
     background: var(--paper-raised);

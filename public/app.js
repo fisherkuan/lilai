@@ -86,13 +86,14 @@ if ('serviceWorker' in navigator) {
 document.addEventListener('DOMContentLoaded', initializeApp);
 
 function initializeApp() {
-    setupAdminLink();
     wireAgenda();
 
     // Both event requests leave now instead of after /api/config answers,
     // so Home's three requests share one round trip.
     prefetchedEvents = fetchFutureEvents();
     prefetchedRail = fetchRailEvents();
+
+    checkAdminDevice();
 
     loadConfig().then(() => {
         buildCalendarStyles();
@@ -109,6 +110,34 @@ function initializeApp() {
     if (document.fonts && document.fonts.ready) {
         document.fonts.ready.then(syncDescriptionToggles);
     }
+}
+
+// An admin (ADMIN_EMAILS) signed in on this device sees Manage on every card, as a silent
+// co-host (AccountLink.roles asks only when the device notes a sign-in).
+let adminDevice = false;
+function checkAdminDevice() {
+    if (!window.AccountLink) return;
+    AccountLink.roles().then(r => {
+        if (!r.admin) return;
+        adminDevice = true;
+        if (currentEvents.length) displayEvents();
+    });
+}
+
+async function manageEvent(button) {
+    button.disabled = true;
+    try {
+        const res = await fetch(`${API_BASE_URL}/api/me/events/${encodeURIComponent(button.dataset.eventId)}/manage`, { method: 'POST' });
+        const body = await res.json().catch(() => ({}));
+        if (res.ok && body.hostPath) {
+            window.location.href = body.hostPath;
+            return;
+        }
+        alert(body.message || 'Could not open its management page.');
+    } catch (_) {
+        alert('Could not open its management page. Check your connection.');
+    }
+    button.disabled = false;
 }
 
 // ---------- Config ----------
@@ -518,82 +547,6 @@ function setupFilterPills() {
     });
 }
 
-// ---------- Organizer entry point ----------
-/*
- * The admin pages stay ungated on purpose: the handful of people who run events should not
- * have to log in to fix a typo. What is protected is discovery, not access. The string
- * "/admin" never appears in any served HTML, so view-source shows nothing and a crawler has
- * no link to follow. The header grows an Admin link only on a device that has been told once.
- *
- * Telling a device: open the site as /?admin=1. /?admin=0 makes it forget again, which is
- * what you use on a borrowed phone. The flag lives in localStorage, so it is per device and
- * per browser, and it survives nothing you did not do yourself.
- *
- * A home-screen app is a separate browser as far as storage goes: iOS gives it its own
- * localStorage, so the flag set in Safari does not follow it, and there is no address bar to
- * type ?admin=1 into. For that, five quick taps on the "Upcoming" heading flip the flag in
- * whatever browser the page is running in, the installed app included. Five more flip it back.
- *
- * Anyone who reads this file learns the path. That is the accepted cost, and it is the same
- * audience that would have typed /admin anyway.
- */
-const ADMIN_FLAG_KEY = 'lilaiOrganizer';
-const ORGANIZER_TAPS = 5;
-const ORGANIZER_TAP_WINDOW_MS = 3000;
-
-function isRememberedOrganizer() {
-    try {
-        return localStorage.getItem(ADMIN_FLAG_KEY) === '1';
-    } catch (error) {
-        return false;
-    }
-}
-
-function rememberOrganizer(on) {
-    try {
-        if (on) localStorage.setItem(ADMIN_FLAG_KEY, '1');
-        else localStorage.removeItem(ADMIN_FLAG_KEY);
-    } catch (error) {
-        /* private browsing: this visit still works, the device just will not remember */
-    }
-}
-
-function setupAdminLink() {
-    const params = new URLSearchParams(window.location.search);
-
-    if (params.has('admin')) {
-        rememberOrganizer(params.get('admin') !== '0');
-        // Drop the switch from the address bar so a shared or bookmarked URL does not carry it.
-        params.delete('admin');
-        const query = params.toString();
-        history.replaceState(null, '', window.location.pathname + (query ? `?${query}` : ''));
-    }
-
-    showAdminLink(isRememberedOrganizer());
-    listenForOrganizerTaps();
-}
-
-// The link itself lives in js/account-link.js, so every page with the header shows it.
-function showAdminLink(on) {
-    if (window.AccountLink) window.AccountLink.showAdmin(on);
-}
-
-function listenForOrganizerTaps() {
-    const heading = document.getElementById('rail-title');
-    if (!heading) return;
-    let taps = [];
-    heading.addEventListener('click', () => {
-        const now = Date.now();
-        taps = taps.filter(t => now - t < ORGANIZER_TAP_WINDOW_MS);
-        taps.push(now);
-        if (taps.length < ORGANIZER_TAPS) return;
-        taps = [];
-        const on = !isRememberedOrganizer();
-        rememberOrganizer(on);
-        showAdminLink(on);
-    });
-}
-
 // ---------- Load events ----------
 // Both modes initially load future events only.
 // 'all' mode additionally exposes "Load earlier events" to lazy-fetch past batches.
@@ -913,7 +866,12 @@ function renderEventCard(event, { isPast, isToday, prevNames }) {
         ? `<p class="waitlist-note">${escapeHtml(mine)} is ${ordinal(place)} on the waiting list</p>`
         : '';
 
-    let actions = `<div class="event-actions">${chat}</div>`;
+    // Admins only: a key opens the event's management page (checkAdminDevice).
+    const manage = adminDevice
+        ? `<button type="button" class="icon-action manage-trigger" data-event-id="${sanitizedEventId}" aria-label="Manage" title="Manage">`
+            + '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="12" r="3.5"/><path d="M11.5 12H21M18 12v3M15 12v2"/></svg></button>'
+        : '';
+    let actions = `<div class="event-actions">${chat}${manage}</div>`;
     if (!isPast) {
         // Every event carries the same weight: no lead event, no solid Join.
         const join = `<button type="button" class="btn btn-line rsvp-trigger-add" data-event-id="${sanitizedEventId}">${joinLabel(event)}</button>`;
@@ -923,7 +881,7 @@ function renderEventCard(event, { isPast, isToday, prevNames }) {
             ? `<button type="button" class="icon-action rsvp-trigger-remove" data-event-id="${sanitizedEventId}" aria-label="Remove a name" title="Remove a name">`
                 + '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 4.5H5.5v15H13M10 12h10M16.5 8.5 20 12l-3.5 3.5"/></svg></button>'
             : '';
-        actions = `<div class="event-actions">${join}${remove}${chat}</div>`;
+        actions = `<div class="event-actions">${join}${remove}${chat}${manage}</div>`;
     }
 
     const classes = ['event', `tone-${st.tone}`];
@@ -1243,6 +1201,12 @@ function setupEventListeners() {
             const ev = currentEvents.find(x => x.id === addBtn.dataset.eventId);
             if (!ev || new Date(ev.date) < new Date()) return;
             openRsvpModal(ev.id);
+            return;
+        }
+
+        const manageBtn = e.target.closest('.manage-trigger');
+        if (manageBtn) {
+            manageEvent(manageBtn);
             return;
         }
 
