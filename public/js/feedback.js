@@ -1,5 +1,5 @@
 /*
- * The header's bug button and the footer's "Send feedback" button, and their sheet, ported from splitly's feedback form.
+ * The header's bug button ("Report a bug") and its sheet, ported from splitly's feedback form.
  * It posts { message, email, page, files } to /api/feedback, which saves the message and
  * emails it to the owner. Files go base64 in the JSON body and reach the email only.
  *
@@ -36,7 +36,7 @@
         modal.innerHTML = `
             <form class="sheet feedback-sheet" novalidate>
                 <div class="sheet-head">
-                    <h3 class="sheet-title" id="feedback-title">Send feedback</h3>
+                    <h3 class="sheet-title" id="feedback-title">Report a bug</h3>
                     <button type="button" class="icon-btn" data-close aria-label="Close">${CLOSE_ICON}</button>
                 </div>
                 <p class="sheet-when">Something broken, missing or nice? It goes straight to Fisher.</p>
@@ -208,15 +208,6 @@
             // First after the wordmark, ahead of the links (owner, 2026-10-25).
             masthead.insertBefore(bug, masthead.querySelector('.app-header-links') || masthead.querySelector('[data-admin-link]'));
         }
-        const btn = document.createElement('button');
-        btn.type = 'button';
-        btn.className = 'feedback-btn';
-        btn.textContent = 'Send feedback';
-        btn.addEventListener('click', open);
-        // Beside the credit line, ahead of the theme switch that theme.js appends.
-        const credit = footer.querySelector('p');
-        if (credit) credit.after(btn);
-        else footer.prepend(btn);
         document.addEventListener('keydown', e => {
             if (e.key === 'Escape' && modal && !modal.classList.contains('hidden')) close();
         });
