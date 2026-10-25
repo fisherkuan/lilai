@@ -1726,13 +1726,22 @@ html.sheet-locked body {
 @media (min-width: 1000px) {
     .masthead { padding-top: var(--s4); padding-bottom: var(--s4); }
 
+    /* The sidebar's first card lines up with the first event card (owner, 2026-10-25): the
+       Upcoming | All switch and the calendar legend take rows of their own above the list,
+       so the side column starts where the cards do, whatever height those rows take. */
     .home {
         grid-template-columns: minmax(0, 1fr) 320px;
         grid-template-areas:
             "band band"
+            "tabs ."
+            "legend ."
             "list side";
         column-gap: var(--s8);
     }
+    .events-section { display: contents; }
+    .events-section > .list-head { grid-area: tabs; }
+    .events-section > .legend { grid-area: legend; margin-bottom: 0; }
+    .events-section > .event-list { grid-area: list; min-width: 0; }
     /* Rows view has no card list, so the rail and its rows take the left column. */
     .home.is-rows { grid-template-areas: "band side"; }
     .home.is-rows .sidebar { margin-top: var(--s4); }
@@ -1742,8 +1751,9 @@ html.sheet-locked body {
         align-self: start;
         position: sticky;
         top: var(--s4);
-        margin-top: var(--s6);
     }
+    /* The first card's own 12px top margin, so both tops meet. */
+    .home:not(.is-rows) .sidebar { margin-top: var(--s3); }
 }
 
 @media (prefers-reduced-motion: reduce) {
