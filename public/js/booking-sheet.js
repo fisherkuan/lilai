@@ -183,10 +183,11 @@
      * It used to be a grey strip at the top of the sheet, saying "Two slots per person per
      * week" before anyone had been picked — a rule where a fact belongs. It renders once
      * the server has answered for a real name and a real week, and not before: a count
-     * without the week it counts is the exact ambiguity people ask about.
+     * without the week it counts is the exact ambiguity people ask about. A full week says
+     * it in its own card, under the day, so the strip stands down.
      */
     function quotaStrip() {
-        if (!quota) return null;
+        if (!quota || quota.remaining === 0) return null;
         const pips = h('span', { class: 'bs-pips' });
         for (let i = 0; i < quota.limit; i += 1) {
             pips.append(h('span', { class: `bq-pip${i < quota.used ? ' used' : ''}` }));
@@ -585,7 +586,10 @@
         ];
     }
 
-    /** 1h: refuse and redirect. No waitlist — nothing here can guarantee a handover. */
+    /**
+     * 1h: refuse and redirect. No waitlist — nothing here can guarantee a handover. It sits
+     * under the day field, which stays live: another week is the usual way out.
+     */
     function stepFull() {
         const held = quota.entries.map((entry) => h('div', { class: 'bs-held' }, [
             h('div', {}, [
@@ -609,7 +613,8 @@
                     ' already holds these two:'
                 ]),
                 ...held,
-                h('p', { class: 'bs-note', text: 'Only a slot still waiting can be swapped. Once a request has gone to KU Leuven it counts against the week whatever they answer.' })
+                h('p', { class: 'bs-note', text: 'Only a slot still waiting can be swapped. Once a request has gone to KU Leuven it counts against the week whatever they answer.' }),
+                h('p', { class: 'bs-note', text: 'To book another week, change the day above.' })
             ])
         ];
     }
@@ -747,7 +752,9 @@
         const body = root.querySelector('.bs-body');
         const scroll = body.scrollTop;
         body.textContent = '';
-        const parts = full ? stepFull() : [...whoAndDay(), ...timesAndCourt(), ...whatNext()];
+        // A full week replaces the rest of the form, never the person and the day: a picker
+        // that lands on this week first (it opens on today) must not lock out the next one.
+        const parts = [...whoAndDay(), ...(full ? stepFull() : [...timesAndCourt(), ...whatNext()])];
         for (const part of parts) { if (part) body.append(part); }
         body.scrollTop = scroll;
 
