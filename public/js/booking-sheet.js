@@ -353,23 +353,22 @@
         // footer reads this field, so only the footer is refreshed while typing.
         sport.addEventListener('input', () => { draft.sport = sport.value.trim(); renderFooter(); });
 
-        const body = [
-            card(null, [stepWho()]),
-            card('Sport and day', [h('div', { class: 'bs-field' }, [
-                h('label', { class: 'bs-label', text: 'Sport' }),
-                sport,
-                h('p', { class: 'bs-note', text: 'Padel, tennis, table tennis and beach volleyball are booked through KU Leuven’s separate online tool, not this form.' })
-            ]),
-            h('div', { class: 'bs-field' }, [
-                h('label', { class: 'bs-label', text: 'Day you want to play' }),
-                dateBox(picker),
-                h('p', { class: 'bs-note', text: options.seasonEndsOn
-                    ? `Any day from today to ${prettyDate(options.seasonEndsOn)}, when this season's sports card runs out.`
-                    : 'Any day from today.' })
-            ])])
-        ];
+        const day = card('Sport and day', [h('div', { class: 'bs-field' }, [
+            h('label', { class: 'bs-label', text: 'Sport' }),
+            sport,
+            h('p', { class: 'bs-note', text: 'Padel, tennis, table tennis and beach volleyball are booked through KU Leuven’s separate online tool, not this form.' })
+        ]),
+        h('div', { class: 'bs-field' }, [
+            h('label', { class: 'bs-label', text: 'Day you want to play' }),
+            dateBox(picker),
+            h('p', { class: 'bs-note', text: options.seasonEndsOn
+                ? `Any day from today to ${prettyDate(options.seasonEndsOn)}, when this season's sports card runs out.`
+                : 'Any day from today.' })
+        ])]);
+        // render() keeps this card in place while it holds the focus.
+        day.dataset.part = 'day';
 
-        return body;
+        return [card(null, [stepWho()]), day];
     }
 
     function timesAndCourt() {
@@ -751,11 +750,25 @@
         // Every choice repaints the page, so keep the reader where they were.
         const body = root.querySelector('.bs-body');
         const scroll = body.scrollTop;
-        body.textContent = '';
+        /*
+         * The day card stays where it is while the focus is inside it. iOS fills an empty
+         * date field with today the moment its picker opens, and a repaint that took the
+         * field out of the page shut the picker before anyone had picked. Nothing in that
+         * card depends on the quota, so the next repaint after the focus leaves catches up.
+         */
+        const focused = document.activeElement;
+        const kept = focused && body.contains(focused) ? focused.closest('[data-part="day"]') : null;
+        for (const child of [...body.children]) { if (child !== kept) child.remove(); }
         // A full week replaces the rest of the form, never the person and the day: a picker
         // that lands on this week first (it opens on today) must not lock out the next one.
         const parts = [...whoAndDay(), ...(full ? stepFull() : [...timesAndCourt(), ...whatNext()])];
-        for (const part of parts) { if (part) body.append(part); }
+        let beforeKept = Boolean(kept);
+        for (const part of parts) {
+            if (!part) continue;
+            if (kept && part.dataset.part === 'day') { beforeKept = false; continue; }
+            if (beforeKept) body.insertBefore(part, kept);
+            else body.append(part);
+        }
         body.scrollTop = scroll;
 
         root.querySelector('.bs-step').textContent = full ? 'That week is full' : '';
