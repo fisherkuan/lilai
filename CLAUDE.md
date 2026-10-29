@@ -344,14 +344,6 @@ DATABASE_URL=postgresql://localhost/lilai_staging PUBLIC_URL=http://localhost:31
 - No `BOOKING_SUBMIT=live`, so booking requests stop short of KU Leuven (`not_sent`)
 - No `RESEND_API_KEY`, so feedback is saved and never emailed
 
-To try it from a phone, publish the local server on the tailnet over HTTPS. Only devices signed in to the owner's tailnet can reach it:
-```bash
-tailscale serve --bg 3100      # https://<machine>.<tailnet>.ts.net -> localhost:3100; `tailscale serve status` shows the name
-PUBLIC_URL=https://<machine>.<tailnet>.ts.net  # in the start command above, so management links and emails point there
-tailscale serve --https=443 off  # stop publishing
-```
-Use the `https://…ts.net` address, never `http://100.x.y.z:3100`. Over plain http on a non-localhost address the browser has no secure context: Copy link (`navigator.clipboard`), Web Share and the service worker do not work. WebSockets pass through `tailscale serve`.
-
 ## Deployment Notes
 
 Taking the calendars over (once, when this lands in production):
