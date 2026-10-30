@@ -770,7 +770,7 @@
         // that lands on this week first (it opens on today) must not lock out the next one.
         const parts = [...whoAndDay(), ...(full ? stepFull() : [...timesAndCourt(), ...whatNext()])].filter(Boolean);
         /*
-         * The card (`data-part`) that holds the focus stays where it is. iOS fills an empty
+         * The card (`data-part`) that holds a focused date field stays where it is. iOS fills an empty
          * date field with today the moment its picker opens, and a repaint that took the
          * field out of the page shut the picker before anyone had picked. That covers the
          * day card and the repeat card's "Until". The next repaint after the focus leaves
@@ -778,7 +778,8 @@
          * (`data-live`), so the preview for the picked date is already right.
          */
         const focused = document.activeElement;
-        const holder = focused && body.contains(focused) ? focused.closest('[data-part]') : null;
+        const holder = focused && body.contains(focused) && focused.matches('input[type="date"]')
+            ? focused.closest('[data-part]') : null;
         const fresh = holder ? parts.find((part) => part.dataset.part === holder.dataset.part) : null;
         const kept = fresh ? holder : null;
         if (kept) {

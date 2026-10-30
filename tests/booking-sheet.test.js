@@ -86,3 +86,19 @@ test('once the focus leaves Until, the next repaint shows the preview for the pi
     assert.equal(until(window).value, '2026-11-11');
     assert.match(document.querySelector('.bs-preview').textContent, /2 bookings/);
 });
+
+test('a repeat unit changed while its select has the focus rebuilds the card, without the weekday ticks', async () => {
+    const window = await openSheet();
+    const { document } = window;
+    [...document.querySelectorAll('.bs-body button')].find((b) => b.textContent === 'Repeat').click();
+    assert.ok(document.querySelector('.bs-pills-days'), 'weekday ticks show for a weekly rule');
+
+    const select = document.querySelector('[data-part="repeat"] select.bs-unit');
+    select.focus();
+    select.value = 'day';
+    select.dispatchEvent(new window.Event('change', { bubbles: true }));
+    await tick();
+
+    assert.equal(document.querySelector('.bs-pills-days'), null);
+    assert.equal(document.querySelector('[data-part="repeat"] select.bs-unit').value, 'day');
+});
