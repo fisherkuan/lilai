@@ -449,7 +449,7 @@
                 ]),
                 h('p', { class: 'bs-note' }, example)
             ])]),
-            card(null, [repeatField()]),
+            repeatCard(),
             card('Players and court', detailFields())
         ];
     }
@@ -470,6 +470,20 @@
         [1, 'Mon'], [2, 'Tue'], [3, 'Wed'], [4, 'Thu'], [5, 'Fri'], [6, 'Sat'], [0, 'Sun']
     ];
 
+    // render() keeps this card in place while "Until" holds the focus.
+    function repeatCard() {
+        const repeat = card(null, [repeatField()]);
+        if (repeat) repeat.dataset.part = 'repeat';
+        return repeat;
+    }
+
+    // A tap on a button leaves the focus in a date field on iOS, and render() would then
+    // keep a card these buttons are about to change.
+    function releaseFocus() {
+        const focused = document.activeElement;
+        if (focused && focused.blur) focused.blur();
+    }
+
     function repeatField() {
         if (draft.editingId) return null;
 
@@ -478,6 +492,7 @@
             draft.editingSeriesId ? null : segment([false, true], draft.repeatOn, (value) => {
                 draft.repeatOn = value;
                 if (!value) preview = null;
+                releaseFocus();
                 render();
                 if (value) refreshPreview();
             }, (value) => value ? 'Repeat' : 'Just once')
@@ -522,6 +537,7 @@
                         draft.repeatWeekdays = draft.repeatWeekdays.includes(day)
                             ? draft.repeatWeekdays.filter((picked) => picked !== day)
                             : [...draft.repeatWeekdays, day].sort((a, b) => a - b);
+                        releaseFocus();
                         render();
                         refreshPreview();
                     }
@@ -552,7 +568,7 @@
 
         // Whatever the server says the rule expands to, verbatim — including its refusals.
         const dates = preview ? preview.dates : [];
-        parts.push(h('p', { class: 'bs-preview', text: !draft.repeatUntil
+        parts.push(h('p', { class: 'bs-preview', 'data-live': 'preview', text: !draft.repeatUntil
             ? 'Pick the last day to see what this books.'
             : preview && preview.message ? preview.message
                 : dates.length === 0 ? 'Working out the dates…'
@@ -750,22 +766,32 @@
         // Every choice repaints the page, so keep the reader where they were.
         const body = root.querySelector('.bs-body');
         const scroll = body.scrollTop;
-        /*
-         * The day card stays where it is while the focus is inside it. iOS fills an empty
-         * date field with today the moment its picker opens, and a repaint that took the
-         * field out of the page shut the picker before anyone had picked. Nothing in that
-         * card depends on the quota, so the next repaint after the focus leaves catches up.
-         */
-        const focused = document.activeElement;
-        const kept = focused && body.contains(focused) ? focused.closest('[data-part="day"]') : null;
-        for (const child of [...body.children]) { if (child !== kept) child.remove(); }
         // A full week replaces the rest of the form, never the person and the day: a picker
         // that lands on this week first (it opens on today) must not lock out the next one.
-        const parts = [...whoAndDay(), ...(full ? stepFull() : [...timesAndCourt(), ...whatNext()])];
+        const parts = [...whoAndDay(), ...(full ? stepFull() : [...timesAndCourt(), ...whatNext()])].filter(Boolean);
+        /*
+         * The card (`data-part`) that holds a focused date field stays where it is. iOS fills an empty
+         * date field with today the moment its picker opens, and a repaint that took the
+         * field out of the page shut the picker before anyone had picked. That covers the
+         * day card and the repeat card's "Until". The next repaint after the focus leaves
+         * catches the card up; until then, what it shows of the draft is patched in place
+         * (`data-live`), so the preview for the picked date is already right.
+         */
+        const focused = document.activeElement;
+        const holder = focused && body.contains(focused) && focused.matches('input[type="date"]')
+            ? focused.closest('[data-part]') : null;
+        const fresh = holder ? parts.find((part) => part.dataset.part === holder.dataset.part) : null;
+        const kept = fresh ? holder : null;
+        if (kept) {
+            for (const live of fresh.querySelectorAll('[data-live]')) {
+                const old = kept.querySelector(`[data-live="${live.dataset.live}"]`);
+                if (old) old.textContent = live.textContent;
+            }
+        }
+        for (const child of [...body.children]) { if (child !== kept) child.remove(); }
         let beforeKept = Boolean(kept);
         for (const part of parts) {
-            if (!part) continue;
-            if (kept && part.dataset.part === 'day') { beforeKept = false; continue; }
+            if (kept && part === fresh) { beforeKept = false; continue; }
             if (beforeKept) body.insertBefore(part, kept);
             else body.append(part);
         }
